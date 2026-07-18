@@ -20,7 +20,7 @@ step is wiring the geophone into the ADC (differential + bias + shunt).
 - [x] **Phase 0** — Pi prepped (OS, SPI, pigpio, PiPyADC)
 - [x] **Phase 1** — ADC reads a known source (AA cell → 1.29 V on AIN0)
 - [x] **Phase 2a** — geophone connected, twitches on taps (life-check)
-- [x] **Enclosure v1** — geophone coupling pocket (`parts/geophone_base.py`) prints, seats solid
+- [x] **Enclosure v1** — geophone coupling pocket (`parts/geophone_base.py`) prints; boss removed after ink test, reprint pending rim-contact re-check
 - [ ] **ADC-end wiring** — solder XLR to geophone (done? see below), land differential + bias + shunt at the board
 - [ ] **Phase 2b** — fast sampler (100–200 sps) + differential/biased front-end + log/plot
 - [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical)
@@ -51,7 +51,8 @@ step is wiring the geophone into the ADC (differential + bias + shunt).
 
 ## Enclosure
 
-- `parts/geophone_base.py`: 25.8 mm bore (25.4 + 0.4), 36 mm deep, flat coupling floor, centering boss into the bottom recess, wire-exit notch. **31.8 mm ⌀ × 40 mm.** Prints flat-base-down, no supports. **Fit confirmed: seats solid, boss does not lift it.**
+- `parts/geophone_base.py`: 25.8 mm bore (25.4 + 0.4), 36 mm deep, flat coupling floor, wire-exit notch. **31.8 mm ⌀ × 40 mm.** Prints flat-base-down, no supports.
+- **Boss removed (ink test, 2026-07-17):** a 2 mm centering boss bottomed out in the geophone's shallow ~1 mm bottom recess and lifted it — ink transferred only at the center, so the rim wasn't seating. Now a flat floor; the glove-fit bore centers it. **Reprint pending: re-ink should show a full annular rim contact, not a dot.**
 - **Mount = museum putty** on the flanks (NOT under the element — a compliant layer under a vertical geophone would low-pass the signal). No printed clamp.
 - Still to model: **Pi/ADC tray** on the same shell, then a **lid**. Single combined case, flat base, no leveling feet.
 

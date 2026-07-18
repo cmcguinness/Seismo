@@ -17,9 +17,11 @@ wall = 3.0                                   # pocket wall thickness
 floor = 4.0                                  # coupling floor thickness
 bore_dia = geophone_dia + 2 * fit_clearance  # slip-fit bore (tune fit_clearance)
 pocket_depth = geophone_height               # element ends ~flush with the rim
-boss_dia = 9.0                               # centering boss -> bottom recess
-boss_height = 2.0                            # < recess depth so the rim still seats
 wire_slot_w = 6.0                            # top-rim notch for the terminal leads
+# NOTE: no centering boss. Ink test (2026-07-17) showed a 2mm boss bottomed out
+# in the geophone's shallow ~1mm bottom recess and lifted it off its rim -> only
+# the center made contact. Flat floor instead: the full bottom rim seats (broad,
+# rigid coupling); the glove-fit bore handles centering.
 
 outer_dia = bore_dia + 2 * wall
 total_h = floor + pocket_depth
@@ -34,10 +36,7 @@ with BuildPart() as geophone_base:
         Cylinder(bore_dia / 2, pocket_depth + 1,
                  align=(Align.CENTER, Align.CENTER, Align.MIN),
                  mode=Mode.SUBTRACT)
-    # centering boss on the floor
-    with Locations((0, 0, floor)):
-        Cylinder(boss_dia / 2, boss_height,
-                 align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # (no centering boss — flat floor so the geophone's bottom rim seats fully)
     # wire-exit notch in the top rim
     with Locations((0, outer_dia / 2, total_h)):
         Box(wire_slot_w, 2 * wall + 2, 8,
