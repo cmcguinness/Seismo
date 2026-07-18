@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# CAD build output
+stl/
+
+# IDE
+.idea/
+
+# OS
+.DS_Store
