@@ -1,19 +1,21 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-17 (evening)_
+_Last updated: 2026-07-19_
 
 ## Where we are
 
-**Hardware bring-up COMPLETE** and the **geophone holder is printed and fits.**
-The full signal chain is validated on real hardware: geophone → ADS1256 → SPI →
-pigpio → PiPyADC → Python, reading on the Pi (geophone twitches on taps; a AA
-cell read 1.29 V). The 3D-printed coupling pocket prints clean and the geophone
-**seats solid on the floor** (glove fit — museum putty now optional, not
-structural).
+**Hardware bring-up + the mechanical base are DONE.** The signal chain is
+validated on real hardware (geophone → ADS1256 → SPI → pigpio → PiPyADC → Python;
+geophone twitches on taps; a AA cell read 1.29 V). The combined 3D-printed base
+(geophone pocket + Pi 2B mount + cotter-pin retention) is printed and fits, and
+the geophone is **soldered to its XLR cable and validated** (coil ohms + movement
+response good).
 
-The gate to a working *instrument* is now the **fast sampler** — software that
-renders the 4.5 Hz waveform (the demo tool samples too slowly). Next hardware
-step is wiring the geophone into the ADC (differential + bias + shunt).
+Remaining gates to a working *instrument*: (1) land the geophone at the ADC with
+the differential + bias + shunt front-end, and (2) write the **fast sampler** —
+the software that actually renders the 4.5 Hz waveform (the demo tool at ~2 sps
+can't). Crimp-ferrule kit inbound to re-terminate the tinned cable ends for the
+permanent build.
 
 ## Milestone map (bring-up order — specification.md §6)
 
@@ -21,7 +23,7 @@ step is wiring the geophone into the ADC (differential + bias + shunt).
 - [x] **Phase 1** — ADC reads a known source (AA cell → 1.29 V on AIN0)
 - [x] **Phase 2a** — geophone connected, twitches on taps (life-check)
 - [x] **Enclosure v1** — geophone pocket (`geophone_base.py`, seats solid) + combined Pi/geophone base (`chassis.py`, Pi 2B mount + cotter-pin retention), both printed and fitting
-- [ ] **ADC-end wiring** — solder XLR to geophone (done? see below), land differential + bias + shunt at the board
+- [~] **ADC-end wiring** — XLR soldered to geophone + validated ✓; still to land differential + bias + shunt at the board (ferrule the ends first)
 - [ ] **Phase 2b** — fast sampler (100–200 sps) + differential/biased front-end + log/plot
 - [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical)
 - [ ] **Phase 4** — station software (miniSEED / helicorder)
@@ -32,7 +34,7 @@ step is wiring the geophone into the ADC (differential + bias + shunt).
 - **Sensor:** LGT-4.5 bare 1" element. Coil **385 Ω** measured. **25.4 mm ⌀ × 36 mm, 74 g.** Bottom = flat rim + central recess. Top = offset green board, two solder pins (one `+`, one marked; **red wire = +, white = −** on our cable).
 - **ADC:** Waveshare High-Precision AD/DA (ADS1256).
 - **Pi:** Raspberry Pi **2B** (32-bit), Bookworm Lite 32-bit, `seismo.local`, USB Wi-Fi dongle. PSU 5 V / 2.5 A.
-- **Cable:** salvaged **XLR** (shielded twisted pair), ~1 m, coiled slack. red=+/white=−, braid=shield.
+- **Cable:** salvaged **XLR** (shielded twisted pair), ~1 m, coiled slack. red=+/white=−, braid=shield. **Soldered to the geophone + validated** (ohms + movement). Ends tinned for test insertion; **re-terminate with crimp ferrules** for the permanent build — tinned strands cold-flow/loosen under screw terminals. Shield → AGND at the board end only.
 
 ## Software as-built (on the Pi, `~/seismo`)
 
@@ -63,6 +65,12 @@ step is wiring the geophone into the ADC (differential + bias + shunt).
 - **`JMP_AGND`** (AINCOM ↔ AGND): jumpered — required for single-ended reads.
 - **Right block top:** VCC selector (`5V/VCC/3V3`) = analog AVDD; VREF selector (`5V/VREF/3V3`). **Both on 3V3** (works). ADS1256 wants AVDD=5 V for best noise floor, but jumpering "to 5 V" **hard-locked the Pi even on a 2.5 A supply** → almost certainly a 3-pin cap shorting 5 V↔3V3. Revisit carefully, Pi OFF, pins verified.
 - **Right block bottom:** `AD0–ADJ` (pot) / `AD1–LDR` (photoresistor) = demo sensors, not jumpered. We use the **screw terminals** (`AD7…AD0 AGND VCC GND DAC1 DAC0`) instead.
+
+## Decisions & deferred
+
+- **Accelerometer: not for v1.** The geophone is the sensitive weak-motion sensor; a MEMS accel is strong-motion class and adds nothing to detection sensitivity. If ever added (horizontal components / big-local-quake capture), use the **ADXL355** (~25 µg/√Hz, 20-bit — what OpenEEW / the Raspberry Shake strong-motion units use), **not** the ADXL345 (~300 µg/√Hz, consumer-grade, useless here). 6 free ADS1256 channels available. Add-on, not a gap.
+- **Ferrules, not tinned ends, in screw terminals** — see the cable note above.
+- **5 V AVDD jumper deferred** — currently on 3V3 (works); see jumper cheat-sheet for the lock-up caution before revisiting.
 
 ## Open threads (pick next session)
 
