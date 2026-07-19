@@ -41,9 +41,10 @@ plate_th = 4.0
 margin = 6.0
 gap = 5.0                       # clearance between Pi board edge and pocket
 standoff_dia = 6.0
-pin_dia = pi_hole_dia - 0.2     # locating pin (slip fit through the Pi hole)
+pin_dia = pi_hole_dia - 0.15    # locating pin (snug slip fit through the Pi hole)
 pin_extra = 5.0                 # protrudes above the board for the cotter
-cotter_hole_dia = 1.2           # transverse hole for an improvised cotter/wire
+cotter_hole_dia = 1.5           # transverse hole for a solid-wire cotter (near the
+                                # max the ~2.6mm pin allows before walls get too thin)
 
 # geophone pocket: off the +X short edge (the port-free DSI end), centered on the
 # board's width.
@@ -96,10 +97,11 @@ with BuildPart() as chassis:
     with Locations(*[(px, py, plate_th + pi_standoff_h) for px, py in gpio_pin_pts]):
         Cylinder(pin_dia / 2, pin_extra,
                  align=(Align.CENTER, Align.CENTER, Align.MIN))
-    # transverse cotter hole in each pin, ~1.5mm above the board top (axis along X).
-    # Drill/ream clean to your wire size after printing.
+    # transverse cotter hole in each pin, ~1.5mm above the board top. Axis along Y
+    # (perpendicular to the GPIO header on the -Y edge) so the wire inserts toward
+    # open space, not alongside the header. Drill/ream clean after printing.
     cotter_z = plate_th + pi_standoff_h + pi_board_th + 1.5
-    with Locations(*[Location((px, py, cotter_z), (0, 90, 0)) for px, py in gpio_pin_pts]):
+    with Locations(*[Location((px, py, cotter_z), (90, 0, 0)) for px, py in gpio_pin_pts]):
         Cylinder(cotter_hole_dia / 2, pin_dia + 2, mode=Mode.SUBTRACT)
 
 show(chassis)
