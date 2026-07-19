@@ -16,3 +16,19 @@ geophone_mass_g = 74      # informs base-mass / coupling reasoning
 
 # --- Print / fit tuning ---
 fit_clearance = 0.2       # radial slip-fit gap added to bores (FDM, PLA/PETG)
+
+# --- Raspberry Pi 2B (mounting) ---
+pi_len = 85.0             # board long dimension
+pi_wid = 56.0             # board short dimension
+pi_hole_dx = 58.0         # mounting-hole rectangle, long axis
+pi_hole_dy = 49.0         # mounting-hole rectangle, short axis
+pi_hole_offset_x = -10.0  # hole-block center offset from board center along length
+                          # (holes sit 3.5mm from one short edge, 23.5mm from the other)
+pi_hole_dia = 2.75        # Pi mounting hole (M2.5 clearance)
+pi_standoff_h = 6.0       # lift board off base; clears bottom SMD + the nuts
+                          # protruding under the Pi<->HAT standoff holes (~2-4mm)
+pi_board_th = 1.6         # Pi PCB thickness (~1.4mm) + a hair; sets cotter-hole height
+dongle_clearance = 45.0   # -X (USB) side: Wi-Fi dongle reaches ~45mm past the board
+                          # edge (USB-A connectors ~15mm). Sizes the future wall's
+                          # dongle slot; the plate only underlies the USB connectors.
+

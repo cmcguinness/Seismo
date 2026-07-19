@@ -20,7 +20,7 @@ step is wiring the geophone into the ADC (differential + bias + shunt).
 - [x] **Phase 0** — Pi prepped (OS, SPI, pigpio, PiPyADC)
 - [x] **Phase 1** — ADC reads a known source (AA cell → 1.29 V on AIN0)
 - [x] **Phase 2a** — geophone connected, twitches on taps (life-check)
-- [x] **Enclosure v1** — geophone coupling pocket (`parts/geophone_base.py`) prints; boss removed after ink test, reprint pending rim-contact re-check
+- [x] **Enclosure v1** — geophone pocket (`geophone_base.py`, seats solid) + combined Pi/geophone base (`chassis.py`, Pi 2B mount + cotter-pin retention), both printed and fitting
 - [ ] **ADC-end wiring** — solder XLR to geophone (done? see below), land differential + bias + shunt at the board
 - [ ] **Phase 2b** — fast sampler (100–200 sps) + differential/biased front-end + log/plot
 - [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical)
@@ -52,9 +52,10 @@ step is wiring the geophone into the ADC (differential + bias + shunt).
 ## Enclosure
 
 - `parts/geophone_base.py`: 25.8 mm bore (25.4 + 0.4), 36 mm deep, flat coupling floor, wire-exit notch. **31.8 mm ⌀ × 40 mm.** Prints flat-base-down, no supports.
-- **Boss removed (ink test, 2026-07-17):** a 2 mm centering boss bottomed out in the geophone's shallow ~1 mm bottom recess and lifted it — ink transferred only at the center, so the rim wasn't seating. Now a flat floor; the glove-fit bore centers it. **Reprint pending: re-ink should show a full annular rim contact, not a dot.**
+- **Boss removed (ink test, 2026-07-17):** a 2 mm centering boss bottomed out in the geophone's shallow ~1 mm bottom recess and lifted it — ink transferred only at the center. Removed; flat floor now, glove-fit bore centers it. **Reprinted + re-inked: full rim contact, seats solid. ✓**
 - **Mount = museum putty** on the flanks (NOT under the element — a compliant layer under a vertical geophone would low-pass the signal). No printed clamp.
-- Still to model: **Pi/ADC tray** on the same shell, then a **lid**. Single combined case, flat base, no leveling feet.
+- `parts/chassis.py`: combined base — geophone pocket (+X, port-free DSI end) + Raspberry Pi 2B mount. **~148 × 68 mm** (fits A1 Mini). Pi held by 2 locating pins in the free GPIO-side holes + 1 flat support post between the USB-side standoff nuts; pins stand proud with a transverse **cotter-pin hole** (solid wire) that retains the board. **Layout confirmed against the real Pi 2B:** GPIO/pins on −Y long edge; power/HDMI/nuts/HAT-terminals on +Y; USB/Ethernet/dongle on −X short edge; geophone on +X. **Printed and fits — Pi, geophone, and cotter all good.**
+- Still to model: **walls** (power-connector cutout on +Y, Wi-Fi **dongle slot** on −X) + a **lid**. Single combined case, flat base, no leveling feet. Consider a plate slot between Pi and pocket to break the vibration path.
 
 ## Board jumper cheat-sheet (this board shipped with jumpers OFF)
 
@@ -68,6 +69,6 @@ step is wiring the geophone into the ADC (differential + bias + shunt).
 1. **Wire the ADC end** — differential + bias network + shunt in the screw terminals.
 2. **Fast sampler** — read AD0/AD1 differentially at 100–200 sps, log + plot. ← software gate
 3. **Tune the damping shunt** against the observed ring.
-4. **Model the Pi/ADC tray + lid** (mechanical, non-blocking).
+4. **Model the case walls + lid** (power cutout on +Y, dongle slot on −X; the Pi/geophone base is done) — mechanical, non-blocking.
 5. Resolve the **5 V AVDD** jumper safely (noise floor).
 6. Station software (miniSEED/helicorder) — `will127534/RaspberryPi-seismograph` is thin/stale; reassess.
