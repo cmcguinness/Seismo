@@ -175,6 +175,30 @@ the site questions far more cheaply.
   no neighborhood cabling. The full-bedrock refraction *image* is the true
   lottery item.
 
+## Broadcast via SeedLink (graduate from recording -> contributing)
+
+Run a **SeedLink server** on the Pi so the real-time stream can be *subscribed to*
+and *ingested* by aggregators — the step from a private recorder to a station on
+"everybody's map" (ShakeNet-style). SeedLink is seismology's real-time pub/sub
+standard (the APRS-IS / MQTT-broker analog).
+
+- **How:** EarthScope/IRIS **`ringserver`** is the lightweight, Pi-friendly
+  SeedLink server — point it at a miniSEED ring the recorder feeds. (SeisComP's
+  seedlink is the heavyweight alternative.) The recorder would write into the ring
+  buffer instead of / in addition to day-files.
+- **Gated on metadata cleanup first** (a broadcast station needs to be legit):
+  - **Stable sample rate** — the RDATAC fix (no 55/57 wander, no gaps).
+  - **StationXML** — station/channel metadata + instrument response (coords done:
+    38.451817, -122.621049; still need response: geophone 4.5 Hz, 28.8 V/m/s, ADC).
+  - **A real network identity** — `XX` is fine for private/testing but NOT for
+    contributing. Either register an FDSN network code, or just **be a Raspberry
+    Shake** (auto-joins ShakeNet as `AM`, zero effort — the turnkey path).
+- **The tension (already felt with the XX/AM choice):** "independent" and "on
+  everybody's map" pull opposite ways. Private `XX` on disk vs. registered +
+  SeedLink-broadcast + aggregated. This item is the deliberate choice to go public.
+- **Payoff:** live on StationView-style maps, data queryable alongside pro
+  networks, and you can pull your own stream with Swarm / ObsPy SeedLink client.
+
 ## Other
 
 - **STEIM2 compression** for the recorder (currently int32 uncompressed, ~19 MB/day).
