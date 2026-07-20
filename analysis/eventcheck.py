@@ -28,8 +28,8 @@ import matplotlib.pyplot as plt
 
 from helicorder import LOCAL_DATA, pull
 
-# Station location — Oakmont, Santa Rosa (APPROXIMATE; set to the real sensor site).
-STA_LAT, STA_LON = 38.435, -122.615
+# Station location — Oakmont, Santa Rosa (measured at the sensor site).
+STA_LAT, STA_LON = 38.451817, -122.621049
 VP, VS = 6.0, 3.46               # local crustal P/S velocities (km/s), Vp/Vs≈1.73
 
 
