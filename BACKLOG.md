@@ -193,6 +193,15 @@ standard (the APRS-IS / MQTT-broker analog).
   - **A real network identity** — `XX` is fine for private/testing but NOT for
     contributing. Either register an FDSN network code, or just **be a Raspberry
     Shake** (auto-joins ShakeNet as `AM`, zero effort — the turnkey path).
+  - **ShakeNet is CLOSED to DIY hardware.** ShakeNet/`AM` is device-gated — only
+    Raspberry Shake's own hardware+software, because `AM` guarantees a *known,
+    consistent instrument response* across the fleet (metadata integrity, not
+    gatekeeping). Our homebrew rig can't join it. So the ONLY DIY route to the
+    global aggregate is **the independent path**: register our own FDSN network +
+    author our own **StationXML** (we can characterize our own response: 4.5 Hz /
+    28.8 V/m/s geophone + ADC gain) + run SeedLink. Different map, same federation.
+    (Or buy an actual Shake for ShakeNet, and dual-stream: `AM` copy to them + a
+    self-labeled copy to our own network.)
 - **The tension (already felt with the XX/AM choice):** "independent" and "on
   everybody's map" pull opposite ways. Private `XX` on disk vs. registered +
   SeedLink-broadcast + aggregated. This item is the deliberate choice to go public.
