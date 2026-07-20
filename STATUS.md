@@ -28,9 +28,16 @@ station now records 24/7 to `~/seismo/data/*.mseed` unattended.
 
 **Public dashboard — DEPLOYED** (2026-07-20): heavy work runs OFF the 1 GB Pi 2B on
 LAN hardware. **Pi 2B = acquire** (recorder + STA/LTA, owns the ADC), **Pi 5 (16 GB,
-Dokku) = render/serve**, **Jetson = future ML** (backlog). Live at
-**http://seismo.pi5.mcguinness.ai** (LAN only; NO Let's Encrypt — can't ACME-verify
-a non-public host; use a tunnel if ever exposing it).
+Dokku) = render/serve**, **Jetson = future ML** (backlog). Live at **https://seismo.mcguinness.ai** (PUBLIC, via Cloudflare Tunnel) — also
+`http://seismo.pi5.mcguinness.ai` on the LAN.
+- **Public exposure = Cloudflare Tunnel** (`cloudflared` on pi5, systemd service).
+  mcguinness.ai is on Cloudflare, so: `cloudflared tunnel login` (interactive, done)
+  → `cloudflared tunnel create seismo` → `cloudflared tunnel route dns --overwrite-dns
+  seismo seismo.mcguinness.ai` → `/etc/cloudflared/config.yml` (ingress
+  `seismo.mcguinness.ai → http://localhost:80`, tunnel id + creds) → `cloudflared
+  service install`. Also `dokku domains:add seismo seismo.mcguinness.ai` so nginx
+  serves that Host. Outbound-only (no port-forward, home IP hidden), TLS by
+  Cloudflare. NO Let's Encrypt (the tunnel handles TLS; Dokku host is LAN-only).
 - **Pipeline:** host-level `seismo-rsync.timer` on pi5 mirrors
   `seismo.local:~/seismo/{data,events.log}` → `~/seismo-data/` every minute. Dokku
   app `seismo` (`dashboard/`: FastHTML + ObsPy, Dockerfile) renders helicorder/
