@@ -146,6 +146,35 @@ clay alluvium, `f0` ~1–2 Hz — but only a measurement settles it.
   (map → wells → prediction → instrument measures its own foundation) and tells
   us whether the ~1–2 Hz peaks we see are site or structure.
 
+## Active-source survey (someday / "if I win the lottery" tier)
+
+DIY seismic **refraction / MASW** — hit the ground with a source, record the
+arrivals, invert for a Vs/depth profile (or image the bedrock interface). Real
+citizen science, but it's a whole *separate* rig from the monitoring station and
+a real time sink, hence the lottery tier. H/V + a short MASW line (below) answer
+the site questions far more cheaply.
+
+- **Prerequisites (all three):**
+  1. **Fast sampling** — near-surface arrivals are milliseconds; need ~1000+ sps
+     (sub-ms). Current ~57 sps is hopeless. RDATAC unlocks the single channel;
+     a real survey wants a fast *multichannel* DAQ.
+  2. **A geophone array** — a line of sensors at increasing offset (refraction/
+     MASW build a travel-time / dispersion curve from the geometry). Single
+     sensor can't image layers.
+  3. **A real source** — sledgehammer on a steel plate (or weight drop) + a
+     **trigger** (switch/geophone on the hammer for t=0). A transducer won't
+     couple useful energy into the ground (impedance mismatch).
+- **Geometry / distances** (refraction spread ≈ 4–5× target depth):
+  - **150 ft (property diagonal)** → refraction sees only ~30–40 ft; but **MASW
+    on 150 ft profiles Vs to ~50–150 ft → covers the top 30 m = Vs30** (the key
+    site-class number). So a short property-scale line is genuinely useful.
+  - **Deep bedrock (150–340 ft)** by refraction needs ~1400–1700 ft spread =
+    "wiring the neighborhood." Not worth it — use H/V for whole-column depth.
+- **Cheaper substitute for what you actually want:** H/V (single point → f0/whole
+  column) + a 150-ft MASW line (→ Vs30). Both property-scale/near-single-sensor,
+  no neighborhood cabling. The full-bedrock refraction *image* is the true
+  lottery item.
+
 ## Other
 
 - **STEIM2 compression** for the recorder (currently int32 uncompressed, ~19 MB/day).
