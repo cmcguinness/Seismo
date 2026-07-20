@@ -88,7 +88,7 @@ def main() -> None:
     out = LOCAL_DATA.parent / "spectrum.png"
     fig.savefig(out, dpi=110)
     print(f"wrote {out}")
-    subprocess.run(["open", str(out)], check=False)
+    subprocess.run(["open", "-a", "Preview", str(out)], check=False)   # view in Preview
 
 
 if __name__ == "__main__":

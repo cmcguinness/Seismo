@@ -86,7 +86,7 @@ def main() -> None:
         show_y_UTC_label=True,
     )
     print(f"wrote {OUT}")
-    subprocess.run(["open", str(OUT)], check=False)   # macOS: pop it open
+    subprocess.run(["open", "-a", "Preview", str(OUT)], check=False)   # macOS: view in Preview
 
 
 if __name__ == "__main__":
