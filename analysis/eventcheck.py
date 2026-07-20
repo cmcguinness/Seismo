@@ -84,12 +84,17 @@ def main() -> None:
     win = st.slice(origin - args.pre, origin + post)
     if not len(win):
         raise SystemExit("NO DATA in the event window (recorder gap at that time?)")
-    # keep the dominant sample rate, then merge (archive can be mixed-rate)
+    # keep the dominant sample rate, merge, then split back to contiguous
+    # (unmasked) segments -- the archive can be mixed-rate and has small per-block
+    # gaps, and detrend/filter can't run on masked data.
     from collections import Counter
     dom = Counter(round(tr.stats.sampling_rate) for tr in win).most_common(1)[0][0]
     win = Stream([tr for tr in win if round(tr.stats.sampling_rate) == dom])
     win.merge(method=1)
-    tr = max(win, key=lambda t: t.stats.npts)
+    win = win.split()
+    # pick the segment covering the P-S window best (falls back to longest)
+    lo, hi = origin + tP - 2, origin + tS + 20
+    tr = max(win, key=lambda t: min(t.stats.endtime, hi) - max(t.stats.starttime, lo))
 
     raw = tr.copy(); raw.detrend("demean")
     filt = tr.copy(); filt.detrend("demean")
