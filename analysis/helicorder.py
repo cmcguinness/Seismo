@@ -109,7 +109,10 @@ def main() -> None:
     # back to the boundary at/before `start` with blank (masked) samples.
     interval_s = args.interval * 60
     boundary = start - (start.timestamp % interval_s)
-    min(st, key=lambda t: t.stats.starttime).trim(boundary, pad=True, fill_value=None)
+    # nearest_sample=False: pad to the sample at/after the boundary so rows label
+    # :00, not :59.99x (which dayplot floors to ":59").
+    min(st, key=lambda t: t.stats.starttime).trim(
+        boundary, pad=True, fill_value=None, nearest_sample=False)
 
     st.plot(
         type="dayplot",

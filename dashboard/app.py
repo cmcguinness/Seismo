@@ -7,6 +7,7 @@ acquisition box stays private on the LAN.
 """
 import json
 import os
+import time
 import urllib.request
 
 from fasthtml.common import FastHTML, serve
@@ -61,8 +62,8 @@ PAGE = """<!doctype html><html><head><meta charset=utf-8>
  <section><h2>Live (last 30&nbsp;s)</h2>
    <canvas id=c></canvas><div id=hud>connecting…</div></section>
  <section><h2>Helicorder — last 8 hours (UTC)</h2>
-   <img id=heli src="/helicorder.png" alt="helicorder"></section>
- <section><h2>Spectrum</h2><img id=spec src="/spectrum.png" alt="spectrum"></section>
+   <img id=heli src="/helicorder.png?{ts}" alt="helicorder"></section>
+ <section><h2>Spectrum</h2><img id=spec src="/spectrum.png?{ts}" alt="spectrum"></section>
  <section><h2>Recent detections</h2>
    <table><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th></tr>
    {events}</table></section>
@@ -102,7 +103,8 @@ def home():
             for e in evs)
     else:
         rows = "<tr><td colspan=4 class=none>no detections yet</td></tr>"
-    html = PAGE.format(style=STYLE, net=NETWORK, sta=STATION, place=PLACE, events=rows)
+    html = PAGE.format(style=STYLE, net=NETWORK, sta=STATION, place=PLACE, events=rows,
+                       ts=int(time.time()))
     return Response(html, media_type="text/html")
 
 
@@ -146,7 +148,11 @@ smooth, trustworthy curve. Shaded/annotated zones: the <b>ocean microseism</b>
 (~0.1&ndash;0.35&nbsp;Hz, the ever-present hum of Pacific swell), the <b>local-earthquake
 band</b> (~1&ndash;15&nbsp;Hz), the geophone&rsquo;s <b>4.5&nbsp;Hz corner</b> (it&rsquo;s
 flat/sensitive above this, and goes progressively deaf below it), and the flat
-<b>electronic noise floor</b> at high frequency.</p>
+<b>electronic noise floor</b> at high frequency. The plot stops at 0.05&nbsp;Hz on
+the left: below the microseism, a 4.5&nbsp;Hz geophone is ~60&nbsp;dB down, so
+anything lower is the instrument&rsquo;s own noise, not the ground. Seeing below
+that (distant &ldquo;teleseismic&rdquo; quakes, Earth&rsquo;s slow hum) takes a
+different sensor &mdash; a force-balance broadband, or a DIY long-period pendulum.</p>
 <p><b>Recent detections</b> &mdash; automatic STA/LTA triggers (sudden energy jumps). Most
 are <i>cultural</i> (footsteps, machinery, doors), not earthquakes &mdash; a genuine local
 quake would show a sharp P&nbsp;arrival followed seconds later by a larger S.</p></section>
@@ -166,16 +172,21 @@ def about():
                     media_type="text/html")
 
 
+NOCACHE = {"Cache-Control": "no-store, max-age=0"}   # dynamic renders — never let Cloudflare cache
+
+
 @app.get("/helicorder.png")
 def helicorder():
     png = render.helicorder_png()
-    return Response(png, media_type="image/png") if png else Response("no data", status_code=503)
+    return Response(png, media_type="image/png", headers=NOCACHE) if png \
+        else Response("no data", status_code=503)
 
 
 @app.get("/spectrum.png")
 def spectrum():
     png = render.spectrum_png()
-    return Response(png, media_type="image/png") if png else Response("no data", status_code=503)
+    return Response(png, media_type="image/png", headers=NOCACHE) if png \
+        else Response("no data", status_code=503)
 
 
 @app.get("/live-data")

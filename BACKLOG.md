@@ -121,6 +121,45 @@ to geographic N/E, so the base needs an alignment reference.
   accel X-axis pocket + declination offset mark, positioned as far from the
   geophone pocket as the base allows.
 
+## Long-period companion sensor — Lehman horizontal pendulum
+
+Opens the **teleseismic / sub-microseism window** the 4.5 Hz geophone physically
+can't reach. The geophone is a *local-earthquake* instrument (flat ~4.5–20 Hz,
+12 dB/oct deaf below 4.5 Hz); by the microseism (~0.1–0.35 Hz) it's ~60 dB down,
+and below that it shows only its own noise (why the dashboard spectrum is cropped
+at 0.05 Hz). A different sensor class is needed to go lower — this is the DIY one.
+
+- **What it is:** a "garden-gate" horizontal-boom pendulum — a mass on a near-
+  vertical-axis boom, so the restoring force is a tiny fraction of gravity →
+  very long natural period. Reaches **~15–30 s (0.03–0.06 Hz)** out of angle iron,
+  a coil, and a magnet. The classic amateur long-period build (Lehman 1979).
+- **What it buys:** **teleseismic surface waves** — you'd see **M6+ quakes from
+  the other side of the planet** arriving as slow 15–20 s Rayleigh swells, plus
+  the primary microseism. Complements the geophone: geophone owns 1–20 Hz local,
+  Lehman owns 0.03–0.1 Hz distant. Genuinely different physics, different targets.
+- **Sensing:** velocity pickup = coil-on-boom through a magnet (same principle as
+  the geophone), OR a capacitive/LVDT displacement pickup with feedback. Output is
+  tiny and low-frequency → wants a differential channel on the ADS1256 (spare
+  channels exist) with heavy low-pass; NOT sharing the geophone's gain settings.
+- **The hard parts (all long-period seismometers share these):**
+  - **Thermal + draft isolation is everything.** At 20 s period a 0.1°C drift
+    walks the boom off-scale; needs an insulated box, ideally buried/basement, far
+    from HVAC. This dwarfs the mechanical build in difficulty.
+  - **Tilt stability** — long-period = exquisitely tilt-sensitive; a settling slab
+    or thermal tilt masquerades as ground motion. Solid pier, leveling feet.
+  - **Period tuning** via boom-axis angle; damping via a magnet/copper-vane eddy
+    brake (aim ~0.7 critical). Iterative.
+- **Footprint:** it's a **~0.5–1 m horizontal instrument** — much bigger than the
+  geophone puck; needs its own bench/pier space and orientation (measures ONE
+  horizontal azimuth; two orthogonal booms for full horizontal motion).
+- **Alternatives noted:** vertical long-period (Shackleton-Roberts, LaCoste
+  zero-length spring) — harder to build; or a **used commercial broadband**
+  (Trillium/STS-2/CMG-3T, ~$3–30k) buys the whole flat 0.008–50 Hz band at once
+  with force-balance feedback, no thermal-box fuss, if the goal ever justifies it.
+- **Integration:** same recorder/rsync/dashboard pipeline — a second channel
+  (e.g. `XX.OAKMT.00.LHZ`/`LH1`) with its own ASD panel; the Welch/helicorder
+  code is sensor-agnostic once the channel exists.
+
 ## Site characterization — H/V (HVSR) microtremor survey
 
 Measure the site's fundamental resonance `f0` directly from ambient noise,

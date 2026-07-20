@@ -7,7 +7,9 @@ ENV PYTHONUNBUFFERED=1 \
     MPLCONFIGDIR=/tmp/matplotlib \
     HOME=/tmp
 
-RUN apt-get update && apt-get install -y --no-install-recommends tini \
+# build-essential: obspy has no aarch64 py3.12 wheel, so its small C extensions
+# compile from source (numpy/scipy/matplotlib still install as wheels).
+RUN apt-get update && apt-get install -y --no-install-recommends tini build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir obspy python-fasthtml

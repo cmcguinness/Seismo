@@ -7,7 +7,6 @@ import glob
 import io
 import math
 import os
-import tempfile
 from collections import Counter
 
 import numpy as np
@@ -55,18 +54,39 @@ def helicorder_png(hours=8, interval=15):
     start = min(t.stats.starttime for t in st)
     interval_s = interval * 60
     boundary = start - (start.timestamp % interval_s)          # clock-align rows
-    min(st, key=lambda t: t.stats.starttime).trim(boundary, pad=True, fill_value=None)
-    with tempfile.NamedTemporaryFile(suffix=".png") as tf:
-        st.plot(type="dayplot", interval=interval,
-                title=f"{st[0].id}   {start.date}",
-                color=["k", "r", "b", "g"], one_tick_per_line=True,
-                show_y_UTC_label=True, outfile=tf.name)
-        tf.seek(0)
-        return tf.read()
+    # nearest_sample=False pads to the sample *at or after* the boundary, so the
+    # first row starts at :00.00x — not :59.99x, which dayplot would floor to ":59".
+    min(st, key=lambda t: t.stats.starttime).trim(
+        boundary, pad=True, fill_value=None, nearest_sample=False)
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    # show_y_UTC_label=False: suppress ObsPy's auto caption ("local time = UTC +
+    # HH:MM"), which reflects the *render host's* timezone (irrelevant) — set our own.
+    fig = st.plot(type="dayplot", interval=interval,
+                  title=f"{st[0].id}   {start.date}",
+                  color=["k", "r", "b", "g"], one_tick_per_line=True,
+                  show_y_UTC_label=False, show=False)
+    fig.axes[0].set_ylabel("UTC")
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=100)
+    plt.close(fig)
+    buf.seek(0)
+    return buf.read()
 
 
-def spectrum_png(minutes=None):
-    """Welch ASD (uV/sqrtHz) of the most recent continuous segment."""
+def spectrum_png(minutes=60):
+    """Welch ASD (uV/sqrtHz) over the last `minutes`.
+
+    The archive is fragmented into hundreds of short segments by sub-second
+    timing gaps (the ~57 sps declared-vs-actual jitter), so the single longest
+    *continuous* fragment is only ~1-3 min -> a noisy spectrum that changes
+    every refresh. We instead take the whole `minutes` window and bridge those
+    micro-gaps by interpolation, giving one long record and ~50 Welch averages
+    for a smooth, stable ASD. (Real outages would interpolate a straight line,
+    which after demean is just a low-freq ramp -- rare and self-corrects hourly.)
+    """
+    import numpy.ma as ma
     from scipy import signal
     import matplotlib
     matplotlib.use("Agg")
@@ -76,17 +96,31 @@ def spectrum_png(minutes=None):
     if not path:
         return None
     st = _load_day(path)
-    st.detrend("demean")
-    tr = max(st, key=lambda t: t.stats.npts)           # longest continuous segment
-    fs = tr.stats.sampling_rate
-    x = tr.data.astype(float) * UVPC
-    if x.size < 512:
+    latest = max(t.stats.endtime for t in st)
+    st.trim(latest - minutes * 60, latest)
+    st.merge(method=1, fill_value="interpolate")       # bridge the timing micro-gaps
+    if not len(st):
         return None
-    f, pxx = signal.welch(x, fs=fs, nperseg=min(2048, x.size))
+    tr = max(st, key=lambda t: t.stats.npts)
+    tr.detrend("demean")
+    fs = tr.stats.sampling_rate
+    x = tr.data
+    if ma.isMaskedArray(x):                             # any unfilled edge gaps
+        x = x.filled(0.0)
+    x = x.astype(float) * UVPC
+    if x.size < 1024:
+        return None
+    nper = min(8192, x.size)
+    f, pxx = signal.welch(x, fs=fs, nperseg=nper)
     asd = np.sqrt(pxx)
+    win_min = x.size / fs / 60
+    navg = max(1, int(2 * x.size / nper) - 1)
     fig, ax = plt.subplots(figsize=(9, 4.5))
     ax.loglog(f[1:], asd[1:], "k", lw=0.8, zorder=5)
-    ax.set_xlim(f[1], fs / 2)
+    # Floor at 0.05 Hz: below the microseism the 4.5 Hz geophone is ~60 dB down,
+    # so anything lower is instrument self-noise, not ground motion. 0.05 (not 0.1)
+    # keeps both microseism humps (primary ~0.05-0.1, secondary ~0.1-0.35).
+    ax.set_xlim(0.05, fs / 2)
 
     # --- educational annotations ---
     tx = ax.get_xaxis_transform()          # x in data coords, y in axes fraction
@@ -104,7 +138,7 @@ def spectrum_png(minutes=None):
 
     ax.set_xlabel("frequency (Hz)")
     ax.set_ylabel("ASD (µV/√Hz)")
-    ax.set_title(f"{tr.id}  Welch ASD  ({tr.stats.npts / fs / 60:.0f} min)")
+    ax.set_title(f"{tr.id}  Welch ASD  ({win_min:.0f} min · ~{navg} averages)")
     ax.grid(True, which="both", alpha=0.3)
     fig.tight_layout()
     buf = io.BytesIO()
