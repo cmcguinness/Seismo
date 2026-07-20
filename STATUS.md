@@ -17,11 +17,16 @@ is printed and fits; the geophone is soldered to its XLR cable and validated.
 check), `live_view.py` (real-time browser strip-chart on :8347). Deployed to
 `seismo.local:~/seismo/station/`; passwordless SSH from the Mac is set up.
 
-Remaining gates to a *station*: (1) the **continuous recorder** — sampler →
-rolling miniSEED to disk; (2) **sensitivity** — bump PGA gain for weak ambient
-motion (gain 1 today is fine for taps, not for microseism); (3) a **helicorder**
-drum view. Case walls/lid deferred by choice (deploy-and-learn first). Crimp
-ferrules still inbound for the permanent cable termination.
+**The continuous recorder is DONE and validated** (2026-07-19): `recorder.py`
+writes gapless miniSEED day-files (`AM.OAKMT.00.SHZ`, int32, ~57 sps, absolute
+UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /
+~57 nm/s, above the 41 nm/s electronics floor). So the station **records**.
+
+Remaining to a full *station*: (1) a **helicorder** drum view — run on the Mac
+against the Pi's miniSEED (offload the heavy plotting); (2) run the recorder as
+a **persistent service** (systemd) so it survives reboots; (3) **tune the shunt
+damping** resistor against a recorded impulse. Case walls/lid deferred by choice
+(deploy-and-learn first). Crimp ferrules still inbound for permanent termination.
 
 ## Milestone map (bring-up order — specification.md §6)
 
@@ -30,9 +35,10 @@ ferrules still inbound for the permanent cable termination.
 - [x] **Phase 2a** — geophone connected, twitches on taps (life-check)
 - [x] **Enclosure v1** — geophone pocket (`geophone_base.py`, seats solid) + combined Pi/geophone base (`chassis.py`, Pi 2B mount + cotter-pin retention), both printed and fitting
 - [x] **ADC-end wiring** — perfboard front-end built + **validated** (bias 1.503 V, 10 µV floor, tap → 235 µV). 2× 100 kΩ bias to VCC/AGND, geophone on a detachable connector, empty shunt socket across AIN0/AIN1.
-- [~] **Phase 2b** — differential/biased front-end ✓ + live view ✓ (`live_view.py`, ~92 sps); **next: continuous recorder** (miniSEED) + raise PGA gain for sensitivity
-- [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical) — socket is wired, just needs a value
-- [ ] **Phase 4** — station software (miniSEED / helicorder)
+- [x] **Phase 2b** — differential/biased front-end ✓, live view ✓ (`live_view.py`), gain 64 + **DRATE_60** chosen from a noise sweep (`noise_compare.py`): electronics floor ~1.17 µV RMS / ~41 nm/s, mains-notched, sustainable timing
+- [x] **Phase 4a** — **continuous recorder** (`recorder.py`): geophone → gapless miniSEED day-files via simplemseed, validated read-back
+- [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical) — socket is wired, just needs a value (tune against a recorded impulse)
+- [ ] **Phase 4b** — helicorder drum view (run on the Mac vs the Pi's miniSEED) + recorder as a systemd service
 - [ ] **Phase 5** — record a real event; cross-check vs USGS / nearby Raspberry Shake
 
 ## Hardware as-built
@@ -97,6 +103,9 @@ geophone-in (detachable), ADC-out (AIN0/AIN1/VCC/AGND), shunt socket.
 - **Accelerometer: not for v1.** The geophone is the sensitive weak-motion sensor; a MEMS accel is strong-motion class and adds nothing to detection sensitivity. If ever added (horizontal components / big-local-quake capture), use the **ADXL355** (~25 µg/√Hz, 20-bit — what OpenEEW / the Raspberry Shake strong-motion units use), **not** the ADXL345 (~300 µg/√Hz, consumer-grade, useless here). 6 free ADS1256 channels available. Add-on, not a gap.
 - **Ferrules, not tinned ends, in screw terminals** — see the cable note above.
 - **5 V AVDD jumper deferred** — currently on 3V3 (works); see jumper cheat-sheet for the lock-up caution before revisiting.
+- **miniSEED via `simplemseed`, NOT ObsPy, on the Pi.** ObsPy (scipy + matplotlib) OOM-wedged the 1 GB Pi 2B for an hour during install and is overkill for an acquisition daemon. `simplemseed` is pure-Python (numpy-only), installs in seconds, stays lean. ObsPy-based analysis (helicorder, response) belongs on the Mac, reading the Pi's files. If ObsPy is ever needed on the Pi, add a swapfile first (`CONF_SWAPSIZE=2048`) or it OOMs.
+- **miniSEED specifics (v1):** int32 uncompressed (STEIM2 later), 512-byte records chunked at 100 samples, integer sample rate declared via explicit `sampRateFactor`/`sampRateMult` (simplemseed's auto rate-calc is broken). Rate is measured at startup (~56–57 sps, SYNC-limited) and each block is wall-clock anchored → accurate absolute time, ≤3 ms/block cosmetic overlap. Exact 60.000 sps would need ADS1256 RDATAC mode — deferred.
+- **Passwordless SSH** from the Mac to `seismo.local` is set up (Claude can drive the Pi directly).
 
 ## Open threads (pick next session)
 

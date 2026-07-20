@@ -1,0 +1,16 @@
+# Pi station runtime dependencies — install into the Pi venv (~/seismo/venv),
+# which is created with --system-site-packages so it sees apt's python3-pigpio.
+#
+#   ~/seismo/venv/bin/pip install -r requirements.txt
+#
+# NOT installed via this file (documented here so the environment is reproducible):
+#   - PiPyADC   : ADS1256 driver, installed from source
+#                 (git clone https://github.com/ul-gh/PiPyADC && pip install ./PiPyADC)
+#   - pigpio    : from apt (python3-pigpio), pigpiod enabled at boot
+#
+# Deliberately NOT used: obspy. Its scipy/matplotlib weight OOM-wedges a 1 GB
+# Pi 2B and is overkill for an acquisition daemon. miniSEED is written with the
+# lightweight simplemseed instead; run obspy-based analysis on a bigger machine.
+
+simplemseed>=1.0.1        # pure-Python miniSEED reader/writer (pulls crc32c, numpy)
+numpy>=1.24               # array handling (system-provided on the Pi via apt)
