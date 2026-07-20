@@ -26,10 +26,18 @@ UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /
 enabled (auto-starts on boot), `Restart=always`, clean SIGTERM shutdown. The
 station now records 24/7 to `~/seismo/data/*.mseed` unattended.
 
-Remaining to a full *station*: (1) a **helicorder** drum view — run on the Mac
-against the Pi's miniSEED (offload the heavy plotting); (2) **tune the shunt
-damping** resistor against a recorded impulse. Case walls/lid deferred by choice.
-Crimp ferrules still inbound for permanent termination.
+**Helicorder DONE** (2026-07-19): `analysis/helicorder.py` on the Mac pulls the
+Pi's miniSEED (rsync) and renders a classic ObsPy dayplot drum — full loop
+closed (geophone → 24/7 recorder → miniSEED → drum). ObsPy lives in a Mac-only
+`analysis/.venv`, never on the Pi.
+
+Remaining / refinements: (1) **tune the shunt damping** resistor against a
+recorded impulse; (2) **data-continuity** — steady-state recording showed some
+small gaps (jitter in the wall-clock-per-block timing, worsened by SSH load
+during setup); watch it, and the RDATAC continuous-mode upgrade would remove it;
+(3) minor: simplemseed writes a slightly inconsistent word-order flag (ObsPy
+warns but reads fine) and int32 (STEIM2 compression later). Case walls/lid
+deferred by choice. Crimp ferrules still inbound for permanent termination.
 
 ### Operating the service (the recorder OWNS the ADC while running)
 - Status / live log: `systemctl status seismo-recorder` · `journalctl -u seismo-recorder -f`
@@ -47,7 +55,7 @@ Crimp ferrules still inbound for permanent termination.
 - [x] **Phase 4a** — **continuous recorder** (`recorder.py`): geophone → gapless miniSEED day-files via simplemseed, validated read-back
 - [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical) — socket is wired, just needs a value (tune against a recorded impulse)
 - [x] **Phase 4b** — recorder deployed as a **systemd service** (`seismo-recorder.service`, enabled/auto-start, 24/7)
-- [ ] **Phase 4c** — helicorder drum view (run on the Mac vs the Pi's miniSEED)
+- [x] **Phase 4c** — helicorder drum view (`analysis/helicorder.py`, Mac-side ObsPy dayplot vs the Pi's miniSEED)
 - [ ] **Phase 5** — record a real event; cross-check vs USGS / nearby Raspberry Shake
 
 ## Hardware as-built

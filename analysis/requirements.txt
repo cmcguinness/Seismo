@@ -1,0 +1,5 @@
+# Mac-side analysis deps (NOT installed on the Pi). Create the venv with:
+#   python3 -m venv analysis/.venv && analysis/.venv/bin/pip install -r analysis/requirements.txt
+# ObsPy pulls numpy/scipy/matplotlib -- fine on the Mac, too heavy for the Pi
+# (which uses simplemseed for acquisition instead).
+obspy>=1.4
