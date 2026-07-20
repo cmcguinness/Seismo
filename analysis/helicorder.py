@@ -76,6 +76,8 @@ def main() -> None:
     ap.add_argument("--host", default="seismo.local")
     ap.add_argument("--date", help="YYYY.JJJ (julian day) to plot; default newest")
     ap.add_argument("--interval", type=int, default=15, help="minutes per drum row")
+    ap.add_argument("--hours", type=float, default=8,
+                    help="show only the most recent N hours (default 8; try 3 for detail, 24 for a full drum)")
     ap.add_argument("--highpass", type=float, default=None, help="highpass corner (Hz)")
     ap.add_argument("--no-pull", action="store_true", help="use local data, skip rsync")
     args = ap.parse_args()
@@ -85,6 +87,14 @@ def main() -> None:
 
     path = pick_file(args.date)
     st = load_day(path)            # read + normalize mixed rates + merge + split
+    if args.hours:                 # keep only the most recent window (drum grows unbounded otherwise)
+        latest = max(t.stats.endtime for t in st)
+        st.trim(latest - args.hours * 3600, latest)
+        for t in list(st):
+            if t.stats.npts == 0:
+                st.remove(t)
+        if not len(st):
+            sys.exit("no data in the requested --hours window")
     st.detrend("demean")           # drop the ADC DC bias (per segment)
     if args.highpass:
         st.filter("highpass", freq=args.highpass, corners=2, zerophase=True)
