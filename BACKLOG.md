@@ -45,6 +45,28 @@ ADS1256, fold in these — roughly in order of payoff:
 Also related, tracked in STATUS: tune the **shunt damping** resistor (perfboard
 socket) against a recorded impulse.
 
+## Compute — faster Pi (upgrade consideration)
+
+A faster Pi is a **scope-expansion enabler, not a fix** for current limits. Do the
+free software wins FIRST; buy silicon only when expanding.
+
+- **Won't fix**: the noise floor (analog) or the sample-rate ceiling. The ~57-92 sps
+  cap is **driver-limited** (PiPyADC's fixed per-sample SYNC `time.sleep()` delays +
+  ADC conversion time), not CPU-limited — a faster CPU barely moves it. **RDATAC**
+  (free-running read, software) is the real rate/timing fix and runs on the current
+  Pi 2B.
+- **Helps modestly**: timing jitter / per-block gaps (more CPU headroom → more
+  deterministic sampling loop). But most of that is free via RT scheduling on the
+  current Pi (`chrt`/`nice` the recorder, or a PREEMPT_RT kernel) — try that before
+  buying hardware.
+- **Worth it when we EXPAND scope**: 3-component (3× read load), on-device real-time
+  detection (STA/LTA), local helicorder rendering, a **SeedLink server** to push to
+  networks, or running ObsPy on the box. Those want CPU *and* RAM.
+- **Spec note**: a **1 GB Pi 4 is the worst pick** — same RAM as the 2B, so no
+  headroom for on-device analysis (the thing that OOM-wedged ObsPy). Get **2-4 GB
+  Pi 4 or a Pi 5** (also 64-bit / aarch64, longer OS-support horizon) when the time
+  comes. No urgency for the current single-channel station.
+
 ## Other
 
 - **STEIM2 compression** for the recorder (currently int32 uncompressed, ~19 MB/day).
