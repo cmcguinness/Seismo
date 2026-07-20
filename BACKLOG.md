@@ -121,6 +121,31 @@ to geographic N/E, so the base needs an alignment reference.
   accel X-axis pocket + declination offset mark, positioned as far from the
   geophone pocket as the base allows.
 
+## Site characterization — H/V (HVSR) microtremor survey
+
+Measure the site's fundamental resonance `f0` directly from ambient noise,
+instead of inferring it from the (wildly contradictory) well logs. Three wells
+in section 7N/7W-15 disagree completely — 6499 Hwy 12: rhyolite at 3 ft (rock);
+6285 Hwy 12: 57 ft clay + soft tuff → rock ~360 ft; 6245 Melitta Rd (closest):
+>132 ft clay/gravel, bedrock not reached (soft). Best guess for our spot: thick
+clay alluvium, `f0` ~1–2 Hz — but only a measurement settles it.
+
+- **Method (Nakamura's H/V):** record ~20–30 min ambient microtremor; compute
+  `H/V(f) = sqrt(N²+E²)/V`; the peak = site fundamental `f0` (`f0 ≈ Vs/4H`).
+  Dividing by V cancels the noise-source spectrum, isolating the site response.
+  Passive, single-station, no earthquake needed. Flat/no-peak = rock site.
+- **Prerequisites (both):**
+  1. **3-component** — needs horizontals; the vertical-only geophone can't do H/V
+     (see the 3-component entry above).
+  2. **Ground-coupled** — on the windowsill it measures the *house* (those
+     0.3–2.5 Hz spectral peaks are almost certainly the building). Must be on the
+     actual soil/slab.
+- **Tools:** Geopsy (standard HVSR software) or an ObsPy script. SESAME (2004)
+  guidelines for acquisition/quality.
+- **Payoff:** `f0` → sediment thickness / amplification; closes the geology loop
+  (map → wells → prediction → instrument measures its own foundation) and tells
+  us whether the ~1–2 Hz peaks we see are site or structure.
+
 ## Other
 
 - **STEIM2 compression** for the recorder (currently int32 uncompressed, ~19 MB/day).
