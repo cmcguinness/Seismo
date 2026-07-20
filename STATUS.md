@@ -26,16 +26,26 @@ UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /
 enabled (auto-starts on boot), `Restart=always`, clean SIGTERM shutdown. The
 station now records 24/7 to `~/seismo/data/*.mseed` unattended.
 
-**Public dashboard — distributed build** (2026-07-20, in progress): moving heavy
-work OFF the 1 GB Pi 2B onto LAN hardware the user already runs. **Pi 2B = acquire**
-(recorder + STA/LTA, owns the ADC), **Pi 5 (16 GB, Dokku) = render/serve** the
-public dashboard, **Jetson = future ML** (backlog). Pipeline: a host-level
-`seismo-rsync.timer` on pi5 mirrors `seismo.local:~/seismo/{data,events.log}` →
-`~/seismo-data/` every minute; a Dokku app (`dashboard/`, FastHTML + ObsPy in a
-Dockerfile) renders helicorder/spectrum from the mirror and proxies the Pi's live
-feed (Pi IP `192.168.4.47:8347`, so the acquisition box stays private). pi5→Pi2B
-SSH set up (pi5 key authorized on seismo). This makes the "does the 2B need a RAM
-upgrade" question moot — it just acquires.
+**Public dashboard — DEPLOYED** (2026-07-20): heavy work runs OFF the 1 GB Pi 2B on
+LAN hardware. **Pi 2B = acquire** (recorder + STA/LTA, owns the ADC), **Pi 5 (16 GB,
+Dokku) = render/serve**, **Jetson = future ML** (backlog). Live at
+**http://seismo.pi5.mcguinness.ai** (LAN only; NO Let's Encrypt — can't ACME-verify
+a non-public host; use a tunnel if ever exposing it).
+- **Pipeline:** host-level `seismo-rsync.timer` on pi5 mirrors
+  `seismo.local:~/seismo/{data,events.log}` → `~/seismo-data/` every minute. Dokku
+  app `seismo` (`dashboard/`: FastHTML + ObsPy, Dockerfile) renders helicorder/
+  spectrum from the mirror and **proxies** the Pi's live feed (`192.168.4.47:8347`)
+  so the acquisition box stays private. pi5→Pi2B SSH set up (pi5 key on seismo).
+- **Deploy recipe** (pi5, all `dokku` as user charles; `docker` needs sudo):
+  `sudo docker build -t seismo-dash ~/seismo-dashboard` →
+  `dokku apps:create seismo` · `dokku storage:mount seismo /home/charles/seismo-data:/data`
+  · `dokku config:set --no-restart seismo SEISMO_LIVE_URL=http://192.168.4.47:8347/data SEISMO_PLACE=...`
+  · `dokku git:from-image seismo seismo-dash:latest` · `dokku ports:set seismo http:80:5000`.
+  (Rebuild + `git:from-image` again to update.) Note: obspy compiles from source
+  (no aarch64 py3.12 wheel) → the Dockerfile needs `build-essential`.
+- **Note:** images render on-demand per request (~2 s, fresher than the "every 15 min"
+  ask); add a render cache if traffic warrants. Makes the "does the 2B need a RAM
+  upgrade" question moot — it just acquires.
 
 **Event detection** (2026-07-20): the recorder runs a streaming **STA/LTA** trigger
 (`stalta.py`) inline — 1-pole high-pass (rejects microseism) → energy CF → STA/LTA
