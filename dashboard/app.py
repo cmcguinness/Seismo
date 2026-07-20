@@ -32,26 +32,31 @@ def _recent_events(n=10):
         return []
 
 
+STYLE = """<style>
+ :root{color-scheme:dark}
+ body{margin:0;background:#0c0c0e;color:#cfe;font:15px/1.5 system-ui,sans-serif}
+ header{padding:14px 20px;border-bottom:1px solid #222;background:#111}
+ h1{margin:0;font-size:20px;color:#8f8} .sub{color:#7a8;font-size:13px}
+ nav{margin-top:6px;font-size:13px} nav a{margin-right:10px}
+ main{max-width:1100px;margin:0 auto;padding:16px 20px}
+ section{margin:22px 0} h2{font-size:15px;color:#9ab;border-bottom:1px solid #1c1c22;padding-bottom:4px}
+ canvas{width:100%;height:200px;background:#111;border:1px solid #222;border-radius:6px;display:block}
+ #hud{font:12px monospace;color:#8f8;margin:4px 2px}
+ img{max-width:100%;border:1px solid #222;border-radius:6px;background:#fff}
+ table{width:100%;border-collapse:collapse;font-size:13px}
+ td,th{text-align:left;padding:4px 8px;border-bottom:1px solid #1a1a20} th{color:#7a8}
+ p,li{color:#bcd;max-width:72ch} .none{color:#678}
+ footer{color:#556;font-size:12px;padding:16px 20px;border-top:1px solid #1a1a20}
+ a{color:#6cf}
+</style>"""
+
 PAGE = """<!doctype html><html><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>{net}.{sta} — DIY seismometer</title>
-<style>
- :root{{color-scheme:dark}}
- body{{margin:0;background:#0c0c0e;color:#cfe;font:15px/1.5 system-ui,sans-serif}}
- header{{padding:14px 20px;border-bottom:1px solid #222;background:#111}}
- h1{{margin:0;font-size:20px;color:#8f8}} .sub{{color:#7a8;font-size:13px}}
- main{{max-width:1100px;margin:0 auto;padding:16px 20px}}
- section{{margin:22px 0}} h2{{font-size:15px;color:#9ab;border-bottom:1px solid #1c1c22;padding-bottom:4px}}
- canvas{{width:100%;height:200px;background:#111;border:1px solid #222;border-radius:6px;display:block}}
- #hud{{font:12px monospace;color:#8f8;margin:4px 2px}}
- img{{max-width:100%;border:1px solid #222;border-radius:6px;background:#fff}}
- table{{width:100%;border-collapse:collapse;font-size:13px}}
- td,th{{text-align:left;padding:4px 8px;border-bottom:1px solid #1a1a20}} th{{color:#7a8}}
- .none{{color:#678}} footer{{color:#556;font-size:12px;padding:16px 20px;border-top:1px solid #1a1a20}}
- a{{color:#6cf}}
-</style></head><body>
+{style}</head><body>
 <header><h1>{net}.{sta}.00.SHZ &mdash; DIY geophone seismometer</h1>
-<div class=sub>{place} &nbsp;·&nbsp; vertical 4.5&nbsp;Hz &nbsp;·&nbsp; independent station (not for scientific use)</div></header>
+<div class=sub>{place} &nbsp;·&nbsp; vertical 4.5&nbsp;Hz &nbsp;·&nbsp; independent station (not for scientific use)</div>
+<nav><a href="/">Live</a> · <a href="/about">About this station</a></nav></header>
 <main>
  <section><h2>Live (last 30&nbsp;s)</h2>
    <canvas id=c></canvas><div id=hud>connecting…</div></section>
@@ -97,8 +102,68 @@ def home():
             for e in evs)
     else:
         rows = "<tr><td colspan=4 class=none>no detections yet</td></tr>"
-    html = PAGE.format(net=NETWORK, sta=STATION, place=PLACE, events=rows)
+    html = PAGE.format(style=STYLE, net=NETWORK, sta=STATION, place=PLACE, events=rows)
     return Response(html, media_type="text/html")
+
+
+ABOUT = """<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>About — {net}.{sta}</title>
+{style}</head><body>
+<header><h1>About this station</h1>
+<div class=sub>{net}.{sta}.00.SHZ &nbsp;·&nbsp; {place}</div>
+<nav><a href="/">&larr; Live</a> · <a href="/about">About this station</a></nav></header>
+<main>
+<section><h2>What this is</h2>
+<p>A homemade (&ldquo;DIY&rdquo;) seismometer &mdash; an amateur instrument that senses
+the ground moving: earthquakes, the ocean, and everyday cultural vibration. It records
+continuously and is <b>independent</b> (not part of a formal seismic network), built for
+curiosity and learning. <b>Not for scientific or emergency use.</b></p></section>
+
+<section><h2>Hardware</h2><ul>
+<li><b>Sensor:</b> LGT-4.5 geophone &mdash; a 4.5&nbsp;Hz vertical geophone (a coil-and-magnet
+  <i>velocity</i> sensor), ~28.8&nbsp;V per m/s, 385&nbsp;&#8486; coil.</li>
+<li><b>Digitizer:</b> Waveshare High-Precision <b>ADS1256</b> &mdash; 24-bit ADC, read
+  differentially at gain&nbsp;64, ~57&nbsp;samples/sec.</li>
+<li><b>Computers:</b> a Raspberry&nbsp;Pi&nbsp;2B does acquisition (owns the ADC); a
+  Raspberry&nbsp;Pi&nbsp;5 renders these charts and serves this page.</li>
+<li><b>Front end:</b> differential bias network into the ADC (shunt damping to come).</li>
+</ul></section>
+
+<section><h2>How to read the charts</h2>
+<p><b>Live waveform</b> &mdash; the ground moving <i>right now</i>, in microvolts of sensor
+output (proportional to ground velocity). Flat = quiet; wiggles = motion. It auto-scales,
+so a calm trace and a busy one can look similar in height &mdash; watch the &ldquo;pp&rdquo;
+number.</p>
+<p><b>Helicorder (drum plot)</b> &mdash; the classic seismograph view. Each row is
+15&nbsp;minutes; read it like a book &mdash; left&nbsp;&rarr;&nbsp;right, then down to the
+next row. The last 8&nbsp;hours (UTC). Earthquakes and bumps appear as bursts standing out
+from the steady background hum.</p>
+<p><b>Spectrum (Welch ASD)</b> &mdash; the ground&rsquo;s frequency <i>content</i>: how much
+signal sits at each frequency. &ldquo;ASD&rdquo; is amplitude spectral density (&micro;V per
+&radic;Hz); &ldquo;Welch&rdquo; is the averaging method that turns a jittery signal into a
+smooth, trustworthy curve. Shaded/annotated zones: the <b>ocean microseism</b>
+(~0.1&ndash;0.35&nbsp;Hz, the ever-present hum of Pacific swell), the <b>local-earthquake
+band</b> (~1&ndash;15&nbsp;Hz), the geophone&rsquo;s <b>4.5&nbsp;Hz corner</b> (it&rsquo;s
+flat/sensitive above this, and goes progressively deaf below it), and the flat
+<b>electronic noise floor</b> at high frequency.</p>
+<p><b>Recent detections</b> &mdash; automatic STA/LTA triggers (sudden energy jumps). Most
+are <i>cultural</i> (footsteps, machinery, doors), not earthquakes &mdash; a genuine local
+quake would show a sharp P&nbsp;arrival followed seconds later by a larger S.</p></section>
+
+<section><h2>Where it sits</h2>
+<p>{place} &mdash; on valley-margin alluvium at the foot of the Sonoma/Mayacamas volcanics,
+essentially atop the active <b>Rodgers Creek fault</b> system. A sensitive spot for local
+events, at the cost of a bit more everyday noise.</p></section>
+</main>
+<footer>built by <a href="https://www.linkedin.com/in/charlesmcguinness/">Charles McGuinness</a></footer>
+</body></html>"""
+
+
+@app.get("/about")
+def about():
+    return Response(ABOUT.format(style=STYLE, net=NETWORK, sta=STATION, place=PLACE),
+                    media_type="text/html")
 
 
 @app.get("/helicorder.png")

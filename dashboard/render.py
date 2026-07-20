@@ -77,7 +77,7 @@ def spectrum_png(minutes=None):
         return None
     st = _load_day(path)
     st.detrend("demean")
-    tr = max(st, key=lambda t: t.stats.starttime)      # most recent segment
+    tr = max(st, key=lambda t: t.stats.npts)           # longest continuous segment
     fs = tr.stats.sampling_rate
     x = tr.data.astype(float) * UVPC
     if x.size < 512:
@@ -85,14 +85,27 @@ def spectrum_png(minutes=None):
     f, pxx = signal.welch(x, fs=fs, nperseg=min(2048, x.size))
     asd = np.sqrt(pxx)
     fig, ax = plt.subplots(figsize=(9, 4.5))
-    ax.loglog(f[1:], asd[1:], "k", lw=0.8)
-    ax.axvline(4.5, color="r", ls="--", lw=1, label="4.5 Hz corner")
+    ax.loglog(f[1:], asd[1:], "k", lw=0.8, zorder=5)
     ax.set_xlim(f[1], fs / 2)
+
+    # --- educational annotations ---
+    tx = ax.get_xaxis_transform()          # x in data coords, y in axes fraction
+    ax.axvspan(0.1, 0.35, color="#2aa198", alpha=0.13, lw=0)     # ocean microseism
+    ax.text(0.185, 0.95, "ocean\nmicroseism", transform=tx, ha="center", va="top",
+            fontsize=8, color="#2aa198")
+    ax.axvspan(1, 15, color="#268bd2", alpha=0.07, lw=0)         # local-quake band
+    ax.text(5, 0.04, "local-earthquake band", transform=tx, ha="center", va="bottom",
+            fontsize=8, color="#268bd2")
+    ax.axvline(4.5, color="#dc322f", ls="--", lw=1)             # geophone corner
+    ax.text(4.5, 0.99, "4.5 Hz corner\n(flat above · deaf below)", transform=tx,
+            ha="center", va="top", fontsize=8, color="#dc322f")
+    ax.text(0.98, 0.05, "electronic floor →", transform=ax.transAxes, ha="right",
+            va="bottom", fontsize=8, color="#888")
+
     ax.set_xlabel("frequency (Hz)")
     ax.set_ylabel("ASD (µV/√Hz)")
     ax.set_title(f"{tr.id}  Welch ASD  ({tr.stats.npts / fs / 60:.0f} min)")
     ax.grid(True, which="both", alpha=0.3)
-    ax.legend()
     fig.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=100)
