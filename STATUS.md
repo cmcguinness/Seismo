@@ -4,18 +4,24 @@ _Last updated: 2026-07-19_
 
 ## Where we are
 
-**Hardware bring-up + the mechanical base are DONE.** The signal chain is
-validated on real hardware (geophone → ADS1256 → SPI → pigpio → PiPyADC → Python;
-geophone twitches on taps; a AA cell read 1.29 V). The combined 3D-printed base
-(geophone pocket + Pi 2B mount + cotter-pin retention) is printed and fits, and
-the geophone is **soldered to its XLR cable and validated** (coil ohms + movement
-response good).
+**The full analog + digital signal chain is now VALIDATED end to end** (2026-07-19).
+Geophone → perfboard front-end (differential + mid-supply bias) → ADS1256 →
+SPI → pigpio → PiPyADC → Python → **live browser waveform**. Measured: both
+inputs biased at 1.503 V, ~10 µV pp idle noise floor, and a tap kicks the
+differential channel to ~235 µV (25× over floor) — clean, responsive motion on
+screen. The mechanical base (geophone pocket + Pi 2B mount + cotter retention)
+is printed and fits; the geophone is soldered to its XLR cable and validated.
 
-Remaining gates to a working *instrument*: (1) land the geophone at the ADC with
-the differential + bias + shunt front-end, and (2) write the **fast sampler** —
-the software that actually renders the 4.5 Hz waveform (the demo tool at ~2 sps
-can't). Crimp-ferrule kit inbound to re-terminate the tinned cable ends for the
-permanent build.
+**Station code now lives in the repo** under `station/` (was Pi-only before):
+`waveshare_config.py` (our owned board config), `adc_diag.py` (bias/rate/tap
+check), `live_view.py` (real-time browser strip-chart on :8347). Deployed to
+`seismo.local:~/seismo/station/`; passwordless SSH from the Mac is set up.
+
+Remaining gates to a *station*: (1) the **continuous recorder** — sampler →
+rolling miniSEED to disk; (2) **sensitivity** — bump PGA gain for weak ambient
+motion (gain 1 today is fine for taps, not for microseism); (3) a **helicorder**
+drum view. Case walls/lid deferred by choice (deploy-and-learn first). Crimp
+ferrules still inbound for the permanent cable termination.
 
 ## Milestone map (bring-up order — specification.md §6)
 
@@ -23,9 +29,9 @@ permanent build.
 - [x] **Phase 1** — ADC reads a known source (AA cell → 1.29 V on AIN0)
 - [x] **Phase 2a** — geophone connected, twitches on taps (life-check)
 - [x] **Enclosure v1** — geophone pocket (`geophone_base.py`, seats solid) + combined Pi/geophone base (`chassis.py`, Pi 2B mount + cotter-pin retention), both printed and fitting
-- [~] **ADC-end wiring** — XLR soldered to geophone + validated ✓; still to land differential + bias + shunt at the board (ferrule the ends first)
-- [ ] **Phase 2b** — fast sampler (100–200 sps) + differential/biased front-end + log/plot
-- [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical)
+- [x] **ADC-end wiring** — perfboard front-end built + **validated** (bias 1.503 V, 10 µV floor, tap → 235 µV). 2× 100 kΩ bias to VCC/AGND, geophone on a detachable connector, empty shunt socket across AIN0/AIN1.
+- [~] **Phase 2b** — differential/biased front-end ✓ + live view ✓ (`live_view.py`, ~92 sps); **next: continuous recorder** (miniSEED) + raise PGA gain for sensitivity
+- [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical) — socket is wired, just needs a value
 - [ ] **Phase 4** — station software (miniSEED / helicorder)
 - [ ] **Phase 5** — record a real event; cross-check vs USGS / nearby Raspberry Shake
 
@@ -43,13 +49,33 @@ permanent build.
 - `pigpiod` enabled at boot. Run demo: `cd ~/seismo/PiPyADC/examples/waveshare_board && source ~/seismo/venv/bin/activate && python waveshare_example.py`
 - **Shim:** installed PiPyADC lacks context-manager support; patched the example `with ADS1256(...) as ads:` → `for ads in [ADS1256(...)]:`. Temporary — replace with our own sampler.
 
-## Analog front-end plan (decided, not yet wired)
+## Analog front-end (AS-BUILT + validated 2026-07-19)
 
-- **Differential**, not single-ended: source is floating + bipolar so it needs a common-mode bias either way, and differential also gives common-mode hum rejection (pairs with the shielded twisted pair).
-- Geophone across **AD0 (AINP) / AD1 (AINN)**; common-mode **biased to AVDD/2** via two high-value resistors (≫ coil & shunt, ~100 kΩ+) to a mid-supply reference off VCC.
-- **Shunt (damping) resistor across AD0/AD1**, landed in the **screw terminals** so it's swappable — damping is tuned empirically (~3–13 kΩ range; pick the value that gives a clean single overshoot on the sampler).
-- **Shield → AGND at the board end only** (floating at the geophone) to avoid a ground loop.
-- Coil is ~pure **375 Ω** in-band; inductance (X_L ≈ 5 Ω @ 4.5 Hz) is negligible — treat the network as resistive.
+Built on a **perfboard** (the ADS1256 screw strip was too cramped for 2 resistors
++ 3 wires + a bare shield without shorts). Three connectors on the board:
+geophone-in (detachable), ADC-out (AIN0/AIN1/VCC/AGND), shunt socket.
+
+- **Differential** read: geophone across **AIN0 (+) / AIN1 (−)**. Floating bipolar
+  source, so it needs a common-mode bias regardless; differential also rejects hum
+  (pairs with the shielded twisted pair).
+- **Bias:** two **100 kΩ** resistors — R1 AIN0→VCC, R2 AIN1→AGND — pull the coil to
+  mid-supply. Measured 1.503 V on both legs (≈AVDD/2; a hair low from unbuffered
+  input bias current through the 100 k legs — harmless, symmetric). 100 k keeps the
+  bias network invisible to the geophone (~200 kΩ across a 385 Ω coil), so damping
+  stays independent of bias.
+- **Input buffer OFF** (`status=0x00`). With AVDD on the 3V3 jumper the *buffered*
+  common-mode range is only 0–1.3 V, but our bias sits at ~1.5 V — buffer on
+  mangled the reads (chased this as a phantom wiring fault first). Buffer off gives
+  the full 0–AVDD range; we don't need its high Zin (source is ~385 Ω).
+- **Shunt (damping) resistor across AIN0/AIN1** goes in a **2-pin socket on the
+  perfboard** (moved off the ADC screw terminals) — swappable by hand. Empty for
+  now; tune empirically (~3–13 kΩ; clean single overshoot on the sampler).
+- **Shield → AGND at the board end only** (floating at the geophone) — no ground loop.
+- Coil is ~pure **385 Ω** in-band (measured; X_L ≈ 5 Ω @ 4.5 Hz negligible) — resistive network.
+- **Sample rate:** DRDY-paced read sustains **~92 sps** at DRATE_100 on the Pi 2B
+  (per-sample SYNC overhead nips just under the 100 nominal). Fine for viewing;
+  the recorder will need a decide-the-rate strategy (accept ~92, or run DRATE_500
+  and decimate to a clean 100).
 
 ## Enclosure
 
