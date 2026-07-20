@@ -36,6 +36,9 @@ def main() -> None:
     ap.add_argument("--date")
     ap.add_argument("--no-pull", action="store_true")
     ap.add_argument("--nperseg", type=int, default=2048)
+    ap.add_argument("--latest", action="store_true",
+                    help="use the most RECENT segment (current conditions) "
+                         "instead of the longest")
     args = ap.parse_args()
 
     if not args.no_pull:
@@ -46,7 +49,10 @@ def main() -> None:
     st.merge(method=1)
     st = st.split()
     st.detrend("demean")
-    tr = max(st, key=lambda t: t.stats.npts)     # longest continuous segment
+    if args.latest:
+        tr = max(st, key=lambda t: t.stats.starttime)   # most recent segment
+    else:
+        tr = max(st, key=lambda t: t.stats.npts)        # longest continuous segment
     fs = tr.stats.sampling_rate
     x = tr.data.astype(float) * UV_PER_COUNT     # microvolts
     mins = tr.stats.npts / fs / 60.0
