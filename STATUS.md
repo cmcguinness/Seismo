@@ -22,11 +22,19 @@ writes gapless miniSEED day-files (`AM.OAKMT.00.SHZ`, int32, ~57 sps, absolute
 UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /
 ~57 nm/s, above the 41 nm/s electronics floor). So the station **records**.
 
+**DEPLOYED as a systemd service** (`seismo-recorder.service`, 2026-07-19):
+enabled (auto-starts on boot), `Restart=always`, clean SIGTERM shutdown. The
+station now records 24/7 to `~/seismo/data/*.mseed` unattended.
+
 Remaining to a full *station*: (1) a **helicorder** drum view — run on the Mac
-against the Pi's miniSEED (offload the heavy plotting); (2) run the recorder as
-a **persistent service** (systemd) so it survives reboots; (3) **tune the shunt
-damping** resistor against a recorded impulse. Case walls/lid deferred by choice
-(deploy-and-learn first). Crimp ferrules still inbound for permanent termination.
+against the Pi's miniSEED (offload the heavy plotting); (2) **tune the shunt
+damping** resistor against a recorded impulse. Case walls/lid deferred by choice.
+Crimp ferrules still inbound for permanent termination.
+
+### Operating the service (the recorder OWNS the ADC while running)
+- Status / live log: `systemctl status seismo-recorder` · `journalctl -u seismo-recorder -f`
+- **Before any manual ADC tool** (`live_view.py`, `adc_diag.py`, `noise_compare.py`, `recorder.py`): `sudo systemctl stop seismo-recorder` first, else the ADC is busy (chip-ID error). `sudo systemctl start seismo-recorder` when done.
+- Unit lives at `/etc/systemd/system/seismo-recorder.service` (source of truth: `station/seismo-recorder.service`). Config via `Environment=` lines (station/gain/drate).
 
 ## Milestone map (bring-up order — specification.md §6)
 
@@ -38,7 +46,8 @@ damping** resistor against a recorded impulse. Case walls/lid deferred by choice
 - [x] **Phase 2b** — differential/biased front-end ✓, live view ✓ (`live_view.py`), gain 64 + **DRATE_60** chosen from a noise sweep (`noise_compare.py`): electronics floor ~1.17 µV RMS / ~41 nm/s, mains-notched, sustainable timing
 - [x] **Phase 4a** — **continuous recorder** (`recorder.py`): geophone → gapless miniSEED day-files via simplemseed, validated read-back
 - [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical) — socket is wired, just needs a value (tune against a recorded impulse)
-- [ ] **Phase 4b** — helicorder drum view (run on the Mac vs the Pi's miniSEED) + recorder as a systemd service
+- [x] **Phase 4b** — recorder deployed as a **systemd service** (`seismo-recorder.service`, enabled/auto-start, 24/7)
+- [ ] **Phase 4c** — helicorder drum view (run on the Mac vs the Pi's miniSEED)
 - [ ] **Phase 5** — record a real event; cross-check vs USGS / nearby Raspberry Shake
 
 ## Hardware as-built

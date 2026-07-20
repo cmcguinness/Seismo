@@ -1,0 +1,27 @@
+[Unit]
+Description=Seismo geophone recorder (geophone -> miniSEED day-files)
+Documentation=https://github.com/cmcguinness/Seismo
+# Need pigpiod for SPI/GPIO, and a synced clock for accurate sample timestamps.
+After=network-online.target time-sync.target pigpiod.service
+Wants=network-online.target time-sync.target
+Requires=pigpiod.service
+
+[Service]
+Type=simple
+User=charles
+Group=charles
+WorkingDirectory=/home/charles/seismo/station
+# Station config (defaults match recorder.py; here so the deployment is self-documenting)
+Environment=SEISMO_STATION=OAKMT
+Environment=SEISMO_GAIN=64
+Environment=SEISMO_DRATE=60
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/charles/seismo/venv/bin/python recorder.py
+# recorder.py traps SIGTERM -> flushes the partial block and releases the ADC
+KillSignal=SIGTERM
+TimeoutStopSec=20
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
