@@ -48,7 +48,8 @@ Dokku) = render/serve**, **Jetson = future ML** (backlog). Live at **https://sei
   `dokku apps:create seismo` · `dokku storage:mount seismo /home/charles/seismo-data:/data`
   · `dokku config:set --no-restart seismo SEISMO_LIVE_URL=http://192.168.4.47:8347/data SEISMO_PLACE=...`
   · `dokku git:from-image seismo seismo-dash:latest` · `dokku ports:set seismo http:80:5000`.
-  (Rebuild + `git:from-image` again to update.) Note: obspy compiles from source
+  (To UPDATE: `sudo docker build` then `dokku ps:rebuild seismo` — `git:from-image`
+  with the same tag reports "no changes" and skips.) Note: obspy compiles from source
   (no aarch64 py3.12 wheel) → the Dockerfile needs `build-essential`.
 - **Note:** images render on-demand per request (~2 s, fresher than the "every 15 min"
   ask); add a render cache if traffic warrants. Makes the "does the 2B need a RAM

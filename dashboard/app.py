@@ -63,7 +63,7 @@ PAGE = """<!doctype html><html><head><meta charset=utf-8>
    {events}</table></section>
 </main>
 <footer>rendered on the LAN from rsync-mirrored miniSEED · images refresh every 60&nbsp;s ·
- <a href="https://github.com/cmcguinness/Seismo">Seismo</a></footer>
+ built by <a href="https://www.linkedin.com/in/charlesmcguinness/">Charles McGuinness</a></footer>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),hud=document.getElementById('hud');
 function fit(){{cv.width=cv.clientWidth;cv.height=cv.clientHeight;}}
