@@ -94,6 +94,13 @@ def main() -> None:
     print(f"{st[0].id}  {st[0].stats.sampling_rate:g} sps  "
           f"{start} -> {end}  ({(end - start) / 60.0:.1f} min, {len(st)} segment(s))")
 
+    # Start the drum rows on clean interval boundaries (:00/:15/:30/:45 for a
+    # 15-min interval) instead of at the first sample: pad the earliest segment
+    # back to the boundary at/before `start` with blank (masked) samples.
+    interval_s = args.interval * 60
+    boundary = start - (start.timestamp % interval_s)
+    min(st, key=lambda t: t.stats.starttime).trim(boundary, pad=True, fill_value=None)
+
     st.plot(
         type="dayplot",
         interval=args.interval,
