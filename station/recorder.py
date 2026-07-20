@@ -27,7 +27,7 @@ as a sub-block overlap that never accumulates. We still measure the true rate at
 startup, only to log it. (A crystal-exact, drift-free rate needs RDATAC mode.)
 
 Config via environment (all optional):
-  SEISMO_STATION/NETWORK/LOCATION/CHANNEL   SEED id   default AM.OAKMT.00.SHZ
+  SEISMO_STATION/NETWORK/LOCATION/CHANNEL   SEED id   default XX.OAKMT.00.SHZ
   SEISMO_GAIN     PGA gain                  default 64
   SEISMO_DRATE    ADS1256 data rate (sps)   default 60
   SEISMO_RATE     declared miniSEED rate    default 57  (fixed -> single-rate archive)
@@ -51,7 +51,9 @@ from simplemseed import MiniseedHeader, MiniseedRecord
 from adc_common import DIFF, measure_rate, open_ads
 
 STATION = os.environ.get("SEISMO_STATION", "OAKMT")
-NETWORK = os.environ.get("SEISMO_NETWORK", "AM")
+NETWORK = os.environ.get("SEISMO_NETWORK", "XX")   # XX = FDSN test/unregistered code.
+                                                   # NOT "AM" -- that's Raspberry Shake's
+                                                   # registered network; we're independent.
 LOCATION = os.environ.get("SEISMO_LOCATION", "00")
 CHANNEL = os.environ.get("SEISMO_CHANNEL", "SHZ")
 GAIN = int(os.environ.get("SEISMO_GAIN", "64"))

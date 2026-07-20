@@ -18,7 +18,7 @@ check), `live_view.py` (real-time browser strip-chart on :8347). Deployed to
 `seismo.local:~/seismo/station/`; passwordless SSH from the Mac is set up.
 
 **The continuous recorder is DONE and validated** (2026-07-19): `recorder.py`
-writes gapless miniSEED day-files (`AM.OAKMT.00.SHZ`, int32, ~57 sps, absolute
+writes gapless miniSEED day-files (`XX.OAKMT.00.SHZ`, int32, ~57 sps, absolute
 UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /
 ~57 nm/s, above the 41 nm/s electronics floor). So the station **records**.
 
@@ -75,7 +75,7 @@ the enclosure walls/lid.
 - **Sensor:** LGT-4.5 bare 1" element. Coil **385 Ω** measured. **25.4 mm ⌀ × 36 mm, 74 g.** Bottom = flat rim + central recess. Top = offset green board, two solder pins (one `+`, one marked; **red wire = +, white = −** on our cable).
 - **ADC:** Waveshare High-Precision AD/DA (ADS1256).
 - **Pi:** Raspberry Pi **2B** (32-bit), Bookworm Lite 32-bit, `seismo.local`, USB Wi-Fi dongle. PSU 5 V / 2.5 A.
-- **Station:** `AM.OAKMT.00.SHZ` — vertical, 4.5 Hz. Location **38.451817°N, −122.621049°W** (Oakmont, Santa Rosa; measured at the sensor). Used by `analysis/eventcheck.py` for distance/travel-times.
+- **Station:** `XX.OAKMT.00.SHZ` — vertical, 4.5 Hz. Location **38.451817°N, −122.621049°W** (Oakmont, Santa Rosa; measured at the sensor). Used by `analysis/eventcheck.py` for distance/travel-times.
 - **Cable:** salvaged **XLR** (shielded twisted pair), ~1 m, coiled slack. red=+/white=−, braid=shield. **Soldered to the geophone + validated** (ohms + movement). Ends tinned for test insertion; **re-terminate with crimp ferrules** for the permanent build — tinned strands cold-flow/loosen under screw terminals. Shield → AGND at the board end only.
 
 ## Software as-built (on the Pi, `~/seismo`)

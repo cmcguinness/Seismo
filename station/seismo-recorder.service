@@ -12,6 +12,7 @@ User=charles
 Group=charles
 WorkingDirectory=/home/charles/seismo/station
 # Station config (defaults match recorder.py; here so the deployment is self-documenting)
+Environment=SEISMO_NETWORK=XX
 Environment=SEISMO_STATION=OAKMT
 Environment=SEISMO_GAIN=64
 Environment=SEISMO_DRATE=60

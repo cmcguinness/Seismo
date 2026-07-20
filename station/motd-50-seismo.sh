@@ -10,7 +10,7 @@ else
 fi
 
 printf '\n'
-printf '=== Seismo -- DIY geophone seismometer (AM.OAKMT.00.SHZ) ===\n'
+printf '=== Seismo -- DIY geophone seismometer (XX.OAKMT.00.SHZ) ===\n'
 printf '  recorder service: %s\n' "$STATUS"
 LATEST=$(ls -t "$DATA"/*.mseed 2>/dev/null | head -1)
 if [ -n "$LATEST" ]; then
