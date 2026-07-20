@@ -23,7 +23,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from helicorder import LOCAL_DATA, pick_file, pull
+from helicorder import LOCAL_DATA, load_day, pick_file, pull
 
 # ADS1256 at gain 64, Vref 2.5: volts per count -> microvolts per count.
 UV_PER_COUNT = (2.5 * 2 / (64 * (2 ** 23 - 1))) * 1e6      # ~0.00931 uV/count
@@ -44,10 +44,7 @@ def main() -> None:
     if not args.no_pull:
         pull(args.host)
 
-    import obspy
-    st = obspy.read(str(pick_file(args.date)))
-    st.merge(method=1)
-    st = st.split()
+    st = load_day(pick_file(args.date))    # read + normalize mixed rates + merge + split
     st.detrend("demean")
     if args.latest:
         tr = max(st, key=lambda t: t.stats.starttime)   # most recent segment

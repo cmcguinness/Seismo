@@ -47,6 +47,30 @@ def pick_file(date: str | None) -> Path:
     return matches[-1]
 
 
+def load_day(path):
+    """Read a day-file into a gap-split Stream, normalizing mixed sample rates.
+
+    Pre-fix day-files can hold segments at 55/56/57 sps (each recorder restart
+    re-measured the rate), and ObsPy refuses to merge across differing rates.
+    Resample the off-nominal segments to the dominant rate first. New data is
+    single-rate (fixed SEISMO_RATE), so this only bites the early archive.
+    """
+    import obspy
+    from collections import Counter
+
+    st = obspy.read(str(path))
+    dom = Counter(round(t.stats.sampling_rate) for t in st).most_common(1)[0][0]
+    off = [t for t in st if round(t.stats.sampling_rate) != dom]
+    if off:
+        print(f"note: resampling {len(off)} off-nominal segment(s) to {dom} sps")
+        for t in off:
+            t.resample(float(dom))
+        for t in st:                            # resample makes float64; unify all
+            t.data = t.data.astype("float64")   # so merge doesn't choke on mixed dtypes
+    st.merge(method=1)             # heal the ~ms per-block overlaps
+    return st.split()              # contiguous segments only -> real gaps stay blank
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="seismo.local")
@@ -59,14 +83,8 @@ def main() -> None:
     if not args.no_pull:
         pull(args.host)
 
-    # import obspy lazily so --help / rsync errors don't pay the import cost
-    import obspy
-
     path = pick_file(args.date)
-    st = obspy.read(str(path))
-    st.merge(method=1)             # heal the ~ms per-block overlaps
-    st = st.split()                # contiguous segments only -> real gaps render
-                                   # blank on the drum, not as an interpolated line
+    st = load_day(path)            # read + normalize mixed rates + merge + split
     st.detrend("demean")           # drop the ADC DC bias (per segment)
     if args.highpass:
         st.filter("highpass", freq=args.highpass, corners=2, zerophase=True)

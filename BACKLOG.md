@@ -87,6 +87,40 @@ matters is **noise + dynamic range**, not speed.
 - **Oversampling note**: can't lower the floor with a faster external rate — the
   delta-sigma already oversamples internally (that's what the DRATE trade is).
 
+## 3-component (X/Y/Z) + azimuth alignment
+
+Turns a "something happened" detector into "something happened *over there*"
+(back-azimuth, particle motion). Two sensor paths:
+
+- **Accelerometer (recommended for strong motion): ADXL355** — 3 axes in one
+  DIGITAL chip (built-in ADC, SPI or I²C), so NO extra A/D and no analog front-end.
+  Put it on the Pi's free I²C pins (GPIO 2/3; ADS1256 uses SPI0). ~$60. Strong-
+  motion class; complements the geophone (weak motion). NOT a Pi HAT — a seismic
+  sensor must be **rigidly ground-coupled and leveled**, so mount the breakout on
+  the coupling base with the geophone, wired back to the Pi.
+- **3-component geophone (weak motion)**: needs purpose-built HORIZONTAL elements
+  (a vertical element can't lie on its side — ~12 mm gravity sag pins the coil to
+  the stop) + 3 differential ADS1256 channels. Multiplexing 3 channels cuts per-
+  channel rate → depends on the RDATAC fix. Elements ~$15–40 each.
+
+**Azimuth alignment (base feature — the ask):** the horizontals must be oriented
+to geographic N/E, so the base needs an alignment reference.
+- **Do NOT embed a live compass near the sensors** — the geophone's magnet (plus
+  steel screws, the Pi) will deflect it; Earth's field is only ~0.5 gauss and the
+  magnet's leakage rivals it at 5–15 cm. (An electronic magnetometer/IMU heading
+  fails for the same reason.) **Test** a compass at the intended spot next to the
+  assembled sensor vs. far away before trusting anything embedded.
+- **Instead, model an azimuth DATUM** into the base (engraved arrow / reference
+  edge = the sensor N axis) and align it to true north with an external compass or
+  phone held ~1 m away, or a landmark/sun sighting — both immune to the magnet. Or
+  a **removable compass jig** keyed to the datum (align, then pull it).
+- **Declination**: Santa Rosa ≈ **+13° E** (drifts ~0.1°/yr; verify NOAA for
+  site/date). East declination → true N is ~13° *west* of magnetic N. Use a
+  rotatable bezel (handles drift) or an engraved true-N-vs-magnetic-N offset index.
+- CAD: build123d feature on the base — engraved true-north arrow aligned to the
+  accel X-axis pocket + declination offset mark, positioned as far from the
+  geophone pocket as the base allows.
+
 ## Other
 
 - **STEIM2 compression** for the recorder (currently int32 uncompressed, ~19 MB/day).
