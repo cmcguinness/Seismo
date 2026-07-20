@@ -38,6 +38,8 @@ import os
 import queue
 import signal
 import threading
+import time
+from collections import deque
 from pathlib import Path
 
 import numpy as np
@@ -57,8 +59,33 @@ BLOCK_S = int(os.environ.get("SEISMO_BLOCK", "10"))
 SPR = 100                        # samples per 512-byte int32 record (<=114 fits)
 ENC_INT32 = 3
 
+# Live feed for real-time viewing (live_server.py): the sampling loop mirrors a
+# rolling window of raw counts to a RAM-backed file. No ADC contention -- the
+# viewer reads this file, never the chip.
+LIVE_PATH = Path("/dev/shm/seismo_live.npz")
+LIVE_SECONDS = 30                # width of the live waveform window
+LIVE_PERIOD = 0.3                # how often to republish the ring (s)
+
 _stop = threading.Event()
 _q: queue.Queue = queue.Queue(maxsize=64)
+
+
+def live_publisher(ring: deque, fs: float) -> None:
+    """Every LIVE_PERIOD, snapshot the ring and atomically write it to shared
+    memory for live_server.py. Runs in its OWN thread so the file I/O never
+    delays the sampling loop. ring.copy() is a single C-level op (atomic vs the
+    sampling thread's append); any transient error just skips one frame."""
+    tmp = f"{LIVE_PATH}.tmp"
+    while not _stop.is_set():
+        time.sleep(LIVE_PERIOD)
+        try:
+            counts = np.array(ring.copy(), dtype=np.int32)
+            if counts.size:
+                with open(tmp, "wb") as f:
+                    np.savez(f, counts=counts, fs=np.float64(fs), gain=np.int32(GAIN))
+                os.replace(tmp, LIVE_PATH)
+        except Exception:
+            pass
 
 
 def _write_records(fh, samples, start, rate):
@@ -108,10 +135,14 @@ def main() -> None:
 
         buf = [0]
         block: list[int] = []
+        live_ring: deque = deque(maxlen=int(fs * LIVE_SECONDS))
+        threading.Thread(target=live_publisher, args=(live_ring, fs), daemon=True).start()
         start = datetime.datetime.now(datetime.timezone.utc)
         nblocks = 0
         while not _stop.is_set():
-            block.append(ads.read_continue([DIFF], buf)[0])
+            sample = ads.read_continue([DIFF], buf)[0]
+            block.append(sample)
+            live_ring.append(sample)             # cheap; publisher thread does the I/O
             if len(block) >= block_n:
                 _q.put((block, start))
                 nblocks += 1

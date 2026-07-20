@@ -1,0 +1,20 @@
+[Unit]
+Description=Seismo live waveform viewer (serves the /dev/shm ring; no ADC access)
+Documentation=https://github.com/cmcguinness/Seismo
+# Wants (not Requires) the recorder: the viewer still runs if recording is down,
+# it just shows "no live data".
+After=network-online.target seismo-recorder.service
+Wants=network-online.target seismo-recorder.service
+
+[Service]
+Type=simple
+User=charles
+Group=charles
+WorkingDirectory=/home/charles/seismo/station
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/charles/seismo/venv/bin/python live_server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

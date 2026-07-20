@@ -26,6 +26,13 @@ UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /
 enabled (auto-starts on boot), `Restart=always`, clean SIGTERM shutdown. The
 station now records 24/7 to `~/seismo/data/*.mseed` unattended.
 
+**Real-time viewer** (2026-07-20): the recorder mirrors a rolling 30 s window to
+shared memory (`/dev/shm/seismo_live.npz`) from a dedicated publisher thread (no
+ADC contention, isolated from the sampling loop). `live_server.py` (its own
+`seismo-live.service`, always-on, ADC-free) serves a scrolling waveform at
+**http://seismo.local:8347** — real-time viewing that coexists with recording.
+(This is why `live_view.py` alone can't run now: the recorder owns the ADC.)
+
 **Helicorder DONE** (2026-07-19): `analysis/helicorder.py` on the Mac pulls the
 Pi's miniSEED (rsync) and renders a classic ObsPy dayplot drum — full loop
 closed (geophone → 24/7 recorder → miniSEED → drum). ObsPy lives in a Mac-only

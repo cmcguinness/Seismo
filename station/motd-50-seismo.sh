@@ -18,7 +18,8 @@ if [ -n "$LATEST" ]; then
 fi
 cat <<'EOF'
 
-  status : systemctl status seismo-recorder
+  LIVE   : http://seismo.local:8347   (real-time waveform, always on)
+  status : systemctl status seismo-recorder    (or seismo-live)
   logs   : journalctl -u seismo-recorder -f
   data   : ls -lh ~/seismo/data/
 
