@@ -44,5 +44,9 @@ status: int = 0x00                     # input buffer OFF. With AVDD=3.3V the bu
                                        # Zin buys us nothing here anyway.
 mux: int = POS_AIN0 | NEG_AINCOM       # power-on mux (samplers override)
 adcon: int = CLKOUT_OFF | SDCS_OFF | gain_flags
-drate: int = DRATE_100                 # power-on data rate (samplers override)
+drate: int = DRATE_60                  # power-on data rate (samplers override).
+                                       # 60 sps chosen: lowest measured noise floor
+                                       # (1.17 µV RMS vs 2.0 @100), hardware-notches
+                                       # 60 Hz mains, and the Pi 2B sustains it exactly
+                                       # (60 < ~92 sps read ceiling -> uniform timing).
 gpio: int = 0x00

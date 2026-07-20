@@ -15,11 +15,16 @@ Run on the Pi (needs the ADS1256 + pigpiod). Three checks, in order:
 
 Usage:  python adc_diag.py            # gain from waveshare_config (GAIN_1)
 """
+import os
 import signal
 import time
 import waveshare_config
 from pipyadc import ADS1256
 from pipyadc.ADS1256_definitions import *
+
+GAIN = int(os.environ.get("SEISMO_GAIN", "1"))   # PGA: 1..64 (SEISMO_GAIN=64 for weak motion)
+if GAIN not in (1, 2, 4, 8, 16, 32, 64):
+    raise SystemExit(f"SEISMO_GAIN must be one of 1,2,4,8,16,32,64 (got {GAIN})")
 
 # Translate SIGTERM into KeyboardInterrupt so the finally: below always runs and
 # releases the ADC -- a killed run must never leave the chip locked.
@@ -38,11 +43,16 @@ WLEN = 50                        # live window (~0.5 s at 100 sps)
 
 
 def main() -> None:
+    # Gain via config ADCON (the pga_gain setter is broken in this PiPyADC build
+    # -- it reads an uninitialized self._status). __init__ writes conf.adcon
+    # straight to the register, bypassing that. Gain flag = log2(gain), low 3 bits.
+    waveshare_config.adcon = CLKOUT_OFF | SDCS_OFF | (GAIN.bit_length() - 1)
     ads = ADS1256(waveshare_config)
     try:
-        ads.drate = DRATE_100
+        ads.drate = DRATE_60         # station rate (see noise_compare.py)
         ads.cal_self()
         vpd = ads.v_per_digit
+        print(f"PGA gain {GAIN}  (full-scale +/-{ads.v_ref / GAIN * 1e3:.1f} mV)")
 
         # --- 1. bias check ---
         v0 = ads.read_oneshot(SE0) * vpd
@@ -64,7 +74,7 @@ def main() -> None:
             ads.read_continue([DIFF], buf)
         r_cont = N_BENCH / (time.time() - t0)
         print(f"RATE  oneshot={r_one:6.1f} sps   continue={r_cont:6.1f} sps  "
-              f"(DRATE_100 nominal)")
+              f"(DRATE_60 nominal)")
 
         # --- 3. live peak-to-peak monitor ---
         print("\nLIVE  tap the geophone.  Ctrl-C to stop.")

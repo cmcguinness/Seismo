@@ -12,6 +12,7 @@ No Flask, no numpy, no browser deps — stdlib only.
 Ctrl-C to stop.
 """
 import json
+import os
 import signal
 import sys
 import threading
@@ -25,6 +26,9 @@ from pipyadc.ADS1256_definitions import *
 
 PORT = 8347
 DIFF = POS_AIN0 | NEG_AIN1
+GAIN = int(os.environ.get("SEISMO_GAIN", "1"))   # PGA: 1..64. 1=taps, 64=weak motion
+if GAIN not in (1, 2, 4, 8, 16, 32, 64):
+    raise SystemExit(f"SEISMO_GAIN must be one of 1,2,4,8,16,32,64 (got {GAIN})")
 WINDOW_S = 20                    # seconds of trace held in the ring
 RING = deque(maxlen=WINDOW_S * 120)   # ~120 sps ceiling
 _lock = threading.Lock()
@@ -39,11 +43,18 @@ def reader() -> None:
     so a killed process never leaves the chip locked for the next launch.
     """
     global _fs
+    # Set PGA gain via the config's ADCON register. The installed PiPyADC's
+    # pga_gain/adcon property setters are broken (they read self._status, which
+    # is never initialized), but __init__ writes conf.adcon straight to the
+    # register, bypassing that path. Gain flag = log2(gain) in the low 3 bits.
+    waveshare_config.adcon = CLKOUT_OFF | SDCS_OFF | (GAIN.bit_length() - 1)
     ads = ADS1256(waveshare_config)
     try:
-        ads.drate = DRATE_100
-        ads.cal_self()
+        ads.drate = DRATE_60         # station rate: low noise + 60 Hz notch (see noise_compare)
+        ads.cal_self()               # self-cal at the configured gain
         vpd = ads.v_per_digit
+        print(f"reading at PGA gain {GAIN}  (full-scale +/-{ads.v_ref / GAIN * 1e3:.1f} mV, "
+              f"{vpd * 1e9:.1f} nV/LSB)")
         buf = [0]
         ads.read_oneshot(DIFF)   # prime the cyclic read
         n, t0 = 0, time.time()
@@ -83,7 +94,7 @@ async function tick(){
     ctx.strokeStyle='#3f8';ctx.lineWidth=1;ctx.beginPath();
     for(let i=0;i<n;i++){const x=i/(n-1)*W,y=H/2-d[i]/amp*(H/2*0.9);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
     ctx.stroke();
-    hud.textContent=`fs ${r.fs.toFixed(1)} sps   pp ${r.pp.toFixed(0)} uV   scale +/-${amp.toFixed(0)} uV`;
+    hud.textContent=`gain ${r.gain}   fs ${r.fs.toFixed(1)} sps   pp ${r.pp.toFixed(0)} uV   scale +/-${amp.toFixed(0)} uV`;
   }
   requestAnimationFrame(tick);
 }
@@ -105,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
                 pp = max(data) - min(data)
             else:
                 uv, pp = [], 0.0
-            body = json.dumps({"uv": uv, "pp": pp, "fs": _fs}).encode()
+            body = json.dumps({"uv": uv, "pp": pp, "fs": _fs, "gain": GAIN}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
