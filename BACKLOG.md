@@ -67,6 +67,26 @@ free software wins FIRST; buy silicon only when expanding.
   Pi 4 or a Pi 5** (also 64-bit / aarch64, longer OS-support horizon) when the time
   comes. No urgency for the current single-channel station.
 
+## ADC upgrade (consideration — premature, but noted)
+
+The ADS1256/Waveshare board is NOT the current weak link. Speed is irrelevant
+(it does 30 ksps; we use ~57, and seismology wants 100-250). The axis that
+matters is **noise + dynamic range**, not speed.
+
+- **Not ADC-limited yet.** Measured floor ~1.17 µV RMS is ~2-3× *above* the
+  ADS1256's own datasheet noise → excess is from buffer-off / reference / supply.
+  Do the **Rev-2 front-end** work first (buffer, reference) — closes most of the
+  gap without new silicon.
+- **If ever chased**: a seismic-grade delta-sigma — **ADS1282** (~130 dB DR,
+  ~21+ ENOB, used in pro digitizers) or **ADS1263** (32-bit, lower noise). Lower
+  floor AND enough dynamic range to capture weak ambient + strong local motion at
+  one gain (vs today's gain-64 clip at ±39 mV ≈ 1.35 mm/s). But this means a
+  **custom board** — loses the Waveshare HAT convenience; a real hardware project.
+- **Dynamic range is better solved by the accelerometer** (strong motion) than a
+  premium ADC — geophone + accel covers weak-to-strong far more cost-effectively.
+- **Oversampling note**: can't lower the floor with a faster external rate — the
+  delta-sigma already oversamples internally (that's what the DRATE trade is).
+
 ## Other
 
 - **STEIM2 compression** for the recorder (currently int32 uncompressed, ~19 MB/day).
