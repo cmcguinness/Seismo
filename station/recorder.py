@@ -37,6 +37,7 @@ Config via environment (all optional):
 Ctrl-C / SIGTERM flushes the partial block and releases the ADC cleanly.
 """
 import datetime
+import json
 import os
 import queue
 import signal
@@ -49,6 +50,7 @@ import numpy as np
 from simplemseed import MiniseedHeader, MiniseedRecord
 
 from adc_common import DIFF, measure_rate, open_ads
+from stalta import StaLta
 
 STATION = os.environ.get("SEISMO_STATION", "OAKMT")
 NETWORK = os.environ.get("SEISMO_NETWORK", "XX")   # XX = FDSN test/unregistered code.
@@ -63,6 +65,15 @@ RATE = int(os.environ.get("SEISMO_RATE", "57"))   # FIXED declared miniSEED rate
                                                   # restarts, which re-measure to 55-57.
 DATADIR = Path(os.environ.get("SEISMO_DATADIR", str(Path.home() / "seismo" / "data")))
 BLOCK_S = int(os.environ.get("SEISMO_BLOCK", "10"))
+
+# STA/LTA event detector (see stalta.py). Runs inline; only writes on a trigger.
+TRIG = float(os.environ.get("SEISMO_TRIG", "4.0"))     # STA/LTA on-threshold
+DETRIG = float(os.environ.get("SEISMO_DETRIG", "1.5"))  # off-threshold
+STA_S = float(os.environ.get("SEISMO_STA", "1.0"))
+LTA_S = float(os.environ.get("SEISMO_LTA", "30.0"))
+HP_HZ = float(os.environ.get("SEISMO_HP", "1.0"))       # high-pass to reject microseism
+EVENTS_LOG = DATADIR.parent / "events.log"              # permanent JSONL record
+EVENTS_LIVE = Path("/dev/shm/seismo_events.json")       # last N events, for the viewer
 
 SPR = 100                        # samples per 512-byte int32 record (<=114 fits)
 ENC_INT32 = 3
@@ -94,6 +105,29 @@ def live_publisher(ring: deque, fs: float) -> None:
                 os.replace(tmp, LIVE_PATH)
         except Exception:
             pass
+
+
+def _emit_event(ev: dict) -> None:
+    """Record a detected event: journal line + permanent JSONL + a rolling
+    recent-events file for the viewer. Best-effort; never crashes the loop."""
+    end = datetime.datetime.now(datetime.timezone.utc)
+    start = end - datetime.timedelta(seconds=ev["duration_s"])
+    rec = {"start": start.isoformat(timespec="seconds"),
+           "end": end.isoformat(timespec="seconds"), **ev}
+    print(f"EVENT {start:%H:%M:%S}Z  dur {ev['duration_s']}s  "
+          f"ratio {ev['peak_ratio']}  peak {ev['peak_uv']} uV", flush=True)
+    try:
+        with open(EVENTS_LOG, "a") as f:
+            f.write(json.dumps(rec) + "\n")
+        recent = []
+        if EVENTS_LIVE.exists():
+            recent = json.loads(EVENTS_LIVE.read_text())
+        recent = (recent + [rec])[-20:]
+        tmp = f"{EVENTS_LIVE}.tmp"
+        Path(tmp).write_text(json.dumps(recent))
+        os.replace(tmp, EVENTS_LIVE)
+    except Exception:
+        pass
 
 
 def _write_records(fh, samples, start, rate):
@@ -139,6 +173,10 @@ def main() -> None:
         print(f"recording {NETWORK}.{STATION}.{LOCATION}.{CHANNEL}  "
               f"declared {rate} sps (measured {fs:.2f}), gain {GAIN}")
         print(f"  -> {DATADIR}  ({BLOCK_S}s blocks, {block_n} samples each)")
+        uv_per_count = 2.5 * 2 / (GAIN * (2 ** 23 - 1)) * 1e6
+        detector = StaLta(fs, hp_hz=HP_HZ, sta_s=STA_S, lta_s=LTA_S,
+                          trig=TRIG, detrig=DETRIG, uv_per_count=uv_per_count)
+        print(f"  detector: STA/LTA trig {TRIG} (STA {STA_S}s / LTA {LTA_S}s, HP {HP_HZ}Hz)")
         print("Ctrl-C to stop.")
 
         buf = [0]
@@ -151,6 +189,12 @@ def main() -> None:
             sample = ads.read_continue([DIFF], buf)[0]
             block.append(sample)
             live_ring.append(sample)             # cheap; publisher thread does the I/O
+            try:                                 # STA/LTA detector -- never break acquisition
+                ev = detector.update(sample)
+                if ev:
+                    _emit_event(ev)
+            except Exception:
+                pass
             if len(block) >= block_n:
                 _q.put((block, start))
                 nblocks += 1

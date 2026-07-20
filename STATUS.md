@@ -26,6 +26,14 @@ UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /
 enabled (auto-starts on boot), `Restart=always`, clean SIGTERM shutdown. The
 station now records 24/7 to `~/seismo/data/*.mseed` unattended.
 
+**Event detection** (2026-07-20): the recorder runs a streaming **STA/LTA** trigger
+(`stalta.py`) inline — 1-pole high-pass (rejects microseism) → energy CF → STA/LTA
+with the LTA frozen during events. Detections → journal (`EVENT …`), `~/seismo/
+events.log` (permanent JSONL), and `/dev/shm/seismo_events.json` (recent, for the
+viewer). Tunable via `SEISMO_TRIG`/`STA`/`LTA`/`HP` (default trig 4.0). Feeds the
+planned APRS alerts + helicorder event annotation. Wrapped so it can never break
+acquisition.
+
 **Real-time viewer** (2026-07-20): the recorder mirrors a rolling 30 s window to
 shared memory (`/dev/shm/seismo_live.npz`) from a dedicated publisher thread (no
 ADC contention, isolated from the sampling loop). `live_server.py` (its own
