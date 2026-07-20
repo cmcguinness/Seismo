@@ -46,6 +46,11 @@ during setup); watch it, and the RDATAC continuous-mode upgrade would remove it;
 warns but reads fine) and int32 (STEIM2 compression later). Case walls/lid
 deferred by choice. Crimp ferrules still inbound for permanent termination.
 
+**Deferred work → see `BACKLOG.md`** — notably the **Rev-2 geophone→ADC front-end**
+(revisit the input buffer for the noise floor, add an input anti-alias RC /
+switched-cap reservoir, cleaner analog supply), plus STEIM2, RDATAC timing, and
+the enclosure walls/lid.
+
 ### Operating the service (the recorder OWNS the ADC while running)
 - Status / live log: `systemctl status seismo-recorder` · `journalctl -u seismo-recorder -f`
 - **Before any manual ADC tool** (`live_view.py`, `adc_diag.py`, `noise_compare.py`, `recorder.py`): `sudo systemctl stop seismo-recorder` first, else the ADC is busy (chip-ID error). `sudo systemctl start seismo-recorder` when done.
