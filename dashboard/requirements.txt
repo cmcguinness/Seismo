@@ -1,0 +1,6 @@
+# Dependencies are installed by the Dockerfile, not pip-from-this-file:
+#   - obspy (+ numpy/scipy/matplotlib/lxml) via apt `python3-obspy` (prebuilt aarch64)
+#   - python-fasthtml via pip into a --system-site-packages venv
+# Listed here for reference / non-Docker runs.
+python-fasthtml
+obspy>=1.4

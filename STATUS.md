@@ -26,6 +26,17 @@ UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /
 enabled (auto-starts on boot), `Restart=always`, clean SIGTERM shutdown. The
 station now records 24/7 to `~/seismo/data/*.mseed` unattended.
 
+**Public dashboard — distributed build** (2026-07-20, in progress): moving heavy
+work OFF the 1 GB Pi 2B onto LAN hardware the user already runs. **Pi 2B = acquire**
+(recorder + STA/LTA, owns the ADC), **Pi 5 (16 GB, Dokku) = render/serve** the
+public dashboard, **Jetson = future ML** (backlog). Pipeline: a host-level
+`seismo-rsync.timer` on pi5 mirrors `seismo.local:~/seismo/{data,events.log}` →
+`~/seismo-data/` every minute; a Dokku app (`dashboard/`, FastHTML + ObsPy in a
+Dockerfile) renders helicorder/spectrum from the mirror and proxies the Pi's live
+feed (Pi IP `192.168.4.47:8347`, so the acquisition box stays private). pi5→Pi2B
+SSH set up (pi5 key authorized on seismo). This makes the "does the 2B need a RAM
+upgrade" question moot — it just acquires.
+
 **Event detection** (2026-07-20): the recorder runs a streaming **STA/LTA** trigger
 (`stalta.py`) inline — 1-pole high-pass (rejects microseism) → energy CF → STA/LTA
 with the LTA frozen during events. Detections → journal (`EVENT …`), `~/seismo/

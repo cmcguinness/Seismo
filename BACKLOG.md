@@ -208,6 +208,22 @@ standard (the APRS-IS / MQTT-broker analog).
 - **Payoff:** live on StationView-style maps, data queryable alongside pro
   networks, and you can pull your own stream with Swarm / ObsPy SeedLink client.
 
+## ML detection (Jetson Orin Nano)
+
+A GPU node (`ssh jetson`) is available for deep-learning seismology — a real
+upgrade over the STA/LTA trigger.
+
+- **SeisBench** (ML-seismology framework) with pretrained **EQTransformer** /
+  **PhaseNet** — neural earthquake *detection* + P/S *phase picking*, far more
+  sensitive than STA/LTA. Could catch sub-threshold events (the Geysers micro-
+  quakes our trigger misses) and produce real phase picks -> better `eventcheck`.
+- Runs on the mirrored miniSEED (same rsync pipeline); the Jetson pulls, runs
+  inference on GPU, writes events back to the shared events store. Feeds the same
+  dashboard/APRS pipeline the STA/LTA does, just smarter.
+- **Distributed architecture this completes:** Pi 2B = acquisition · Pi 5 =
+  render/serve (dashboard) · Jetson = ML inference. Three purpose-fit nodes.
+- Also possible: DeepDenoiser (seismic denoising) to lower the effective floor.
+
 ## Other
 
 - **STEIM2 compression** for the recorder (currently int32 uncompressed, ~19 MB/day).
