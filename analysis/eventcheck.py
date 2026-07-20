@@ -84,17 +84,17 @@ def main() -> None:
     win = st.slice(origin - args.pre, origin + post)
     if not len(win):
         raise SystemExit("NO DATA in the event window (recorder gap at that time?)")
-    # keep the dominant sample rate, merge, then split back to contiguous
-    # (unmasked) segments -- the archive can be mixed-rate and has small per-block
-    # gaps, and detrend/filter can't run on masked data.
+    # The archive is fragmented into many short segments by sub-second timing
+    # micro-gaps. The old code split() the window and kept only the ONE segment
+    # best overlapping the P-S window -- which discarded the adjacent fragments
+    # holding the pre-event noise, so every event looked like it had a ~6s "gap"
+    # over the P arrival (noise pp 0.0 -> bogus "NOT DETECTED"). Instead, bridge
+    # the micro-gaps by interpolation into a single continuous trace.
     from collections import Counter
     dom = Counter(round(tr.stats.sampling_rate) for tr in win).most_common(1)[0][0]
     win = Stream([tr for tr in win if round(tr.stats.sampling_rate) == dom])
-    win.merge(method=1)
-    win = win.split()
-    # pick the segment covering the P-S window best (falls back to longest)
-    lo, hi = origin + tP - 2, origin + tS + 20
-    tr = max(win, key=lambda t: min(t.stats.endtime, hi) - max(t.stats.starttime, lo))
+    win.merge(method=1, fill_value="interpolate")
+    tr = max(win, key=lambda t: t.stats.npts)
 
     raw = tr.copy(); raw.detrend("demean")
     filt = tr.copy(); filt.detrend("demean")

@@ -115,6 +115,7 @@ def spectrum_png(minutes=60):
     asd = np.sqrt(pxx)
     win_min = x.size / fs / 60
     navg = max(1, int(2 * x.size / nper) - 1)
+    tend = tr.stats.endtime
     fig, ax = plt.subplots(figsize=(9, 4.5))
     ax.loglog(f[1:], asd[1:], "k", lw=0.8, zorder=5)
     # Floor at 0.05 Hz: below the microseism the 4.5 Hz geophone is ~60 dB down,
@@ -141,6 +142,8 @@ def spectrum_png(minutes=60):
     ax.set_title(f"{tr.id}  Welch ASD  ({win_min:.0f} min · ~{navg} averages)")
     ax.grid(True, which="both", alpha=0.3)
     fig.tight_layout()
+    fig.text(0.995, 0.005, f"data to {tend.strftime('%Y-%m-%d %H:%M')} UTC",
+             ha="right", va="bottom", fontsize=7.5, color="#888")
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=100)
     plt.close(fig)
