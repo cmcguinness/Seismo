@@ -18,16 +18,19 @@ Format details (learned the hard way):
   - miniSEED2 stores rate as integer factor x mult, and simplemseed's auto-calc
     is broken -> we pass sampRateFactor/sampRateMult explicitly (integer rate).
 
-Timing: the read path can't hold the DRATE nominal exactly (per-sample SYNC),
-so we MEASURE the true rate at startup, declare the rounded integer, and
-re-anchor every block to the wall clock (NTP-kept UTC). Absolute time stays
-accurate; the <0.03 % rate error is a few-ms per-block sliver that never
-accumulates. (A crystal-exact rate would need ADS1256 RDATAC mode -- later.)
+Timing: the read path can't hold the DRATE nominal exactly (per-sample SYNC,
+~55-57 sps, mildly load-dependent). We declare a FIXED rate (SEISMO_RATE), NOT
+the per-run measured value -- otherwise restarts land on different integers and
+ObsPy refuses to merge a day-file with mixed rates. Each block is re-anchored to
+the wall clock (NTP-kept UTC), which absorbs the small real-vs-declared wander
+as a sub-block overlap that never accumulates. We still measure the true rate at
+startup, only to log it. (A crystal-exact, drift-free rate needs RDATAC mode.)
 
 Config via environment (all optional):
   SEISMO_STATION/NETWORK/LOCATION/CHANNEL   SEED id   default AM.OAKMT.00.SHZ
   SEISMO_GAIN     PGA gain                  default 64
   SEISMO_DRATE    ADS1256 data rate (sps)   default 60
+  SEISMO_RATE     declared miniSEED rate    default 57  (fixed -> single-rate archive)
   SEISMO_DATADIR  output directory          default ~/seismo/data
   SEISMO_BLOCK    seconds per flush         default 10
 
@@ -53,6 +56,9 @@ LOCATION = os.environ.get("SEISMO_LOCATION", "00")
 CHANNEL = os.environ.get("SEISMO_CHANNEL", "SHZ")
 GAIN = int(os.environ.get("SEISMO_GAIN", "64"))
 DRATE = int(os.environ.get("SEISMO_DRATE", "60"))
+RATE = int(os.environ.get("SEISMO_RATE", "57"))   # FIXED declared miniSEED rate: keeps the
+                                                  # archive single-rate (mergeable) across
+                                                  # restarts, which re-measure to 55-57.
 DATADIR = Path(os.environ.get("SEISMO_DATADIR", str(Path.home() / "seismo" / "data")))
 BLOCK_S = int(os.environ.get("SEISMO_BLOCK", "10"))
 
@@ -123,13 +129,13 @@ def main() -> None:
     ads = open_ads(GAIN, DRATE)
     wt = None
     try:
-        fs = measure_rate(ads)                    # true rate; also primes cyclic read
-        rate = max(1, round(fs))                  # integer rate for miniSEED2 fields
-        block_n = max(1, round(fs * BLOCK_S))
+        fs = measure_rate(ads)                    # measured actual rate (also primes read)
+        rate = RATE                               # FIXED declared rate -> single-rate archive
+        block_n = rate * BLOCK_S
         wt = threading.Thread(target=writer, args=(rate,), daemon=True)
         wt.start()
         print(f"recording {NETWORK}.{STATION}.{LOCATION}.{CHANNEL}  "
-              f"{fs:.2f} sps -> declared {rate}, gain {GAIN}")
+              f"declared {rate} sps (measured {fs:.2f}), gain {GAIN}")
         print(f"  -> {DATADIR}  ({BLOCK_S}s blocks, {block_n} samples each)")
         print("Ctrl-C to stop.")
 

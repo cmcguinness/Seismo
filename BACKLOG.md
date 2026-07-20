@@ -48,6 +48,8 @@ socket) against a recorded impulse.
 ## Other
 
 - **STEIM2 compression** for the recorder (currently int32 uncompressed, ~19 MB/day).
-- **Data-continuity / RDATAC**: exact-60.000-sps crystal-locked, gapless timing via
-  ADS1256 continuous mode (replaces the wall-clock-per-block scheme).
+- **Data-continuity / RDATAC**: the mixed-rate-across-restarts bug is FIXED (recorder
+  now declares a fixed SEISMO_RATE=57, so day-files are single-rate/mergeable). Still
+  open: the ~0.3 s per-block overlaps from the wall-clock-per-block scheme. A crystal-
+  locked, gapless, exact-rate stream would need ADS1256 continuous (RDATAC) mode.
 - **Enclosure**: walls + lid (base is done); power cutout +Y, dongle slot −X.

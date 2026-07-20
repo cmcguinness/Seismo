@@ -15,6 +15,7 @@ WorkingDirectory=/home/charles/seismo/station
 Environment=SEISMO_STATION=OAKMT
 Environment=SEISMO_GAIN=64
 Environment=SEISMO_DRATE=60
+Environment=SEISMO_RATE=57
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/charles/seismo/venv/bin/python recorder.py
 # recorder.py traps SIGTERM -> flushes the partial block and releases the ADC
