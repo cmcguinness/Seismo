@@ -271,6 +271,53 @@ upgrade over the STA/LTA trigger.
   open: the ~0.3 s per-block overlaps from the wall-clock-per-block scheme. A crystal-
   locked, gapless, exact-rate stream would need ADS1256 continuous (RDATAC) mode.
 - **Enclosure**: walls + lid (base is done); power cutout +Y, dongle slot −X.
+  Power-in scheme now specified — see "Case design — power feed" below.
+
+## Case design — power feed (Pi + HAT enclosure)
+
+Deferred to the enclosure CAD (build123d, `parts/`). The electrical reasoning is
+settled; this is the mechanical/connector realization.
+
+**Why not micro-USB:** the Pi 2B's micro-USB power jack is the weak link — thin
+contacts, high/variable contact resistance, works loose. It was the original
+brownout path (rail sag → fs drops / square-wave plateaus). We bypass it entirely.
+
+**Feed the 5 V into the GPIO header, not micro-USB.** The Waveshare AD/DA board has
+a **pass-through GPIO connector on top**, so we inject at the top of the stack
+without unmounting the HAT — and it's a true straight-through, so that 5 V is the
+same rail feeding both Pi and ADC, delivered right where it's consumed.
+- Land on pins **2 + 4** (5 V, paralleled) and **two grounds** (6 + 9/14) to halve
+  header/crimp contact resistance and keep the feed stiff. Pi ties 2/4 internally.
+- **Crimped** connector (2×20 IDC shell or tight individual crimps), not loose
+  Dupont — flaky Dupont on a power feed = new brownout.
+- **micro-USB left unplugged** — exactly one source, never both fighting.
+- Seat the pass-through header hard; a loose stacking header = intermittent =
+  the same plateau artifact through a new door.
+
+**Case-mounted connectors (to model):**
+- **Anderson Powerpole** for power-in on the case wall (ham standard, genderless,
+  positive detent). Model the panel cutout + retention off the actual PP15/30/45
+  housing (shared body) when in hand.
+- **Inline fuse holder** spliced into the +5 V lead between the Powerpole and the
+  header pins — ~2 A (blade or barrel). Restores the over-current protection we
+  lose by bypassing the Pi's input polyfuse. In-wire, so no panel cutout to model;
+  just anchor/strain-relieve it inside the case. (A current-limited supply covers
+  faults too, but the fuse is the visible, swappable belt-and-suspenders.)
+- Internal wiring: **20 AWG stranded** (drop is negligible at ~1 A over <1 ft; 20
+  AWG is the crimp-into-0.1″-housings sweet spot — heavier just fights the pins).
+
+**Supply:** clean, **stiff** 5 V (linear-regulated preferred, ≥2 A) — stiffness
+(low output-Z / transient response) matters as much as low ripple for brownout
+margin. Battery + LDO is the cleanest if a supply spur ever shows in the spectrum
+(charge offline, not pass-through). Gate the fancy supply on data — the front end
+is differential/floating and rejects common-mode, so confirm a switching hump
+exists before optimizing for it.
+
+**Related — geophone case (separate enclosure):** XLR panel connector for
+plug/unplug (male chassis NC3MD-L-B on the sensor, female NC3FD-L-B on the Pi end;
+D-series 24 mm bore + 2×M3 @ 19 mm). Shunt **damping resistor lives inside the
+geophone case**, across the coil. Shield (pin 1) bonded to ground **only at the Pi
+end**. Connectors arriving ~2026-07-28.
 
 ## Helicorder v2 (precomputed-envelope drum) — follow-ups
 
