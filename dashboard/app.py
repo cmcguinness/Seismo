@@ -245,7 +245,15 @@ ABOUT_SECTIONS = [
 
 @app.get("/about")
 def about():
-    cards = "".join(_card(h, inner.replace("{place}", PLACE)) for h, inner in ABOUT_SECTIONS)
+    photo = _card(
+        "The station",
+        '<img src="/station.jpg" class="plot" alt="The assembled seismometer '
+        'station on the workbench">'
+        '<p class="text-muted small mb-0 mt-2">The complete station assembled on '
+        'the bench &mdash; geophone, ADS1256 digitizer, and Raspberry&nbsp;Pi.</p>',
+    ) if _STATION_JPG else ""
+    cards = photo + "".join(_card(h, inner.replace("{place}", PLACE))
+                            for h, inner in ABOUT_SECTIONS)
     body = _titleblock("About this station", f"{SID} &middot; {PLACE}") + \
         f'<div class="row"><div class="col-lg-9">{cards}</div></div>'
     return Response(_shell(f"About — {BRAND}", "about", body),
@@ -267,6 +275,21 @@ def helicorder():
 
 
 SPEC_CACHE = {"Cache-Control": "public, max-age=1800"}   # 30 min, matches render TTL
+
+# Static station photo, baked into the image and read once at startup.
+_STATION_JPG_PATH = os.path.join(os.path.dirname(__file__), "station.jpg")
+try:
+    with open(_STATION_JPG_PATH, "rb") as _f:
+        _STATION_JPG = _f.read()
+except OSError:
+    _STATION_JPG = None
+STATIC_CACHE = {"Cache-Control": "public, max-age=86400"}   # static asset — 1 day
+
+
+@app.get("/station.jpg")
+def station_photo():
+    return Response(_STATION_JPG, media_type="image/jpeg", headers=STATIC_CACHE) \
+        if _STATION_JPG else Response("not found", status_code=404)
 
 
 @app.get("/spectrum.png")

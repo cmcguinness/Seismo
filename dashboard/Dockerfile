@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir obspy python-fasthtml
 
 WORKDIR /app
 COPY app.py render.py heli_build.py heli_render.py heli_service.py /app/
+COPY station.jpg /app/
 
 EXPOSE 5000
 ENTRYPOINT ["/usr/bin/tini", "--"]

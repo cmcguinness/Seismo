@@ -15,3 +15,6 @@ stl/
 
 # FastHTML session-signing secret (auto-generated at runtime; never commit)
 .sesskey
+
+# Pixelmator source for doc images (large; JPEG export is the tracked asset)
+*.pxd
