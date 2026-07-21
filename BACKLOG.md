@@ -26,10 +26,14 @@ ADS1256, fold in these — roughly in order of payoff:
    cap on a switched-cap input can ring):
    - ~1 kΩ series R in **each** input leg (AD0, AD1), then
    - ~10–47 nF differential C across AD0/AD1 (optional smaller CM caps to AGND).
-   Size for a corner ~60–80 Hz — well above the <30 Hz signal band so it doesn't
-   touch the geophone response or the damping. Feeds the sampling spikes and
-   rejects HF/EMI/aliasing. TI-recommended for unbuffered ADS1256. Does NOT lower
-   the broadband thermal floor.
+   This lands the corner in the **low kHz** (1 k×2 + 10–47 nF ≈ 1.7–8 kHz) — its
+   job is the charge-reservoir + HF/RF/modulator-alias rejection; the ADS1256's
+   digital SINC filter does the decimation anti-aliasing. (Earlier "~60–80 Hz"
+   here was wrong: that would need ~25 kΩ series R, which wrecks gain accuracy
+   and adds noise on the unbuffered switched-cap input — don't.) Well above the
+   <30 Hz signal band, so it doesn't touch the geophone response or the damping.
+   TI-recommended for unbuffered ADS1256. Does NOT lower the broadband thermal
+   floor. Full schematic + BOM: `doc/rev2-frontend.md`.
 
 3. **Cleaner analog supply/reference (only if it matters).**
    Optional local AVDD/VREF filtering, or a dedicated low-noise LDO for the ADC's
