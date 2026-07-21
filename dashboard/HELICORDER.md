@@ -29,9 +29,11 @@ mirrored miniSEED (/data/data, rsync'd every 60 s)
 
 ## Data model — the interval file
 
-- **One npz per clock-aligned 15-min interval** (`:00/:15/:30/:45`). Completed
-  intervals are **immutable** — built once, then skipped; only the current partial
-  interval is rebuilt each pull. Intervals before the window are pruned by the
+- **One npz per clock-aligned 15-min interval** (`:00/:15/:30/:45`). An interval
+  is rebuilt every pull until data runs past its end (a stored `complete` flag) —
+  otherwise it freezes ~1 min short, since the last build while it was *current*
+  only had data up to `latest`. Once `complete`, it's immutable and skipped.
+  Intervals before the window are pruned by the
   **interval time parsed from the filename**, NOT file mtime — a bulk rebuild
   (service restart) writes every file "now", so mtime can't distinguish old
   intervals from fresh ones.
@@ -49,9 +51,10 @@ mirrored miniSEED (/data/data, rsync'd every 60 s)
 
 ## Rendering
 
-- Canvas **1920×1080**; margins L60/R15/T40/B48 → plot area 1845×992. Title and
-  row labels sit 5 px from the top/left edge; the bottom margin holds an x-axis
-  with a **per-minute tick** (0–15) — each row spans one 15-min interval.
+- Canvas **1920×1080**; margins L85/R15/T72/B48. The top margin holds a 3-line
+  **webicorder-style header** (date · station · location) + a "data to HH:MM UTC"
+  note; the bottom margin holds an x-axis with a **per-minute tick** (0–15) —
+  each row spans one 15-min interval. Row labels sit 5 px from the left edge.
 - **16 rows** (4 h ÷ 15 min, `SEISMO_HELI_HOURS`), ~62 px each; oldest at top,
   read top→bottom. Row + title labels sized for the 1920px image (16 / 22 pt).
 - **Scale:** one global `k = row_h·ENV_FRAC / median(env)` — comparable across

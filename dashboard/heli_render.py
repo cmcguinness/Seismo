@@ -19,9 +19,16 @@ import os
 import numpy as np
 
 HELI = os.environ.get("SEISMO_HELI", "/data/heli")
+STATION = os.environ.get("SEISMO_STATION", "OAKMT")
+NETWORK = os.environ.get("SEISMO_NETWORK", "XX")
+LOCATION = os.environ.get("SEISMO_LOCATION", "00")
+CHANNEL = os.environ.get("SEISMO_CHANNEL", "SHZ")
+PLACE = os.environ.get("SEISMO_PLACE", "Oakmont, Santa Rosa, CA")
+SID = f"{NETWORK}.{STATION}.{LOCATION}.{CHANNEL}"
 
 IMG_W, IMG_H = 1920, 1080
-MARGIN_L, MARGIN_R, MARGIN_T, MARGIN_B = 85, 15, 40, 48   # labels 5 px from edge, plot starts at 85
+MARGIN_L, MARGIN_R, MARGIN_T, MARGIN_B = 85, 15, 72, 48   # labels 5 px from edge, plot starts at 85;
+                                                          # top holds the 3-line webicorder header
                                                           # (gutter clears the HH:MM label); bottom = x-axis
 INTERVAL_MIN = 15                             # minutes per row (x-axis span)
 PLOT_W = IMG_W - MARGIN_L - MARGIN_R          # 1835
@@ -49,7 +56,7 @@ def _load(heli_dir):
     return out
 
 
-def helicorder_png(heli_dir=HELI, station_id="XX.OAKMT.00.SHZ"):
+def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE):
     rows = _load(heli_dir)
     if not rows:
         return None
@@ -94,11 +101,22 @@ def helicorder_png(heli_dir=HELI, station_id="XX.OAKMT.00.SHZ"):
         ax.text(5, base, lbl, ha="left", va="center",
                 fontsize=16, color="#444", family="monospace")
 
-    end = datetime.datetime.fromtimestamp(rows[-1]["t0"], datetime.timezone.utc)
-    ax.text(5, 5,
-            f"{station_id}   helicorder   last {n * 15 / 60:.0f} h (UTC)   "
-            f"to {end:%Y-%m-%d %H:%M}", ha="left", va="top",
-            fontsize=22, color="#222")
+    # header (USGS/PNSN webicorder style): date · station · location
+    last = rows[-1]
+    valid = np.nonzero(np.isfinite(last["maxs"]))[0]
+    end_frac = (valid[-1] + 1) / last["maxs"].size if valid.size else 1.0
+    end = datetime.datetime.fromtimestamp(
+        last["t0"] + end_frac * INTERVAL_MIN * 60, datetime.timezone.utc)
+    d0 = datetime.datetime.fromtimestamp(rows[0]["t0"], datetime.timezone.utc).date()
+    date_txt = (f"{end:%Y-%m-%d}" if d0 == end.date()
+                else f"{d0:%Y-%m-%d} – {end:%Y-%m-%d}")
+    ax.text(5, 6, f"{date_txt}  (UTC)", ha="left", va="top",
+            fontsize=20, fontweight="bold", color="#222")
+    ax.text(5, 33, station_id, ha="left", va="top",
+            fontsize=15, color="#444", family="monospace")
+    ax.text(5, 54, f"({place})", ha="left", va="top", fontsize=13, color="#666")
+    ax.text(IMG_W - MARGIN_R, 8, f"data to {end:%H:%M} UTC", ha="right", va="top",
+            fontsize=12, color="#888")
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---
     axis_y = MARGIN_T + PLOT_H                 # bottom of the plot area

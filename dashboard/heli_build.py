@@ -112,10 +112,14 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
     t0 = first_t0
     while t0 <= last_t0:
         path = os.path.join(heli_dir, _fname(t0))
-        is_current = (t0 == last_t0)
-        if os.path.exists(path) and not is_current:
+        # Skip only intervals already built with FULL coverage. An interval built
+        # while still current is partial (data ran only to `latest`, up to ~1 min
+        # short of its end); it must be rebuilt once `latest` passes its end or it
+        # freezes truncated. Files predating the `complete` flag read incomplete
+        # -> rebuilt once.
+        if os.path.exists(path) and _is_complete(path):
             t0 += INTERVAL_S
-            continue          # completed intervals are immutable
+            continue
         sel = (all_t >= t0) & (all_t < t0 + INTERVAL_S)
         v = all_v[sel]
         if v.size:
@@ -127,11 +131,12 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
             # noise band's on-screen thickness is what we target -- sigma undershoots
             # because a pixel's min/max spans several sigma of spiky noise.
             env = float(np.nanmedian(np.maximum(np.abs(mins), np.abs(maxs))))
+            complete = latest >= t0 + INTERVAL_S  # data runs past the interval end
             tmp = path + ".tmp"
             with open(tmp, "wb") as fh:      # file handle -> savez won't append .npz
                 np.savez(fh, mins=mins, maxs=maxs,
                          sigma=np.float32(sigma), env=np.float32(env),
-                         t0=np.float64(t0),
+                         t0=np.float64(t0), complete=np.bool_(complete),
                          npix=np.int32(NPIX), interval_s=np.int32(INTERVAL_S))
             os.replace(tmp, path)
             written += 1
@@ -139,6 +144,16 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
 
     _prune(heli_dir, first_t0)
     return written
+
+
+def _is_complete(path):
+    """True if the interval file was built with data covering its full span (so it
+    never needs rebuilding). Missing/legacy files without the flag read False."""
+    try:
+        with np.load(path) as d:
+            return bool(d["complete"])
+    except Exception:
+        return False
 
 
 def _fname_t0(path):
