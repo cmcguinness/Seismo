@@ -45,6 +45,18 @@ ADS1256, fold in these — roughly in order of payoff:
 Also related, tracked in STATUS: tune the **shunt damping** resistor (perfboard
 socket) against a recorded impulse.
 
+### Custom PCB — do it, but only once Rev-2 is frozen
+
+A fabbed board (JLCPCB, ~$25/5) is the right end state and a real win for a µV
+front end — not just tidiness: a controlled layout (ground pour, short symmetric
+AD0/AD1 pair, single-point star ground) lowers noise, and rigid-mounted parts kill
+the microphonics/intermittents that rat's-nest wiring causes (ironic on a
+seismometer). **But a PCB freezes the design and Rev-2 isn't frozen** (buffer/5 V-
+AVDD, damping-R value, whether supply work is needed — all open above). Sequence:
+prototype on perfboard → shorted-input floor test → lock values → *then* lay out.
+Board is analog-only (XLR → AD0/AD1/AGND terminals; tap Waveshare AVDD/VREF/AGND
+for bias ref; damping-R stays a socket; XLR shield to the one star ground).
+
 ## Compute — faster Pi (upgrade consideration)
 
 A faster Pi is a **scope-expansion enabler, not a fix** for current limits. Do the
