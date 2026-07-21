@@ -7,6 +7,8 @@ import glob
 import io
 import math
 import os
+import threading
+import time
 from collections import Counter
 
 import numpy as np
@@ -15,6 +17,7 @@ DATA = os.environ.get("SEISMO_DATA", "/data/data")
 GAIN = int(os.environ.get("SEISMO_GAIN", "64"))
 UVPC = (2.5 * 2 / (GAIN * (2 ** 23 - 1))) * 1e6      # microvolts per count
 RING = os.environ.get("SEISMO_RING", "/data/seismo_live.npz")  # live ring, pulled Pi->pi5
+SPEC_TTL = float(os.environ.get("SEISMO_SPECTRUM_TTL", "1800"))   # spectrum cache, 30 min
 
 
 def _load_day(path):
@@ -150,6 +153,30 @@ def spectrum_png(minutes=60):
     plt.close(fig)
     buf.seek(0)
     return buf.read()
+
+
+_spec_cache = {"png": None, "ts": 0.0}
+_spec_lock = threading.Lock()
+
+
+def spectrum_png_cached():
+    """spectrum_png() memoized with a 30-min TTL. The Welch render re-parses the
+    whole day-file and takes ~30 s on the pi5, so without this every visit (and
+    every bounce around the app) would re-run it. Lock-guarded so concurrent
+    first-hits after expiry don't all render -- one renders, the rest get the
+    fresh result."""
+    png = _spec_cache["png"]
+    if png is not None and (time.time() - _spec_cache["ts"]) < SPEC_TTL:
+        return png
+    with _spec_lock:
+        png = _spec_cache["png"]                 # re-check: another thread may have rendered
+        if png is not None and (time.time() - _spec_cache["ts"]) < SPEC_TTL:
+            return png
+        png = spectrum_png()
+        if png:
+            _spec_cache["png"] = png
+            _spec_cache["ts"] = time.time()
+        return png
 
 
 def live_ring_json():

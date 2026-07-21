@@ -51,9 +51,19 @@ Dokku) = render/serve**, **Jetson = future ML** (backlog). Live at **https://sei
   (To UPDATE: `sudo docker build` then `dokku ps:rebuild seismo` — `git:from-image`
   with the same tag reports "no changes" and skips.) Note: obspy compiles from source
   (no aarch64 py3.12 wheel) → the Dockerfile needs `build-essential`.
-- **Note:** images render on-demand per request (~2 s, fresher than the "every 15 min"
-  ask); add a render cache if traffic warrants. Makes the "does the 2B need a RAM
-  upgrade" question moot — it just acquires.
+- **Helicorder v2 — DEPLOYED (2026-07-21):** precomputed-envelope drum, off the
+  request path. `heli_build.py` reduces each 15-min interval to a fixed-width
+  (min,max) envelope npz (`/data/heli`); `heli_render.py` stacks them into a
+  1920×1080 drum with NO obspy; `heli_service.py` (daemon thread in the app)
+  rebuilds+re-renders only on data change. Request cost is now O(1) served bytes,
+  independent of viewers. High-pass 1 Hz kills tilt/drift. Design: `dashboard/
+  HELICORDER.md`. Verified live on real 8 h data — scaling defaults look good.
+- **Spectrum — still on-demand (SLOW): ~24–37 s per render on the pi5** (re-parses
+  the whole day-file + Welch every hit — the same flaw the helicorder used to have).
+  Moved OFF the home page onto a dedicated `/spectrum` info page (2026-07-21) so it
+  no longer blocks the home load. TODO: give it the same background pre-render
+  treatment as the helicorder (see BACKLOG "Helicorder v2").
+- **Note:** the "does the 2B need a RAM upgrade" question is moot — it just acquires.
 
 **Event detection** (2026-07-20): the recorder runs a streaming **STA/LTA** trigger
 (`stalta.py`) inline — 1-pole high-pass (rejects microseism) → energy CF → STA/LTA

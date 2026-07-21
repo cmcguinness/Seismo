@@ -12,3 +12,6 @@ stl/
 
 # OS
 .DS_Store
+
+# FastHTML session-signing secret (auto-generated at runtime; never commit)
+.sesskey

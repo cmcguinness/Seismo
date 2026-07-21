@@ -13,6 +13,7 @@ import urllib.request
 from fasthtml.common import FastHTML, serve
 from starlette.responses import JSONResponse, Response
 
+import heli_service
 import render
 
 STATION = os.environ.get("SEISMO_STATION", "OAKMT")
@@ -57,13 +58,12 @@ PAGE = """<!doctype html><html><head><meta charset=utf-8>
 {style}</head><body>
 <header><h1>{net}.{sta}.00.SHZ &mdash; DIY geophone seismometer</h1>
 <div class=sub>{place} &nbsp;·&nbsp; vertical 4.5&nbsp;Hz &nbsp;·&nbsp; independent station (not for scientific use)</div>
-<nav><a href="/">Live</a> · <a href="/about">About this station</a></nav></header>
+<nav><a href="/">Live</a> · <a href="/spectrum">Spectrum</a> · <a href="/about">About this station</a></nav></header>
 <main>
  <section><h2>Live (last 30&nbsp;s)</h2>
    <canvas id=c></canvas><div id=hud>connecting…</div></section>
- <section><h2>Helicorder — last 8 hours (UTC)</h2>
+ <section><h2>Helicorder — last 4 hours (UTC)</h2>
    <img id=heli src="/helicorder.png?{ts}" alt="helicorder"></section>
- <section><h2>Spectrum</h2><img id=spec src="/spectrum.png?{ts}" alt="spectrum"></section>
  <section><h2>Recent detections</h2>
    <table><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th></tr>
    {events}</table></section>
@@ -89,7 +89,7 @@ async function live(){{
   setTimeout(live,300);
 }}
 live();
-setInterval(()=>{{heli.src='/helicorder.png?'+Date.now();spec.src='/spectrum.png?'+Date.now();}},60000);
+setInterval(()=>{{heli.src='/helicorder.png?'+Date.now();}},60000);
 </script></body></html>"""
 
 
@@ -172,20 +172,64 @@ def about():
                     media_type="text/html")
 
 
+SPECTRUM_PAGE = """<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Spectrum — {net}.{sta}</title>
+{style}</head><body>
+<header><h1>Spectrum &mdash; Welch ASD</h1>
+<div class=sub>{net}.{sta}.00.SHZ &nbsp;·&nbsp; {place}</div>
+<nav><a href="/">&larr; Live</a> · <a href="/spectrum">Spectrum</a> · <a href="/about">About this station</a></nav></header>
+<main>
+ <section>
+   <p class=none id=note>rendering… the spectrum is computed on request and can take
+     up to a minute on the little Pi &mdash; hang tight.</p>
+   <img id=spec src="/spectrum.png?{ts}" alt="spectrum"
+        onload="document.getElementById('note').style.display='none'">
+   <p>Frequency <i>content</i> of the ground motion over the last hour (amplitude
+     spectral density, &micro;V/&radic;Hz, Welch-averaged). See
+     <a href="/about">About</a> for how to read the microseism, quake band, 4.5&nbsp;Hz
+     corner, and noise floor.</p>
+ </section>
+</main>
+<footer>rendered on the LAN from rsync-mirrored miniSEED ·
+ built by <a href="https://www.linkedin.com/in/charlesmcguinness/">Charles McGuinness</a></footer>
+<script>
+// re-fetch once per 30-min cache window (bucketed param aligns with the server
+// TTL, so it hits cache rather than forcing a fresh ~30 s render)
+setInterval(()=>{{document.getElementById('spec').src='/spectrum.png?'+Math.floor(Date.now()/1800000);}},1800000);
+</script></body></html>"""
+
+
+@app.get("/spectrum")
+def spectrum_page():
+    # ts bucketed to the 30-min TTL so the image URL is stable within a window
+    # (per-load timestamps would defeat browser/CDN caching)
+    return Response(SPECTRUM_PAGE.format(style=STYLE, net=NETWORK, sta=STATION,
+                                         place=PLACE, ts=int(time.time() // 1800)),
+                    media_type="text/html")
+
+
 NOCACHE = {"Cache-Control": "no-store, max-age=0"}   # dynamic renders — never let Cloudflare cache
 
 
 @app.get("/helicorder.png")
 def helicorder():
-    png = render.helicorder_png()
+    # Pre-rendered off the request path by heli_service (built from precomputed
+    # interval envelopes, not a live obspy re-parse). Always warm; O(1) here.
+    png = heli_service.current_png()
     return Response(png, media_type="image/png", headers=NOCACHE) if png \
-        else Response("no data", status_code=503)
+        else Response("warming up", status_code=503)
+
+
+SPEC_CACHE = {"Cache-Control": "public, max-age=1800"}   # 30 min, matches render TTL
 
 
 @app.get("/spectrum.png")
 def spectrum():
-    png = render.spectrum_png()
-    return Response(png, media_type="image/png", headers=NOCACHE) if png \
+    # Memoized with a 30-min TTL (render.spectrum_png_cached): the ~30 s Welch
+    # render runs at most once per half hour, so bouncing around never re-triggers it.
+    png = render.spectrum_png_cached()
+    return Response(png, media_type="image/png", headers=SPEC_CACHE) if png \
         else Response("no data", status_code=503)
 
 
@@ -196,6 +240,8 @@ def live_data():
     # makes the acquisition Pi transmit (WiFi/Ethernet TX conducts noise into the ADC).
     return JSONResponse(render.live_ring_json())
 
+
+heli_service.start()      # background: build envelopes + pre-render the drum
 
 if __name__ == "__main__":
     serve(port=int(os.environ.get("PORT", "5001")), reload=False)

@@ -271,3 +271,22 @@ upgrade over the STA/LTA trigger.
   open: the ~0.3 s per-block overlaps from the wall-clock-per-block scheme. A crystal-
   locked, gapless, exact-rate stream would need ADS1256 continuous (RDATAC) mode.
 - **Enclosure**: walls + lid (base is done); power cutout +Y, dongle slot −X.
+
+## Helicorder v2 (precomputed-envelope drum) — follow-ups
+
+The dashboard drum is now precomputed: `heli_build.py` reduces each 15-min interval
+to a fixed-width (min,max) envelope npz; `heli_render.py` stacks them into a
+1920×1080 drum with no obspy; `heli_service.py` rebuilds+re-renders once per data
+change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
+
+- **Event isolation & plotting** (Charles's ask): when the drum clips a big event,
+  break it out into its own detail panel/plot (waveform + timing) rather than only
+  the clipped drum trace. Ties into the existing STA/LTA detections (`events.log`).
+- **The ~15-min periodic vertical streak**: the sample drum shows a full-scale
+  transient at the *same phase* (~8–9 min) in every interval. Confirm it's a real
+  periodic source (timer-driven appliance?) vs. a bucketing/high-pass artifact
+  before trusting it. First check: does it appear in the raw waveform at those times?
+- **Final amplitude constant**: `ENV_FRAC`/`CLIP_ROWS` set by eye on the noisy
+  garage-door-era 90-min sample; re-tune on real calm 8 h pi5 data.
+- **Deploy to pi5**: fold `heli_build` deps (already have obspy) — the service runs
+  in-app; verify `/data/heli` is writable in the mounted volume, then `ps:rebuild`.
