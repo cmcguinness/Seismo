@@ -14,6 +14,7 @@ import numpy as np
 DATA = os.environ.get("SEISMO_DATA", "/data/data")
 GAIN = int(os.environ.get("SEISMO_GAIN", "64"))
 UVPC = (2.5 * 2 / (GAIN * (2 ** 23 - 1))) * 1e6      # microvolts per count
+RING = os.environ.get("SEISMO_RING", "/data/seismo_live.npz")  # live ring, pulled Pi->pi5
 
 
 def _load_day(path):
@@ -149,3 +150,25 @@ def spectrum_png(minutes=60):
     plt.close(fig)
     buf.seek(0)
     return buf.read()
+
+
+def live_ring_json():
+    """Live strip-chart payload from the /dev/shm ring that the Pi mirrors and the
+    seismo-live-pull service copies here (Pi->pi5). Served from pi5, so viewers
+    never make the acquisition Pi transmit (which conducts noise into the ADC)."""
+    import time
+    try:
+        age = time.time() - os.path.getmtime(RING)
+        with np.load(RING) as d:
+            counts = d["counts"].astype(float)
+            fs = float(d["fs"])
+            gain = int(d["gain"])
+    except Exception:
+        return {"uv": [], "pp": 0.0, "fs": 0.0, "gain": 0, "age": None}
+    uvpc = (2.5 * 2 / (gain * (2 ** 23 - 1))) * 1e6
+    uv = counts * uvpc
+    if uv.size:
+        uv = uv - uv.mean()
+    return {"uv": [round(float(v), 2) for v in uv],
+            "pp": float(np.ptp(uv)) if uv.size else 0.0,
+            "fs": fs, "gain": gain, "age": round(age, 1)}

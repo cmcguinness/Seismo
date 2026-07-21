@@ -191,13 +191,10 @@ def spectrum():
 
 @app.get("/live-data")
 def live_data():
-    if not LIVE_URL:
-        return JSONResponse({"uv": [], "pp": 0, "fs": 0, "gain": 0})
-    try:
-        with urllib.request.urlopen(LIVE_URL, timeout=2) as r:
-            return JSONResponse(json.loads(r.read()))
-    except Exception:
-        return JSONResponse({"uv": [], "pp": 0, "fs": 0, "gain": 0})
+    # Served from pi5 off the locally-mirrored /dev/shm ring (pulled by
+    # seismo-live-pull), NOT proxied to the Pi -- so watching the live feed never
+    # makes the acquisition Pi transmit (WiFi/Ethernet TX conducts noise into the ADC).
+    return JSONResponse(render.live_ring_json())
 
 
 if __name__ == "__main__":
