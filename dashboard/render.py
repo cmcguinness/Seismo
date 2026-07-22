@@ -179,6 +179,131 @@ def spectrum_png_cached():
         return png
 
 
+# --- event sparklines --------------------------------------------------------
+# A tiny inline-SVG waveform around each detection, shown in the home page's
+# detections table. Built from the mirrored miniSEED (1-15 Hz band, the same
+# local-quake band the STA/LTA triggers on). Event windows are immutable, so
+# each sparkline is built at most once and memoized; the heavy day-file load
+# happens only when a NEW above-threshold detection first appears -- the common
+# case (no new events) does zero I/O and the home route stays O(1).
+
+SPARK_PRE = float(os.environ.get("SEISMO_SPARK_PRE", "8"))     # s of window before start
+SPARK_POST = float(os.environ.get("SEISMO_SPARK_POST", "22"))  # s of window after start
+SPARK_BUCKETS = int(os.environ.get("SEISMO_SPARK_BUCKETS", "150"))
+SPARK_W, SPARK_H = 180, 40
+
+_spark_cache = {}                 # start_iso -> svg string (or "" for no data)
+_spark_lock = threading.Lock()
+
+
+def _load_recent(n=2):
+    """Last `n` day-files merged (micro-gaps bridged) into one Stream. A detection
+    window can straddle the 00:00 UTC day-file rollover, so keep two."""
+    files = sorted(glob.glob(os.path.join(DATA, "*.mseed")), key=os.path.getmtime)
+    if not files:
+        return None
+    st = None
+    for path in files[-n:]:
+        s = _load_day(path)
+        st = s if st is None else st + s
+    if st is None or not len(st):
+        return None
+    st.merge(method=1, fill_value="interpolate")     # bridge the timing micro-gaps
+    return st
+
+
+def _build_spark_svg(st, start_iso):
+    """Inline-SVG min/max envelope of the 1-15 Hz waveform in
+    [start-PRE, start+POST]. Returns an <svg> string, or "" if the window holds
+    no usable data (real gap, or pruned out of the archive)."""
+    import obspy
+
+    try:
+        t0 = obspy.UTCDateTime(start_iso)
+    except Exception:
+        return ""
+    seg = st.slice(t0 - SPARK_PRE, t0 + SPARK_POST).copy()
+    if not len(seg):
+        return ""
+    seg.merge(method=1, fill_value="interpolate")
+    tr = max(seg, key=lambda t: t.stats.npts)
+    if tr.stats.npts < 20:
+        return ""
+    tr.detrend("demean")
+    fs = float(tr.stats.sampling_rate)
+    tr.filter("bandpass", freqmin=1.0, freqmax=min(15.0, fs / 2 * 0.99),
+              corners=4, zerophase=True)
+    x = np.nan_to_num(np.asarray(tr.data, float))
+    if x.size < 2 or not np.any(x):
+        return ""
+
+    # bucket to columns; per-bucket (min,max) envelope. nb<=size, and idx spreads
+    # evenly, so every bucket catches >=1 sample -> all finite.
+    nb = int(min(SPARK_BUCKETS, x.size))
+    idx = np.minimum(np.arange(x.size) * nb // x.size, nb - 1)
+    lo = np.full(nb, np.inf)
+    hi = np.full(nb, -np.inf)
+    np.minimum.at(lo, idx, x)
+    np.maximum.at(hi, idx, x)
+
+    amp = max(float(np.max(np.abs(x))), 1e-9)
+    yc = SPARK_H / 2.0
+    sc = (SPARK_H / 2.0 * 0.90) / amp                 # 90% of half-height at peak
+    xs = (np.arange(nb) + 0.5) * SPARK_W / nb
+    top = " ".join(f"{xs[i]:.1f},{yc - hi[i] * sc:.1f}" for i in range(nb))
+    bot = " ".join(f"{xs[i]:.1f},{yc - lo[i] * sc:.1f}" for i in range(nb - 1, -1, -1))
+    x_on = SPARK_PRE / (SPARK_PRE + SPARK_POST) * SPARK_W   # trigger onset marker
+    return (
+        f'<svg viewBox="0 0 {SPARK_W} {SPARK_H}" width="{SPARK_W}" height="{SPARK_H}" '
+        f'preserveAspectRatio="none" class="spark" role="img" '
+        f'aria-label="waveform around the detection">'
+        f'<line x1="0" y1="{yc:.0f}" x2="{SPARK_W}" y2="{yc:.0f}" '
+        f'stroke="#e6e8eb" stroke-width="1"/>'
+        f'<line x1="{x_on:.0f}" y1="0" x2="{x_on:.0f}" y2="{SPARK_H}" stroke="#dc322f" '
+        f'stroke-width="1" stroke-dasharray="2 2" opacity="0.55"/>'
+        f'<polygon points="{top} {bot}" fill="#2f6f6b" fill-opacity="0.85"/>'
+        f'</svg>'
+    )
+
+
+def ensure_sparklines(starts):
+    """Build+memoize sparklines for any of `starts` not already cached. Loads the
+    mirrored day-file(s) at most once, and only when a detection new to the cache
+    appears -- so the steady state (nothing new) does zero I/O. Lock-guarded so
+    concurrent first-hits load once. An event whose data isn't mirrored yet is
+    left uncached and retried on the next request."""
+    import obspy
+
+    starts = [s for s in starts if s]
+    if all(s in _spark_cache for s in starts):
+        return
+    with _spark_lock:
+        missing = [s for s in starts if s not in _spark_cache]
+        if not missing:
+            return
+        st = _load_recent()
+        if st is None:
+            return
+        t_end = max(t.stats.endtime for t in st)
+        for s in missing:
+            try:
+                fresh = obspy.UTCDateTime(s) > t_end + 5     # window past mirrored data
+            except Exception:
+                fresh = False
+            if fresh:
+                continue                                     # not here yet -> retry later
+            _spark_cache[s] = _build_spark_svg(st, s)
+        if len(_spark_cache) > 300:                          # bound the memo
+            for k in list(_spark_cache)[:-150]:
+                _spark_cache.pop(k, None)
+
+
+def event_sparkline(start_iso):
+    """Cached inline-SVG sparkline for a detection, or "" if not built yet.
+    Call ensure_sparklines() first to populate."""
+    return _spark_cache.get(start_iso, "")
+
+
 def live_ring_json():
     """Live strip-chart payload from the /dev/shm ring that the Pi mirrors and the
     seismo-live-pull service copies here (Pi->pi5). Served from pi5, so viewers

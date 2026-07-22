@@ -59,6 +59,8 @@ CSS = """<style>
  .plot{width:100%;height:auto;display:block;border:1px solid #e6e8eb;border-radius:.25rem}
  #c{width:100%;height:200px;display:block;background:#fff;border:1px solid #e6e8eb;border-radius:.25rem}
  #hud{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#6c757d;margin-top:.5rem}
+ td.spark-cell{width:196px}
+ svg.spark{display:block;width:180px;height:40px;background:#fbfcfc;border:1px solid #eef0f2;border-radius:3px}
  a{color:var(--accent)}
 </style>"""
 
@@ -139,13 +141,15 @@ def _card(header, inner, body_class="card-body"):
 @app.get("/")
 def home():
     evs = _recent_events()
+    render.ensure_sparklines([e.get("start", "") for e in evs])
     if evs:
         rows = "".join(
             f'<tr><td>{e.get("start","")}</td><td>{e.get("duration_s","")}s</td>'
-            f'<td>{e.get("peak_ratio","")}</td><td>{e.get("peak_uv","")} µV</td></tr>'
+            f'<td>{e.get("peak_ratio","")}</td><td>{e.get("peak_uv","")} µV</td>'
+            f'<td class="spark-cell">{render.event_sparkline(e.get("start",""))}</td></tr>'
             for e in evs)
     else:
-        rows = (f'<tr><td colspan="4" class="text-muted">no detections above '
+        rows = (f'<tr><td colspan="5" class="text-muted">no detections above '
                 f'STA/LTA {MIN_RATIO:g}</td></tr>')
     ts = int(time.time())
     body = (
@@ -157,7 +161,8 @@ def home():
                 f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">')
         + _card(f"Recent detections &middot; STA/LTA &ge; {MIN_RATIO:g}",
                 '<table class="table table-sm table-striped mb-0 align-middle">'
-                '<thead><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th></tr></thead>'
+                '<thead><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th>'
+                '<th>waveform <span class="fw-normal text-muted">&plusmn;30&nbsp;s, 1&ndash;15&nbsp;Hz</span></th></tr></thead>'
                 f'<tbody>{rows}</tbody></table>',
                 body_class="table-responsive")
     )
