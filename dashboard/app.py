@@ -9,6 +9,7 @@ hand HTML/PNG back) with page markup in module-level template helpers.
 import json
 import os
 import time
+from datetime import datetime, timedelta, timezone
 
 from fasthtml.common import FastHTML, serve
 from starlette.responses import JSONResponse, Response
@@ -26,18 +27,38 @@ BRAND = "Charles&rsquo; Seismology Station"
 # (down to ratio 4.0) for analysis, but most are cultural noise. Only surface
 # detections at/above this ratio. Tune live via `dokku config:set SEISMO_MIN_RATIO=N`.
 MIN_RATIO = float(os.environ.get("SEISMO_MIN_RATIO", "20"))
+# Time window for the detections table: show every trigger at/above MIN_RATIO in
+# the last WINDOW_H hours (UTC), rather than a fixed row count. Tune live via
+# `dokku config:set SEISMO_DETECT_WINDOW_H=N`.
+WINDOW_H = float(os.environ.get("SEISMO_DETECT_WINDOW_H", "24"))
 
 app = FastHTML()
 
 
-def _recent_events(n=10):
+def _recent_events(max_rows=250):
+    """Detections in the last WINDOW_H hours (UTC) at/above MIN_RATIO, newest
+    first. max_rows is a guard rail against a pathological burst filling the page;
+    a normal day rarely has that many >=MIN_RATIO triggers, so it never bites."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=WINDOW_H)
     try:
         with open(EVENTS) as f:
             evs = [json.loads(line) for line in f if line.strip()]
-        evs = [e for e in evs if float(e.get("peak_ratio", 0) or 0) >= MIN_RATIO]
-        return evs[-n:][::-1]
     except Exception:
         return []
+    out = []
+    for e in evs:
+        if float(e.get("peak_ratio", 0) or 0) < MIN_RATIO:
+            continue
+        try:
+            t = datetime.fromisoformat(e.get("start", ""))
+        except ValueError:
+            continue
+        if t.tzinfo is None:                       # treat naive stamps as UTC
+            t = t.replace(tzinfo=timezone.utc)
+        if t >= cutoff:
+            out.append(e)
+    out.sort(key=lambda e: e.get("start", ""), reverse=True)   # newest first
+    return out[:max_rows]
 
 
 # --- shared chrome -----------------------------------------------------------
@@ -149,8 +170,8 @@ def home():
             f'<td class="spark-cell">{render.event_sparkline(e.get("start",""))}</td></tr>'
             for e in evs)
     else:
-        rows = (f'<tr><td colspan="5" class="text-muted">no detections above '
-                f'STA/LTA {MIN_RATIO:g}</td></tr>')
+        rows = (f'<tr><td colspan="5" class="text-muted">no detections in the last '
+                f'{WINDOW_H:g}&nbsp;h above STA/LTA {MIN_RATIO:g}</td></tr>')
     ts = int(time.time())
     body = (
         _titleblock(SID, f'DIY geophone seismometer &middot; {PLACE} &middot; vertical '
@@ -159,7 +180,7 @@ def home():
                 '<canvas id="c"></canvas><div id="hud">connecting…</div>')
         + _card("Helicorder &middot; last 4 hours (UTC)",
                 f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">')
-        + _card(f"Recent detections &middot; STA/LTA &ge; {MIN_RATIO:g}",
+        + _card(f"Detections &middot; last {WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}",
                 '<table class="table table-sm table-striped mb-0 align-middle">'
                 '<thead><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th>'
                 '<th>waveform <span class="fw-normal text-muted">&plusmn;30&nbsp;s, 1&ndash;15&nbsp;Hz</span></th></tr></thead>'
