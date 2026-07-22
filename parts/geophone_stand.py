@@ -27,7 +27,9 @@ cup_outer = bore_dia + 2 * cup_wall            # ~31.8 mm
 wire_slot_w = 6.0                              # rim notch for the terminal leads
 
 # --- base foot (ground interface) ---
-base_dia = 60.0                                # broad footprint for a stable stance
+base_dia = 120.0                               # wide footprint: resists TIPPING from
+                                               # accidental/incidental wire tension (long
+                                               # lever arm vs a top pull) + more mass
 base_h = 6.0                                   # low + solid: mass, stiffness, flat coupling
 edge_cham = 0.6                                # kills FDM elephant-foot on the coupling face
 
