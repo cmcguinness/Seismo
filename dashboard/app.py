@@ -60,7 +60,7 @@ CSS = """<style>
  #c{width:100%;height:200px;display:block;background:#fff;border:1px solid #e6e8eb;border-radius:.25rem}
  #hud{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#6c757d;margin-top:.5rem}
  td.spark-cell{width:196px}
- svg.spark{display:block;width:180px;height:40px;background:#fbfcfc;border:1px solid #eef0f2;border-radius:3px}
+ svg.spark{display:block;width:180px;height:40px;background:#eaf0f4;border:1px solid #c7d4de;border-radius:3px}
  a{color:var(--accent)}
 </style>"""
 
