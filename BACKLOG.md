@@ -314,9 +314,14 @@ environmental noise, not the electronics:
    broad earth coupling + moisture break + flat seat). Level it (vertical geophone).
    Site on undisturbed native soil **away from footings, furnace/water-heater,
    pumps/plumbing** — couple to ground, not the house's machinery.
-3. **Network must be wired** (WiFi TX corrupts acquisition — see memory). Confirm
-   **Ethernet reaches the crawl**; power is already there. Remote monitoring matters
-   more (won't be eyeballed under the house).
+3. **Network: no WiFi radio ON the Pi** (a USB dongle's TX current corrupts the
+   ADS1256 reads via the shared 5 V rail — see memory; it's a conducted-noise
+   problem, NOT coverage, so a strong mesh signal doesn't fix it). The wireless is
+   fine as long as the radio lives elsewhere: **wire the Pi to the mesh node's
+   Ethernet LAN port** (a node sits right above the spot), mesh does the backhaul —
+   same as the deployed Ethernet-bridge fix, using the mesh node as the bridge. No
+   spare LAN port → a small unmanaged switch or a WiFi client-bridge does it.
+   Remote monitoring matters more (won't be eyeballed under the house).
 4. **Critters/cable protection** — rodents; conduit/protect the cable, critter-
    resistant enclosure.
 
