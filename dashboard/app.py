@@ -144,7 +144,7 @@ def home():
     render.ensure_sparklines([e.get("start", "") for e in evs])
     if evs:
         rows = "".join(
-            f'<tr><td>{e.get("start","")}</td><td>{e.get("duration_s","")}s</td>'
+            f'<tr><td>{e.get("start","").replace("+00:00","")}</td><td>{e.get("duration_s","")}s</td>'
             f'<td>{e.get("peak_ratio","")}</td><td>{e.get("peak_uv","")} µV</td>'
             f'<td class="spark-cell">{render.event_sparkline(e.get("start",""))}</td></tr>'
             for e in evs)
