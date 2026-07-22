@@ -349,6 +349,16 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
   transient at the *same phase* (~8–9 min) in every interval. Confirm it's a real
   periodic source (timer-driven appliance?) vs. a bucketing/high-pass artifact
   before trusting it. First check: does it appear in the raw waveform at those times?
+- **~1–3 min "up spikes" — RAN DOWN 2026-07-21: real cultural motion, NOT an
+  artifact.** 40-min analysis of the live day-file: spikes are **bipolar/
+  oscillatory** (raw swings both ways, asym ≈ 0.4–1.0), **not phase-locked to any
+  timer** (sec-past-min std 17.5 → rules out the 60 s rsync/housekeeping glitch),
+  and **survive gap-bridging** (the 300× ~68 ms/10 s block gaps are symmetric &
+  sub-noise → not the high-pass-rings-a-gap artifact I first suspected). Amplitude
+  ~4–12 µV coil (~0.15–0.4 µm/s) = textbook cultural microtremor; a run of regular
+  ~29 s intervals fingerprints a duty-cycling appliance for the more regular ones.
+  Verdict: the drum is working — it's hearing the house/neighborhood. Reduce only
+  via siting/isolation (enclosure), not code. (Distinct from the 15-min streak.)
 - **Final amplitude constant**: `ENV_FRAC`/`CLIP_ROWS` set by eye on the noisy
   garage-door-era 90-min sample; re-tune on real calm 8 h pi5 data.
 - **Deploy to pi5**: fold `heli_build` deps (already have obspy) — the service runs
