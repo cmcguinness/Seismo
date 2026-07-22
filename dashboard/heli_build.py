@@ -94,8 +94,17 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
     files = sorted(glob.glob(os.path.join(data_dir, "*.mseed")), key=os.path.getmtime)
     if not files:
         return 0
-    st = _load_day(files[-1])
-    if not len(st):
+    # Load the last TWO day-files and combine. A 4 h window can straddle the 00:00
+    # UTC rollover, and the pre-midnight interval's tail minute (23:59->00:00) lives
+    # in the PRIOR day-file. Loading only files[-1] froze the 23:45 row ~1 min short
+    # once the recorder rolled to the new file (its samples were no longer loaded, so
+    # the interval could never fill or mark complete). A 4 h window touches at most
+    # two day-files, so the last two always cover it.
+    st = None
+    for path in files[-2:]:
+        s = _load_day(path)
+        st = s if st is None else st + s
+    if st is None or not len(st):
         return 0
     if HP_HZ > 0:                     # knock down tilt/drift before enveloping
         st.detrend("demean")
