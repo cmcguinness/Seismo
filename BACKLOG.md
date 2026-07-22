@@ -289,6 +289,37 @@ upgrade over the STA/LTA trigger.
 - **Enclosure**: walls + lid (base is done); power cutout +Y, dongle slot −X.
   Power-in scheme now specified — see "Case design — power feed" below.
 
+## Target siting — crawl space on bare earth (design driver)
+
+**Final home for the station (once tweaking is done): the under-house crawl space,
+on bare earth.** Built into a hill, so part of the crawl is stand-up height, and
+power is present. This is essentially a poor-man's vault and is the *fix* for the
+environmental noise, not the electronics:
+
+- **Thermal stability** (below grade, earth-coupled) → should retire the sub-Hz
+  thermal-settling undulation seen in the garage.
+- **No wind/drafts** → retires the garage draft/barometric buffeting.
+- **Direct earth coupling + below-grade quiet** → lower cultural/microseism noise.
+- Does NOT change the electronic noise floor (that's the Rev-2 front-end work).
+
+**Design implications to bake in NOW (enclosure is still open):**
+1. **Humidity is the #1 hazard.** Bare-earth crawl = damp. Seal the electronics
+   enclosure + **desiccant** (rechargeable silica), **vapor barrier** (poly) under
+   the station, consider conformal-coating the boards. The **gold-contact / sealed
+   connectors already specced (XLR-B, Powerpole) become essential here**, not
+   optional — this is the humidity case they were chosen for.
+2. **Coupling: NOT the flat plastic stand straight on soil.** `geophone_stand`'s
+   flat base wants a hard flat surface; on damp/loose earth it rocks and settles.
+   Set a **leveled concrete paver bedded in tamped earth**, stand on that (rigid
+   broad earth coupling + moisture break + flat seat). Level it (vertical geophone).
+   Site on undisturbed native soil **away from footings, furnace/water-heater,
+   pumps/plumbing** — couple to ground, not the house's machinery.
+3. **Network must be wired** (WiFi TX corrupts acquisition — see memory). Confirm
+   **Ethernet reaches the crawl**; power is already there. Remote monitoring matters
+   more (won't be eyeballed under the house).
+4. **Critters/cable protection** — rodents; conduit/protect the cable, critter-
+   resistant enclosure.
+
 ## Case design — power feed (Pi + HAT enclosure)
 
 Deferred to the enclosure CAD (build123d, `parts/`). The electrical reasoning is
