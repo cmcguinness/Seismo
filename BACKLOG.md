@@ -322,6 +322,15 @@ environmental noise, not the electronics:
    same as the deployed Ethernet-bridge fix, using the mesh node as the bridge. No
    spare LAN port → a small unmanaged switch or a WiFi client-bridge does it.
    Remote monitoring matters more (won't be eyeballed under the house).
+   - **CURRENT STATE (2026-07-21):** dongle is GONE — Pi runs Ethernet to a WiFi
+     bridge already. A **galvanic Ethernet isolator** is inbound (~2026-07-22) for
+     that link: breaks any ground-loop / common-mode ingress from the bridge's
+     supply back into the Pi over Ethernet (the network analog of grounding the
+     shield at one end). Belt-and-suspenders — Ethernet PHYs are already ~1.5 kV
+     isolated, so this mainly bites on shielded-cable shield loops or a noisy bridge
+     wall-wart. Install **at the Pi end**; confirm it's **10/100** (Pi 2B is 100M).
+     Does NOT replace Pi rail quality — the original corruption was internal 5 V
+     rail, so the clean-supply + ADC-decoupling work is still the real robustness.
 4. **Critters/cable protection** — rodents; conduit/protect the cable, critter-
    resistant enclosure.
 
