@@ -71,7 +71,7 @@ TRIG = float(os.environ.get("SEISMO_TRIG", "4.0"))     # STA/LTA on-threshold
 DETRIG = float(os.environ.get("SEISMO_DETRIG", "1.5"))  # off-threshold
 STA_S = float(os.environ.get("SEISMO_STA", "1.0"))
 LTA_S = float(os.environ.get("SEISMO_LTA", "30.0"))
-HP_HZ = float(os.environ.get("SEISMO_HP", "1.0"))       # high-pass to reject microseism
+HP_HZ = float(os.environ.get("SEISMO_HP", "3.0"))       # high-pass corner; 3 Hz rejects sub-Hz tilt/settling (geophone deaf below 4.5 Hz) that a gentle 1-pole 1 Hz HPF let mistrigger
 EVENTS_LOG = DATADIR.parent / "events.log"              # permanent JSONL record
 EVENTS_LIVE = Path("/dev/shm/seismo_events.json")       # last N events, for the viewer
 

@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-19_
+_Last updated: 2026-07-22_
 
 ## Where we are
 
@@ -66,8 +66,10 @@ Dokku) = render/serve**, **Jetson = future ML** (backlog). Live at **https://sei
 - **Note:** the "does the 2B need a RAM upgrade" question is moot — it just acquires.
 
 **Event detection** (2026-07-20): the recorder runs a streaming **STA/LTA** trigger
-(`stalta.py`) inline — 1-pole high-pass (rejects microseism) → energy CF → STA/LTA
-with the LTA frozen during events. Detections → journal (`EVENT …`), `~/seismo/
+(`stalta.py`) inline — 1-pole high-pass (**3 Hz corner since 2026-07-22**, was 1 Hz:
+rejects microseism *and* the sub-Hz tilt/settling that was mistriggering faux
+high-ratio events — the old gentle 1 Hz pole passed 0.3–0.5 Hz nearly intact) →
+energy CF → STA/LTA with the LTA frozen during events. Detections → journal (`EVENT …`), `~/seismo/
 events.log` (permanent JSONL), and `/dev/shm/seismo_events.json` (recent, for the
 viewer). Tunable via `SEISMO_TRIG`/`STA`/`LTA`/`HP` (default trig 4.0). Feeds the
 planned APRS alerts + helicorder event annotation. Wrapped so it can never break

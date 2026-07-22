@@ -417,7 +417,17 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
   detections are overwhelmingly cultural impulses (broadband vertical-stripe
   spectrograms, no P-S, timing doesn't match catalog) — see the "1–3 min spikes"
   note. Key: **can't threshold it out** — sharp impulses produce the HIGHEST STA/LTA
-  (saw 250, 1746), so raising the ratio rejects real quakes first. Levers: (1)
+  (saw 250, 1746), so raising the ratio rejects real quakes first.
+  **DONE 2026-07-22 (first, cheapest lever):** raised the detector high-pass corner
+  **1 → 3 Hz** (`SEISMO_HP` default in `recorder.py`; `seismo-recorder.service`
+  restarted). Root-caused on the 02:13 event: at the trigger instant only 0.05–0.5 Hz
+  tilt/settling energy was present (1–15 Hz was noise), and the old *gentle 1-pole*
+  1 Hz HPF passed 0.3–0.5 Hz at only −7 to −11 dB → the ratio pinned at 4165 against a
+  dead-quiet LTA. 3 Hz drops that sub-Hz leakage ~9 dB more (and the CF *squares* it →
+  ~18 dB less trigger energy) while keeping the 4.5–15 Hz band the geophone actually
+  hears (−1 to −2 dB there). Zero added CPU — only a startup coefficient changed.
+  This kills the **low-frequency-onset** faux triggers; the remaining levers still
+  handle genuinely broadband-impulsive cultural thumps. Further levers: (1)
   **physical** — finish crawl-space siting + stop handling the rig (the biggest
   offenders are us working on it); (2) **frequency/character veto** (cheap) — score
   each trigger by HF-energy fraction / spectral flatness, flag broadband-impulsive
