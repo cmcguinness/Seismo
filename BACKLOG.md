@@ -417,8 +417,21 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
     12.0/h (02:00 local), i.e. ~10× within one night, which is what a duty-cycled
     appliance looks like. A/C wasn't running tonight (not hot). So a between-night
     comparison cannot settle this.
-    **CHEAP TEST (no hardware trip): track spikes/hour over several nights with the
-    isolator in.** If the 20:00–23:00 local window — which ran 130–180/h — stays near
+    **HVAC CONFOUND TESTED AND LARGELY RETIRED (2026-07-23 07:44 UTC).** Charles
+    forced the A/C on for ~3 min from the thermostat (condenser is on the SAME SLAB,
+    other end of the garage — close enough that coupling was expected). With the
+    isolator in: band 1–15 Hz **0.665 → 0.670 µV (+0.8%, i.e. nothing)**, asd 15–28 Hz
+    0.091 → 0.096, broadband 1.33 → 1.48 (sub-Hz only, blower air/thermal). **No
+    spikes at all** across 3 min, when they had been arriving every 1–3 min. So the
+    A/C is not a meaningful seismic source here, and cannot explain the spikes as
+    ground motion. Logical consequence: if the spikes HAD been HVAC-through-slab, the
+    isolator could not block them and they would still be present — they aren't.
+    Balance now favors **conducted electrical noise**. Lesson: the 07-21 verdict
+    reasoned from waveform *character* (bipolar / not phase-locked / survives
+    gap-bridging), which cannot distinguish ground motion from electrical ingress.
+    Only an intervention can.
+    **STILL CHEAP TEST (no hardware trip): track spikes/hour over several nights with
+    the isolator in.** If the 20:00–23:00 local window — which ran 130–180/h — stays near
     zero, cultural is dead and it was electrical. Note this is unlike the 1.63× RMS
     improvement, which IS solid because last night's RMS was flat (1.10–1.12 µV)
     across all the same hours.
