@@ -78,8 +78,24 @@ is worse: open-drain, ~400 pF bus budget, ~1 m ceiling even with extender hacks.
 **What actually implements the idea:** a small MCU at the sensor reads the ADC over
 SHORT local SPI, then ships framed+checksummed samples home over a bus built for
 distance — RS-485 (differential, 100s of m, cheapest robust option), Ethernet (what
-pros use; drops onto our existing network pipeline), or USB (≤~5 m; ESP32-S3/S2/C3 and
-RP2040 all give native USB-CDC for a few dollars — Charles's point).
+pros use; drops onto our existing network pipeline), USB (≤~5 m; ESP32-S3/S2/C3 and
+RP2040 all give native USB-CDC for a few dollars — Charles's point), or FIBRE (below).
+
+**Fibre optics — the complete-isolation terminus (Charles's idea, 2026-07-23).** The
+transport with NO copper at all: total galvanic isolation AND EMI/RFI immunity in one,
+the full version of what the isolator / USB-isolator do partially. What vault-grade
+installs use. Three caveats: (1) it is a TRANSPORT, not a digitiser — still need the
+ADC+MCU to make bits; fibre just replaces RS-485/USB as the link home. (2) Cheap form
+is right here: plastic optical fibre + optical-UART (Broadcom/Avago HFBR-series or
+repurposed TOSLINK), framed UART over light, a few dollars, tens of metres — glass/SFP
+is overkill. (3) Fibre carries NO POWER, which is a feature: powering the sensor side
+from the Pi over copper would reintroduce the exact galvanic path fibre exists to kill,
+so fibre FORCES local power — and battery+LDO is independently the cleanest supply
+(see "Case design — power feed": "charge offline, not pass-through"), so the two wins
+compound. Endgame node: geophone → ADC → MCU → optical TX → fibre → Pi, sensor side on
+its own battery = a fully isolated, EMI-immune, clean-supply island. Last isolation
+move, earned only after cheaper ones are exhausted, or mandatory once the sensor lives
+where the Pi does not (Lehman vault, distant pier).
 
 **The REAL payoff is deterministic acquisition, not cost.** The MCU services the
 ADS1256 DRDY line in a tight ISR, doing nothing else — so the glitch/dropped-sample
