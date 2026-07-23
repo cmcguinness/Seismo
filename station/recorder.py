@@ -217,6 +217,8 @@ def main() -> None:
             anchor = ClockAnchor(rate)
             n_total = 0
             block_n0 = 0
+            last_good = 0
+            glitch_in_block = False
             while not _stop.is_set():
                 sample, dropped = reader.read()
                 if anchor.t0 is None:
@@ -242,6 +244,17 @@ def main() -> None:
                         block = []
                     n_total += dropped
                     block_n0 = n_total
+                if sample is None:
+                    glitch_in_block = True
+                    # Register-update collision: the frame clocked out zeros (see
+                    # rdatac.read). Hold the previous value rather than write a
+                    # 200 uV needle that trips the detector and speckles the drum.
+                    # Timing is untouched -- the sample slot is real, only its value
+                    # is unknown -- so this stays gapless. One held sample per ~100 s
+                    # is a far smaller lie than a fabricated impulse.
+                    sample = last_good
+                else:
+                    last_good = sample
                 block.append(sample)
                 live_ring.append(sample)
                 n_total += 1
@@ -252,7 +265,13 @@ def main() -> None:
                 except Exception:
                     pass
                 if len(block) >= block_n:
-                    err = anchor.update(n_total, time.time())
+                    # A glitch means the loop stalled, so this boundary's wall-clock
+                    # reading is late by the stall (observed +16.7 ms, ~one sample
+                    # period). Feeding that to the anchor would slew a fake error
+                    # into the NEXT boundary as a small gap, so skip the update and
+                    # coast on the existing prediction for one block.
+                    err = 0.0 if glitch_in_block else anchor.update(n_total, time.time())
+                    glitch_in_block = False
                     _q.put((block, utc(anchor.predict(block_n0))))
                     nblocks += 1
                     block = []
@@ -260,7 +279,8 @@ def main() -> None:
                     if nblocks % 6 == 0:          # ~once/min at 10s blocks
                         print(f"  {nblocks} blocks, clock err {err*1000:+.2f} ms, "
                               f"rate_est {anchor.rate_est:.4f} sps, "
-                              f"dropped {reader.dropped_total}, resyncs {anchor.resyncs}",
+                              f"dropped {reader.dropped_total}, "
+                              f"glitches {reader.glitches}, resyncs {anchor.resyncs}",
                               flush=True)
             if block:                             # flush partial block on stop
                 _q.put((block, utc(anchor.predict(block_n0))))

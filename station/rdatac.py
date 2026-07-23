@@ -65,6 +65,7 @@ class RdatacReader:
         self._cb = None
         self.total = 0
         self.dropped_total = 0
+        self.glitches = 0            # reads that landed in the register-update window
 
     def _on_edge(self, gpio, level, tick):
         self._edges += 1
@@ -82,8 +83,19 @@ class RdatacReader:
         self.pi.spi_write(self.spi, CMD_RDATAC.to_bytes())
         time.sleep(0.001)
 
-    def read(self) -> tuple[int, int]:
-        """Block until the next sample, then return (value, dropped)."""
+    def read(self) -> tuple[int | None, int]:
+        """Block until the next sample, then return (value, dropped).
+
+        value is None when the read landed in the chip's register-update window and
+        clocked out nothing. Signature is an all-zero frame: with the DC bias around
+        21,700 counts, 0x000000 is not a physical reading. Observed roughly once per
+        100 s -- this loop polls DRDY from Python, so a scheduling hiccup (GC, the
+        /dev/shm publish, a day-file flush) can arrive late. Left unfiltered each one
+        became a 200 uV single-sample needle in the record, big enough to trip the
+        STA/LTA and to make the helicorder look hairy.
+
+        The caller decides what to substitute; we only refuse to invent data.
+        """
         t_wait = time.time() + self.drdy_timeout
         while self._edges == self._seen:
             time.sleep(0.0005)
@@ -92,11 +104,17 @@ class RdatacReader:
         gained = self._edges - self._seen
         self._seen = self._edges
         dropped = gained - 1
+        # If DRDY has already gone high again we are late: the register is being
+        # updated and a read now returns zeros. Report it rather than clock garbage.
+        late = self.pi.read(self.drdy) == pigpio.HIGH
         n, raw = self.pi.spi_read(self.spi, INT24_BYTES)
         if n != INT24_BYTES or not isinstance(raw, bytearray):
             raise OSError("short SPI read in RDATAC")
         self.total += 1
         self.dropped_total += dropped
+        if late or raw == b"\x00\x00\x00" or bytes(raw) == b"\x00\x00\x00":
+            self.glitches += 1
+            return None, dropped
         return int.from_bytes(raw, byteorder="big", signed=True), dropped
 
     def stop(self) -> None:

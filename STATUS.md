@@ -72,6 +72,19 @@ at every 10 s block boundary.
   startup with "Received wrong chip ID" -- `adc_common._pin_reset()` now pulses the
   RESET pin before construction, so any tool recovers regardless of how the previous
   process exited.
+- **COSTS ~10% NOISE, and that is real:** 1-15 Hz median RMS 0.670 (legacy) -> 0.739
+  uV, 15-28 Hz 0.325 -> 0.380. Suspected mechanism is the SPI read landing inside the
+  conversion window (the legacy per-sample SYNC path reads at a different phase).
+  Net vs this morning is still ~1.5x better because the isolator won 1.69x. Ideas to
+  recover it are in BACKLOG (SPI clock, oversample+average).
+- **Glitch filter (needed):** roughly once per 100 s a read lands in the chip's
+  register-update window and clocks out `0x000000`. Unfiltered that wrote a 200 uV
+  single-sample needle -- enough to trip the STA/LTA and to make the drum look hairy
+  (Charles spotted it as "hairy-er"). `rdatac.read()` now returns None for an all-zero
+  frame or a late read (DRDY already high), the recorder holds the previous value, and
+  the contaminated block's clock update is SKIPPED (the stall makes that boundary's
+  wall-clock reading ~one sample period late, which would otherwise slew a fake error
+  into the next boundary). Verified: 0 zero-samples, 0 needles, 0 gaps over 379 s.
 
 **The continuous recorder is DONE and validated** (2026-07-19): `recorder.py`
 writes gapless miniSEED day-files (`XX.OAKMT.00.SHZ`, int32, ~57 sps, absolute
