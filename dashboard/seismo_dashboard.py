@@ -31,14 +31,18 @@ MIN_RATIO = float(os.environ.get("SEISMO_MIN_RATIO", "20"))
 # the last WINDOW_H hours (UTC), rather than a fixed row count. Tune live via
 # `dokku config:set SEISMO_DETECT_WINDOW_H=N`.
 WINDOW_H = float(os.environ.get("SEISMO_DETECT_WINDOW_H", "24"))
+# Most rows to SHOW. The window stays 24 h; this just keeps a noisy day (or a
+# misbehaving front end) from filling the page. When it truncates, the header says
+# so -- a silently short list would read as "quiet day".
+MAX_ROWS = int(os.environ.get("SEISMO_DETECT_MAX_ROWS", "10"))
 
 app = FastHTML()
 
 
-def _recent_events(max_rows=250):
+def _recent_events(max_rows=2000):
     """Detections in the last WINDOW_H hours (UTC) at/above MIN_RATIO, newest
-    first. max_rows is a guard rail against a pathological burst filling the page;
-    a normal day rarely has that many >=MIN_RATIO triggers, so it never bites."""
+    first. max_rows only bounds the parse; the DISPLAY cap is MAX_ROWS, applied by
+    the caller so it can report how many were withheld."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=WINDOW_H)
     try:
         with open(EVENTS) as f:
@@ -258,9 +262,12 @@ def _char_badge(ch):
 
 @app.get("/")
 def home():
-    evs = _recent_events()
+    all_evs = _recent_events()
+    evs = all_evs[:MAX_ROWS]                  # newest MAX_ROWS only
+    withheld = len(all_evs) - len(evs)
     # off the request path: fills in a background thread (the day-file parse is
     # ~90 s cold), so the page always renders now and unscored rows fill in later.
+    # Only the DISPLAYED rows are scored -- capping the table caps this work too.
     render.ensure_sparklines_async([e.get("start", "") for e in evs])
     if evs:
         rows = "".join(
@@ -287,7 +294,9 @@ def home():
                 'falls steeply below it, so the rise at the left is instrument, not ground.</div>')
         + _card("Helicorder &middot; last 4 hours (UTC)",
                 f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">')
-        + _card(f"Detections &middot; last {WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}",
+        + _card(f"Detections &middot; last {WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}"
+                + (f' <span class="fw-normal text-muted">&middot; newest {MAX_ROWS} of '
+                   f'{len(all_evs)}</span>' if withheld else ""),
                 '<table class="table table-sm table-striped mb-0 align-middle">'
                 '<thead><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th>'
                 '<th>waveform <span class="fw-normal text-muted">&plusmn;30&nbsp;s, 1&ndash;15&nbsp;Hz</span></th>'
