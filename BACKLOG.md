@@ -88,14 +88,21 @@ installs use. Three caveats: (1) it is a TRANSPORT, not a digitiser — still ne
 ADC+MCU to make bits; fibre just replaces RS-485/USB as the link home. (2) Cheap form
 is right here: plastic optical fibre + optical-UART (Broadcom/Avago HFBR-series or
 repurposed TOSLINK), framed UART over light, a few dollars, tens of metres — glass/SFP
-is overkill. (3) Fibre carries NO POWER, which is a feature: powering the sensor side
+is fine too if you fancy it. (3) Fibre carries NO POWER, which is a feature: powering the sensor side
 from the Pi over copper would reintroduce the exact galvanic path fibre exists to kill,
 so fibre FORCES local power — and battery+LDO is independently the cleanest supply
 (see "Case design — power feed": "charge offline, not pass-through"), so the two wins
 compound. Endgame node: geophone → ADC → MCU → optical TX → fibre → Pi, sensor side on
-its own battery = a fully isolated, EMI-immune, clean-supply island. Last isolation
-move, earned only after cheaper ones are exhausted, or mandatory once the sensor lives
-where the Pi does not (Lehman vault, distant pier).
+its own battery = a fully isolated, EMI-immune, clean-supply island.
+
+**On "is it necessary" — wrong question (Charles, 2026-07-23).** This is a hobby; the
+deliverable is the satisfaction of building it well, not the minimum that clears the
+noise floor. "Overkill / more than the problem needs / premature" is the professional
+filter and does NOT apply here. Fibre-linking a battery-powered digitiser node is a
+genuinely beautiful build and "because it would be elegant" is a sufficient reason to
+do it. The only real ordering constraint is practical: things that must be FROZEN
+before the crawl-space move (iterative, bench-tunable) come first — see the crawl-space
+sequencing note. Beyond that, build what is fun in whatever order pleases.
 
 **The REAL payoff is deterministic acquisition, not cost.** The MCU services the
 ADS1256 DRDY line in a tight ISR, doing nothing else — so the glitch/dropped-sample
@@ -153,7 +160,7 @@ free software wins FIRST; buy silicon only when expanding.
   Pi 4 or a Pi 5** (also 64-bit / aarch64, longer OS-support horizon) when the time
   comes. No urgency for the current single-channel station.
 
-## ADC upgrade (consideration — premature, but noted)
+## ADC upgrade (consideration — not the current bottleneck, but fair game)
 
 The ADS1256/Waveshare board is NOT the current weak link. Speed is irrelevant
 (it does 30 ksps; we use ~57, and seismology wants 100-250). The axis that
