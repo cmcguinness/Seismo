@@ -112,6 +112,7 @@ def _nav(active):
         '<span class="navbar-toggler-icon"></span></button>'
         '<div class="collapse navbar-collapse" id="nav"><ul class="navbar-nav ms-auto">'
         + link("/", "Live", "live")
+        + link("/detections", "Detections", "detections")
         + link("/spectrum", "Spectrum", "spectrum")
         + link("/learn", "Seismology 101", "learn")
         + link("/about", "About this station", "about")
@@ -263,6 +264,30 @@ def _char_badge(ch):
 
 @app.get("/")
 def home():
+    ts = int(time.time())
+    body = (
+        _titleblock(SID, f'DIY geophone seismometer &middot; {PLACE} &middot; vertical '
+                         '4.5&nbsp;Hz &middot; independent station (not for scientific use)')
+        + _card("Live &middot; last 30&nbsp;s (UTC)",
+                '<canvas id="c"></canvas><div id="hud">connecting…</div>')
+        + _card("Live spectrum &middot; same 30&nbsp;s window "
+                '<span class="fw-normal text-muted">&middot; ASD µV/&radic;Hz, log&ndash;log</span>',
+                '<canvas id="s"></canvas>'
+                '<div class="text-muted small mt-2 mb-0">Welch over the live 30&nbsp;s ring '
+                '(~0.12&nbsp;Hz resolution). Updates as the ring does, ~every 3&nbsp;s. '
+                'The dashed line marks the geophone&rsquo;s 4.5&nbsp;Hz corner &mdash; response '
+                'falls steeply below it, so the rise at the left is instrument, not ground.</div>')
+        + _card("Helicorder &middot; last 4 hours (UTC)",
+                f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">')
+    )
+    return Response(_shell(BRAND, "live", body, HOME_JS), media_type="text/html")
+
+
+# --- detections --------------------------------------------------------------
+
+
+@app.get("/detections")
+def detections_page():
     all_evs = _recent_events()
     evs = all_evs[:MAX_ROWS]                  # newest MAX_ROWS only
     withheld = len(all_evs) - len(evs)
@@ -280,22 +305,10 @@ def home():
     else:
         rows = (f'<tr><td colspan="6" class="text-muted">no detections in the last '
                 f'{WINDOW_H:g}&nbsp;h above STA/LTA {MIN_RATIO:g}</td></tr>')
-    ts = int(time.time())
     body = (
-        _titleblock(SID, f'DIY geophone seismometer &middot; {PLACE} &middot; vertical '
-                         '4.5&nbsp;Hz &middot; independent station (not for scientific use)')
-        + _card("Live &middot; last 30&nbsp;s (UTC)",
-                '<canvas id="c"></canvas><div id="hud">connecting…</div>')
-        + _card("Live spectrum &middot; same 30&nbsp;s window "
-                '<span class="fw-normal text-muted">&middot; ASD µV/&radic;Hz, log&ndash;log</span>',
-                '<canvas id="s"></canvas>'
-                '<div class="text-muted small mt-2 mb-0">Welch over the live 30&nbsp;s ring '
-                '(~0.12&nbsp;Hz resolution). Updates as the ring does, ~every 3&nbsp;s. '
-                'The dashed line marks the geophone&rsquo;s 4.5&nbsp;Hz corner &mdash; response '
-                'falls steeply below it, so the rise at the left is instrument, not ground.</div>')
-        + _card("Helicorder &middot; last 4 hours (UTC)",
-                f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">')
-        + _card(f"Detections &middot; last {WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}"
+        _titleblock("Detections", f'{SID} &middot; automatic STA/LTA triggers &middot; '
+                                  'almost all of these are cultural noise, not earthquakes')
+        + _card(f"Last {WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}"
                 + (f' <span class="fw-normal text-muted">&middot; newest {MAX_ROWS} of '
                    f'{len(all_evs)}</span>' if withheld else ""),
                 '<table class="table table-sm table-striped mb-0 align-middle">'
@@ -304,8 +317,14 @@ def home():
                 '<th>character <span class="fw-normal text-muted">shape only</span></th></tr></thead>'
                 f'<tbody>{rows}</tbody></table>',
                 body_class="table-responsive")
+        + '<p class="text-muted mb-0">The trigger fires on any sudden jump in energy. '
+          'Footsteps, doors, machinery and passing vehicles all qualify, so treat this table '
+          'as a log of <i>things that moved the ground</i> rather than a list of earthquakes. '
+          'The <b>character</b> column describes waveform shape only &mdash; see '
+          '<a href="/about">About</a>.</p>'
     )
-    return Response(_shell(BRAND, "live", body, HOME_JS), media_type="text/html")
+    return Response(_shell(f"Detections — {BRAND}", "detections", body),
+                    media_type="text/html")
 
 
 # --- spectrum ----------------------------------------------------------------
@@ -486,7 +505,7 @@ LEARN_SECTIONS = [
      'times in UTC. A detection here that matches a catalogue entry, at a sensible P&ndash;S gap, '
      'is the real thing.</p>'),
 
-    ("Reading the three views on the front page",
+    ("Reading the views on the front page",
      '<p class="prose"><b>Live waveform</b> &mdash; the last 30 seconds, scrolling. Flat means '
      'quiet. The numbers underneath give the current noise level; the smaller the better.</p>'
      '<p class="prose"><b>Live spectrum</b> &mdash; the same 30 seconds, but broken out by '
@@ -597,7 +616,8 @@ ABOUT_SECTIONS = [
      'geophone is ~60&nbsp;dB down, so anything lower is the instrument&rsquo;s own noise, not the '
      'ground. Seeing below that (distant &ldquo;teleseismic&rdquo; quakes, Earth&rsquo;s slow hum) takes '
      'a different sensor &mdash; a force-balance broadband, or a DIY long-period pendulum.</p>'
-     '<p class="mb-0 prose"><b>Recent detections</b> &mdash; automatic STA/LTA triggers (sudden energy '
+     '<p class="mb-0 prose"><b>Detections</b> (on their <a href="/detections">own page</a>) &mdash; '
+     'automatic STA/LTA triggers (sudden energy '
      'jumps). Most are <i>cultural</i> (footsteps, machinery, doors), not earthquakes &mdash; a genuine '
      'local quake would show a sharp P&nbsp;arrival followed seconds later by a larger S. '
      'The <b>character</b> column describes the <i>shape</i> of each detection, nothing more: '

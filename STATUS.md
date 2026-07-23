@@ -179,6 +179,11 @@ real triggers; the backlog's HF/spectral-flatness idea was tested and **refuted*
 see `dashboard/CHARACTER.md`. The sparkline/character fill also moved **off the request
 path** into a background thread (it was a ~90 s cold-start hang on the public page).
 
+**Detections moved to `/detections`** (2026-07-23): the table is off the home page and
+onto its own nav entry. Every trigger so far is a false positive, so it wasn't worth the
+front-page real estate — and the home request no longer kicks off any sparkline/character
+work at all (that background fill now only runs when someone opens `/detections`).
+
 **Event detection** (2026-07-20): the recorder runs a streaming **STA/LTA** trigger
 (`stalta.py`) inline — 1-pole high-pass (**3 Hz corner since 2026-07-22**, was 1 Hz:
 rejects microseism *and* the sub-Hz tilt/settling that was mistriggering faux
