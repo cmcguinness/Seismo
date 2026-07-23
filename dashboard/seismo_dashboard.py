@@ -333,8 +333,7 @@ def spectrum_page():
         'corner, and noise floor.</p>'
     )
     body = (_titleblock("Spectrum &middot; Welch ASD", f"{SID} &middot; {PLACE}")
-            + '<div class="row"><div class="col-xl-8 col-lg-10">'
-            + _card("Amplitude spectral density", inner) + '</div></div>')
+            + _card("Amplitude spectral density", inner))
     return Response(_shell(f"Spectrum — {BRAND}", "spectrum", body, SPEC_JS),
                     media_type="text/html")
 

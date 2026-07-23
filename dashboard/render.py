@@ -131,8 +131,9 @@ def spectrum_png(minutes=60):
     win_min = x.size / fs / 60
     navg = max(1, int(2 * x.size / nper) - 1)
     tend = tr.stats.endtime
-    fig, ax = plt.subplots(figsize=(9, 4.5))
-    ax.loglog(f[1:], asd[1:], "k", lw=0.8, zorder=5)
+    fig, ax = plt.subplots(figsize=(14, 7))     # 1400 px at dpi 100; covers the
+    #                                             full-width card without upscaling
+    ax.loglog(f[1:], asd[1:], "k", lw=1.0, zorder=5)
     # Floor at 0.05 Hz: below the microseism the 4.5 Hz geophone is ~60 dB down,
     # so anything lower is instrument self-noise, not ground motion. 0.05 (not 0.1)
     # keeps both microseism humps (primary ~0.05-0.1, secondary ~0.1-0.35).
