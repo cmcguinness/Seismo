@@ -490,7 +490,57 @@ def live_ring_json():
             "pp": float(np.ptp(uv)) if uv.size else 0.0,
             "rms": round(float(np.sqrt(np.mean(uv * uv))), 2) if uv.size else 0.0,
             "rms_band": _band_rms_cached(uv, fs, t_end),
+            "spec": live_spectrum(uv, fs, t_end),
             "fs": fs, "gain": gain, "age": round(age, 1), "t_end": t_end}
+
+
+SPEC_BINS = int(os.environ.get("SEISMO_LIVE_SPEC_BINS", "110"))   # log-spaced output bins
+SPEC_FMIN = float(os.environ.get("SEISMO_LIVE_SPEC_FMIN", "0.2"))  # 30 s window -> no
+                                                                   # resolution below ~0.15 Hz
+_spec_live_memo = {"t_end": None, "val": None}
+
+
+def live_spectrum(uv, fs, t_end):
+    """Amplitude spectral density (µV/√Hz) of the live ring, log-binned for plotting.
+
+    Welch over the 30 s window: nperseg ~8 s gives ~0.12 Hz resolution with ~6
+    averages -- enough to see the 4.5 Hz corner and the noise floor without the
+    estimate being pure variance. Returned as {f, asd} on SPEC_BINS log-spaced
+    bins so the payload stays small at 300 ms polling.
+
+    Memoized on t_end for the same reason as _band_rms_cached: the ring only
+    changes every ~3 s, so this runs ~10x less often than it is requested and N
+    viewers cost nothing extra."""
+    if _spec_live_memo["t_end"] == t_end:
+        return _spec_live_memo["val"]
+    val = None
+    try:
+        from scipy.signal import welch
+        nyq = fs / 2
+        nper = int(min(uv.size, 2 ** int(math.log2(max(64.0, fs * 8)))))
+        if uv.size >= 256 and nper >= 64:
+            f, p = welch(uv, fs=fs, nperseg=nper)
+            asd = np.sqrt(np.maximum(p, 0.0))
+            fmax = nyq * 0.98
+            keep = (f >= SPEC_FMIN) & (f <= fmax) & (asd > 0)
+            if keep.sum() > 4:
+                fk, ak = f[keep], asd[keep]
+                # average onto log-spaced bins (raw Welch bins are linear, so the
+                # low end would otherwise be one point per bin and the high end 100s)
+                edges = np.logspace(math.log10(fk[0]), math.log10(fk[-1]),
+                                    SPEC_BINS + 1)
+                idx = np.clip(np.digitize(fk, edges) - 1, 0, SPEC_BINS - 1)
+                fo, ao = [], []
+                for b in range(SPEC_BINS):
+                    m = idx == b
+                    if m.any():
+                        fo.append(round(float(fk[m].mean()), 4))
+                        ao.append(round(float(ak[m].mean()), 4))
+                val = {"f": fo, "asd": ao}
+    except Exception:
+        val = None
+    _spec_live_memo.update(t_end=t_end, val=val)
+    return val
 
 
 _band_rms_memo = {"t_end": None, "val": None}

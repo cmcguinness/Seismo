@@ -79,6 +79,7 @@ CSS = """<style>
  .card{border-color:#e6e8eb}
  .plot{width:100%;height:auto;display:block;border:1px solid #e6e8eb;border-radius:.25rem}
  #c{width:100%;height:220px;display:block;background:#fff;border:1px solid #e6e8eb;border-radius:.25rem}
+ #s{width:100%;height:230px;display:block;background:#fff;border:1px solid #e6e8eb;border-radius:.25rem}
  #hud{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#6c757d;margin-top:.5rem}
  td.spark-cell{width:196px}
  svg.spark{display:block;width:180px;height:40px;background:#eaf0f4;border:1px solid #c7d4de;border-radius:3px}
@@ -155,6 +156,54 @@ function axis(t0,t1,W,H){
     }
   }
 }
+// Live spectrum: log-log ASD from the same 30 s ring. ML/MB = axis margins.
+const sv=document.getElementById('s'),sx=sv?sv.getContext('2d'):null;
+const ML=46,MB=20,MT=6,MR=8;
+function fitS(){if(sv){sv.width=sv.clientWidth;sv.height=sv.clientHeight;}}
+addEventListener('resize',fitS);fitS();
+function spectrum(sp){
+  if(!sx)return;
+  const W=sv.width,H=sv.height;sx.clearRect(0,0,W,H);
+  if(!sp||!sp.f||sp.f.length<3){sx.fillStyle='#6c757d';sx.font='11px ui-monospace,Menlo,monospace';
+    sx.fillText('spectrum unavailable',ML,H/2);return;}
+  const f=sp.f,a=sp.asd;
+  const lx=v=>Math.log10(v), pw=W-ML-MR, ph=H-MB-MT;
+  const x0=lx(f[0]),x1=lx(f[f.length-1]);
+  let amin=Infinity,amax=-Infinity;for(const v of a){if(v>0){amin=Math.min(amin,v);amax=Math.max(amax,v);}}
+  const y0=Math.floor(lx(amin)),y1=Math.ceil(lx(amax));   // whole decades
+  const X=v=>ML+(lx(v)-x0)/(x1-x0)*pw, Y=v=>MT+(y1-lx(v))/(y1-y0)*ph;
+  sx.font='10px ui-monospace,Menlo,monospace';
+  // y decades
+  sx.textAlign='right';
+  for(let d=y0;d<=y1;d++){
+    const y=Y(Math.pow(10,d));
+    sx.strokeStyle='#f1f3f5';sx.beginPath();sx.moveTo(ML,y+.5);sx.lineTo(W-MR,y+.5);sx.stroke();
+    sx.fillStyle='#6c757d';sx.fillText('1e'+d,ML-4,y+3);
+  }
+  // x decade + minor ticks
+  sx.textAlign='center';
+  // start at the PARTIAL decade containing f[0], else 0.2/0.5 go unlabelled
+  for(let d=Math.floor(x0);d<=Math.floor(x1);d++){
+    for(let m=1;m<10;m++){
+      const v=m*Math.pow(10,d);if(lx(v)<x0||lx(v)>x1)continue;
+      const x=X(v);
+      sx.strokeStyle=m===1?'#e9ecef':'#f8f9fa';
+      sx.beginPath();sx.moveTo(x+.5,MT);sx.lineTo(x+.5,MT+ph);sx.stroke();
+      if(m===1||m===2||m===5){sx.fillStyle='#6c757d';
+        sx.fillText(v<1?v.toString():v.toFixed(0),x,H-6);}
+    }
+  }
+  // 4.5 Hz geophone corner
+  if(4.5>=f[0]&&4.5<=f[f.length-1]){
+    const x=X(4.5);sx.strokeStyle='#dc322f';sx.setLineDash([3,3]);sx.beginPath();
+    sx.moveTo(x+.5,MT);sx.lineTo(x+.5,MT+ph);sx.stroke();sx.setLineDash([]);
+    sx.fillStyle='#dc322f';sx.textAlign='left';sx.fillText('4.5 Hz',x+3,MT+10);
+  }
+  sx.strokeStyle='#2f6f6b';sx.lineWidth=1.25;sx.beginPath();
+  for(let i=0;i<f.length;i++){const x=X(f[i]),y=Y(Math.max(a[i],1e-12));i?sx.lineTo(x,y):sx.moveTo(x,y);}
+  sx.stroke();
+  sx.strokeStyle='#dee2e6';sx.lineWidth=1;sx.strokeRect(ML+.5,MT+.5,pw,ph);
+}
 async function live(){
   try{
     const r=await (await fetch('/live-data')).json();
@@ -168,6 +217,7 @@ async function live(){
       ctx.strokeStyle='#2f6f6b';ctx.lineWidth=1;ctx.beginPath();
       for(let i=0;i<n;i++){const x=i/(n-1)*W,y=plotH/2-d[i]/amp*(plotH/2*0.9);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
       ctx.stroke();
+      spectrum(r.spec);
       const band=(r.rms_band==null)?'':`  rms(1–15 Hz) ${r.rms_band.toFixed(2)} µV`;
       hud.textContent=`gain ${r.gain}  fs ${fs.toFixed(1)} sps  pp ${(r.pp||0).toFixed(0)} µV`
         +`  rms ${(r.rms||0).toFixed(2)} µV`+band
@@ -228,6 +278,13 @@ def home():
                          '4.5&nbsp;Hz &middot; independent station (not for scientific use)')
         + _card("Live &middot; last 30&nbsp;s (UTC)",
                 '<canvas id="c"></canvas><div id="hud">connecting…</div>')
+        + _card("Live spectrum &middot; same 30&nbsp;s window "
+                '<span class="fw-normal text-muted">&middot; ASD µV/&radic;Hz, log&ndash;log</span>',
+                '<canvas id="s"></canvas>'
+                '<div class="text-muted small mt-2 mb-0">Welch over the live 30&nbsp;s ring '
+                '(~0.12&nbsp;Hz resolution). Updates as the ring does, ~every 3&nbsp;s. '
+                'The dashed line marks the geophone&rsquo;s 4.5&nbsp;Hz corner &mdash; response '
+                'falls steeply below it, so the rise at the left is instrument, not ground.</div>')
         + _card("Helicorder &middot; last 4 hours (UTC)",
                 f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">')
         + _card(f"Detections &middot; last {WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}",
