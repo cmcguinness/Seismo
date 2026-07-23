@@ -157,6 +157,58 @@ class RdatacReader:
             self._cb = None
 
 
+class Despiker:
+    """Drop ISOLATED single-sample excursions -- garbage SPI frames, not ground motion.
+
+    Two glitch classes have been observed in RDATAC, both single samples:
+      all-zero frames (0x000000), caught in RdatacReader.read(), and
+      garbage/misaligned frames -- measured -7,766,016 (-92.6% FS, 0x898000) and
+      +5,925,632 (+70.6% FS) sitting between neighbours at ~22,400 counts. Twice in
+      6 hours. The second class read as a 72 mV "event" and tripped the STA/LTA.
+
+    The discriminator is ISOLATION, not amplitude. The ADS1256's SINC filter
+    band-limits the output below ~30 Hz, so no physical signal can jump millions of
+    counts for exactly one sample and come straight back. A real earthquake -- even a
+    clipping one -- moves for consecutive samples, so it is kept. That is why this
+    checks the NEIGHBOURS rather than thresholding magnitude: thresholding would
+    silently truncate a genuinely strong local event, which is the one thing this
+    station exists to record.
+
+    Costs one sample (16.7 ms) of latency: judging sample n needs n+1.
+    """
+
+    def __init__(self, jump: int = 200_000):
+        # jump: counts. Ambient here is ~1,500 counts peak-to-peak, and full scale is
+        # 8.4M, so 200k (~1.9 mV, ~64 um/s of ground velocity) sits far above anything
+        # real at this site while staying far below clipping.
+        self.jump = jump
+        self.prev = None
+        self.pending = None
+        self.spikes = 0
+
+    def push(self, value: int):
+        """Feed one raw sample; returns the validated sample to record, or None if
+        still buffering (only on the very first sample)."""
+        if self.pending is None:
+            self.pending = value
+            return None
+        judged = self.pending
+        if self.prev is not None:
+            d_before = abs(judged - self.prev)
+            d_after = abs(value - self.prev)
+            if d_before > self.jump and d_after < self.jump:
+                judged = self.prev          # isolated outlier -> hold previous
+                self.spikes += 1
+        self.prev = judged
+        self.pending = value
+        return judged
+
+    def flush(self):
+        """Release the buffered sample at shutdown."""
+        out, self.pending = self.pending, None
+        return out
+
+
 class ClockAnchor:
     """Sample index -> UTC epoch seconds, slowly steered to the system clock.
 
@@ -175,13 +227,20 @@ class ClockAnchor:
     """
 
     def __init__(self, nominal: float, gain: float = 0.2, tol: float = 0.005,
-                 step: float = 1.0, settle_s: float = 60.0):
+                 step: float = 1.0, settle_s: float = 60.0, outlier: float = 0.010):
         self.nominal = float(nominal)
         self.rate_est = float(nominal)
         self.gain = gain
         self.tol = tol
         self.step = step
         self.settle_s = settle_s
+        # |err| between outlier and step is treated as a CONTAMINATED MEASUREMENT, not
+        # a real offset: a scheduling stall delays the wall-clock reading at the block
+        # boundary (observed +17.4 ms, ~one sample period, with no glitch to blame).
+        # Slewing a fraction of that would write a ~3.5 ms step into the next boundary
+        # as a gap. With the rate tracked, genuine error stays inside a few ms.
+        self.outlier = outlier
+        self.outliers = 0
         self.t0 = None          # UTC epoch of sample index n0
         self.n0 = 0
         self.t_first = None
@@ -229,5 +288,8 @@ class ClockAnchor:
             r = (n - self.n_first) / elapsed
             lo, hi = self.nominal * (1 - self.tol), self.nominal * (1 + self.tol)
             self.rate_est = min(max(r, lo), hi)
+        if abs(err) > self.outlier:              # stalled measurement -> coast
+            self.outliers += 1
+            return err
         self.t0 += self.gain * err               # slew a fraction of the error
         return err

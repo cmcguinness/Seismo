@@ -180,7 +180,7 @@ def main() -> None:
     reader = None
     try:
         if RDATAC:
-            from rdatac import ClockAnchor, RdatacReader
+            from rdatac import ClockAnchor, Despiker, RdatacReader
             reader = RdatacReader(ads, DIFF)
             reader.start()
             fs = float(DRATE)                     # crystal-exact; no need to measure
@@ -219,6 +219,7 @@ def main() -> None:
             block_n0 = 0
             last_good = 0
             glitch_in_block = False
+            despiker = Despiker()
             while not _stop.is_set():
                 sample, dropped = reader.read()
                 if anchor.t0 is None:
@@ -255,6 +256,11 @@ def main() -> None:
                     sample = last_good
                 else:
                     last_good = sample
+                # Despike BEFORE the detector: an isolated garbage frame read as a
+                # 72 mV event and tripped the STA/LTA (13:53:55 UTC 2026-07-23).
+                sample = despiker.push(sample)
+                if sample is None:
+                    continue                     # first sample only: still buffering
                 block.append(sample)
                 live_ring.append(sample)
                 n_total += 1
@@ -280,8 +286,13 @@ def main() -> None:
                         print(f"  {nblocks} blocks, clock err {err*1000:+.2f} ms, "
                               f"rate_est {anchor.rate_est:.4f} sps, "
                               f"dropped {reader.dropped_total}, "
-                              f"glitches {reader.glitches}, resyncs {anchor.resyncs}",
+                              f"glitches {reader.glitches}, spikes {despiker.spikes}, "
+                              f"stalls {anchor.outliers}, "
+                              f"resyncs {anchor.resyncs}",
                               flush=True)
+            tail = despiker.flush()               # release the buffered sample
+            if tail is not None:
+                block.append(tail)
             if block:                             # flush partial block on stop
                 _q.put((block, utc(anchor.predict(block_n0))))
         else:
