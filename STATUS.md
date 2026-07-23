@@ -1,6 +1,40 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-22_
+_Last updated: 2026-07-23 (UTC)_
+
+## ⚠️ STATION IS DEGRADED — read this first (2026-07-23 06:15 UTC)
+
+**The galvanic Ethernet isolator install broke the front end. Do not trust data
+after 06:15 UTC 2026-07-23** (= 23:15 local 07-22) until this is resolved.
+
+| | 1–15 Hz RMS | 0.02–0.12 Hz | DC bias (counts) |
+|---|---|---|---|
+| baseline (to 06:14) | **1.15 µV** | 0.96 µV | 29,850, stable ±150 |
+| after install | 14–68 µV | 13–100 µV | wanders 17,000–51,000 |
+
+- **Starts at the install minute:** 06:14 = 1.14 µV, 06:15 = 5.56, 06:16 = 33.7.
+  Survived a reboot of BOTH boxes. Swapping the isolator→Pi cable halved the sub-Hz
+  part but made 1–15 Hz *worse* (33–56 µV).
+- **Not ground motion.** Confirmed with nobody near the rig. The **DC operating
+  point wanders ±10,000 counts** — no earthquake moves the ADC's bias. And a single
+  impulse (unplugging the Ethernet) leaves the band elevated for **~3.5 minutes**;
+  a 4.5 Hz geophone rings out in *seconds* even undamped, so this is an electrical
+  node settling, not mechanics.
+- **Leading hypothesis: the isolator removed the Pi 0 V's only earth reference.**
+  The bias network is a high-impedance 2× 100 kΩ divider and the ADS1256 runs
+  **buffer-off**, so common-mode rejection is poor and a floating ground wanders
+  straight into the signal. The minutes-long settling ≈ 100 kΩ × input capacitance.
+- **NEXT STEP (decisive test): remove the isolator entirely**, Pi straight to the
+  bridge on one known-good cable, then compare the three numbers above. If it does
+  NOT return to ~1.15 µV, the floating node is elsewhere — check the XLR connector
+  and the perfboard bias network, both handled during the install.
+- Ethernet itself is fine throughout: 100 Mb/s full duplex, zero RX/TX errors.
+- **`events.log` is being polluted** — the STA/LTA fires every 10–20 s (peaks
+  ~380 µV) for the whole degraded period. Annotate/exclude that window later; don't
+  read those detections as real.
+- If isolation is ever wanted again, it needs the Pi's 0 V earthed by another route
+  rather than left floating. (The conducted-noise problem it was meant to insure
+  against was already solved by removing the WiFi dongle.)
 
 ## Where we are
 

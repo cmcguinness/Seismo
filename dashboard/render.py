@@ -20,12 +20,18 @@ RING = os.environ.get("SEISMO_RING", "/data/seismo_live.npz")  # live ring, pull
 SPEC_TTL = float(os.environ.get("SEISMO_SPECTRUM_TTL", "1800"))   # spectrum cache, 30 min
 
 
-def _load_day(path):
+def _load_day(path, starttime=None):
     """Read a day-file -> gap-split Stream, normalizing mixed sample rates
-    (early archive has 55/57 sps segments; ObsPy won't merge across rates)."""
+    (early archive has 55/57 sps segments; ObsPy won't merge across rates).
+
+    `starttime` is passed to obspy.read so records before it are never decoded --
+    decoding a full day-file costs ~45 s on the pi5, and the sparkline/character
+    fill only ever needs the windows around recent detections."""
     import obspy
 
-    st = obspy.read(path)
+    st = obspy.read(path, starttime=starttime)
+    if not len(st):
+        return st              # nothing at/after starttime in this file
     dom = Counter(round(t.stats.sampling_rate) for t in st).most_common(1)[0][0]
     off = [t for t in st if round(t.stats.sampling_rate) != dom]
     if off:
@@ -210,15 +216,18 @@ _char_cache = {}                  # start_iso -> character dict (or {} for no da
 _spark_lock = threading.Lock()
 
 
-def _load_recent(n=2):
+def _load_recent(n=2, starttime=None):
     """Last `n` day-files merged (micro-gaps bridged) into one Stream. A detection
-    window can straddle the 00:00 UTC day-file rollover, so keep two."""
+    window can straddle the 00:00 UTC day-file rollover, so keep two. `starttime`
+    limits decoding to the span the caller actually needs (see _load_day)."""
     files = sorted(glob.glob(os.path.join(DATA, "*.mseed")), key=os.path.getmtime)
     if not files:
         return None
     st = None
     for path in files[-n:]:
-        s = _load_day(path)
+        s = _load_day(path, starttime=starttime)
+        if not len(s):
+            continue
         st = s if st is None else st + s
     if st is None or not len(st):
         return None
@@ -378,7 +387,19 @@ def ensure_sparklines(starts):
         missing = [s for s in starts if s not in _spark_cache]
         if not missing:
             return
-        st = _load_recent()
+        # Decode only from the earliest window we need. Without this the fill
+        # re-parsed two FULL day-files per pass; when the trigger misbehaves and
+        # new detections appear every few seconds, the cache is never complete, so
+        # every page load spawned another full-archive parse -> periodic 100% CPU.
+        earliest = None
+        for s in missing:
+            try:
+                t = obspy.UTCDateTime(s)
+            except Exception:
+                continue
+            earliest = t if earliest is None else min(earliest, t)
+        st = _load_recent(starttime=None if earliest is None
+                          else earliest - SPARK_PRE - 60)
         if st is None:
             return
         t_end = max(t.stats.endtime for t in st)
