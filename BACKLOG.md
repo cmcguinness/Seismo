@@ -302,6 +302,23 @@ environmental noise, not the electronics:
 - **Direct earth coupling + below-grade quiet** → lower cultural/microseism noise.
 - Does NOT change the electronic noise floor (that's the Rev-2 front-end work).
 
+**SEQUENCING: the crawl space is the TERMINAL step, not the next one** (Charles,
+2026-07-23). Once it is under the house every iteration costs a belly-crawl, so
+anything that needs a measure-adjust-remeasure loop must be FROZEN on the bench
+first:
+- **Settle before the move** (all iterative): buffer/AVDD decision, `Rd` damping
+  tuned against recorded impulses, Rev-2 board built and validated, GPIO-header
+  power feed + inline fuse, ferruled/sealed connectors.
+- **Must be right first time** (cannot iterate down there): sealed enclosure +
+  desiccant, paver bedded in tamped earth and levelled, conduit/critter protection,
+  mesh-node Ethernet with no radio on the Pi.
+- **Observability becomes a PREREQUISITE, not a nice-to-have.** Every problem found
+  on 2026-07-23 -- the hairy drum, the 13:54 garbage frame, the isolator's
+  improvement -- was found by Charles LOOKING at the station. That channel disappears
+  once it is inaccessible. So the QC counters (`health.json`: dropped/glitches/
+  spikes/stalls/resyncs, plus `qc.log`) must be surfaced on the dashboard, and
+  ideally alerting, BEFORE the move. See "Acquisition QC" layers 3 and 4.
+
 **Design implications to bake in NOW (enclosure is still open):**
 1. **Humidity is the #1 hazard.** Bare-earth crawl = damp. Seal the electronics
    enclosure + **desiccant** (rechargeable silica), **vapor barrier** (poly) under
