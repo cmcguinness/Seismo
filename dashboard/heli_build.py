@@ -42,16 +42,24 @@ DATA = os.environ.get("SEISMO_DATA", "/data/data")
 HELI = os.environ.get("SEISMO_HELI", "/data/heli")
 
 
-def _load_day(path):
+def _load_day(path, starttime=None):
     """miniSEED day-file -> list of contiguous single-rate traces (gaps blank).
 
     Mirrors analysis/helicorder.load_day: normalize the early archive's mixed
     sample rates, heal the ~ms per-block overlaps (merge), then split so only
     real gaps remain as breaks.
+
+    `starttime` is passed through to obspy.read so records before the drum's
+    window are never decoded. This matters a lot: the worker re-runs on every
+    data change (~1/min from the rsync timer), and decoding two FULL day-files
+    took ~91 s -- longer than the interval that re-triggers it, which pegged a
+    core permanently. Reading only the window makes a cycle a few seconds.
     """
     import obspy
 
-    st = obspy.read(str(path))
+    st = obspy.read(str(path), starttime=starttime)
+    if not len(st):
+        return st            # file lies entirely before the window -> nothing to do
     dom = Counter(round(t.stats.sampling_rate) for t in st).most_common(1)[0][0]
     off = [t for t in st if round(t.stats.sampling_rate) != dom]
     if off:
@@ -100,9 +108,24 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
     # once the recorder rolled to the new file (its samples were no longer loaded, so
     # the interval could never fill or mark complete). A 4 h window touches at most
     # two day-files, so the last two always cover it.
+    #
+    # Read ONLY the window: a header-only scan gives the archive end cheaply, then
+    # each file is decoded from the window start. Decoding the files in full cost
+    # ~91 s/cycle and pegged a core (see _load_day).
+    import obspy
+
+    hdr = obspy.read(files[-1], headonly=True)
+    if not len(hdr):
+        return 0
+    newest = max(t.stats.endtime for t in hdr)
+    # one extra interval of margin so the first row isn't filter-clipped
+    win_start = obspy.UTCDateTime(
+        (newest.timestamp - hours * 3600) // INTERVAL_S * INTERVAL_S - INTERVAL_S)
     st = None
     for path in files[-2:]:
-        s = _load_day(path)
+        s = _load_day(path, starttime=win_start)
+        if not len(s):
+            continue                      # file lies entirely before the window
         st = s if st is None else st + s
     if st is None or not len(st):
         return 0

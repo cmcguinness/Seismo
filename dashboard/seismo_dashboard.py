@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""app.py — public seismo dashboard (FastHTML + Bootstrap 5), served on the Dokku host.
+"""seismo_dashboard.py — public seismo dashboard (FastHTML + Bootstrap 5), served on the Dokku host.
 
 Reads the rsync-mirrored miniSEED + events (no ADC, no acquisition here), serves the
 pre-rendered helicorder + cached spectrum, and streams the mirrored live ring. UI is
