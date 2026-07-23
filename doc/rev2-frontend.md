@@ -155,6 +155,28 @@ input — **don't**. Keep the corner in the low kHz.
 - **Rb → 1 M** once the buffer is on (input current collapses → lower loading,
   less noise).
 
+## Layout tooling — KiCad rejected (2026-07-23)
+
+The KiCad project was created and then deleted: Charles dislikes schematic capture
+as a way of thinking about a circuit. **This is not a blocker**, because nothing
+about Rev-2 needs a PCB tool yet -- the design of record is the ASCII netlist + BOM
+above, and the schematic image comes from `rev2_frontend_schematic.py` (schemdraw,
+Python), matching the code-first workflow already used for the enclosure (build123d).
+
+When layout *does* become due -- only after Rev-2 is frozen, i.e. after the
+buffer/AVDD decision and an empirically tuned `Rd` -- the options that skip
+schematic capture entirely:
+
+- **SKiDL** (Python) -- define the circuit in code, emit a KiCad netlist directly.
+  The netlist above is already written; this just formalises it.
+- **atopile** -- newer text-based EDA language, compiles to a KiCad PCB.
+- **EasyEDA** -- browser-based and JLCPCB-integrated (where the board would be
+  fabbed anyway), much lighter than KiCad.
+
+Routing is inherently spatial, so *some* tool has to place and route; `pcbnew` is a
+different mental model from `eeschema` and may be tolerable even if the schematic
+editor isn't. For ~14 passives with no ICs, layout is a ~30 minute job in anything.
+
 ## Connectors (internal wiring)
 
 - **J1 geophone in** — board-mounted XLR jack (Neutrik PCB series); the geophone
