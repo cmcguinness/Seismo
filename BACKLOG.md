@@ -61,6 +61,37 @@ prototype on perfboard → shorted-input floor test → lock values → *then* l
 Board is analog-only (XLR → AD0/AD1/AGND terminals; tap Waveshare AVDD/VREF/AGND
 for bias ref; damping-R stays a socket; XLR shield to the one star ground).
 
+## Digitize-at-the-sensor (architecture fork — Charles's idea, 2026-07-23)
+
+The right long-term architecture, and what pro digitizers (Q330, Centaur) do: put
+the ADC millimetres from the geophone, keep the analog run tiny, send only DIGITAL
+home. Once digital, a noisy cable corrupts nothing — bit errors are caught by
+framing/CRC instead of summing into a µV analog signal, which is the entire class of
+problem the isolator/buffer/RC work fights.
+
+**Caveat: SPI and I²C are the WRONG buses for the cable run.** They are on-board
+buses (cm scale). SPI has no framing/CRC/differential and, at our ~1 MHz ADS1256
+clock, a >tens-of-cm run reflects/skews and — worse — gives no way to DETECT a
+corrupted sample (we measured SPI injecting noise with zero cable, 2026-07-23). I²C
+is worse: open-drain, ~400 pF bus budget, ~1 m ceiling even with extender hacks.
+
+**What actually implements the idea:** a small MCU (RP2040/ESP32) at the sensor reads
+the ADC over SHORT local SPI, then ships framed+checksummed samples home over a bus
+built for distance — RS-485 (differential, 100s of m, cheapest robust option),
+Ethernet (what pros use; drops onto our existing network pipeline), or USB (≤~5 m).
+
+**Two things make this more attractive than it first looks:**
+- The **ADXL355** accelerometer already on the 3-component backlog is ALREADY digital
+  (built-in ADC, SPI/I²C out) — so for that channel, digitize-at-sensor is free.
+- The **Lehman** lives in its own thermal box, potentially metres from the Pi, where a
+  long ANALOG run would be ruinous — that channel almost requires this.
+
+**Scoping:** for the CURRENT single vertical geophone with a short run, this is more
+than the present noise problem needs — buffer-on (Rev-2 item 1) is the bigger lever.
+It becomes compelling only when sensor and Pi must SEPARATE: crawl-space siting with
+the Pi elsewhere, 3-component, or the Lehman. Not a next step; a real fork to weigh
+when the station layout changes.
+
 ## Compute — faster Pi (upgrade consideration)
 
 A faster Pi is a **scope-expansion enabler, not a fix** for current limits. Do the
