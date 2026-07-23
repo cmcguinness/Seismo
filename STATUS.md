@@ -39,6 +39,26 @@ Diagnostics that separate "electrical fault" from "ground motion" in one number:
 every 10–20 s (peaks ~380 µV) through the unsettled period. Annotate/exclude that
 window; those detections are not real.
 
+## Plan (agreed 2026-07-23)
+
+**Hands off the hardware until the weekend.** Let the current configuration run a
+couple of days to get a feel for it, THEN tackle the 5 V AVDD fault (which unblocks
+buffer-on, the biggest remaining noise lever -- see `doc/rev2-frontend.md`).
+
+Current configuration = the first clean epoch: RDATAC 60 sps gapless, galvanic
+isolator in (reversed), gain 64, garage slab, **no shunt damping fitted**. What two
+undisturbed days buys, all passive:
+- The **spike-rate test** that settles whether the 1-3 min spikes were electrical
+  (BACKLOG "Suppress faux (cultural) detections") -- watch the 20:00-23:00 local
+  window that ran 130-180/h.
+- A meaningful **PPSD** (`analysis/ppsd.py`, epoch `rdatac-60sps`) -- it was
+  pointless before because the archive mixed configurations.
+- A baseline for the **QC counters** (`health.json`: dropped/glitches/spikes/stalls).
+- A chance at a real local event.
+
+Every touch of the rig costs ~35 min of settling and may start a new epoch, so if
+something does get changed, write down the time.
+
 ## Where we are
 
 **The full analog + digital signal chain is now VALIDATED end to end** (2026-07-19).

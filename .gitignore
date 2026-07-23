@@ -18,3 +18,10 @@ stl/
 
 # Pixelmator source for doc images (large; JPEG export is the tracked asset)
 *.pxd
+
+# KiCad: VS Code Local History extension drops a NESTED git repo in here
+interface_board/**/.history/
+# KiCad transient/user-local state (not design data)
+*.kicad_prl
+*-backups/
+fp-info-cache
