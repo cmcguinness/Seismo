@@ -365,6 +365,36 @@ LEARN_SECTIONS = [
      'of roughly <b>25 nanometres per second</b> &mdash; about the width of a virus, per second. '
      'A person walking past is thousands of times bigger than that.</p>'),
 
+    ("Putting real numbers on it",
+     '<p class="prose">The voltage the sensor produces converts straight to a ground speed, because '
+     'this geophone gives <b>28.8 volts for every metre-per-second</b> of motion. Working that down '
+     'to the sizes we actually see:</p>'
+     '<div class="table-responsive"><table class="table table-sm align-middle">'
+     '<thead><tr><th>At the sensor</th><th>Ground speed</th></tr></thead><tbody>'
+     '<tr><td><b>1 microvolt</b> (µV)</td><td><b>34.7 nm/s</b> &mdash; the working unit here</td></tr>'
+     '<tr><td>1 nanometre/second</td><td>0.029 µV, or about 3 of the digitizer&rsquo;s steps</td></tr>'
+     '<tr><td>Smallest step the digitizer can resolve</td><td>0.32 nm/s</td></tr>'
+     '<tr><td>Quiet-night noise floor (~0.7 µV)</td><td>~24 nm/s</td></tr>'
+     '</tbody></table></div>'
+     '<p class="prose"><b>How far does the ground actually travel?</b> That is a different question '
+     'from how fast, and the answer depends on frequency &mdash; a fast wiggle covers less distance '
+     'than a slow one at the same speed (distance = speed &divide; 2&pi;&#8202;&times;&#8202;'
+     'frequency). At the quiet-night floor, the ground is physically moving by about:</p>'
+     '<div class="table-responsive"><table class="table table-sm align-middle">'
+     '<thead><tr><th>Frequency</th><th>How far it moves</th></tr></thead><tbody>'
+     '<tr><td>4.5 Hz</td><td>~0.8 nm</td></tr>'
+     '<tr><td>10 Hz</td><td>~0.4 nm</td></tr>'
+     '<tr><td>20 Hz</td><td>~0.2 nm</td></tr>'
+     '</tbody></table></div>'
+     '<p class="prose">Those distances are <b>smaller than a single atom is wide</b> '
+     '(an atom is about 0.1&ndash;0.5&nbsp;nm). Detecting motion that small on thirty dollars of '
+     'hardware sitting on a garage floor is the part worth being slightly amazed by.</p>'
+     '<p class="mb-0 prose"><b>One catch</b>, and it is why the <a href="/spectrum">spectrum</a> is '
+     'cut off at the left: the &ldquo;34.7 nm/s per µV&rdquo; figure only holds <b>above about '
+     '4.5&nbsp;Hz</b>. Below that the sensor goes progressively deaf, so the same voltage means '
+     '<i>much</i> more real ground motion &mdash; roughly 5× more at 2&nbsp;Hz, 20× at 1&nbsp;Hz. '
+     'It is a velocity meter with an honest range, not a universal ruler.</p>'),
+
     ("P waves, S waves, and how one station can guess the distance",
      '<p class="prose">An earthquake sends out several kinds of wave, and they travel at different '
      'speeds. That difference is the single most useful fact in seismology.</p>'
