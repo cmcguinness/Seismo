@@ -75,10 +75,33 @@ clock, a >tens-of-cm run reflects/skews and — worse — gives no way to DETECT
 corrupted sample (we measured SPI injecting noise with zero cable, 2026-07-23). I²C
 is worse: open-drain, ~400 pF bus budget, ~1 m ceiling even with extender hacks.
 
-**What actually implements the idea:** a small MCU (RP2040/ESP32) at the sensor reads
-the ADC over SHORT local SPI, then ships framed+checksummed samples home over a bus
-built for distance — RS-485 (differential, 100s of m, cheapest robust option),
-Ethernet (what pros use; drops onto our existing network pipeline), or USB (≤~5 m).
+**What actually implements the idea:** a small MCU at the sensor reads the ADC over
+SHORT local SPI, then ships framed+checksummed samples home over a bus built for
+distance — RS-485 (differential, 100s of m, cheapest robust option), Ethernet (what
+pros use; drops onto our existing network pipeline), or USB (≤~5 m; ESP32-S3/S2/C3 and
+RP2040 all give native USB-CDC for a few dollars — Charles's point).
+
+**The REAL payoff is deterministic acquisition, not cost.** The MCU services the
+ADS1256 DRDY line in a tight ISR, doing nothing else — so the glitch/dropped-sample
+classes we spent 2026-07-23 filtering (71 register-collision glitches + 10 drops in
+6 h, all from a Python DRDY poll arriving late behind GC / the shm write / a day-file
+flush) largely vanish AT SOURCE. The MCU free-runs the ADC on its own crystal (the
+RDATAC timebase we already use), so USB transport jitter is irrelevant — timing lives
+at the sensor, not in the Pi's scheduler. This is "move acquisition off the
+multitasking Pi onto a dedicated MCU," which is a reliability win independent of the
+cable-length argument.
+
+**Two traps this project has already been bitten by:**
+- **RADIO. An ESP32 is a WiFi/BT transmitter.** Our worst noise event
+  ([[wifi-tx-corrupts-acquisition]]) was a WiFi dongle's TX current corrupting the
+  ADS1256 via a shared rail; a live radio millimetres from the geophone recreates that
+  at point-blank range. Use the ESP32 wired with the radio NEVER brought up — at which
+  point an **RP2040 (native USB, ~$4, NO radio)** is the safer pick for exactly that
+  reason. Wireless, if ever wanted, belongs far from the sensor.
+- **USB reintroduces the galvanic path we just exiled.** USB carries 5 V + ground from
+  the noisy Pi straight to a board on the sensor — the same ground-loop class the
+  Ethernet isolator fixed. Design in a USB isolator (ADuM3160-class, ~$15-30) or power
+  the sensor board locally and isolate the data lines.
 
 **Two things make this more attractive than it first looks:**
 - The **ADXL355** accelerometer already on the 3-component backlog is ALREADY digital
