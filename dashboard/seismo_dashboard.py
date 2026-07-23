@@ -113,6 +113,7 @@ def _nav(active):
         '<div class="collapse navbar-collapse" id="nav"><ul class="navbar-nav ms-auto">'
         + link("/", "Live", "live")
         + link("/spectrum", "Spectrum", "spectrum")
+        + link("/learn", "Seismology 101", "learn")
         + link("/about", "About this station", "about")
         + '</ul></div></div></nav>'
     )
@@ -340,6 +341,169 @@ def spectrum_page():
 
 # --- about -------------------------------------------------------------------
 
+# --- seismology 101 ------------------------------------------------------------
+# Written for a curious non-specialist (Charles's ask: "a family member who gets
+# curious"). Plain language, concrete numbers from THIS station, and honest about
+# what the instrument cannot do -- the deaf-below-4.5-Hz part is the bit people
+# most often misread as a fault.
+LEARN_SECTIONS = [
+    ("Start here: what this thing actually measures",
+     '<p class="prose">A seismometer does not measure earthquakes. It measures <b>how fast the '
+     'ground is moving up and down</b>, continuously, whether or not anything interesting is '
+     'happening. Earthquakes are just one of the things that move it.</p>'
+     '<p class="prose">Inside the sensor (a <i>geophone</i>) is a heavy magnet hanging on a spring '
+     'inside a coil of wire. When the ground jolts, the case moves but the magnet&rsquo;s inertia '
+     'makes it lag behind &mdash; and a magnet moving inside a coil generates a voltage. That '
+     'voltage is the measurement. It is <b>tiny</b>: the quietest signals here are under a '
+     'millionth of a volt, which is why so much of this project is about fighting electrical '
+     'noise.</p>'
+     '<p class="mb-0 prose">The speeds involved are small too. A quiet night here is ground motion '
+     'of roughly <b>25 nanometres per second</b> &mdash; about the width of a virus, per second. '
+     'A person walking past is thousands of times bigger than that.</p>'),
+
+    ("P waves, S waves, and how one station can guess the distance",
+     '<p class="prose">An earthquake sends out several kinds of wave, and they travel at different '
+     'speeds. That difference is the single most useful fact in seismology.</p>'
+     '<div class="table-responsive"><table class="table table-sm align-middle">'
+     '<thead><tr><th>Wave</th><th>Speed</th><th>Motion</th><th>What you see</th></tr></thead>'
+     '<tbody>'
+     '<tr><td><b>P</b> (primary)</td><td>~6 km/s</td><td>push&ndash;pull, like sound</td>'
+     '<td>arrives <b>first</b>, usually smaller &mdash; a sharp tick</td></tr>'
+     '<tr><td><b>S</b> (secondary)</td><td>~3.5 km/s</td><td>side-to-side shear</td>'
+     '<td>arrives <b>later</b>, usually <b>bigger</b> &mdash; the real shaking</td></tr>'
+     '<tr><td><b>Surface</b></td><td>~3 km/s</td><td>rolling, like ocean swell</td>'
+     '<td>slowest, longest-lasting; dominates <i>distant</i> quakes</td></tr>'
+     '</tbody></table></div>'
+     '<p class="prose">Because P outruns S, the gap between them grows with distance &mdash; and a '
+     '<b>single</b> station can therefore estimate how far away a quake was, even though it cannot '
+     'tell which <i>direction</i> it came from. The rule of thumb: <b>multiply the P&ndash;S gap in '
+     'seconds by about 8 to get kilometres.</b> A 3-second gap means roughly 25 km away; a '
+     '10-second gap, about 80 km.</p>'
+     '<p class="mb-0 prose">This is also the honest way to tell a real earthquake from someone '
+     'closing a door: a quake shows <b>two arrivals</b> a few seconds apart, then a long tail that '
+     'fades slowly (the <i>coda</i>). A door is one thump that stops.</p>'),
+
+    ("Microseisms: the ocean, humming, forever",
+     '<p class="prose">Even with no earthquakes anywhere and nobody moving, the ground is never '
+     'still. Ocean waves press rhythmically on the seafloor, and that pressure radiates through '
+     'the crust as a continuous, worldwide vibration called the <b>microseism</b>. It is the '
+     'loudest thing in most seismic records &mdash; a permanent background hum, strongest in '
+     'winter storm season.</p>'
+     '<p class="prose">It is slow: peaks around <b>0.07&nbsp;Hz and 0.15&nbsp;Hz</b>, meaning one '
+     'cycle every 7 to 14 seconds. You could not feel it, but a good instrument sees it '
+     'constantly.</p>'
+     '<p class="mb-0 prose"><b>This station cannot hear it</b>, and that is by design rather than '
+     'by fault &mdash; see the next section. If you look at the spectrum page and wonder why the '
+     'left-hand side is cut off, that is why.</p>'),
+
+    ("What this geophone can and cannot hear",
+     '<p class="prose">Every sensor has a band of frequencies it responds to. This one is a '
+     '<b>4.5&nbsp;Hz geophone</b>: it hears things that vibrate a few times per second and faster, '
+     'and it goes progressively deaf below that. By the microseism it is around '
+     '<b>60&nbsp;dB down</b> &mdash; a factor of a thousand &mdash; so those slow ocean waves are '
+     'simply below the instrument, not missing from the world.</p>'
+     '<div class="table-responsive"><table class="table table-sm align-middle">'
+     '<thead><tr><th>Source</th><th>Frequency</th><th>Heard here?</th></tr></thead><tbody>'
+     '<tr><td>Footsteps, doors, appliances, cars</td><td>2&ndash;30 Hz</td>'
+     '<td class="text-success"><b>Loud and clear</b> &mdash; most of what we record</td></tr>'
+     '<tr><td>Small local earthquake, tens of km</td><td>2&ndash;20 Hz</td>'
+     '<td class="text-success"><b>Yes</b> &mdash; the target</td></tr>'
+     '<tr><td>Moderate quake, a few hundred km</td><td>1&ndash;10 Hz</td>'
+     '<td>Usually, if big enough</td></tr>'
+     '<tr><td>Great quake on the far side of the planet</td><td>0.01&ndash;0.05 Hz</td>'
+     '<td class="text-danger"><b>No</b> &mdash; arrives as slow swells we are deaf to</td></tr>'
+     '<tr><td>Ocean microseism</td><td>0.07&ndash;0.15 Hz</td>'
+     '<td class="text-danger"><b>No</b> &mdash; ~1000× below our response</td></tr>'
+     '<tr><td>Earth&rsquo;s &ldquo;hum&rdquo; (free oscillations)</td><td>0.002&ndash;0.007 Hz</td>'
+     '<td class="text-danger"><b>No</b> &mdash; needs a million-dollar gravimeter</td></tr>'
+     '</tbody></table></div>'
+     '<p class="mb-0 prose">So this is a <b>local earthquake instrument</b>. The trade is '
+     'deliberate: a sensor that hears the whole planet costs thousands and needs a vault, while '
+     'this one costs about thirty dollars and sits on a garage floor above an active fault '
+     'system.</p>'),
+
+    ("Why most &ldquo;detections&rdquo; are not earthquakes",
+     '<p class="prose">The station watches for sudden jumps in energy (see <i>STA/LTA</i> in the '
+     'glossary) and logs each one. Nearly all of them are <b>cultural noise</b> &mdash; the '
+     'seismologist&rsquo;s word for humans and machinery. Footsteps, a door, the fridge '
+     'compressor, a car in the driveway.</p>'
+     '<p class="prose">Frustratingly, you cannot filter them out by size: a sharp thump right next '
+     'to the sensor produces a <i>bigger</i> reading than a genuine earthquake fifty kilometres '
+     'away. So the table shows a <b>character</b> label describing the <i>shape</i> of each '
+     'detection, which is a better clue than its amplitude. It is a description, not a verdict.</p>'
+     '<p class="mb-0 prose">If you want to check something yourself, the '
+     '<a href="https://earthquake.usgs.gov/earthquakes/map/">USGS map</a> lists real quakes with '
+     'times in UTC. A detection here that matches a catalogue entry, at a sensible P&ndash;S gap, '
+     'is the real thing.</p>'),
+
+    ("Reading the three views on the front page",
+     '<p class="prose"><b>Live waveform</b> &mdash; the last 30 seconds, scrolling. Flat means '
+     'quiet. The numbers underneath give the current noise level; the smaller the better.</p>'
+     '<p class="prose"><b>Live spectrum</b> &mdash; the same 30 seconds, but broken out by '
+     'frequency instead of time: <i>which</i> vibrations are present rather than <i>when</i>. '
+     'The rise at the left is the instrument going deaf, not real ground motion.</p>'
+     '<p class="mb-0 prose"><b>Helicorder</b> &mdash; the classic paper-drum view, one row per '
+     '15&nbsp;minutes, four hours per screen. This is where an earthquake looks like an '
+     'earthquake: a sudden fat burst that tapers off, unlike the even fuzz of ordinary noise. '
+     'Fat rows during the day and thin rows at 4&nbsp;AM are people, not geology.</p>'),
+
+    ("Glossary",
+     '<div class="table-responsive"><table class="table table-sm align-middle"><tbody>'
+     '<tr><td><b>Geophone</b></td><td>The sensor: magnet on a spring inside a coil. Converts '
+     'ground <i>velocity</i> into a voltage.</td></tr>'
+     '<tr><td><b>4.5&nbsp;Hz</b></td><td>This geophone&rsquo;s corner frequency &mdash; roughly '
+     'where it stops responding well as frequencies fall.</td></tr>'
+     '<tr><td><b>Hz (hertz)</b></td><td>Cycles per second. 10&nbsp;Hz = ten vibrations per '
+     'second.</td></tr>'
+     '<tr><td><b>µV (microvolt)</b></td><td>A millionth of a volt. Our quiet-night signal is under '
+     'one.</td></tr>'
+     '<tr><td><b>nm/s</b></td><td>Nanometres per second &mdash; actual ground speed. A quiet night '
+     'here is ~25.</td></tr>'
+     '<tr><td><b>ADC / counts</b></td><td>The analogue-to-digital converter turns the voltage into '
+     'whole numbers (&ldquo;counts&rdquo;) 60 times a second.</td></tr>'
+     '<tr><td><b>sps</b></td><td>Samples per second. This station records 60.</td></tr>'
+     '<tr><td><b>P wave / S wave</b></td><td>The fast push&ndash;pull arrival and the slower, '
+     'larger shear arrival. Their gap gives distance.</td></tr>'
+     '<tr><td><b>Coda</b></td><td>The long fading tail after a quake, from waves scattering off '
+     'underground structure.</td></tr>'
+     '<tr><td><b>Microseism</b></td><td>Continuous worldwide background hum driven by ocean waves, '
+     '0.07&ndash;0.15&nbsp;Hz. Below this instrument.</td></tr>'
+     '<tr><td><b>Cultural noise</b></td><td>Vibration from people and machines. Dominates any '
+     'suburban station.</td></tr>'
+     '<tr><td><b>Teleseism</b></td><td>A distant earthquake, thousands of km away. Needs a '
+     'broadband sensor, not this one.</td></tr>'
+     '<tr><td><b>STA/LTA</b></td><td>Short-Term Average over Long-Term Average: compares recent '
+     'energy to the recent past. A big ratio means &ldquo;something just started&rdquo; and trips '
+     'a detection.</td></tr>'
+     '<tr><td><b>Helicorder</b></td><td>Drum-style plot, one row per time interval &mdash; named '
+     'for the rotating paper drums of mechanical seismographs.</td></tr>'
+     '<tr><td><b>Spectrum / ASD</b></td><td>Amplitude spectral density: signal strength per '
+     'frequency, in µV per root-hertz. Lets you compare noise at one frequency against '
+     'another.</td></tr>'
+     '<tr><td><b>High-pass filter</b></td><td>Throws away slow drift and keeps the fast wiggles, '
+     'so slow temperature-driven tilt does not swamp the quake band.</td></tr>'
+     '<tr><td><b>Magnitude</b></td><td>Earthquake size on a logarithmic scale: each whole number '
+     'is ~32× more energy. M2 is barely felt; M6 damages buildings.</td></tr>'
+     '<tr><td><b>UTC</b></td><td>Universal time, used for everything here so records worldwide '
+     'line up. Local time is UTC&nbsp;&minus;&nbsp;7 in summer.</td></tr>'
+     '<tr><td><b>miniSEED</b></td><td>The standard file format for seismic data, so this '
+     'station&rsquo;s recordings work with professional tools.</td></tr>'
+     '<tr><td><b>Noise floor</b></td><td>The smallest motion the instrument can distinguish from '
+     'its own electrical hiss. Lowering it is most of the work.</td></tr>'
+     '</tbody></table></div>'),
+
+    ("Where this station sits, and why here",
+     '<p class="prose">{place} &mdash; on valley-margin sediments essentially on top of the active '
+     '<b>Rodgers Creek</b> fault system, with the <b>Maacama</b> fault nearby and '
+     '<b>The Geysers</b> geothermal field about 30&nbsp;km north. The Geysers is the most '
+     'seismically active spot in Northern California, producing hundreds of small quakes a year, '
+     'which makes it the most likely source of anything genuine this station records.</p>'
+     '<p class="mb-0 prose">Sitting on soft sediment is a mixed blessing: it <i>amplifies</i> '
+     'shaking, which helps a sensitive instrument, but it also carries more everyday noise. For a '
+     'station whose goal is catching small local events, that is the right side of the trade.</p>'),
+]
+
+
 ABOUT_SECTIONS = [
     ("What this is",
      '<p class="mb-0 prose">A homemade (&ldquo;DIY&rdquo;) seismometer &mdash; an amateur '
@@ -347,7 +511,8 @@ ABOUT_SECTIONS = [
      'vibration. It records continuously and is <b>independent</b> (not part of a formal seismic '
      'network), built for curiosity and learning. <b>Not for scientific or emergency use.</b> '
      'The station is still being <b>tested, tuned, and modified</b>, so spurious signals '
-     '(from the work itself, not the ground) may appear in the data.</p>'),
+     '(from the work itself, not the ground) may appear in the data.</p>'
+     '<p class="mb-0 prose">New to any of this? <a href="/learn">Seismology&nbsp;101</a> explains P and S waves, microseisms, what this sensor can and cannot hear, and every term used on these pages.</p>'),
     ("Hardware",
      '<ul class="mb-0"><li><b>Sensor:</b> LGT-4.5 geophone &mdash; a 4.5&nbsp;Hz vertical geophone '
      '(a coil-and-magnet <i>velocity</i> sensor), ~28.8&nbsp;V per m/s, 385&nbsp;&#8486; coil.</li>'
@@ -390,6 +555,20 @@ ABOUT_SECTIONS = [
      'Sonoma/Mayacamas volcanics, essentially atop the active <b>Rodgers Creek fault</b> system. A '
      'sensitive spot for local events, at the cost of a bit more everyday noise.</p>'),
 ]
+
+
+@app.get("/learn")
+def learn():
+    cards = "".join(_card(h, inner.replace("{place}", PLACE))
+                    for h, inner in LEARN_SECTIONS)
+    body = (_titleblock("Seismology 101",
+                        "what this instrument hears, and the words for it")
+            + '<div class="row"><div class="col-lg-9">'
+            + '<p class="text-muted">No background assumed. If a term on the other pages '
+              'looks like jargon, it is in the glossary at the bottom.</p>'
+            + cards + '</div></div>')
+    return Response(_shell(f"Seismology 101 — {BRAND}", "learn", body),
+                    media_type="text/html")
 
 
 @app.get("/about")
