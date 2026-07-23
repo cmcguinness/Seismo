@@ -506,6 +506,24 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
   thump", NOT "not a quake"; (3) **ML phase picker** (EQTransformer/PhaseNet on pi5, triggered
   windows) — the real discriminator, ties to the Jetson ML-detection item; (4)
   **network association** vs a real-time feed — confirmation ✓ badge, has latency.
+- **NEW 2026-07-23: a 28.6 s HARMONIC COMB dominates the sub-Hz spectrum.** Charles
+  asked why the spectrum page shades an "ocean microseism" band if we cannot hear the
+  microseism. Measuring a 4 h quiet window (despiked offline) settled it: the sub-Hz
+  peaks are **narrow lines at 0.035 / 0.07 / 0.14 / 0.195 Hz**, i.e. a **28.6 s
+  fundamental plus harmonics**, sitting on a smooth 1/f^0.8 instrument floor. A real
+  microseism is a BROAD hump across 0.05–0.2 Hz, so this is machinery, not ocean. The
+  comb is visible on the /spectrum chart continuing up through 0.28, 0.35, 0.55, 0.75,
+  1.1 and ~2.2 Hz — so it reaches into the local-quake band.
+  - **The 0.07 Hz harmonic lands squarely in the microseism band**, which is a
+    coincidence trap worth remembering.
+  - **28.6 s matches the "~29 s intervals" noted in the 1–3 min spike analysis above**
+    — plausibly the same source, and a lead Charles can chase physically by switching
+    things off and re-measuring. A periodic impulse train is what produces a comb.
+  - Also learned: **one bad sample can bury a whole spectrum.** Before despiking, two
+    isolated garbage frames (±6–7 M counts) in 864,000 samples raised the ENTIRE
+    0.03–4.5 Hz spectrum to a flat ~12 µV/√Hz — 30× the true level. Always despike
+    before spectral analysis, and treat a suspiciously flat spectrum as a spike
+    signature rather than a noise measurement.
 - **Final amplitude constant**: `ENV_FRAC`/`CLIP_ROWS` set by eye on the noisy
   garage-door-era 90-min sample; re-tune on real calm 8 h pi5 data.
 - **Deploy to pi5**: fold `heli_build` deps (already have obspy) — the service runs

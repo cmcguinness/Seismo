@@ -140,9 +140,16 @@ def spectrum_png(minutes=60):
 
     # --- educational annotations ---
     tx = ax.get_xaxis_transform()          # x in data coords, y in axes fraction
-    ax.axvspan(0.1, 0.35, color="#2aa198", alpha=0.13, lw=0)     # ocean microseism
-    ax.text(0.185, 0.95, "ocean\nmicroseism", transform=tx, ha="center", va="top",
-            fontsize=8, color="#2aa198")
+    # Ocean microseism band -- drawn for ORIENTATION, not because we measure it. The
+    # 4.5 Hz geophone is ~60 dB down here, so the summer microseism reaches the ADC at
+    # ~10 nV, roughly 100x under our sub-Hz noise. Measured 2026-07-23: the sub-Hz
+    # peaks are NARROW lines at 0.035/0.07/0.14/0.195 Hz -- a 28.6 s fundamental plus
+    # harmonics, i.e. house machinery -- sitting on a smooth 1/f^0.8 instrument floor.
+    # A real microseism would be a BROAD hump. The unqualified old label read as "this
+    # is the microseism", which is exactly the misreading to avoid (Charles caught it).
+    ax.axvspan(0.1, 0.35, color="#2aa198", alpha=0.08, lw=0)
+    ax.text(0.185, 0.95, "ocean microseism\n(below our response —\nnot measured here)",
+            transform=tx, ha="center", va="top", fontsize=7, color="#2aa198")
     ax.axvspan(1, 15, color="#268bd2", alpha=0.07, lw=0)         # local-quake band
     ax.text(5, 0.04, "local-earthquake band", transform=tx, ha="center", va="bottom",
             fontsize=8, color="#268bd2")

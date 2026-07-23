@@ -379,6 +379,12 @@ LEARN_SECTIONS = [
      'tell which <i>direction</i> it came from. The rule of thumb: <b>multiply the P&ndash;S gap in '
      'seconds by about 8 to get kilometres.</b> A 3-second gap means roughly 25 km away; a '
      '10-second gap, about 80 km.</p>'
+     '<p class="prose">If that feels familiar, it is the same trick as <b>counting the seconds '
+     'between the lightning flash and the thunder</b> and dividing by five for miles. One event, '
+     'two signals travelling at different speeds, so the gap between them grows with distance. '
+     'The difference: with lightning the flash arrives essentially instantly, so you are really '
+     'timing the sound alone &mdash; whereas with an earthquake <i>both</i> waves travel at their '
+     'own finite speed, and it is the difference between the two that measures the distance.</p>'
      '<p class="mb-0 prose">This is also the honest way to tell a real earthquake from someone '
      'closing a door: a quake shows <b>two arrivals</b> a few seconds apart, then a long tail that '
      'fades slowly (the <i>coda</i>). A door is one thump that stops.</p>'),
@@ -392,9 +398,19 @@ LEARN_SECTIONS = [
      '<p class="prose">It is slow: peaks around <b>0.07&nbsp;Hz and 0.15&nbsp;Hz</b>, meaning one '
      'cycle every 7 to 14 seconds. You could not feel it, but a good instrument sees it '
      'constantly.</p>'
-     '<p class="mb-0 prose"><b>This station cannot hear it</b>, and that is by design rather than '
-     'by fault &mdash; see the next section. If you look at the spectrum page and wonder why the '
-     'left-hand side is cut off, that is why.</p>'),
+     '<p class="prose"><b>This station cannot hear it</b>, and that is by design rather than by '
+     'fault &mdash; see the next section for why. If you wonder why the spectrum page is cut off '
+     'at the left, that is the reason.</p>'
+     '<p class="mb-0 prose">There <i>are</i> peaks down in that range on our spectrum, but they '
+     'are not the ocean, and the shape gives it away. A microseism is a <b>broad hump</b> '
+     'spreading across 0.05&ndash;0.2&nbsp;Hz. What we actually have is a set of <b>narrow '
+     'spikes</b> at 0.035, 0.07, 0.14 and 0.195&nbsp;Hz &mdash; a fundamental with a period of '
+     '28.6&nbsp;seconds plus its harmonics, which is the fingerprint of a machine cycling on and '
+     'off somewhere in the house, not of an ocean. (Confirmed by measurement, 2026-07-23. It is '
+     'a nice coincidence trap: the 0.07&nbsp;Hz harmonic lands squarely in the microseism band.) '
+     'Underneath them the curve rises smoothly toward the left, and that part is the '
+     'instrument&rsquo;s own electrical noise.</p>'
+     '<p class="mb-0 prose small text-muted">The <a href="/spectrum">spectrum page</a> does shade the microseism band, but only to show you <i>where</i> it lives relative to what this sensor can reach &mdash; it is labelled &ldquo;below our response&rdquo; for that reason.</p>'),
 
     ("What this geophone can and cannot hear",
      '<p class="prose">Every sensor has a band of frequencies it responds to. This one is a '
