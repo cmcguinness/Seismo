@@ -404,6 +404,24 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
   ~29 s intervals fingerprints a duty-cycling appliance for the more regular ones.
   Verdict: the drum is working — it's hearing the house/neighborhood. Reduce only
   via siting/isolation (enclosure), not code. (Distinct from the 15-min streak.)
+  - **REOPENED 2026-07-23: this verdict may be wrong.** Charles noticed the spikes
+    largely stopped after the galvanic Ethernet isolator went in. Measured (1–15 Hz
+    envelope, ≥8 s apart), spikes/hour at matched LOCAL time: 00:14–00:56 last night
+    no isolator = **128.6/h** (>2 µV) / 88.6/h (>3× median); 00:14–00:40 tonight with
+    isolator = **0.0 / 7.1**. If real, these were conducted electrical ingress, not
+    ground motion, and the "bipolar, not phase-locked, survives gap-bridging"
+    reasoning that convinced me on 07-21 was insufficient — an intervention beats
+    observational inference.
+    **CONFOUND (Charles's, and it's a good one): HVAC.** The rate is wildly
+    non-stationary on its own — last night, no isolator, it fell 128.6/h (00:14) →
+    12.0/h (02:00 local), i.e. ~10× within one night, which is what a duty-cycled
+    appliance looks like. A/C wasn't running tonight (not hot). So a between-night
+    comparison cannot settle this.
+    **CHEAP TEST (no hardware trip): track spikes/hour over several nights with the
+    isolator in.** If the 20:00–23:00 local window — which ran 130–180/h — stays near
+    zero, cultural is dead and it was electrical. Note this is unlike the 1.63× RMS
+    improvement, which IS solid because last night's RMS was flat (1.10–1.12 µV)
+    across all the same hours.
 - ~~**Day-boundary row truncates ~1 min (the UTC-midnight interval).**~~ **FIXED**
   (commit `e948e51`, deployed). `build()` now loads the last TWO day-files and merges,
   so a 4 h window can span the 00:00 UTC rollover (the 23:45 interval's tail minute
