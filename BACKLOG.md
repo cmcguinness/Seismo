@@ -65,9 +65,28 @@ for bias ref; damping-R stays a socket; XLR shield to the one star ground).
 
 The right long-term architecture, and what pro digitizers (Q330, Centaur) do: put
 the ADC millimetres from the geophone, keep the analog run tiny, send only DIGITAL
-home. Once digital, a noisy cable corrupts nothing — bit errors are caught by
-framing/CRC instead of summing into a µV analog signal, which is the entire class of
-problem the isolator/buffer/RC work fights.
+home.
+
+**Core rationale (Charles's framing): shrink the analog domain to the smallest
+possible physical volume.** A µV analog conductor is an antenna for radiated EMI and a
+plate for capacitive coupling; pickup scales with its length and loop area. Collapse
+the analog extent to mm and you deny the noise a place to get in, rather than
+rejecting it after the fact. Secondary benefit: once the signal is digital, a noisy
+cable corrupts nothing (bit errors caught by framing/CRC, not summed into µV).
+
+**Subtlety — "the analog stuff" is NOT mainly the geophone→ADC wire.** That link is
+DIFFERENTIAL across a low-ish 375 Ω source, so common-mode rejection already protects
+it (why a modest XLR run isn't the problem today). The vulnerable nodes are
+high-impedance and single-ended: the 2×100 kΩ bias network and the ADC input, where
+capacitive coupling dominates. So contain the WHOLE front end (geophone + bias +
+anti-alias RC + ADC + MCU) in one small shielded can, with only isolated digital
+crossing the boundary — not merely "ADC at the coil".
+
+**What it does / doesn't fix:** attacks COUPLED/RADIATED noise (same class as the
+isolator and the WiFi-TX event) — NOT the intrinsic floor (bias-R Johnson noise, ADC
+input-referred noise, buffer-off penalty), which stays the Rev-2 buffer-on lever.
+And note the MCU/ADC inside the can are themselves noise sources, so the single-point
+star ground matters MORE in one shared box, not less.
 
 **Caveat: SPI and I²C are the WRONG buses for the cable run.** They are on-board
 buses (cm scale). SPI has no framing/CRC/differential and, at our ~1 MHz ADS1256
