@@ -20,6 +20,36 @@ _DRATE = {
 _GAINS = (1, 2, 4, 8, 16, 32, 64)
 
 
+def _pin_reset(reset_pin: int = None) -> None:
+    """Pulse the ADS1256 RESET pin before we try to talk to it.
+
+    The driver's own CHIP_HARD_RESET_ON_START happens AFTER it verifies the chip ID,
+    so a chip left mid-stream (e.g. an RDATAC session that died without sending
+    SDATAC) fails construction with "Received wrong chip ID" and can never
+    self-recover. Pulsing RESET first makes every tool startup-robust regardless of
+    how the previous process exited. Best-effort: if pigpio isn't reachable, let the
+    driver report the real problem."""
+    import pigpio
+
+    pin = reset_pin if reset_pin is not None else getattr(waveshare_config, "RESET_PIN", None)
+    if pin is None:
+        return
+    try:
+        pi = pigpio.pi()
+        if not pi.connected:
+            return
+        pi.set_mode(pin, pigpio.OUTPUT)
+        pi.write(pin, 1)
+        time.sleep(0.01)
+        pi.write(pin, 0)
+        time.sleep(0.01)
+        pi.write(pin, 1)
+        time.sleep(0.30)          # t_16 + oscillator/PLL settling
+        pi.stop()
+    except Exception:
+        pass
+
+
 def open_ads(gain: int = 64, drate_sps: int = 60) -> ADS1256:
     """Return a self-calibrated ADS1256 at the given PGA gain and data rate.
 
@@ -33,6 +63,7 @@ def open_ads(gain: int = 64, drate_sps: int = 60) -> ADS1256:
     if drate_sps not in _DRATE:
         raise ValueError(f"drate_sps must be one of {sorted(_DRATE)} (got {drate_sps})")
     waveshare_config.adcon = CLKOUT_OFF | SDCS_OFF | (gain.bit_length() - 1)
+    _pin_reset()                      # recover a chip left mid-stream by a dead run
     ads = ADS1256(waveshare_config)
     ads.drate = _DRATE[drate_sps]
     ads.cal_self()

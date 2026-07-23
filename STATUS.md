@@ -54,6 +54,25 @@ is printed and fits; the geophone is soldered to its XLR cable and validated.
 check), `live_view.py` (real-time browser strip-chart on :8347). Deployed to
 `seismo.local:~/seismo/station/`; passwordless SSH from the Mac is set up.
 
+**RDATAC CONTINUOUS SAMPLING — DEPLOYED (2026-07-23 08:56 UTC).** The recorder now
+free-runs the ADS1256 in read-data-continuous mode (`station/rdatac.py`,
+`SEISMO_RDATAC=1` in the unit). Measured: **0 gaps** vs **41.2 s lost per hour** on
+the legacy per-sample-SYNC path, exactly **60 sps** declared and achieved (was a
+load-dependent 54-57), and DRDY jitter of **1 us** instead of a ~68 ms discontinuity
+at every 10 s block boundary.
+- The crystal is not a clock: DRDY measures **60.0054 sps** against NTP time, i.e.
+  ~90 ppm fast, so timestamping from sample count alone would drift 7.8 s/day.
+  `ClockAnchor` predicts from a running anchor and slews a fraction of the error per
+  block (cumulative rate estimate + 0.2 gain), holding residual clock error to
+  **+/-1-3 ms**. Two independent methods agree on 60.0054.
+- **NEW EPOCH.** Declared rate changed 57 -> 60, so files are not mergeable with the
+  old archive. The 57 sps day-file was set aside as `*.mseed.57sps-epoch`; PPSD/
+  template work starts from this epoch (`analysis/ppsd.py` epoch `rdatac-60sps`).
+- A stuck chip (an RDATAC session that died without SDATAC) used to fail every later
+  startup with "Received wrong chip ID" -- `adc_common._pin_reset()` now pulses the
+  RESET pin before construction, so any tool recovers regardless of how the previous
+  process exited.
+
 **The continuous recorder is DONE and validated** (2026-07-19): `recorder.py`
 writes gapless miniSEED day-files (`XX.OAKMT.00.SHZ`, int32, ~57 sps, absolute
 UTC) that read back clean, with real ambient motion in them (~1.7 µV RMS /

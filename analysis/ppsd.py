@@ -59,7 +59,12 @@ REMOTE = "seismo.local:seismo/data/"
 # (office -> garage), networking (WiFi dongle -> Ethernet bridge) and settling
 # transients, so it is NOT worth characterizing; it is listed for the record only.
 EPOCHS = {
-    "garage-isolator": ("2026-07-23T07:13:00", None,
+    "rdatac-60sps": ("2026-07-23T08:56:50", None,
+                     "RDATAC continuous read: exactly 60 sps, gapless (0 gaps vs "
+                     "41.2 s/hour lost on the legacy path). Garage slab, Ethernet "
+                     "bridge + galvanic isolator, gain 64, NO shunt damping. "
+                     "THIS is the epoch worth accumulating statistics on."),
+    "garage-isolator": ("2026-07-23T07:13:00", "2026-07-23T08:56:50",
                         "garage slab, Ethernet bridge + galvanic isolator (reversed), "
                         "gain 64, DRATE_60, NO shunt damping. 1-15 Hz ~0.7 uV."),
     "garage-ethernet": ("2026-07-21T00:00:00", "2026-07-23T06:15:00",
@@ -68,7 +73,7 @@ EPOCHS = {
                     "DO NOT TRUST: office->garage move, WiFi dongle present part of "
                     "the time, config changes. Listed for the record, not for stats."),
 }
-DEFAULT_EPOCH = "garage-isolator"
+DEFAULT_EPOCH = "rdatac-60sps"
 
 
 def counts_per_volt(gain=ADC_GAIN, vref=VREF):

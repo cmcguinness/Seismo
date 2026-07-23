@@ -60,9 +60,16 @@ LOCATION = os.environ.get("SEISMO_LOCATION", "00")
 CHANNEL = os.environ.get("SEISMO_CHANNEL", "SHZ")
 GAIN = int(os.environ.get("SEISMO_GAIN", "64"))
 DRATE = int(os.environ.get("SEISMO_DRATE", "60"))
-RATE = int(os.environ.get("SEISMO_RATE", "57"))   # FIXED declared miniSEED rate: keeps the
-                                                  # archive single-rate (mergeable) across
-                                                  # restarts, which re-measure to 55-57.
+# RDATAC: free-running continuous read (station/rdatac.py). The ADC then samples on
+# its own crystal at exactly DRATE instead of the legacy per-sample SYNC path's
+# load-dependent 54-57 sps, and block boundaries stop carrying a ~68 ms gap.
+# Declared rate becomes DRATE, so files are NOT mergeable with the 57 sps archive:
+# enabling this starts a new configuration epoch.
+RDATAC = os.environ.get("SEISMO_RDATAC", "0") == "1"
+RATE = int(os.environ.get("SEISMO_RATE", str(DRATE) if RDATAC else "57"))
+# ^ FIXED declared miniSEED rate: keeps the archive single-rate (mergeable) across
+#   restarts. Legacy path re-measures to 55-57 so it must declare a constant; the
+#   RDATAC path genuinely achieves DRATE, so it declares that.
 DATADIR = Path(os.environ.get("SEISMO_DATADIR", str(Path.home() / "seismo" / "data")))
 BLOCK_S = int(os.environ.get("SEISMO_BLOCK", "10"))
 
@@ -170,14 +177,22 @@ def main() -> None:
 
     ads = open_ads(GAIN, DRATE)
     wt = None
+    reader = None
     try:
-        fs = measure_rate(ads)                    # measured actual rate (also primes read)
+        if RDATAC:
+            from rdatac import ClockAnchor, RdatacReader
+            reader = RdatacReader(ads, DIFF)
+            reader.start()
+            fs = float(DRATE)                     # crystal-exact; no need to measure
+        else:
+            fs = measure_rate(ads)                # measured actual rate (also primes read)
         rate = RATE                               # FIXED declared rate -> single-rate archive
         block_n = rate * BLOCK_S
         wt = threading.Thread(target=writer, args=(rate,), daemon=True)
         wt.start()
+        mode = "RDATAC continuous" if RDATAC else "legacy per-sample SYNC"
         print(f"recording {NETWORK}.{STATION}.{LOCATION}.{CHANNEL}  "
-              f"declared {rate} sps (measured {fs:.2f}), gain {GAIN}")
+              f"declared {rate} sps (measured {fs:.2f}), gain {GAIN}  [{mode}]")
         print(f"  -> {DATADIR}  ({BLOCK_S}s blocks, {block_n} samples each)")
         uv_per_count = 2.5 * 2 / (GAIN * (2 ** 23 - 1)) * 1e6
         detector = StaLta(fs, hp_hz=HP_HZ, sta_s=STA_S, lta_s=LTA_S,
@@ -189,28 +204,90 @@ def main() -> None:
         block: list[int] = []
         live_ring: deque = deque(maxlen=int(fs * LIVE_SECONDS))
         threading.Thread(target=live_publisher, args=(live_ring, fs), daemon=True).start()
-        start = datetime.datetime.now(datetime.timezone.utc)
         nblocks = 0
-        while not _stop.is_set():
-            sample = ads.read_continue([DIFF], buf)[0]
-            block.append(sample)
-            live_ring.append(sample)             # cheap; publisher thread does the I/O
-            try:                                 # STA/LTA detector -- never break acquisition
-                ev = detector.update(sample)
-                if ev:
-                    _emit_event(ev)
-            except Exception:
-                pass
-            if len(block) >= block_n:
+
+        def utc(epoch: float) -> datetime.datetime:
+            return datetime.datetime.fromtimestamp(epoch, datetime.timezone.utc)
+
+        if RDATAC:
+            # Sample index is the timebase: ClockAnchor maps index -> UTC, steered
+            # slowly to NTP (see rdatac.py). Block starts come from that prediction
+            # rather than a fresh time.time() per block, so the read loop's
+            # scheduling latency never lands in a block boundary.
+            anchor = ClockAnchor(rate)
+            n_total = 0
+            block_n0 = 0
+            while not _stop.is_set():
+                sample, dropped = reader.read()
+                if anchor.t0 is None:
+                    # Anchor on the FIRST SAMPLE, not before the read loop: the
+                    # pre-loop timestamp misses RDATAC entry plus up to one DRDY
+                    # period, and that offset shows up as gaps at every early block
+                    # boundary while the loop slews it out.
+                    anchor.anchor(0, time.time())
+                if dropped:
+                    # The ADC produced samples we failed to collect; their VALUES are
+                    # gone, so advance the index (keeps index->time honest) and cut
+                    # the block. The file then shows a real gap instead of silently
+                    # time-shifting everything after it.
+                    # Cut the block (those sample VALUES are gone) and advance the
+                    # index by the number lost -- which keeps index->time correct on
+                    # its own, so do NOT re-anchor. Re-anchoring here turned a single
+                    # dropped sample (16.7 ms) into a 71.5 ms gap by adding the
+                    # measurement latency on top of the real loss.
+                    print(f"  WARNING dropped {dropped} sample(s) -- cutting block",
+                          flush=True)
+                    if block:
+                        _q.put((block, utc(anchor.predict(block_n0))))
+                        block = []
+                    n_total += dropped
+                    block_n0 = n_total
+                block.append(sample)
+                live_ring.append(sample)
+                n_total += 1
+                try:                             # STA/LTA -- never break acquisition
+                    ev = detector.update(sample)
+                    if ev:
+                        _emit_event(ev)
+                except Exception:
+                    pass
+                if len(block) >= block_n:
+                    err = anchor.update(n_total, time.time())
+                    _q.put((block, utc(anchor.predict(block_n0))))
+                    nblocks += 1
+                    block = []
+                    block_n0 = n_total
+                    if nblocks % 6 == 0:          # ~once/min at 10s blocks
+                        print(f"  {nblocks} blocks, clock err {err*1000:+.2f} ms, "
+                              f"rate_est {anchor.rate_est:.4f} sps, "
+                              f"dropped {reader.dropped_total}, resyncs {anchor.resyncs}",
+                              flush=True)
+            if block:                             # flush partial block on stop
+                _q.put((block, utc(anchor.predict(block_n0))))
+        else:
+            start = datetime.datetime.now(datetime.timezone.utc)
+            while not _stop.is_set():
+                sample = ads.read_continue([DIFF], buf)[0]
+                block.append(sample)
+                live_ring.append(sample)         # cheap; publisher thread does the I/O
+                try:                             # STA/LTA detector -- never break acquisition
+                    ev = detector.update(sample)
+                    if ev:
+                        _emit_event(ev)
+                except Exception:
+                    pass
+                if len(block) >= block_n:
+                    _q.put((block, start))
+                    nblocks += 1
+                    block = []
+                    start = datetime.datetime.now(datetime.timezone.utc)
+                    if nblocks % 6 == 0:          # ~once/min at 10s blocks
+                        print(f"  {nblocks} blocks written", flush=True)
+            if block:                             # flush partial block on stop
                 _q.put((block, start))
-                nblocks += 1
-                block = []
-                start = datetime.datetime.now(datetime.timezone.utc)
-                if nblocks % 6 == 0:              # ~once/min at 10s blocks
-                    print(f"  {nblocks} blocks written", flush=True)
-        if block:                                 # flush partial block on stop
-            _q.put((block, start))
     finally:
+        if reader is not None:
+            reader.stop()                          # leave RDATAC before closing SPI
         if wt is not None:
             _q.put(None)                           # sentinel -> writer drains + exits
             wt.join(timeout=5)

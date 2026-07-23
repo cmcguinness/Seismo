@@ -16,7 +16,12 @@ Environment=SEISMO_NETWORK=XX
 Environment=SEISMO_STATION=OAKMT
 Environment=SEISMO_GAIN=64
 Environment=SEISMO_DRATE=60
-Environment=SEISMO_RATE=57
+# RDATAC: free-running continuous read -- the ADC samples on its own crystal at
+# exactly DRATE. Measured 0 gaps vs 41.2 s/hour lost on the legacy per-sample-SYNC
+# path. Declared rate is DRATE (60), NOT the legacy 57: this is a new epoch and the
+# files are not mergeable with the 57 sps archive.
+Environment=SEISMO_RDATAC=1
+Environment=SEISMO_RATE=60
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/charles/seismo/venv/bin/python recorder.py
 # recorder.py traps SIGTERM -> flushes the partial block and releases the ADC
