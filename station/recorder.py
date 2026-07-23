@@ -81,6 +81,12 @@ LTA_S = float(os.environ.get("SEISMO_LTA", "30.0"))
 HP_HZ = float(os.environ.get("SEISMO_HP", "3.0"))       # high-pass corner; 3 Hz rejects sub-Hz tilt/settling (geophone deaf below 4.5 Hz) that a gentle 1-pole 1 Hz HPF let mistrigger
 EVENTS_LOG = DATADIR.parent / "events.log"              # permanent JSONL record
 EVENTS_LIVE = Path("/dev/shm/seismo_events.json")       # last N events, for the viewer
+# Data-quality sidecar. A held/substituted sample is otherwise indistinguishable from
+# real data downstream, which is exactly the mistake SEED's data-quality flags exist to
+# prevent (bit 2 spikes, bit 3 glitches). Until we can set those flags in the records
+# themselves, log every intervention with its UTC time so analysis can exclude them.
+QC_LOG = DATADIR.parent / "qc.log"
+HEALTH = DATADIR.parent / "health.json"                 # rsync'd; for the dashboard
 
 SPR = 100                        # samples per 512-byte int32 record (<=114 fits)
 ENC_INT32 = 3
@@ -139,6 +145,32 @@ def _emit_event(ev: dict) -> None:
         tmp = f"{EVENTS_LIVE}.tmp"
         Path(tmp).write_text(json.dumps(recent))
         os.replace(tmp, EVENTS_LIVE)
+    except Exception:
+        pass
+
+
+def _qc(kind: str, when: float, detail: dict | None = None) -> None:
+    """Append one data-quality intervention to QC_LOG. Best-effort, never raises."""
+    try:
+        rec = {"t": datetime.datetime.fromtimestamp(
+                   when, datetime.timezone.utc).isoformat(timespec="milliseconds"),
+               "kind": kind}
+        if detail:
+            rec.update(detail)
+        with open(QC_LOG, "a") as f:
+            f.write(json.dumps(rec) + "\n")
+    except Exception:
+        pass
+
+
+def _health(**kw) -> None:
+    """Atomically publish acquisition counters for the dashboard."""
+    try:
+        kw["t"] = datetime.datetime.now(datetime.timezone.utc).isoformat(
+            timespec="seconds")
+        tmp = f"{HEALTH}.tmp"
+        Path(tmp).write_text(json.dumps(kw))
+        os.replace(tmp, HEALTH)
     except Exception:
         pass
 
@@ -240,6 +272,7 @@ def main() -> None:
                     # measurement latency on top of the real loss.
                     print(f"  WARNING dropped {dropped} sample(s) -- cutting block",
                           flush=True)
+                    _qc("dropped", time.time(), {"n": int(dropped)})
                     if block:
                         _q.put((block, utc(anchor.predict(block_n0))))
                         block = []
@@ -254,11 +287,15 @@ def main() -> None:
                     # is unknown -- so this stays gapless. One held sample per ~100 s
                     # is a far smaller lie than a fabricated impulse.
                     sample = last_good
+                    _qc("zero_frame", time.time(), {"held": int(last_good)})
                 else:
                     last_good = sample
                 # Despike BEFORE the detector: an isolated garbage frame read as a
                 # 72 mV event and tripped the STA/LTA (13:53:55 UTC 2026-07-23).
+                spikes_before = despiker.spikes
                 sample = despiker.push(sample)
+                if despiker.spikes != spikes_before:
+                    _qc("spike", time.time(), {"held": int(sample)})
                 if sample is None:
                     continue                     # first sample only: still buffering
                 block.append(sample)
@@ -282,6 +319,12 @@ def main() -> None:
                     nblocks += 1
                     block = []
                     block_n0 = n_total
+                    _health(mode="rdatac", rate=rate, blocks=nblocks,
+                            rate_est=round(anchor.rate_est, 4),
+                            clock_err_ms=round(err * 1000, 2),
+                            dropped=reader.dropped_total, glitches=reader.glitches,
+                            spikes=despiker.spikes, stalls=anchor.outliers,
+                            resyncs=anchor.resyncs)
                     if nblocks % 6 == 0:          # ~once/min at 10s blocks
                         print(f"  {nblocks} blocks, clock err {err*1000:+.2f} ms, "
                               f"rate_est {anchor.rate_est:.4f} sps, "
@@ -312,6 +355,7 @@ def main() -> None:
                     nblocks += 1
                     block = []
                     start = datetime.datetime.now(datetime.timezone.utc)
+                    _health(mode="legacy", rate=rate, blocks=nblocks, measured=round(fs, 3))
                     if nblocks % 6 == 0:          # ~once/min at 10s blocks
                         print(f"  {nblocks} blocks written", flush=True)
             if block:                             # flush partial block on stop
