@@ -63,6 +63,11 @@ class RdatacReader:
         self._edges = 0
         self._seen = 0
         self._cb = None
+        # hold_cs=True keeps CS asserted for the whole session (fewer GPIO writes per
+        # sample); False toggles it per read like the legacy driver does. Exposed
+        # because a continuously-enabled digital interface is a suspect for the ~10%
+        # noise penalty RDATAC carries -- see rdatac_noise_test.py.
+        self.hold_cs = True
         self.total = 0
         self.dropped_total = 0
         self.glitches = 0            # reads that landed in the register-update window
@@ -78,7 +83,7 @@ class RdatacReader:
         self.ads.wakeup()
         self._cb = self.pi.callback(self.drdy, pigpio.FALLING_EDGE, self._on_edge)
         self._seen = self._edges
-        if self.cs is not None:
+        if self.cs is not None and self.hold_cs:
             self.pi.write(self.cs, pigpio.LOW)      # hold CS for the whole session
         self.pi.spi_write(self.spi, CMD_RDATAC.to_bytes())
         time.sleep(0.001)
@@ -107,7 +112,11 @@ class RdatacReader:
         # If DRDY has already gone high again we are late: the register is being
         # updated and a read now returns zeros. Report it rather than clock garbage.
         late = self.pi.read(self.drdy) == pigpio.HIGH
+        if self.cs is not None and not self.hold_cs:
+            self.pi.write(self.cs, pigpio.LOW)
         n, raw = self.pi.spi_read(self.spi, INT24_BYTES)
+        if self.cs is not None and not self.hold_cs:
+            self.pi.write(self.cs, pigpio.HIGH)
         if n != INT24_BYTES or not isinstance(raw, bytearray):
             raise OSError("short SPI read in RDATAC")
         self.total += 1

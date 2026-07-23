@@ -72,11 +72,26 @@ at every 10 s block boundary.
   startup with "Received wrong chip ID" -- `adc_common._pin_reset()` now pulses the
   RESET pin before construction, so any tool recovers regardless of how the previous
   process exited.
-- **COSTS ~10% NOISE, and that is real:** 1-15 Hz median RMS 0.670 (legacy) -> 0.739
-  uV, 15-28 Hz 0.325 -> 0.380. Suspected mechanism is the SPI read landing inside the
-  conversion window (the legacy per-sample SYNC path reads at a different phase).
-  Net vs this morning is still ~1.5x better because the isolator won 1.69x. Ideas to
-  recover it are in BACKLOG (SPI clock, oversample+average).
+- **NOISE COST: ~2% in band, ~20% at 15-28 Hz** -- measured BACK-TO-BACK in one
+  session (`station/rdatac_noise_test.py`, 150 s per case, median of per-10 s band RMS):
+
+  | case | 1-15 Hz | 3-15 Hz | 15-28 Hz |
+  |---|---|---|---|
+  | legacy | 0.7425 | 0.4859 | 0.2769 |
+  | RDATAC 976 kHz | 0.7590 (+2.2%) | 0.5071 | 0.3334 (+20%) |
+  | RDATAC 1.95 MHz | 0.7974 (+7.4%) | 0.5202 | 0.3491 |
+
+  An earlier "+10% in band" figure was WRONG -- it compared windows 40 min apart with
+  different ambient noise. Always A/B in the same session.
+  The excess is injected HF (digital) noise, and it sits ABOVE the 1-15 Hz working
+  band that every analysis path already low-passes -- so it is close to free.
+  **Faster SPI is worse** (+7.4%), refuting "shorter burst = less coupling": faster
+  edges couple more than the shorter duration saves. Keep 976 kHz.
+  **CS cannot be toggled per read** in RDATAC -- releasing it aborts the stream
+  (3737/3737 samples came back all-zero), so "CS held low" is not an adjustable
+  suspect. Oversampling doesn't help either: per-sample noise scales with DRATE
+  bandwidth (that IS what DRATE does), and RDATAC needs one SPI read per conversion,
+  so a higher rate injects proportionally more bursts into shorter windows.
 - **Glitch filter (needed):** roughly once per 100 s a read lands in the chip's
   register-update window and clocks out `0x000000`. Unfiltered that wrote a 200 uV
   single-sample needle -- enough to trip the STA/LTA and to make the drum look hairy
