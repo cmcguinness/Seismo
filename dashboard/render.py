@@ -17,6 +17,11 @@ DATA = os.environ.get("SEISMO_DATA", "/data/data")
 GAIN = int(os.environ.get("SEISMO_GAIN", "64"))
 UVPC = (2.5 * 2 / (GAIN * (2 ** 23 - 1))) * 1e6      # microvolts per count
 RING = os.environ.get("SEISMO_RING", "/data/seismo_live.npz")  # live ring, pulled Pi->pi5
+# Band for the live HUD's band-limited RMS: the local-quake band the station is
+# tuned for. Broadband RMS is dominated by out-of-band sub-Hz tilt, so this is the
+# figure that's comparable to the quoted noise floor (~0.7 uV settled).
+LIVE_BAND = (float(os.environ.get("SEISMO_LIVE_HP", "1.0")),
+             float(os.environ.get("SEISMO_LIVE_LP", "15.0")))
 SPEC_TTL = float(os.environ.get("SEISMO_SPECTRUM_TTL", "1800"))   # spectrum cache, 30 min
 
 
@@ -483,4 +488,34 @@ def live_ring_json():
         uv = uv - uv.mean()
     return {"uv": [round(float(v), 2) for v in uv],
             "pp": float(np.ptp(uv)) if uv.size else 0.0,
+            "rms": round(float(np.sqrt(np.mean(uv * uv))), 2) if uv.size else 0.0,
+            "rms_band": _band_rms_cached(uv, fs, t_end),
             "fs": fs, "gain": gain, "age": round(age, 1), "t_end": t_end}
+
+
+_band_rms_memo = {"t_end": None, "val": None}
+
+
+def _band_rms_cached(uv, fs, t_end):
+    """RMS of the ring band-limited to LIVE_BAND, or None if it can't be computed.
+
+    This is the number that's comparable to the noise-floor figures we quote
+    (broadband RMS is dominated by out-of-band sub-Hz tilt). Memoized on t_end
+    because the ring only refreshes every ~3 s while each viewer polls at 300 ms --
+    so the filter runs ~10x less often than it's asked for, and N viewers cost
+    nothing extra."""
+    if _band_rms_memo["t_end"] == t_end:
+        return _band_rms_memo["val"]
+    val = None
+    try:
+        from scipy.signal import butter, sosfiltfilt
+        nyq = fs / 2
+        hi = min(LIVE_BAND[1], nyq * 0.98)
+        if uv.size > 30 and 0 < LIVE_BAND[0] < hi:
+            sos = butter(4, [LIVE_BAND[0] / nyq, hi / nyq], btype="band", output="sos")
+            y = sosfiltfilt(sos, uv)
+            val = round(float(np.sqrt(np.mean(y * y))), 2)
+    except Exception:
+        val = None
+    _band_rms_memo.update(t_end=t_end, val=val)
+    return val

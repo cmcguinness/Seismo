@@ -2,39 +2,42 @@
 
 _Last updated: 2026-07-23 (UTC)_
 
-## ⚠️ STATION IS DEGRADED — read this first (2026-07-23 06:15 UTC)
+## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
-**The galvanic Ethernet isolator install broke the front end. Do not trust data
-after 06:15 UTC 2026-07-23** (= 23:15 local 07-22) until this is resolved.
+Measured, undisturbed, all late-night (comparable cultural noise):
 
-| | 1–15 Hz RMS | 0.02–0.12 Hz | DC bias (counts) |
-|---|---|---|---|
-| baseline (to 06:14) | **1.15 µV** | 0.96 µV | 29,850, stable ±150 |
-| after install | 14–68 µV | 13–100 µV | wanders 17,000–51,000 |
+| config | 1–15 Hz RMS | 3–15 Hz | 0.02–0.12 Hz | count range |
+|---|---|---|---|---|
+| baseline, no isolator (06:00–06:14) | 1.15 µV | 0.88 | 0.96 | 2,857 |
+| isolator in, original orientation | 0.74 | 0.61 | 1.16 | 3,392 |
+| isolator in, **reversed** (07:13–07:16) | **0.68** | **0.48** | **0.59** | **1,236** |
 
-- **Starts at the install minute:** 06:14 = 1.14 µV, 06:15 = 5.56, 06:16 = 33.7.
-  Survived a reboot of BOTH boxes. Swapping the isolator→Pi cable halved the sub-Hz
-  part but made 1–15 Hz *worse* (33–56 µV).
-- **Not ground motion.** Confirmed with nobody near the rig. The **DC operating
-  point wanders ±10,000 counts** — no earthquake moves the ADC's bias. And a single
-  impulse (unplugging the Ethernet) leaves the band elevated for **~3.5 minutes**;
-  a 4.5 Hz geophone rings out in *seconds* even undamped, so this is an electrical
-  node settling, not mechanics.
-- **Leading hypothesis: the isolator removed the Pi 0 V's only earth reference.**
-  The bias network is a high-impedance 2× 100 kΩ divider and the ADS1256 runs
-  **buffer-off**, so common-mode rejection is poor and a floating ground wanders
-  straight into the signal. The minutes-long settling ≈ 100 kΩ × input capacitance.
-- **NEXT STEP (decisive test): remove the isolator entirely**, Pi straight to the
-  bridge on one known-good cable, then compare the three numbers above. If it does
-  NOT return to ~1.15 µV, the floating node is elsewhere — check the XLR connector
-  and the perfboard bias network, both handled during the install.
-- Ethernet itself is fine throughout: 100 Mb/s full duplex, zero RX/TX errors.
-- **`events.log` is being polluted** — the STA/LTA fires every 10–20 s (peaks
-  ~380 µV) for the whole degraded period. Annotate/exclude that window later; don't
-  read those detections as real.
-- If isolation is ever wanted again, it needs the Pi's 0 V earthed by another route
-  rather than left floating. (The conducted-noise problem it was meant to insure
-  against was already solved by removing the WiFi dongle.)
+**~1.6× better in the signal band, ~1.8× in 3–15 Hz, and the DC bias is *more*
+stable than without it.** Both orientations agree (it's a symmetric passive part,
+so no one-sided shield bond). Keep it installed.
+
+### The trap: this rig needs ~35 min to settle after being HANDLED
+The install looked catastrophic for the first 35 minutes — 1–15 Hz hit 14–68 µV
+with the DC bias wandering ±10,000 counts — and I (Claude) misread that transient
+as a steady state and told Charles to remove the thing that was helping. **Don't
+judge this front end for at least 40 minutes after touching it.** Evidence it's
+handling, not the device: the initial install took ~35 min to settle, but the
+reinstall took ~3 min and the reversal ~2 min. Mechanism is charge injected into a
+high-impedance node — the common-mode path is the 2× 100 kΩ bias legs (the
+*differential* path is already 375 Ω through the coil, so a shunt won't speed it up).
+
+Diagnostics that separate "electrical fault" from "ground motion" in one number:
+- **DC bias stability** (mean counts/minute). No earthquake moves the ADC's
+  operating point; a wandering bias is always electrical.
+- **Settling time.** A 4.5 Hz geophone rings out in *seconds* even undamped, so a
+  minutes-long decay is an electrical node, not mechanics.
+- Undervoltage was checked and ruled out: `throttled=0x0`, `in0_lcrit_alarm=0`,
+  stable 57.0 sps, no stuck ADC codes. (Note: power is still **micro-USB** — the
+  GPIO-header feed is still only a BACKLOG plan.)
+
+**`events.log` is polluted for 06:15–07:13 UTC 2026-07-23** — the STA/LTA fired
+every 10–20 s (peaks ~380 µV) through the unsettled period. Annotate/exclude that
+window; those detections are not real.
 
 ## Where we are
 

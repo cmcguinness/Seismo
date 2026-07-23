@@ -168,7 +168,9 @@ async function live(){
       ctx.strokeStyle='#2f6f6b';ctx.lineWidth=1;ctx.beginPath();
       for(let i=0;i<n;i++){const x=i/(n-1)*W,y=plotH/2-d[i]/amp*(plotH/2*0.9);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
       ctx.stroke();
+      const band=(r.rms_band==null)?'':`  rms(1–15 Hz) ${r.rms_band.toFixed(2)} µV`;
       hud.textContent=`gain ${r.gain}  fs ${fs.toFixed(1)} sps  pp ${(r.pp||0).toFixed(0)} µV`
+        +`  rms ${(r.rms||0).toFixed(2)} µV`+band
         +(haveT?`  ends ${hms(t1)} UTC (${(r.age||0).toFixed(1)} s behind)`:'');
     } else hud.textContent='live feed unavailable';
   }catch(e){hud.textContent='live feed unavailable';}
