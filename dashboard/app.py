@@ -78,7 +78,7 @@ CSS = """<style>
  .card-header{background:#fff;font-weight:600;color:#39484a;border-bottom:1px solid #eef0f2}
  .card{border-color:#e6e8eb}
  .plot{width:100%;height:auto;display:block;border:1px solid #e6e8eb;border-radius:.25rem}
- #c{width:100%;height:200px;display:block;background:#fff;border:1px solid #e6e8eb;border-radius:.25rem}
+ #c{width:100%;height:220px;display:block;background:#fff;border:1px solid #e6e8eb;border-radius:.25rem}
  #hud{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#6c757d;margin-top:.5rem}
  td.spark-cell{width:196px}
  svg.spark{display:block;width:180px;height:40px;background:#eaf0f4;border:1px solid #c7d4de;border-radius:3px}
@@ -133,18 +133,43 @@ def _titleblock(title, subtitle):
 
 HOME_JS = """<script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),hud=document.getElementById('hud');
+const AX=18;                                  // bottom strip reserved for the time axis
 function fit(){cv.width=cv.clientWidth;cv.height=cv.clientHeight;}
 addEventListener('resize',fit);fit();
+function hms(t){return new Date(t*1000).toISOString().slice(11,19);}
+// Time axis: 1 s minor ticks, labelled + gridded every 10 s. Tick positions come
+// from absolute UTC (t_end = time of the newest sample), so they scroll leftward
+// with the trace instead of sitting at fixed pixels.
+function axis(t0,t1,W,H){
+  const plotH=H-AX;
+  ctx.strokeStyle='#dee2e6';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,plotH+.5);ctx.lineTo(W,plotH+.5);ctx.stroke();
+  ctx.fillStyle='#6c757d';ctx.font='10px ui-monospace,Menlo,monospace';ctx.textAlign='center';
+  for(let t=Math.ceil(t0);t<=t1;t++){
+    const x=Math.round((t-t0)/(t1-t0)*W)+.5,ten=t%10===0;
+    ctx.beginPath();ctx.moveTo(x,plotH);ctx.lineTo(x,plotH+(ten?6:3));ctx.stroke();
+    if(ten){
+      ctx.strokeStyle='#f1f3f5';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,plotH);ctx.stroke();
+      ctx.strokeStyle='#dee2e6';
+      if(x>22&&x<W-22)ctx.fillText(hms(t),x,H-4);
+    }
+  }
+}
 async function live(){
   try{
     const r=await (await fetch('/live-data')).json();
     const d=r.uv||[],n=d.length,W=cv.width,H=cv.height;
     ctx.clearRect(0,0,W,H);
-    if(n>1){let amp=20;for(const v of d)amp=Math.max(amp,Math.abs(v));amp*=1.1;
+    if(n>1){
+      const fs=r.fs||0,t1=r.t_end,haveT=!!t1&&fs>0,t0=haveT?t1-(n-1)/fs:0;
+      const plotH=haveT?H-AX:H;
+      if(haveT)axis(t0,t1,W,H);
+      let amp=20;for(const v of d)amp=Math.max(amp,Math.abs(v));amp*=1.1;
       ctx.strokeStyle='#2f6f6b';ctx.lineWidth=1;ctx.beginPath();
-      for(let i=0;i<n;i++){const x=i/(n-1)*W,y=H/2-d[i]/amp*(H/2*0.9);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+      for(let i=0;i<n;i++){const x=i/(n-1)*W,y=plotH/2-d[i]/amp*(plotH/2*0.9);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
       ctx.stroke();
-      hud.textContent=`gain ${r.gain}  fs ${(r.fs||0).toFixed(1)} sps  pp ${(r.pp||0).toFixed(0)} µV`;
+      hud.textContent=`gain ${r.gain}  fs ${fs.toFixed(1)} sps  pp ${(r.pp||0).toFixed(0)} µV`
+        +(haveT?`  ends ${hms(t1)} UTC (${(r.age||0).toFixed(1)} s behind)`:'');
     } else hud.textContent='live feed unavailable';
   }catch(e){hud.textContent='live feed unavailable';}
   setTimeout(live,300);
@@ -176,7 +201,7 @@ def home():
     body = (
         _titleblock(SID, f'DIY geophone seismometer &middot; {PLACE} &middot; vertical '
                          '4.5&nbsp;Hz &middot; independent station (not for scientific use)')
-        + _card("Live &middot; last 30&nbsp;s",
+        + _card("Live &middot; last 30&nbsp;s (UTC)",
                 '<canvas id="c"></canvas><div id="hud">connecting…</div>')
         + _card("Helicorder &middot; last 4 hours (UTC)",
                 f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">')

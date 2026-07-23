@@ -93,15 +93,21 @@ def live_publisher(ring: deque, fs: float) -> None:
     """Every LIVE_PERIOD, snapshot the ring and atomically write it to shared
     memory for live_server.py. Runs in its OWN thread so the file I/O never
     delays the sampling loop. ring.copy() is a single C-level op (atomic vs the
-    sampling thread's append); any transient error just skips one frame."""
+    sampling thread's append); any transient error just skips one frame.
+
+    t_end is the UTC epoch of the NEWEST sample in the snapshot -- stamped here
+    because only the station knows it (the pi5 mirror's file mtime is its own
+    copy time). The viewer needs it to label the time axis."""
     tmp = f"{LIVE_PATH}.tmp"
     while not _stop.is_set():
         time.sleep(LIVE_PERIOD)
         try:
             counts = np.array(ring.copy(), dtype=np.int32)
+            t_end = time.time()
             if counts.size:
                 with open(tmp, "wb") as f:
-                    np.savez(f, counts=counts, fs=np.float64(fs), gain=np.int32(GAIN))
+                    np.savez(f, counts=counts, fs=np.float64(fs), gain=np.int32(GAIN),
+                             t_end=np.float64(t_end))
                 os.replace(tmp, LIVE_PATH)
         except Exception:
             pass

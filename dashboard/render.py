@@ -310,17 +310,22 @@ def live_ring_json():
     never make the acquisition Pi transmit (which conducts noise into the ADC)."""
     import time
     try:
-        age = time.time() - os.path.getmtime(RING)
+        mtime = os.path.getmtime(RING)
         with np.load(RING) as d:
             counts = d["counts"].astype(float)
             fs = float(d["fs"])
             gain = int(d["gain"])
+            # t_end = UTC epoch of the newest sample, stamped by the station's
+            # live_publisher. Older rings lack it -> fall back to our copy's
+            # mtime (close enough: the pull runs every 3 s).
+            t_end = float(d["t_end"]) if "t_end" in d.files else mtime
+        age = time.time() - t_end
     except Exception:
-        return {"uv": [], "pp": 0.0, "fs": 0.0, "gain": 0, "age": None}
+        return {"uv": [], "pp": 0.0, "fs": 0.0, "gain": 0, "age": None, "t_end": None}
     uvpc = (2.5 * 2 / (gain * (2 ** 23 - 1))) * 1e6
     uv = counts * uvpc
     if uv.size:
         uv = uv - uv.mean()
     return {"uv": [round(float(v), 2) for v in uv],
             "pp": float(np.ptp(uv)) if uv.size else 0.0,
-            "fs": fs, "gain": gain, "age": round(age, 1)}
+            "fs": fs, "gain": gain, "age": round(age, 1), "t_end": t_end}

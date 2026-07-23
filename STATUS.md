@@ -81,6 +81,10 @@ ADC contention, isolated from the sampling loop). `live_server.py` (its own
 `seismo-live.service`, always-on, ADC-free) serves a scrolling waveform at
 **http://seismo.local:8347** — real-time viewing that coexists with recording.
 (This is why `live_view.py` alone can't run now: the recorder owns the ADC.)
+The ring carries `t_end` (UTC epoch of its newest sample, stamped by the station —
+the pi5 mirror's mtime is only its own copy time), so the dashboard's strip-chart
+draws a **scrolling UTC time axis**: 1 s minor ticks, labels + gridlines every 10 s
+(2026-07-22). Falls back to no axis if a ring predates `t_end`.
 
 **Helicorder DONE** (2026-07-19): `analysis/helicorder.py` on the Mac pulls the
 Pi's miniSEED (rsync) and renders a classic ObsPy dayplot drum — full loop
