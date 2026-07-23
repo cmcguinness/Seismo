@@ -192,7 +192,21 @@ SPARK_POST = float(os.environ.get("SEISMO_SPARK_POST", "22"))  # s of window aft
 SPARK_BUCKETS = int(os.environ.get("SEISMO_SPARK_BUCKETS", "150"))
 SPARK_W, SPARK_H = 180, 40
 
+# --- character scoring (cultural-impulse flag) --------------------------------
+# Thresholds set empirically 2026-07-22 from 127 logged triggers over 2 days (see
+# CHARACTER.md). Envelope KURTOSIS + duration-above-25%-of-peak + peak/median SNR
+# separate the classes cleanly; the two populations don't overlap on kurtosis
+# (impulsive p10 45 vs sustained p90 26).
+CHAR_KURT = float(os.environ.get("SEISMO_CHAR_KURT", "40"))     # envelope kurtosis
+CHAR_DUR = float(os.environ.get("SEISMO_CHAR_DUR", "1.0"))      # s above 25% of peak
+CHAR_SNR = float(os.environ.get("SEISMO_CHAR_SNR", "8"))        # peak / median envelope
+CHAR_WEAK_SNR = float(os.environ.get("SEISMO_CHAR_WEAK_SNR", "6"))
+
+MEMO_MAX = int(os.environ.get("SEISMO_SPARK_MEMO", "800"))   # entries before eviction
+MEMO_KEEP = MEMO_MAX // 2                                    # retained after eviction
+
 _spark_cache = {}                 # start_iso -> svg string (or "" for no data)
+_char_cache = {}                  # start_iso -> character dict (or {} for no data)
 _spark_lock = threading.Lock()
 
 
@@ -212,25 +226,107 @@ def _load_recent(n=2):
     return st
 
 
-def _build_spark_svg(st, start_iso):
-    """Inline-SVG min/max envelope of the 1-15 Hz waveform in
-    [start-PRE, start+POST]. Returns an <svg> string, or "" if the window holds
-    no usable data (real gap, or pruned out of the archive)."""
+def _event_trace(st, start_iso):
+    """Demeaned single Trace covering [start-PRE, start+POST], or None if that
+    window holds no usable data (real gap, or pruned out of the archive). Sliced
+    once and shared by the sparkline and the character scorer."""
     import obspy
 
     try:
         t0 = obspy.UTCDateTime(start_iso)
     except Exception:
-        return ""
+        return None
     seg = st.slice(t0 - SPARK_PRE, t0 + SPARK_POST).copy()
     if not len(seg):
-        return ""
+        return None
     seg.merge(method=1, fill_value="interpolate")
     tr = max(seg, key=lambda t: t.stats.npts)
     if tr.stats.npts < 20:
-        return ""
+        return None
     tr.detrend("demean")
+    return tr
+
+
+def _envelope_1_15(tr):
+    """Smoothed (~0.2 s) absolute envelope of the 1-15 Hz band -- the local-quake
+    band the trigger works in. Returns (env, fs)."""
     fs = float(tr.stats.sampling_rate)
+    tb = tr.copy()
+    tb.filter("bandpass", freqmin=1.0, freqmax=min(15.0, fs / 2 * 0.99),
+              corners=4, zerophase=True)
+    y = np.abs(np.nan_to_num(np.asarray(tb.data, float)))
+    w = max(3, int(0.2 * fs))
+    return np.convolve(y, np.ones(w) / w, mode="same"), fs
+
+
+def _build_character(tr):
+    """Score a detection's WAVEFORM SHAPE to flag probable cultural impulses.
+
+    Metrics (all on the 1-15 Hz envelope):
+      kurt -- envelope kurtosis. A footstep/door-thump is one spike in an
+              otherwise quiet window -> very peaked; ambient wobble -> ~3-8.
+      dur  -- seconds spent above 25% of peak. Thumps: <1 s. Quake coda: many s.
+      snr  -- peak / median envelope.
+
+    Verdict is deliberately SOFT ("impulsive"), never a hard drop: a *very local*
+    earthquake is also impulsive and HF-rich, and this station has no confirmed
+    quake yet to calibrate the positive class against (Phase 5 open). So this
+    flags shape only -- it is not an earthquake/not-earthquake classifier.
+
+    hf/flat are reported but NOT used in the verdict: measured over 127 real
+    triggers they do NOT separate the classes -- the impulsive population came out
+    LOWER in HF fraction (median 0.09) than the sustained one (0.41), i.e. these
+    thumps are low-band-dominated, not broadband. The backlog's
+    "score by HF fraction / spectral flatness" premise was wrong for this site.
+    """
+    env, fs = _envelope_1_15(tr)
+    if env.size < int(5 * fs):
+        return {}
+    ip = int(np.argmax(env))
+    pk = float(env[ip])
+    if not np.isfinite(pk) or pk <= 0:
+        return {}
+    sd = float(env.std())
+    kurt = float(np.mean(((env - env.mean()) / sd) ** 4)) if sd > 0 else 0.0
+    dur = float((env > 0.25 * pk).sum() / fs)
+    med = float(np.median(env))
+    snr = pk / med if med > 0 else float("inf")
+
+    # informational only (see docstring): spectral content of the impulse itself,
+    # in a +/-1.5 s window around the envelope peak.
+    hf = float("nan")
+    try:
+        from scipy.signal import welch
+        nyq = fs / 2
+        a, b = max(0, ip - int(1.5 * fs)), min(env.size, ip + int(1.5 * fs))
+        th = tr.copy()
+        th.filter("highpass", freq=1.0, corners=2, zerophase=True)
+        sig = np.nan_to_num(np.asarray(th.data, float))[a:b]
+        if sig.size >= int(0.5 * fs):
+            f, p = welch(sig, fs=fs, nperseg=int(min(sig.size, fs)))
+            bnd = (f >= 1.0) & (f < nyq * 0.98)
+            if p[bnd].sum() > 0:
+                hf = float(p[bnd][f[bnd] >= 12.0].sum() / p[bnd].sum())
+    except Exception:
+        pass
+
+    if kurt >= CHAR_KURT or (dur <= CHAR_DUR and snr >= CHAR_SNR):
+        label, cls = "impulsive", "cultural"
+    elif snr < CHAR_WEAK_SNR:
+        label, cls = "near-threshold", "weak"
+    else:
+        label, cls = "sustained", "plain"
+    return {"kurt": round(kurt, 1), "dur": round(dur, 2), "snr": round(snr, 1),
+            "hf": None if not np.isfinite(hf) else round(hf, 3),
+            "label": label, "cls": cls}
+
+
+def _build_spark_svg(tr):
+    """Inline-SVG min/max envelope of the 1-15 Hz waveform in
+    [start-PRE, start+POST]. Returns an <svg> string, or "" if the window holds
+    no usable data."""
+    fs = float(tr.stats.sampling_rate)
+    tr = tr.copy()
     tr.filter("bandpass", freqmin=1.0, freqmax=min(15.0, fs / 2 * 0.99),
               corners=4, zerophase=True)
     x = np.nan_to_num(np.asarray(tr.data, float))
@@ -267,11 +363,12 @@ def _build_spark_svg(st, start_iso):
 
 
 def ensure_sparklines(starts):
-    """Build+memoize sparklines for any of `starts` not already cached. Loads the
-    mirrored day-file(s) at most once, and only when a detection new to the cache
-    appears -- so the steady state (nothing new) does zero I/O. Lock-guarded so
-    concurrent first-hits load once. An event whose data isn't mirrored yet is
-    left uncached and retried on the next request."""
+    """Build+memoize the sparkline AND character score for any of `starts` not
+    already cached. Loads the mirrored day-file(s) at most once, and only when a
+    detection new to the cache appears -- so the steady state (nothing new) does
+    zero I/O. Both products come from ONE slice per event, so scoring adds no I/O.
+    Lock-guarded so concurrent first-hits load once. An event whose data isn't
+    mirrored yet is left uncached and retried on the next request."""
     import obspy
 
     starts = [s for s in starts if s]
@@ -292,16 +389,53 @@ def ensure_sparklines(starts):
                 fresh = False
             if fresh:
                 continue                                     # not here yet -> retry later
-            _spark_cache[s] = _build_spark_svg(st, s)
-        if len(_spark_cache) > 300:                          # bound the memo
-            for k in list(_spark_cache)[:-150]:
+            tr = _event_trace(st, s)
+            _spark_cache[s] = _build_spark_svg(tr) if tr is not None else ""
+            _char_cache[s] = _build_character(tr) if tr is not None else {}
+        # Bound the memo, but keep it comfortably ABOVE the most rows the table can
+        # ask for (app._recent_events max_rows=250). If the bound is below the
+        # request size the cache THRASHES: every call evicts entries it is about to
+        # be asked for again, so each request re-loads the day-files (~90 s for a
+        # 2-day archive). Evict oldest-by-event-time, not insertion order.
+        if len(_spark_cache) > MEMO_MAX:
+            for k in sorted(_spark_cache)[:-MEMO_KEEP]:
                 _spark_cache.pop(k, None)
+                _char_cache.pop(k, None)
+
+
+_fill_thread = None
+
+
+def ensure_sparklines_async(starts):
+    """Kick the sparkline/character fill onto a BACKGROUND thread and return at once.
+
+    The fill's cost is dominated by parsing the mirrored day-files (~90 s for a
+    2-day archive), and uvicorn serves this app on a single-threaded event loop --
+    so doing it inline made a cold container hang the public home page for ~90 s
+    AND stall the 300 ms /live-data polls behind it. Same rule as the helicorder:
+    heavy work never sits on the request path. Un-built rows render as an empty
+    waveform cell + em-dash badge and fill in on a later load."""
+    global _fill_thread
+    starts = [s for s in starts if s]
+    if not starts or all(s in _spark_cache for s in starts):
+        return
+    if _fill_thread is not None and _fill_thread.is_alive():
+        return                                    # a fill is already running
+    _fill_thread = threading.Thread(target=ensure_sparklines, args=(starts,),
+                                    daemon=True)
+    _fill_thread.start()
 
 
 def event_sparkline(start_iso):
     """Cached inline-SVG sparkline for a detection, or "" if not built yet.
     Call ensure_sparklines() first to populate."""
     return _spark_cache.get(start_iso, "")
+
+
+def event_character(start_iso):
+    """Cached character score for a detection ({} if not built yet). Keys:
+    label/cls/kurt/dur/snr/hf -- see _build_character."""
+    return _char_cache.get(start_iso, {})
 
 
 def live_ring_json():

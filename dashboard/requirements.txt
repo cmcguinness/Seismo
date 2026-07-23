@@ -4,3 +4,4 @@
 # Listed here for reference / non-Docker runs.
 python-fasthtml
 obspy>=1.4
+scipy          # imported directly by render._build_character (welch); also an obspy dep

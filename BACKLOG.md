@@ -426,10 +426,18 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
   This kills the **low-frequency-onset** faux triggers; the remaining levers still
   handle genuinely broadband-impulsive cultural thumps. Further levers: (1)
   **physical** — finish crawl-space siting + stop handling the rig (the biggest
-  offenders are us working on it); (2) **frequency/character veto** (cheap) — score
-  each trigger by HF-energy fraction / spectral flatness, flag broadband-impulsive
-  ones as "likely cultural" (don't hard-drop; a *very local* target quake is also
-  impulsive/HF); (3) **ML phase picker** (EQTransformer/PhaseNet on pi5, triggered
+  offenders are us working on it); (2) ~~**frequency/character veto** (cheap)~~
+  **DONE 2026-07-22** — the dashboard now scores each detection's waveform SHAPE and
+  badges it `impulsive` / `sustained` / `near-threshold` (soft label, never a drop).
+  **The HF/spectral-flatness premise written here was empirically WRONG** for this
+  site: over 127 real triggers the impulsive population came out *lower* in HF
+  fraction (median 0.09) than the sustained one (0.41) — these thumps are
+  low-band-dominated, and a 0.3 s spike barely moves a 30 s window's spectrum anyway.
+  What separates cleanly is **envelope kurtosis** (impulsive p10 45 vs sustained p90
+  26, no overlap) plus duration-above-25%-of-peak and peak/median SNR. Thresholds,
+  method and caveats: `dashboard/CHARACTER.md`. Still uncalibrated on the POSITIVE
+  class — no confirmed quake yet (Phase 5), so `impulsive` means "shaped like a
+  thump", NOT "not a quake"; (3) **ML phase picker** (EQTransformer/PhaseNet on pi5, triggered
   windows) — the real discriminator, ties to the Jetson ML-detection item; (4)
   **network association** vs a real-time feed — confirmation ✓ badge, has latency.
 - **Final amplitude constant**: `ENV_FRAC`/`CLIP_ROWS` set by eye on the noisy

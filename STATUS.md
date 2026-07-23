@@ -65,6 +65,16 @@ Dokku) = render/serve**, **Jetson = future ML** (backlog). Live at **https://sei
   treatment as the helicorder (see BACKLOG "Helicorder v2").
 - **Note:** the "does the 2B need a RAM upgrade" question is moot — it just acquires.
 
+**Detection character badge** (2026-07-22): the detections table now labels each
+trigger's waveform *shape* — `impulsive` / `sustained` / `near-threshold` — from
+envelope kurtosis + duration-above-25%-of-peak + peak/median SNR, scored on the same
+±30 s slice the sparkline already loads (14 ms/event, no extra I/O). Soft label only:
+never filters, and NOT an earthquake classifier (a very local quake is impulsive too,
+and there's no confirmed event yet to calibrate against). Thresholds measured from 127
+real triggers; the backlog's HF/spectral-flatness idea was tested and **refuted** —
+see `dashboard/CHARACTER.md`. The sparkline/character fill also moved **off the request
+path** into a background thread (it was a ~90 s cold-start hang on the public page).
+
 **Event detection** (2026-07-20): the recorder runs a streaming **STA/LTA** trigger
 (`stalta.py`) inline — 1-pole high-pass (**3 Hz corner since 2026-07-22**, was 1 Hz:
 rejects microseism *and* the sub-Hz tilt/settling that was mistriggering faux

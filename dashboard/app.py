@@ -184,18 +184,41 @@ def _card(header, inner, body_class="card-body"):
             f'<div class="{body_class}">{inner}</div></div>')
 
 
+_CHAR_BADGE = {                       # character class -> (bootstrap class, text)
+    "cultural": ("text-bg-warning", "impulsive"),
+    "weak": ("text-bg-light border", "near-threshold"),
+    "plain": ("text-bg-light border", "sustained"),
+}
+
+
+def _char_badge(ch):
+    """Waveform-character badge for a detection. Presentation only -- the scoring
+    lives in render._build_character. Empty when the window isn't scored yet."""
+    if not ch:
+        return '<span class="text-muted">&mdash;</span>'
+    cls, text = _CHAR_BADGE.get(ch.get("cls", ""), ("text-bg-light border", "?"))
+    hf = "n/a" if ch.get("hf") is None else f'{ch["hf"]:.2f}'
+    tip = (f'envelope kurtosis {ch.get("kurt")} &middot; {ch.get("dur")} s above 25% of '
+           f'peak &middot; peak/median {ch.get("snr")} &middot; HF fraction {hf} '
+           f'(informational)')
+    return (f'<span class="badge {cls}" title="{tip}">{text}</span>')
+
+
 @app.get("/")
 def home():
     evs = _recent_events()
-    render.ensure_sparklines([e.get("start", "") for e in evs])
+    # off the request path: fills in a background thread (the day-file parse is
+    # ~90 s cold), so the page always renders now and unscored rows fill in later.
+    render.ensure_sparklines_async([e.get("start", "") for e in evs])
     if evs:
         rows = "".join(
             f'<tr><td>{e.get("start","").replace("+00:00","")}</td><td>{e.get("duration_s","")}s</td>'
             f'<td>{e.get("peak_ratio","")}</td><td>{e.get("peak_uv","")} µV</td>'
-            f'<td class="spark-cell">{render.event_sparkline(e.get("start",""))}</td></tr>'
+            f'<td class="spark-cell">{render.event_sparkline(e.get("start",""))}</td>'
+            f'<td>{_char_badge(render.event_character(e.get("start","")))}</td></tr>'
             for e in evs)
     else:
-        rows = (f'<tr><td colspan="5" class="text-muted">no detections in the last '
+        rows = (f'<tr><td colspan="6" class="text-muted">no detections in the last '
                 f'{WINDOW_H:g}&nbsp;h above STA/LTA {MIN_RATIO:g}</td></tr>')
     ts = int(time.time())
     body = (
@@ -208,7 +231,8 @@ def home():
         + _card(f"Detections &middot; last {WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}",
                 '<table class="table table-sm table-striped mb-0 align-middle">'
                 '<thead><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th>'
-                '<th>waveform <span class="fw-normal text-muted">&plusmn;30&nbsp;s, 1&ndash;15&nbsp;Hz</span></th></tr></thead>'
+                '<th>waveform <span class="fw-normal text-muted">&plusmn;30&nbsp;s, 1&ndash;15&nbsp;Hz</span></th>'
+                '<th>character <span class="fw-normal text-muted">shape only</span></th></tr></thead>'
                 f'<tbody>{rows}</tbody></table>',
                 body_class="table-responsive")
     )
@@ -286,7 +310,13 @@ ABOUT_SECTIONS = [
      'a different sensor &mdash; a force-balance broadband, or a DIY long-period pendulum.</p>'
      '<p class="mb-0 prose"><b>Recent detections</b> &mdash; automatic STA/LTA triggers (sudden energy '
      'jumps). Most are <i>cultural</i> (footsteps, machinery, doors), not earthquakes &mdash; a genuine '
-     'local quake would show a sharp P&nbsp;arrival followed seconds later by a larger S.</p>'),
+     'local quake would show a sharp P&nbsp;arrival followed seconds later by a larger S. '
+     'The <b>character</b> column describes the <i>shape</i> of each detection, nothing more: '
+     '&ldquo;impulsive&rdquo; means a single sharp spike in an otherwise quiet window, which is what '
+     'household thumps look like; &ldquo;sustained&rdquo; means the energy lasts, and '
+     '&ldquo;near-threshold&rdquo; means it barely cleared the trigger. It is deliberately <b>not</b> an '
+     'earthquake/not-earthquake verdict &mdash; a very close quake is impulsive too, and this station has '
+     'yet to record a confirmed one to check the labels against.</p>'),
     ("Where it sits",
      '<p class="mb-0 prose">{place} &mdash; on valley-margin alluvium at the foot of the '
      'Sonoma/Mayacamas volcanics, essentially atop the active <b>Rodgers Creek fault</b> system. A '
