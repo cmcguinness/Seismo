@@ -404,15 +404,12 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
   ~29 s intervals fingerprints a duty-cycling appliance for the more regular ones.
   Verdict: the drum is working — it's hearing the house/neighborhood. Reduce only
   via siting/isolation (enclosure), not code. (Distinct from the 15-min streak.)
-- **Day-boundary row truncates ~1 min (the UTC-midnight interval).** `heli_build.
-  build()` loads only the single newest day-file (`files[-1]`), so it can't span
-  the 00:00 UTC rollover: the 23:45 interval's last minute (23:59→00:00) lives in
-  the PREVIOUS day-file, and once the recorder rolls to the new file, `sel` for that
-  interval selects zero samples (`if v.size` skips it) and it freezes ~1 min short.
-  Same class as the fixed "truncated completed rows," but the `complete` flag can't
-  help — the data is in a file build() no longer opens. **Fix:** load the last TWO
-  day-files (any file intersecting the window) and merge, not just `files[-1]`.
-  Cosmetic (one lost minute per UTC day on the boundary row).
+- ~~**Day-boundary row truncates ~1 min (the UTC-midnight interval).**~~ **FIXED**
+  (commit `e948e51`, deployed). `build()` now loads the last TWO day-files and merges,
+  so a 4 h window can span the 00:00 UTC rollover (the 23:45 interval's tail minute
+  lives in the prior day-file). **Verified 2026-07-22** on real data by rebuilding a
+  6 h window straddling midnight: the 23:45 row comes out `complete=True` with 1.000
+  pixel coverage (previously it froze ~1 min short once the recorder rolled files).
 - **Suppress faux (cultural) detections.** Confirmed 2026-07-21: at threshold 20 the
   detections are overwhelmingly cultural impulses (broadband vertical-stripe
   spectrograms, no P-S, timing doesn't match catalog) — see the "1–3 min spikes"
