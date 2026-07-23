@@ -430,6 +430,24 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
     reasoned from waveform *character* (bipolar / not phase-locked / survives
     gap-bridging), which cannot distinguish ground motion from electrical ingress.
     Only an intervention can.
+    **LABELLED NEGATIVE CONTROL (2026-07-23 08:20 UTC):** Charles wheeled **one
+    loaded trash container** out past the garage (sensor side), time known to ±20 s.
+    (The other two bins went out much earlier, at unrecorded times — so only this
+    one is a usable labelled event.) Result: **nothing detectable in ANY band** — raw, 0.02–0.5, 0.5–3, 3–15,
+    15–28 Hz all indistinguishable from neighbouring windows, and **zero STA/LTA
+    triggers** in the surrounding 10 min.
+    **BUT THIS IS WEAK EVIDENCE for the spike question, per Charles:** the cans live
+    outside and roll only on the **driveway**, never on the garage slab, and the
+    driveway is a separate pour with an **expansion joint** between it and the slab.
+    A joint is a real mechanical discontinuity, so a null here is the *expected*
+    result — it mainly demonstrates that the joint attenuates, not that cultural
+    sources can't reach the sensor. Do NOT count this as a third line of evidence for
+    electrical ingress (an earlier version of this note did; that was wrong).
+    What it IS good for is a **site-coupling fact**: driveway-borne activity is
+    strongly attenuated, while sources ON the garage slab or in the house structure
+    are not. That also helps explain why this station is quieter than its siting
+    suggests, and it means "cultural" candidates should be weighted by which pour
+    they sit on.
     **STILL CHEAP TEST (no hardware trip): track spikes/hour over several nights with
     the isolator in.** If the 20:00–23:00 local window — which ran 130–180/h — stays near
     zero, cultural is dead and it was electrical. Note this is unlike the 1.63× RMS
