@@ -3,18 +3,18 @@
 
 Two capture modes:
 
-  DEFAULT (line mode): type z (north) / (south) during the interval, hit RETURN
-  after the STOP beep. Records only the per-interval totals. Simple, works over a
-  pipe, no terminal magic.
+  DEFAULT (realtime, per-keystroke): each z / keypress is timestamped in UTC the
+  instant you press it (cbreak terminal mode — readline can't do this, it's
+  line-buffered). The interval auto-closes at --interval seconds; no RETURN needed.
+  You get BOTH the interval totals AND an events file (open marker, one row per
+  vehicle, close marker), which lets the analysis line up individual vehicles
+  against individual seismic transients and separate heavy vehicles by per-event
+  amplitude. Reaction lag (~0.3-0.8 s) sits inside a vehicle's multi-second
+  transient, so a ±2-3 s search window on the analysis side absorbs it.
+  (Falls back to line mode automatically when stdin isn't a real terminal.)
 
-  --realtime (per-keystroke): each z / keypress is timestamped in UTC the instant
-  you press it (cbreak terminal mode — readline can't do this, it's line-buffered).
-  The interval auto-closes at --interval seconds; no RETURN needed. You get BOTH
-  the interval totals AND an events file (one row per vehicle), which lets the
-  analysis line up individual vehicles against individual seismic transients and
-  separate heavy vehicles by per-event amplitude. Reaction lag (~0.3-0.8 s) sits
-  inside a vehicle's multi-second transient, so a ±2-3 s search window on the
-  analysis side absorbs it.
+  --line (totals only): type z / during the interval, hit RETURN after the STOP
+  beep. Records only the per-interval totals. Simple, works over a pipe.
 
 Per interval:
   1. START beep.
@@ -26,9 +26,10 @@ Per interval:
 
 CSVs are created with headers if missing. Interval columns match traffic_features.py.
 
-  analysis/collect_traffic.py                       # line mode, 30 s
-  analysis/collect_traffic.py --realtime --say      # per-vehicle timestamps, voice cues
-  analysis/collect_traffic.py --realtime --continuous
+  analysis/collect_traffic.py                       # realtime per-vehicle, 30 s
+  analysis/collect_traffic.py --silent              # no beeps (on a call)
+  analysis/collect_traffic.py --say --continuous    # voice cues, back-to-back
+  analysis/collect_traffic.py --line                # totals only, pipe-friendly
 
 Keep your Mac clock on network time. Don't touch the rig mid-session; keep the
 whole session in one hardware epoch.
@@ -166,8 +167,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="labels.csv", help="interval CSV (default labels.csv)")
     ap.add_argument("--interval", type=float, default=30.0, help="seconds per interval")
-    ap.add_argument("--realtime", action="store_true",
-                    help="timestamp each keypress (cbreak); also writes <out>.events.csv")
+    ap.add_argument("--line", action="store_true",
+                    help="force line mode: totals only, no per-keystroke timestamps")
     ap.add_argument("--continuous", action="store_true", help="no Enter prompt between intervals")
     ap.add_argument("--say", action="store_true", help="speak 'go'/'stop' (macOS)")
     ap.add_argument("--silent", action="store_true", help="no beeps (e.g. on a call)")
@@ -178,9 +179,9 @@ def main():
         global _SILENT
         _SILENT = True
 
-    realtime = args.realtime
+    realtime = not args.line
     if realtime and not sys.stdin.isatty():
-        print("note: stdin is not a TTY — --realtime needs a real terminal; using line mode.")
+        print("note: stdin is not a TTY — realtime needs a real terminal; using line mode.")
         realtime = False
 
     out = os.path.abspath(args.out)
