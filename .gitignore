@@ -25,3 +25,12 @@ interface_board/**/.history/
 *.kicad_prl
 *-backups/
 fp-info-cache
+
+# Traffic collection working data (personal; regenerate features via traffic_features.py)
+labels.csv
+labels.events.csv
+labels.features.csv
+analysis/labels.csv
+analysis/labels.events.csv
+analysis/labels.features.csv
+!analysis/labels.example.csv

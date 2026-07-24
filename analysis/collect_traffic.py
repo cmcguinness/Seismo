@@ -44,6 +44,11 @@ import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+# Default output lives beside this script (analysis/), NOT in the caller's cwd, so
+# where you launch from never decides where the data lands. Override with --out.
+_SCRIPT_DIR = Path(__file__).resolve().parent
 
 _DEVNULL = subprocess.DEVNULL
 _IS_MAC = platform.system() == "Darwin"
@@ -165,7 +170,8 @@ def interval_realtime(interval, say):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default="labels.csv", help="interval CSV (default labels.csv)")
+    ap.add_argument("--out", default=str(_SCRIPT_DIR / "labels.csv"),
+                    help="interval CSV (default: labels.csv beside the script, cwd-independent)")
     ap.add_argument("--interval", type=float, default=30.0, help="seconds per interval")
     ap.add_argument("--line", action="store_true",
                     help="force line mode: totals only, no per-keystroke timestamps")
