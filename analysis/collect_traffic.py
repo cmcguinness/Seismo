@@ -48,10 +48,13 @@ _DEVNULL = subprocess.DEVNULL
 _IS_MAC = platform.system() == "Darwin"
 _SOUNDS = {"start": "/System/Library/Sounds/Tink.aiff",
            "stop": "/System/Library/Sounds/Submarine.aiff"}
+_SILENT = False
 
 
 def beep(kind, say=False):
     """Non-blocking audible cue. macOS voice/sound, else terminal bell."""
+    if _SILENT:
+        return
     word = {"start": "go", "stop": "stop"}[kind]
     if say and _IS_MAC and shutil.which("say"):
         subprocess.Popen(["say", word], stdout=_DEVNULL, stderr=_DEVNULL)
@@ -73,16 +76,19 @@ def append_row(path, start, end, north, south):
         w.writerow([start.isoformat(), end.isoformat(), north + south, north, south])
 
 
-def append_events(path, events, interval_start):
-    if not events:
-        return
+def append_events(path, start, end, events):
+    """Self-contained timeline: an 'open' marker, each vehicle (N/S), a 'close'
+    marker, in chronological order. `kind` distinguishes them so the events file
+    fully defines the windows without a join back to the interval CSV."""
     new = not (os.path.exists(path) and os.path.getsize(path) > 0)
     with open(path, "a", newline="") as f:
         w = csv.writer(f)
         if new:
-            w.writerow(["t_utc", "dir", "interval_start_utc"])
+            w.writerow(["t_utc", "kind"])
+        w.writerow([start.isoformat(), "open"])
         for t, d in events:
-            w.writerow([t.isoformat(), d, interval_start.isoformat()])
+            w.writerow([t.isoformat(), d])
+        w.writerow([end.isoformat(), "close"])
 
 
 def count_line(line):
@@ -164,9 +170,13 @@ def main():
                     help="timestamp each keypress (cbreak); also writes <out>.events.csv")
     ap.add_argument("--continuous", action="store_true", help="no Enter prompt between intervals")
     ap.add_argument("--say", action="store_true", help="speak 'go'/'stop' (macOS)")
+    ap.add_argument("--silent", action="store_true", help="no beeps (e.g. on a call)")
     args = ap.parse_args()
     if args.interval <= 0:
         sys.exit("--interval must be positive")
+    if args.silent:
+        global _SILENT
+        _SILENT = True
 
     realtime = args.realtime
     if realtime and not sys.stdin.isatty():
@@ -196,7 +206,7 @@ def main():
             start, end, north, south, events = run(args.interval, args.say)
             append_row(out, start, end, north, south)
             if events_out:
-                append_events(events_out, events, start)
+                append_events(events_out, start, end, events)
             rows += 1
             print(f"    logged  N={north} S={south} total={north + south}"
                   f"   [{start.strftime('%H:%M:%S')}–{end.strftime('%H:%M:%S')} UTC]"
