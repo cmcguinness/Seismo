@@ -16,7 +16,7 @@ via the shorted-input floor test **before** laying out the PCB — see
 
 Mermaid sketch of the network — **topology only**, not a literal schematic
 (dotted links = components *across* two nodes; solid links = series components).
-The authoritative netlist is the ASCII schematic below.
+The authoritative netlist is the net table in the next section.
 
 ```mermaid
 graph LR
@@ -53,37 +53,83 @@ ground** point (bonded to AGND once, at the Pi end), *not* to the signal return.
 
 ## Schematic (authoritative netlist)
 
+The **net table is the authority** — one row per net, every component terminal
+on exactly one net. This is the bring-up checklist: buzz out each row with a
+multimeter; a net passes when every listed pin beeps to every other pin in the
+row (and to nothing in any other row). Two-terminal passives use `.1`/`.2`
+(assignment arbitrary for every part *except* possibly **C1** — see the polarity
+note below). J2 pins are numbered per
+the connector pin order `AVDD · AGND · AD0 · AD1`
+(see [Connectors](#connectors-internal-wiring)).
+
+| Net | Pins on this net | Pins |
+|-----|------------------|------|
+| **AVDD** | J2.1 (AVDD) · R1.1 · C1.1 · C2.1 | 4 |
+| **VCM** | R1.2 · R2.1 · C3.1 · Rb1.2 · Rb2.2 | 5 |
+| **AGND** | J2.2 (AGND) · R2.2 · C1.2 · C2.2 · C3.2 · Ccm1.2 · Ccm2.2 | 7 |
+| **N0** (coil+) | J1.2 · Rb1.1 · Rd.1 · Rs1.1 | 4 |
+| **N1** (coil−) | J1.3 · Rb2.1 · Rd.2 · Rs2.1 | 4 |
+| **AD0** | Rs1.2 · Cd.1 · Ccm1.1 · J2.3 (AD0) | 4 |
+| **AD1** | Rs2.2 · Cd.2 · Ccm2.1 · J2.4 (AD1) | 4 |
+| **SHIELD** | J1.1 — runs to the single star-ground point at the Pi end, bonded to AGND **once** there. Deliberately *not* tied to AGND on this board. | 1 |
+
+Total 33 pins (13 two-terminal parts ×2, J1 ×3, J2 ×4), each on exactly one net.
+
+Topology facts the table encodes, spelled out:
+
+- **Rd** spans **N0–N1** — coil side, *before* Rs1/Rs2, so the series R doesn't
+  perturb the damping.
+- **Cd** spans **AD0–AD1** — ADC side, *after* Rs, right at the sampler pins.
+- **C1/C2** bypass AVDD→AGND at the **J2 entry**, *upstream* of R1.
+
+**C1 polarity — OPEN.** Everything else on the board is non-polar. C1's dielectric
+is not yet decided, and the choice is not cosmetic: C1's ESL parallel-resonates
+with C2's capacitance, producing an impedance *peak* (anti-resonance) between
+their two self-resonant frequencies, where the pair is worse than either alone.
+That peak is damped by ESR — so an electrolytic or tantalum for C1 is
+**preferable** to a low-ESR ceramic here, the one place a mediocre capacitor is
+the better part. If C1 ends up electrolytic/tantalum, `C1.1` = **+** (AVDD side)
+and `C1.2` = **−** (AGND side), and the BOM needs a voltage rating ≥ 2× AVDD.
+
+### Drawing (orientation only — the table wins on any discrepancy)
+
+Conventions: `┬`/`┴` = electrical junction; a component label interrupts its
+own vertical wire; a bare name at the end of a stub (`VCM`, `AGND`) means the
+stub joins that net — same nets in both drawings.
+
+Rails (all at the J2 end of the board):
+
 ```
-   Waveshare rail (via 4-pin JST J2)
-   AVDD ●──┬────────────┬─────────────────────────●
-           │            │
-          R1           C1 10µF ∥ C2 100nF   (supply bypass at board)
-           │            │
-   VCM ●───┼───┬────────┼──────────────────────┐
-           │   │        │                       │
-          R2  C3 10µF   │                    (VCM = AC ground /
-           │   │        │                     common-mode ref)
-   AGND ●──┴───┴────────┴───────────────────┬───┴──●
-                                            │
-   ── signal path ──────────────────────────────────────────────
-                                            │
-   XLR J1 pin2 (coil+) ● N0 ──[Rs1 1k]──● AD0 ─────► J2 AD0
-                        │                 │
-                       Rb1 100k          Ccm1 1nF
-                        │                 │
-                       VCM               AGND
+J2.1 AVDD ●───┬──────────────┬─────────┬
+              │              │         │
+             R1             C1        C2      C1 10µF ∥ C2 100nF — bypass at
+              │              │         │      J2 entry, upstream of R1
+    VCM ●─────┼────┬         │         │
+              │    │         │         │      C3 10µF — VCM filter
+             R2   C3         │         │      R1/R2 — see Open decision
+              │    │         │         │
+J2.2 AGND ●───┴────┴─────────┴─────────┴
+```
 
-        Rd (socketed) ══ across N0──N1 ══     ← damping, tuned
-        Cd 10nF ═══════ across AD0──AD1 ═══   ← diff reservoir / AA
+Signal path (VCM and AGND stubs join the rails above):
 
-   XLR J1 pin3 (coil−) ● N1 ──[Rs2 1k]──● AD1 ─────► J2 AD1
-                        │                 │
-                       Rb2 100k          Ccm2 1nF
-                        │                 │
-                       VCM               AGND
+```
+J1.2 (coil+) ●── N0 ──┬────────┬──[Rs1 1k]── AD0 ──┬────────┬──● J2.3 (AD0)
+                      │        │                   │        │
+                     Rb1       Rd                 Cd      Ccm1
+                     100k   (socket)             10nF      1nF
+                      │        │                   │        │
+                     VCM       │                   │       AGND
+                               │                   │
+J1.3 (coil−) ●── N1 ──┬────────┴──[Rs2 1k]── AD1 ──┴────────┬──● J2.4 (AD1)
+                      │                                     │
+                     Rb2 100k                             Ccm2 1nF
+                      │                                     │
+                     VCM                                   AGND
 
-   XLR J1 pin1 (shield) ●──────────────────────────► star ground
-                                            (single point, Pi end)
+J1.1 (shield) ●─────────────────────────────► star ground — single point at
+                                               the Pi end, bonded to AGND once
+                                               there (NOT the signal return)
 ```
 
 ## Net-by-net
@@ -169,7 +215,7 @@ input — **don't**. Keep the corner in the low kHz.
 
 The KiCad project was created and then deleted: Charles dislikes schematic capture
 as a way of thinking about a circuit. **This is not a blocker**, because nothing
-about Rev-2 needs a PCB tool yet -- the design of record is the ASCII netlist + BOM
+about Rev-2 needs a PCB tool yet -- the design of record is the net table + BOM
 above, and the schematic image comes from `rev2_frontend_schematic.py` (schemdraw,
 Python), matching the code-first workflow already used for the enclosure (build123d).
 
