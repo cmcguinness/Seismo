@@ -102,6 +102,16 @@ ground** point (bonded to AGND once, at the Pi end), *not* to the signal return.
   RC. Cd right at the ADC pins feeds the switched-cap sampler's charge spikes;
   the CM caps knock down RF. Corner ≈ **8 kHz** differential (see
   [Anti-alias note](#anti-alias--charge-reservoir-note)).
+- **C1 ∥ C2 (10 µF ∥ 100 nF)** — AVDD supply bypass, both AVDD→AGND at the **J2
+  entry point**, upstream of R1. AVDD arrives over the JST cable, so this is the
+  local reservoir at the far end of an inductive run. Two values because neither
+  spans the band alone: C1 is bulk (low-Z below ~kHz), C2 takes over above C1's
+  self-resonance. They matter because AVDD is the reference for the R1/R2 divider
+  — rail noise divides straight into VCM, and while that is common-mode (mostly
+  rejected), Rb1/Rb2 mismatch and finite CMRR leak some of it differential. C3
+  filters VCM as the second stage. **Layout:** C2 as close to the J2 pins as
+  physically possible; both must return to the *same* AGND point J2 lands on, or
+  the bypass current ends up in the signal ground path.
 - **Shield (pin 1)** → the single star-ground point, not the signal return.
 
 ## BOM (prototype starting values)
