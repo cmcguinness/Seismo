@@ -135,6 +135,14 @@ right tool. `labels.example.csv` is a template.
 - Next: Charles collects real counts → train (start simple: does band RMS regress on
   cars/interval?). A live 1 Hz `/traffic` display is a possible later slice, not needed
   for training.
+- **One-off event annotations:** `analysis/log_event.py "label" [--at HH:MM] [--dur s]`
+  appends to `analysis/annotations.csv` (`t_start_utc,t_end_utc,label,note`) — known
+  discrete events (street sweeper, garbage truck, helicopter) as high-confidence labels.
+- **First individually-resolved vehicle (2026-07-24):** a street sweeper at 18:40 UTC and
+  its return pass ~18:42 both show clearly — 1–15 Hz RMS 5.6/4.5 µV vs 2.8 quiet (2.0×/
+  1.6×), pass 1 a smooth transit swell, pass 2 sharper. Confirms the reframe: heavy/slow
+  vehicles resolve cleanly where aggregate car counts washed out. This is the shape of the
+  real target (heavy-vehicle detection), and a local microquake would look similar.
 
 ## Plan (agreed 2026-07-23)
 

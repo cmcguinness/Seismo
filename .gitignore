@@ -34,3 +34,5 @@ analysis/labels.csv
 analysis/labels.events.csv
 analysis/labels.features.csv
 !analysis/labels.example.csv
+annotations.csv
+analysis/annotations.csv
