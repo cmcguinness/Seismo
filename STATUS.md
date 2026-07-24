@@ -90,6 +90,27 @@ a **rectifying nonlinearity** in the signal path — most likely ADS1256 input E
 conduction (datasheet: keep inputs within −100 mV of AGND and +100 mV of AVDD). It vanished
 with the demo jumpers. This is further evidence the pre-epoch archive is not trustworthy.
 
+## 🚗 Site ambient is TRAFFIC-limited, not electronics-limited (2026-07-24)
+
+Charles correlated Highway 12 traffic (~300 ft / ~90 m from the station) with the live
+waveform, consistent over dozens of cars: quiet gaps bottom out at **< ~1.5 µV RMS**, and
+each passing vehicle drives it well above that. Vehicle-induced Rayleigh waves at 90 m are
+a textbook dominant cultural source, broadband ~few Hz–tens of Hz, overlapping the
+local-quake band.
+
+**Consequences (do not re-litigate the noise floor without these):**
+- The ~1.5 µV quiet floor is **site ambient, not the electronics floor**. Every raw-RMS
+  figure taken here (1.17 µV historical, 2.4 µV tonight) is contaminated with real ground
+  motion, so it is an *upper bound* on electronics noise, never a measurement of it.
+- The **shorted-input floor test** (rev2-frontend.md) is the only clean separator of
+  site-ambient vs electronics, and traffic proves the site term is large. Prioritise it.
+- Daytime at this site is **cultural-noise-limited**. Pushing the electronics below
+  ~1.5 µV only helps in the deep-night quiet window and the microseism band — it is not a
+  bug to chase. The RS1D Sleeman self-noise benchmarks are vault instrument noise; our
+  working floor is the site.
+- Traffic is a **free, repeatable, on-demand test source**: after any front-end change,
+  confirm the chain still responds by watching a car, without waiting for a quake.
+
 ## Plan (agreed 2026-07-23)
 
 **Hands off the hardware until the weekend.** Let the current configuration run a
