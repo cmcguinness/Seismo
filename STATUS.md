@@ -113,8 +113,11 @@ local-quake band.
 
 ## 🚗 Traffic training pipeline started (2026-07-24)
 
-Goal: a car-counter trained on observed counts. Charles logs discrete intervals
-(`start_utc, stop_utc, cars`) watching the road/video; `analysis/traffic_features.py`
+Goal: a car-counter trained on observed counts. Charles logs discrete intervals with
+`analysis/collect_traffic.py` — a stopwatch CLI: START beep → type `z` (north) / `/`
+(south) per vehicle → STOP beep at `--interval` (30s default) → RETURN → appends
+`start_utc,end_utc,total,north,south` (creates the CSV with a header). Then
+`analysis/traffic_features.py`
 joins each interval to the archive and reduces it to features (`rms_uv`, `peak_uv`,
 sub-band RMS 1-5/5-15/15-28 Hz, `n_bumps`, coverage) → `<labels>.features.csv`. All
 features high-passed (DC/epoch-robust). Offline, no API, no Pi changes — decided over a

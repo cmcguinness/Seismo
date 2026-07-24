@@ -58,8 +58,8 @@ def read_labels(path, offset_hours):
         reader = csv.reader(f)
         header = next(reader)
         si = _col(header, "start_utc", "start", "t0", "begin")
-        ei = _col(header, "stop_utc", "stop", "end", "t1", "finish")
-        ci = _col(header, "cars", "count", "n", "vehicles")
+        ei = _col(header, "stop_utc", "end_utc", "stop", "end", "t1", "finish")
+        ci = _col(header, "cars", "total", "count", "n", "vehicles")
         for r in reader:
             if not r or not r[si].strip():
                 continue                              # blank line
