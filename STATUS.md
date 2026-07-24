@@ -111,6 +111,28 @@ local-quake band.
 - Traffic is a **free, repeatable, on-demand test source**: after any front-end change,
   confirm the chain still responds by watching a car, without waiting for a quake.
 
+## 🚗 Traffic training pipeline started (2026-07-24)
+
+Goal: a car-counter trained on observed counts. Charles logs discrete intervals
+(`start_utc, stop_utc, cars`) watching the road/video; `analysis/traffic_features.py`
+joins each interval to the archive and reduces it to features (`rms_uv`, `peak_uv`,
+sub-band RMS 1-5/5-15/15-28 Hz, `n_bumps`, coverage) → `<labels>.features.csv`. All
+features high-passed (DC/epoch-robust). Offline, no API, no Pi changes — decided over a
+live endpoint because labels are interval-based, so windowed archive reduction is the
+right tool. `labels.example.csv` is a template.
+
+- **The 5-15 Hz band is the standout discriminator** on real data: ~0.5 µV quiet night
+  vs 5-8 µV during the commute (~10-16×), matching the by-eye traffic correlation.
+- **`n_bumps` is provisional/weak** — it thresholds against each interval's own median, so
+  it misfires on quiet windows and undercounts sustained traffic. Needs a fixed threshold
+  from a quiet-epoch baseline (unavailable while traffic-limited). Let real labels decide
+  if it survives.
+- **Collect each label run within ONE epoch** (no hardware changes mid-session) or the
+  transfer function shifts under the features.
+- Next: Charles collects real counts → train (start simple: does band RMS regress on
+  cars/interval?). A live 1 Hz `/traffic` display is a possible later slice, not needed
+  for training.
+
 ## Plan (agreed 2026-07-23)
 
 **Hands off the hardware until the weekend.** Let the current configuration run a
