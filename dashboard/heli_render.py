@@ -33,11 +33,18 @@ MARGIN_L, MARGIN_R, MARGIN_T, MARGIN_B = 85, 15, 72, 48   # labels 5 px from edg
 INTERVAL_MIN = 15                             # minutes per row (x-axis span)
 PLOT_W = IMG_W - MARGIN_L - MARGIN_R          # 1835
 PLOT_H = IMG_H - MARGIN_T - MARGIN_B          # 1010
-ENV_FRAC = 0.15                               # median envelope excursion -> this fraction
+ENV_FRAC = float(os.environ.get("SEISMO_HELI_ENV_FRAC", "0.05"))
+                                              # median envelope excursion -> this fraction
                                               # of a row. Half the pixels exceed the
                                               # median (heavy upper tail), so the drawn
                                               # noise band reads ~2-3x this. By-eye knob;
-                                              # final value set on real 8 h pi5 data.
+                                              # was 0.15, set on real 8 h pi5 data.
+                                              # Cut to 0.05 (/3) on 2026-07-24: the
+                                              # post-epoch front end is noisier, so rows
+                                              # were spilling into their neighbours. Now
+                                              # env-tunable -- `dokku config:set seismo
+                                              # SEISMO_HELI_ENV_FRAC=0.15` to restore
+                                              # without a rebuild once the floor is fixed.
 CLIP_ROWS = 3.0                               # excursion clip, +/- rows
 ROW_COLORS = ["#a01818", "#186a18", "#1c4fa0", "#111"]   # dark red, dark green, blue, black
 

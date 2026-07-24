@@ -60,7 +60,16 @@ class StaLta:
             self._primed += 1
             return None
 
-        amp = abs(x) * self._uv
+        # Peak amplitude must come from the HIGH-PASSED signal, not the raw count:
+        # `x` carries the front end's DC operating point, so abs(x) is dominated by
+        # that offset whenever real signal is smaller than it. That produced the
+        # long-standing "faux detection" population whose peak_uv clustered
+        # implausibly tightly -- 204-219 uV when DC sat at 0.27% of FS (=211 uV),
+        # then 3106-3130 uV when the 2026-07-24 epoch moved DC to 3.96% (=3094 uV).
+        # The cluster WAS the offset. Detection itself was always driven by `hp`
+        # via the CF, so triggering is unaffected; only the reported amplitude was
+        # wrong. Fixed 2026-07-24.
+        amp = abs(hp) * self._uv
         if not self.triggered:
             if self.ratio >= self.trig:
                 self.triggered = True

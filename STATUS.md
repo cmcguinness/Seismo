@@ -71,6 +71,25 @@ cannot bound the distortion.
 - **First job once settled:** re-measure the noise floor and compare against the historical
   ~1.5 µV ambient / 1.17 µV floor. That quantifies what the old network was doing.
 
+## 🐛 SOLVED 2026-07-24 — the "faux detection" population was a `peak_uv` bug
+
+The long-standing mystery where detections clustered implausibly tightly (204–219 µV,
+hour after hour) was **not a physical phenomenon**. `stalta.py` computed
+`amp = abs(x) * uv_per_count` from the **raw** count, which carries the front end's DC
+operating point — so whenever real signal was smaller than the offset, the reported peak
+*was* the offset. Proof: DC sat at 0.27 % of FS = **211 µV** and the cluster was 204–219;
+after the epoch change moved DC to 3.96 % = **3094 µV**, the cluster moved with it to
+3106–3130. Fixed to use the high-passed `hp`. **Triggering was always correct** (the CF
+already used `hp`); only the reported amplitude was wrong — so every `peak_uv` in
+`events.log` before 2026-07-24 is garbage, but the detection times are fine.
+
+Charles spotted the thread that led here by eye: pre-epoch noise was **one-sided**
+(positive spikes, no negative). Measured: beyond 8σ, **+50 / −0** pre-epoch vs +25/−28
+post-epoch; beyond 5σ, 20.6× asymmetric vs 1.02×. Ground motion is symmetric, so that was
+a **rectifying nonlinearity** in the signal path — most likely ADS1256 input ESD-diode
+conduction (datasheet: keep inputs within −100 mV of AGND and +100 mV of AVDD). It vanished
+with the demo jumpers. This is further evidence the pre-epoch archive is not trustworthy.
+
 ## Plan (agreed 2026-07-23)
 
 **Hands off the hardware until the weekend.** Let the current configuration run a
