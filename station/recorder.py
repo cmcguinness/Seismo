@@ -72,6 +72,13 @@ RATE = int(os.environ.get("SEISMO_RATE", str(DRATE) if RDATAC else "57"))
 #   RDATAC path genuinely achieves DRATE, so it declares that.
 DATADIR = Path(os.environ.get("SEISMO_DATADIR", str(Path.home() / "seismo" / "data")))
 BLOCK_S = int(os.environ.get("SEISMO_BLOCK", "10"))
+# Warm-up discarded after ADC init. The ADS1256 emits garbage for the first
+# conversions following a pin reset -- measured as a ~97,800-count step (66x the
+# ambient max) on 2026-07-24, once per restart. Unfiltered it trips the STA/LTA
+# and, because heli_render clips excursions at +/-3 rows by design, a single such
+# sample paints a solid six-row block across the drum. Read and throw away this
+# many seconds before the block loop starts.
+SETTLE_S = float(os.environ.get("SEISMO_SETTLE", "2.0"))
 
 # STA/LTA event detector (see stalta.py). Runs inline; only writes on a trigger.
 TRIG = float(os.environ.get("SEISMO_TRIG", "4.0"))     # STA/LTA on-threshold
@@ -216,6 +223,14 @@ def main() -> None:
             reader = RdatacReader(ads, DIFF)
             reader.start()
             fs = float(DRATE)                     # crystal-exact; no need to measure
+            # Discard the post-reset garbage BEFORE anchoring the clock or writing
+            # anything -- see SETTLE_S. Must come after start() (RDATAC has to be
+            # streaming to read at all) and before the block loop.
+            n_settle = int(fs * SETTLE_S)
+            if n_settle:
+                print(f"  warm-up: discarding {n_settle} samples ({SETTLE_S:g}s) after ADC reset")
+                for _ in range(n_settle):
+                    reader.read()
         else:
             fs = measure_rate(ads)                # measured actual rate (also primes read)
         rate = RATE                               # FIXED declared rate -> single-rate archive
