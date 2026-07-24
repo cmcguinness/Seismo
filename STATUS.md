@@ -312,7 +312,13 @@ the enclosure walls/lid.
 - [ ] **Phase 3** — shunt damping resistor (empirical tune to ~0.7 critical) — socket is wired, just needs a value (tune against a recorded impulse)
 - [x] **Phase 4b** — recorder deployed as a **systemd service** (`seismo-recorder.service`, enabled/auto-start, 24/7)
 - [x] **Phase 4c** — helicorder drum view (`analysis/helicorder.py`, Mac-side ObsPy dayplot vs the Pi's miniSEED)
-- [ ] **Phase 5** — record a real event; cross-check vs USGS / nearby Raspberry Shake
+- [~] **Phase 5** — record a real event; cross-check vs USGS / nearby Raspberry Shake.
+  **Capability demonstrated 2026-07-24:** first correlation of readings to an external
+  physical event — Hwy 12 traffic (~90 m), repeatable over dozens of cars. This closes the
+  forward link world→ground→sensor→screen and proves the station resolves a weak, near,
+  impulsive source — the same geometry as a local microquake. Still need an actual
+  catalogued earthquake to tick the box, but the chain is now validated end to end against
+  a known source, not just self-consistent.
 
 ## Hardware as-built
 
