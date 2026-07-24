@@ -48,13 +48,23 @@ jumpers fitted on the differential pair** (the block STATUS.md wrongly recorded 
 5V to 3V3, so it tracks the jumpers, not the supply fault. The input network was
 electrically different for every measurement taken before this point.
 
-- **DO NOT TRUST, pre-epoch:** absolute amplitude calibration; all µV and nm/s figures;
-  the "electronics floor ~1.17 µV / 41 nm/s"; any PPSD in absolute units.
-- **Probably still valid:** *relative* A/B results measured within the old epoch, since
-  the network was constant across them — isolator on/off (1.6×), RDATAC vs legacy
-  (+2.2 %), the gain/DRATE sweep.
-- **Unaffected:** that it recorded real ground motion — waveforms, diurnal cultural
-  pattern, the Berkeley M2.1 non-detection.
+The split is **analog vs digital**, NOT absolute vs relative. An earlier draft of this
+note claimed relative A/B results survived because the network was constant across them.
+**That is wrong** and has been retracted: if the parasitic network dominated the noise
+budget, every ratio measured through it is compressed toward 1 by an unknown factor — a
+real 5× isolator improvement would read as 1.6×. "Constant" is not "transparent", and we
+cannot bound the distortion.
+
+- **DEAD — anything measured through the analog front end.** Every noise figure, absolute
+  *and* relative: the "electronics floor ~1.17 µV / 41 nm/s"; the **gain-64 / DRATE-60
+  selection** from the noise sweep (the optimum may differ now); the **isolator's 1.6×**;
+  **RDATAC's "+2.2 % in band"** cost; all **PPSD**; the **~1.002 Hz line** attribution.
+  All of it needs re-measuring post-epoch.
+- **INTACT — nothing to do with the input network.** The clock work (60.0054 sps,
+  ClockAnchor, ±1–3 ms residual); continuity (RDATAC 0 gaps vs 41.2 s/hour legacy); the
+  all-zero-frame glitch filter; all software, dashboard and infrastructure.
+- **Unaffected qualitatively:** it recorded real ground motion — waveforms, the diurnal
+  cultural pattern, the Berkeley M2.1 non-detection.
 - **RE-TEST the ~1.002 Hz instrumental line.** It was never attributed, and a trimpot +
   photoresistor on the differential pair were never on the suspect list because this doc
   said the block was unpopulated. If the line is gone post-epoch, that was the cause.
