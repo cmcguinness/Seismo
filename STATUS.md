@@ -39,6 +39,28 @@ Diagnostics that separate "electrical fault" from "ground motion" in one number:
 every 10–20 s (peaks ~380 µV) through the unsettled period. Annotate/exclude that
 window; those detections are not real.
 
+## ⚠️ NEW EPOCH 2026-07-24 ~02:15 UTC — demo jumpers removed from AD0/AD1
+
+**The entire archive before this timestamp was recorded with the Waveshare demo-sensor
+jumpers fitted on the differential pair** (the block STATUS.md wrongly recorded as
+"not jumpered"). Removing them moved the DC operating point from **0.27 % of FS to
+3.96 %** — ~310,000 counts — and that shift **persisted** after VCC was reverted from
+5V to 3V3, so it tracks the jumpers, not the supply fault. The input network was
+electrically different for every measurement taken before this point.
+
+- **DO NOT TRUST, pre-epoch:** absolute amplitude calibration; all µV and nm/s figures;
+  the "electronics floor ~1.17 µV / 41 nm/s"; any PPSD in absolute units.
+- **Probably still valid:** *relative* A/B results measured within the old epoch, since
+  the network was constant across them — isolator on/off (1.6×), RDATAC vs legacy
+  (+2.2 %), the gain/DRATE sweep.
+- **Unaffected:** that it recorded real ground motion — waveforms, diurnal cultural
+  pattern, the Berkeley M2.1 non-detection.
+- **RE-TEST the ~1.002 Hz instrumental line.** It was never attributed, and a trimpot +
+  photoresistor on the differential pair were never on the suspect list because this doc
+  said the block was unpopulated. If the line is gone post-epoch, that was the cause.
+- **First job once settled:** re-measure the noise floor and compare against the historical
+  ~1.5 µV ambient / 1.17 µV floor. That quantifies what the old network was doing.
+
 ## Plan (agreed 2026-07-23)
 
 **Hands off the hardware until the weekend.** Let the current configuration run a
