@@ -191,17 +191,8 @@ def main():
         for xt, col, ls in [(p_t, BLUE, "--"), (s_exp, RED, ":")]:
             if xt is not None:
                 axsp.axvline(xt, color=col, ls=ls, lw=1.1, alpha=0.75)
-        # time-resolution bar: the STFT window is 1.5 s wide, so a sharp onset smears
-        # +/-0.75 s (energy looks ~0.75 s "early"). Show the window width so nobody is misled.
-        wsec = npg / fs
-        xb, yb = t[0] + 1.5, ytop * 0.88
-        axsp.plot([xb, xb + wsec], [yb, yb], color="white", lw=2.0)
-        for xc in (xb, xb + wsec):
-            axsp.plot([xc, xc], [yb - ytop * 0.03, yb + ytop * 0.03], color="white", lw=2.0)
-        axsp.text(xb, yb - ytop * 0.06,
-                  f"{wsec:.1f} s STFT window\n(±{wsec / 2:.2f} s time smear)",
-                  color="white", fontsize=7.5, ha="left", va="top", linespacing=1.1)
         axsp.tick_params(colors="#3a4744", labelsize=9)
+        spec_win_s = npg / fs                        # window length -> the N.B. on the axis line
 
     # x-axis: per-second ticks (elongated at 5 s, labelled at 10 s) on the bottom panel
     bottom = axsp if axsp is not None else ax
@@ -214,8 +205,11 @@ def main():
         a.tick_params(axis="x", which="major", length=6.5, color="#3a4744")
     if axsp is not None:
         ax.tick_params(labelbottom=False)            # waveform shares x; labels on the spectrogram
-    bottom.set_xlabel(f"seconds after origin time  ({origin_disp} UTC)",
-                      fontsize=11, color="#3a4744")
+    xlab = f"seconds after origin time  ({origin_disp} UTC)"
+    if axsp is not None:
+        xlab += (f"        N.B. spectrogram is over a {spec_win_s:.1f} s window; "
+                 f"changes visually appear ~{spec_win_s / 2:.2f} s early")
+    bottom.set_xlabel(xlab, fontsize=11, color="#3a4744")
 
     # titles
     fig.text(0.075, 0.945, args.title, fontsize=25, fontweight="bold", color=TEAL)
