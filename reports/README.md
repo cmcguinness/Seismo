@@ -61,6 +61,29 @@ kept here gets a descriptive name and is committed.
   station's **local-only detection envelope**. Kept here so the two plots sit on the
   **same spectrogram colour ruler** (see below) and can be compared directly.
 
+### 2026-07-25 — M1.4, 4 km N of Healdsburg, CA (~30 km) · **not detected**
+
+![M1.4 Healdsburg not detected](2026-07-25-healdsburg-m1.4-not-detected.png)
+
+- A *local* M1.4 (38.642°N 122.862°W, depth 6.9 km, 15:34:11.76 UTC) — ~30 km from
+  Oakmont, so **not** a distance/frequency wall like Wyoming. This one is a raw
+  **sensitivity/noise-floor** miss.
+- No arrival rises at the predicted windows — P(+5.3 s), S(+9.1 s) — RMS in the
+  signal window is ~1.1× the pre-event noise. The loudest burst sits at **t ≈ 0**,
+  the origin instant, and peaks *before* +5.3 s — **physically impossible** for the
+  quake (energy from 30 km away can't arrive before ~5 s), so it's a coincidental
+  cultural-noise transient, not the event. The whole record is littered with
+  identical impulsive bursts.
+- **Why it's below threshold:** M1.4 vs the St. Helena M2.5 is ~1.1 mag units → ~13×
+  less amplitude, plus 1.6× farther (30 vs 19 km) → predicted peak ~6–8 µV. And it
+  struck at **08:34 local (Sat morning)**, so the daytime cultural-noise floor was up
+  (~2.5 µV RMS vs the ~1.4 µV of the quiet St. Helena event). The quake never clears
+  the grass. A M1.4 at 30 km is at the very edge of what this station could do, and it
+  needed a quiet floor it didn't get.
+- The lever for the next one is a quieter site or the 100 sps upgrade (both on the
+  backlog) — **not** the environmental node, which addresses tilt/thermal artifacts,
+  not the noise floor.
+
 ## Spectrogram standard
 
 Every spectrogram in this repo is drawn by [`analysis/specgram.py`](../analysis/specgram.py)
