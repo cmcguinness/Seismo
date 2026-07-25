@@ -1,0 +1,24 @@
+[Unit]
+# seismo-server — the station data server (mirror -> HTTP/JSON contract).
+# Runs on the pi5 (16 GB) alongside the rsync timers that feed the mirror; it is
+# a plain consumer of those files, so it has no ordering dependency on the Pi.
+Description=Seismo data server (middleware: rsync mirror -> HTTP contract)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=charles
+WorkingDirectory=/home/charles/seismo/server
+# The mirror the rsync timers land into (see STATUS.md "Pipeline").
+Environment=SEISMO_DATA=/home/charles/seismo-data/data
+Environment=SEISMO_EVENTS=/home/charles/seismo-data/events.log
+Environment=SEISMO_HEALTH=/home/charles/seismo-data/health.json
+Environment=SEISMO_RING=/home/charles/seismo-data/seismo_live.npz
+Environment=SEISMO_SERVER_PORT=8351
+ExecStart=/home/charles/seismo/server/.venv/bin/python seismo_server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

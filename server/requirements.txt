@@ -1,0 +1,13 @@
+# seismo-server runtime dependencies.
+#
+# The real-time spine (/v1/live, /v1/events, /v1/health) needs only stdlib +
+# numpy. obspy is required ONLY for /v1/waveform (it heals the early archive's
+# mixed sample rates and per-block overlaps); the service starts and serves the
+# live spine without it, returning 503 on /v1/waveform until it is present.
+#
+# On the pi5 (Dokku host) obspy comes from apt's prebuilt python3-obspy, same as
+# the dashboard -- do NOT pip-compile it from source (no aarch64 wheel; it OOMs a
+# small box). Listed here for reference / non-Docker runs.
+
+numpy>=1.24
+obspy>=1.4        # /v1/waveform only; system-provided (apt python3-obspy) on pi5
