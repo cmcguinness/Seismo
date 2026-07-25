@@ -5,28 +5,34 @@ _Last updated: 2026-07-25 (UTC)_
 ## 🎉 FIRST CONFIRMED EARTHQUAKE — M2.5, 3 km E of St. Helena (2026-07-25)
 
 The station caught its first confirmed local earthquake — the reason it exists.
-USGS: **M2.5, 2026-07-25 11:31:41 UTC, 38.507°N 122.435°W, depth 6.2 km**
+USGS: **M2.5, 2026-07-25 11:31:41.760 UTC, 38.507°N 122.435°W, depth 6.2 km**
 (~19 km hypocentral from Oakmont, on the Maacama/Rodgers Creek system).
 
 - **STA/LTA triggered 11:31:45 UTC** — 4 s after origin. **peak_ratio 645**
   (threshold 4.0; every prior trigger was a false positive under 60), **peak
   ~110–125 µV** vs ~1 µV ambient (**SNR ~100×**), 24 s duration.
-- **Waveform (1–15 Hz):** flat noise → **emergent P ~11:31:43** → **S-wave hammer
-  11:31:45** (jump to ~117 µV) → peak ~126 µV at 11:31:49 → coda to noise by
-  ~11:32:12. Textbook local event.
-- **Single-station distance check:** **S–P ≈ 2 s → ~16–19 km**, consistent with
-  the catalog's ~19 km. Our own timing independently reproduces the distance —
-  this is a *calibrated* detection.
+- **Waveform (1–15 Hz):** flat noise → sharp **first arrival (P) at 11:31:45.7**
+  (jump to ~117 µV, matching the catalog-predicted P) → peak ~126 µV → coda to noise
+  by ~11:32:12. Textbook local event.
+- **Single-station limit (honesty note):** the **S is buried** — for a close event
+  P and S are only ~2.4 s apart and merge into one burst, so S sits in the coda, not
+  separately pickable. There is **no independent single-station S–P or distance**;
+  the ~19 km is the catalog's. An earlier graphic drew an emergent "P" near the noise
+  floor (a +2 s candidate implies an impossible ~10 km/s P velocity) plus an "S–P →
+  distance confirms the catalog" annotation — that was **circular** and has been
+  removed. What confirms it's a quake is the *network* (BK.CMB, CE.68327 saw it), not
+  our single station.
 - **This is the calibration reference** the detector/character work was missing
   (`dashboard/CHARACTER.md`: "no confirmed event yet to calibrate against"). Now
   there is ground truth: known M, known distance, clean recording.
 - Recorder healthy throughout; the concurrent 24 h UDP probe did **not** perturb
   acquisition. Day-file: `data/XX.OAKMT.00.SHZ.D.2026.206.mseed` (event ~11:31:41 UTC).
 - **Shareable image tool:** `analysis/quake_share.py` — parameterized per event (pass
-  the catalog facts; it auto-computes distance + the S–P story and renders a labeled
-  hero PNG). This event: `--origin 2026-07-25T11:31:41 --mag 2.5 --event-lat 38.507
-  --event-lon -122.435 --depth-km 6.2 --p 2.3 --s 4.73` (P/S onsets measured off the
-  envelope). Output cataloged in `reports/2026-07-25-m2.5-st-helena.png`.
+  the catalog facts; measures peak/SNR, marks only phases you can actually pick, and
+  renders a labeled hero PNG; it does NOT predict arrivals from the catalog distance —
+  predict-then-confirm is circular). This event: `--origin 2026-07-25T11:31:41.760
+  --mag 2.5 --event-lat 38.507 --event-lon -122.435 --depth-km 6.2 --p 3.97` (P = the
+  measured first arrival; S not pickable). Output: `reports/2026-07-25-m2.5-st-helena.png`.
 
 ## 🔬 IN PROGRESS: 24 h UDP loss probe, station→pi5 (started 2026-07-24 ~18:12 Z)
 

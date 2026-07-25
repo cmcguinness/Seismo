@@ -12,10 +12,14 @@ Runs on the Mac against the analysis venv (obspy + matplotlib):
         --p 2.0 --s 4.4 --out eq_sthelena.png
 
 Phase picks: --p/--s are the P and S onsets in SECONDS AFTER ORIGIN, eyeballed
-off the trace (the honest, trace-matching way). Omit them and the tool falls back
-to arrivals PREDICTED from distance (Vp=6.0, Vs=3.46 km/s), labeled as such. The
-peak amplitude is always measured from the data. Distance is computed from the
-station and event coordinates (haversine + depth); --dist-km overrides.
+off the trace. Pass ONLY the ones you can actually see. The tool draws just those and
+does NOT predict arrivals from the catalog distance -- predicting P/S from a distance
+and then "deriving" that distance back from them confirms nothing (it is circular).
+The S-P bracket appears only when BOTH picks are given. For a small emergent local
+event the P is usually buried in noise (not pickable), so typically pass only --s; the
+distance shown is then the catalog's, not something we claim to have measured. Peak
+amplitude is always measured. Distance is computed from the station and event
+coordinates (haversine + depth); --dist-km overrides.
 
 The day-file for an event can be pulled from the station, e.g.:
     scp seismo.local:'~/seismo/data/XX.OAKMT.00.SHZ.D.YYYY.JJJ.mseed' .
@@ -73,6 +77,7 @@ def main():
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter, MultipleLocator
 
     origin = UTCDateTime(args.origin)
     st = obspy.read(args.mseed, starttime=origin - args.pre, endtime=origin + args.post)
@@ -97,10 +102,10 @@ def main():
     if epi is not None:
         hypo = math.hypot(epi, args.depth_km) if args.depth_km else epi
 
-    # phase picks: observed (--p/--s) preferred, else predicted from distance
-    p_t, s_t, predicted = args.p, args.s, False
-    if (p_t is None or s_t is None) and hypo is not None:
-        p_t, s_t, predicted = hypo / VP, hypo / VS, True
+    # phase picks: ONLY what was explicitly measured off the trace. Deliberately no
+    # predicting arrivals from the catalog distance -- a graphic that predicts P/S from
+    # a distance and then "derives" that distance back from them confirms nothing.
+    p_t, s_t = args.p, args.s
 
     # --- figure ---
     plt.rcParams.update({"font.family": "DejaVu Sans", "axes.edgecolor": "#d5dbda"})
@@ -115,16 +120,16 @@ def main():
     ax.set_xlim(t[0], t[-1])
     ax.text(0, ylim * 0.98, " origin", color=MUT, fontsize=9, va="top")
 
-    if p_t is not None and s_t is not None:
-        for tt, lab, col in [(p_t, "P", BLUE), (s_t, "S", RED)]:
-            ax.axvline(tt, color=col, ls="--", lw=1.2, alpha=0.85)
-            ax.text(tt, ylim * 0.90, f" {lab}", color=col, fontsize=15, fontweight="bold", va="top")
+    for tt, lab, col in [(p_t, "P", BLUE), (s_t, "S", RED)]:
+        if tt is None:
+            continue
+        ax.axvline(tt, color=col, ls="--", lw=1.2, alpha=0.85)
+        ax.text(tt, ylim * 0.90, f" {lab}", color=col, fontsize=15, fontweight="bold", va="top")
+    if p_t is not None and s_t is not None:          # S-P bracket only with BOTH picks
         yb = ylim * 0.66
         ax.annotate("", xy=(p_t, yb), xytext=(s_t, yb),
                     arrowprops=dict(arrowstyle="<->", color=TEAL, lw=1.4))
-        sp = s_t - p_t
-        tag = "predicted " if predicted else ""
-        ax.text((p_t + s_t) / 2, yb + ylim * 0.05, f"{tag}S–P ≈ {sp:.1f} s",
+        ax.text((p_t + s_t) / 2, yb + ylim * 0.05, f"S–P ≈ {s_t - p_t:.1f} s",
                 color=TEAL, fontsize=11.5, ha="center", fontweight="bold")
 
     ax.annotate(f"peak ≈ {abs(pk):.0f} µV", xy=(tpk, pk),
@@ -134,6 +139,13 @@ def main():
                   fontsize=11, color="#3a4744")
     ax.set_ylabel("ground motion  (µV, 1–15 Hz)", fontsize=11, color="#3a4744")
     ax.tick_params(colors="#3a4744", labelsize=9)
+    # x ticks: every 1 s, elongated at 5 s multiples, labelled only at 10 s
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.xaxis.set_major_locator(MultipleLocator(5))
+    ax.xaxis.set_major_formatter(
+        FuncFormatter(lambda v, _p: f"{int(round(v))}" if round(v) % 10 == 0 else ""))
+    ax.tick_params(axis="x", which="minor", length=3.5, color="#3a4744")
+    ax.tick_params(axis="x", which="major", length=6.5, color="#3a4744")
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
     ax.grid(axis="y", color="#eef1f0", lw=0.8)
@@ -149,7 +161,7 @@ def main():
              fontsize=11.5, color=MUT)
 
     seed = f"{tr.stats.network}.{tr.stats.station}.{tr.stats.location}.{tr.stats.channel}"
-    bits = [f"{seed} vertical geophone", "DIY Raspberry Pi + ADS1256"]
+    bits = [seed, "DIY Raspberry Pi + ADS1256 (ADC) + LGT-4.5 (Geophone)"]
     if args.depth_km:
         bits.append(f"depth {args.depth_km:g} km")
     nrms = float(np.sqrt(np.mean(uv[t < -1] ** 2))) if np.any(t < -1) else 0.0
