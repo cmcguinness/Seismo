@@ -286,45 +286,105 @@ def home():
 # --- detections --------------------------------------------------------------
 
 
+_DET_HEAD = (
+    '<thead><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th>'
+    '<th>waveform <span class="fw-normal text-muted">&plusmn;30&nbsp;s, 1&ndash;15&nbsp;Hz</span></th>'
+    '<th>character <span class="fw-normal text-muted">shape only</span></th></tr></thead>')
+
+
+def _det_row(e):
+    """One detections row. The waveform + character cells carry data-spark/data-char
+    (keyed by event start) so the client can fill any that weren't cached at render
+    time -- see SPARK_JS."""
+    s = e.get("start", "")
+    return (f'<tr><td>{s.replace("+00:00","")}</td><td>{e.get("duration_s","")}s</td>'
+            f'<td>{e.get("peak_ratio","")}</td><td>{e.get("peak_uv","")} µV</td>'
+            f'<td class="spark-cell" data-spark="{s}">{render.event_sparkline(s)}</td>'
+            f'<td data-char="{s}">{_char_badge(render.event_character(s))}</td></tr>')
+
+
+def _det_table(events, empty_msg):
+    rows = ("".join(_det_row(e) for e in events) if events
+            else f'<tr><td colspan="6" class="text-muted">{empty_msg}</td></tr>')
+    return ('<table class="table table-sm table-striped mb-0 align-middle">'
+            f'{_DET_HEAD}<tbody>{rows}</tbody></table>')
+
+
+# Client-side fill for sparkline/character cells not cached at render time (the
+# day-file slice runs off the request path). Each pending cell polls /sparkline
+# until its SVG is ready, then swaps it in -- so a cold load no longer looks broken
+# and needs no manual reload. Gives up after ~40 s (data genuinely not mirrored yet).
+SPARK_JS = """<script>
+(function(){
+  const pend=()=>[...document.querySelectorAll('td.spark-cell[data-spark]')].filter(td=>!td.querySelector('svg'));
+  let tries=0;
+  async function poll(){
+    const cells=pend();
+    if(!cells.length||tries++>20)return;
+    const seen=new Set();
+    for(const td of cells){
+      const s=td.getAttribute('data-spark');
+      if(seen.has(s))continue; seen.add(s);
+      try{
+        const r=await(await fetch('/sparkline?start='+encodeURIComponent(s))).json();
+        if(r.ready){
+          const q=CSS.escape(s);
+          document.querySelectorAll('td.spark-cell[data-spark="'+q+'"]').forEach(c=>c.innerHTML=r.spark);
+          document.querySelectorAll('td[data-char="'+q+'"]').forEach(c=>c.innerHTML=r.char);
+        }
+      }catch(e){}
+    }
+    setTimeout(poll,2000);
+  }
+  if(pend().length)setTimeout(poll,1500);
+})();
+</script>"""
+
+
 @app.get("/detections")
 def detections_page():
-    all_evs = _recent_events()
-    evs = all_evs[:MAX_ROWS]                  # newest MAX_ROWS only
-    withheld = len(all_evs) - len(evs)
-    # off the request path: fills in a background thread (the day-file parse is
-    # ~90 s cold), so the page always renders now and unscored rows fill in later.
-    # Only the DISPLAYED rows are scored -- capping the table caps this work too.
-    render.ensure_sparklines_async([e.get("start", "") for e in evs])
-    if evs:
-        rows = "".join(
-            f'<tr><td>{e.get("start","").replace("+00:00","")}</td><td>{e.get("duration_s","")}s</td>'
-            f'<td>{e.get("peak_ratio","")}</td><td>{e.get("peak_uv","")} µV</td>'
-            f'<td class="spark-cell">{render.event_sparkline(e.get("start",""))}</td>'
-            f'<td>{_char_badge(render.event_character(e.get("start","")))}</td></tr>'
-            for e in evs)
-    else:
-        rows = (f'<tr><td colspan="6" class="text-muted">no detections in the last '
-                f'{WINDOW_H:g}&nbsp;h above STA/LTA {MIN_RATIO:g}</td></tr>')
+    all_evs = _recent_events()                       # newest-first, >=MIN_RATIO, 24 h
+    recent = all_evs[:5]                              # 5 most recent
+    # "Strongest" = highest STA/LTA ratio, NOT peak amplitude. Amplitude ranks a
+    # nearby cultural thump above a distant real quake (a close-small event out-shakes
+    # a far-bigger one); the ratio measures how far a signal rose above background, so
+    # a genuine event surfaces (the M2.5 was ratio 645, #1; #6 by amplitude).
+    strongest = sorted(all_evs, key=lambda e: float(e.get("peak_ratio", 0) or 0),
+                       reverse=True)[:5]
+    # Build sparkline+character for every row shown, off the request path (union so a
+    # detection in both tables is built once).
+    starts = list({e.get("start", "") for e in recent} | {e.get("start", "") for e in strongest})
+    render.ensure_sparklines_async(starts)
+    empty = f'no detections in the last {WINDOW_H:g}&nbsp;h above STA/LTA {MIN_RATIO:g}'
     body = (
         _titleblock("Detections", f'{SID} &middot; automatic STA/LTA triggers &middot; '
                                   'almost all of these are cultural noise, not earthquakes')
-        + _card(f"Last {WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}"
-                + (f' <span class="fw-normal text-muted">&middot; newest {MAX_ROWS} of '
-                   f'{len(all_evs)}</span>' if withheld else ""),
-                '<table class="table table-sm table-striped mb-0 align-middle">'
-                '<thead><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th>'
-                '<th>waveform <span class="fw-normal text-muted">&plusmn;30&nbsp;s, 1&ndash;15&nbsp;Hz</span></th>'
-                '<th>character <span class="fw-normal text-muted">shape only</span></th></tr></thead>'
-                f'<tbody>{rows}</tbody></table>',
-                body_class="table-responsive")
+        + _card('5 most recent <span class="fw-normal text-muted">&middot; last '
+                f'{WINDOW_H:g}&nbsp;h &middot; STA/LTA &ge; {MIN_RATIO:g}</span>',
+                _det_table(recent, empty), body_class="table-responsive")
+        + _card('5 strongest <span class="fw-normal text-muted">&middot; last '
+                f'{WINDOW_H:g}&nbsp;h &middot; by STA/LTA ratio</span>',
+                _det_table(strongest, empty), body_class="table-responsive")
         + '<p class="text-muted mb-0">The trigger fires on any sudden jump in energy. '
-          'Footsteps, doors, machinery and passing vehicles all qualify, so treat this table '
+          'Footsteps, doors, machinery and passing vehicles all qualify, so treat these '
           'as a log of <i>things that moved the ground</i> rather than a list of earthquakes. '
           'The <b>character</b> column describes waveform shape only &mdash; see '
           '<a href="/about">About</a>.</p>'
     )
-    return Response(_shell(f"Detections — {BRAND}", "detections", body),
+    return Response(_shell(f"Detections — {BRAND}", "detections", body, SPARK_JS),
                     media_type="text/html")
+
+
+@app.get("/sparkline")
+def sparkline(start: str = ""):
+    """The (possibly still-building) sparkline SVG + character badge for one detection,
+    as JSON. The detections page polls this to fill cells not cached at render time."""
+    if not start:
+        return JSONResponse({"ready": False, "spark": "", "char": ""})
+    render.ensure_sparklines_async([start])          # re-kick if the page's fill died
+    svg = render.event_sparkline(start)
+    return JSONResponse({"ready": bool(svg), "spark": svg,
+                         "char": _char_badge(render.event_character(start))})
 
 
 # --- spectrum ----------------------------------------------------------------
