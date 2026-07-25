@@ -96,11 +96,33 @@ component, same 1–15 Hz band, response-removed from NCEDC metadata):
 - Firm up: also compare CE horizontals + other neighbors, repeat on future quakes, and
   bench-measure the damping-loaded sensitivity to split instrument-vs-site.
 
-**Pi 2B does 100 sps (measured).** 5-min DRATE=100 RDATAC test (throwaway dir; recorder
-restarted clean): **99.9 sps, clock err ~0 ms**, **~0.025 % drops** (6 samples / 4 min,
-honest 10 ms cut-blocks), ~0.07 % held-sample glitches, 0 spikes/resyncs. Keeps up; small
-quality cost vs near-zero at 60 sps. Opens Nyquist 28→50 Hz at ~2× data. Switch-or-not is a
-BACKLOG "maybe".
+## ✅ SWITCHED TO 100 sps — new epoch (2026-07-25)
+
+The station now records **100 sps** (RDATAC, `SEISMO_DRATE=100`/`SEISMO_RATE=100`).
+The earlier "switch-or-not maybe" was settled by a back-to-back noise measurement on
+the current garage hardware (`rdatac_noise_test.py`, 90 s/case, baseline), which
+**reversed the old bring-up call** that 100 sps was noisier:
+
+| median per-10 s band RMS (µV) | 60 sps | 100 sps |
+| --- | --- | --- |
+| **1–15 Hz** (quake band) | 3.99 | **2.74** (~31 % lower) |
+| **3–15 Hz** (detector band) | 3.86 | **2.62** (~32 % lower) |
+| 15–28 Hz | 2.57 | 5.69 (60 sps was attenuating near its 30 Hz Nyquist) |
+| achieved fs | 60.006 | 99.910 |
+| glitches / 90 s | 0 | 5 |
+
+- **Why lower in-band:** higher Nyquist spreads the converter's noise over a wider
+  band (lower in-band density) and less HF energy aliases down into the quake band.
+- **Read ceiling was a myth** for RDATAC: it sustains 99.91 sps with 5 glitches/90 s.
+  The old "~92 sps ceiling" was the legacy per-sample-SYNC path, not RDATAC.
+- **Only cost:** 60 Hz mains no longer falls on a sinc notch — it aliases to 40 Hz,
+  above the quake band; digital notch in post if a spectrum needs it.
+- **Cutover:** live recorder healthy at `rate_est 100.0, dropped 0`; today's 60 sps
+  day-file preserved as `*.206.mseed.60sps-epoch`, fresh clean 100 sps `206.mseed`
+  started. Dashboard verified live — spectrum Nyquist now reaches 50 Hz. Config
+  reasoning updated in `station/waveshare_config.py` + `seismo-recorder.service`.
+- **Old 5-min feasibility probe** (for the record): 99.9 sps, ~0.025 % drops,
+  ~0.07 % held-sample glitches — corroborated by the above.
 
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
@@ -250,8 +272,10 @@ right tool. `labels.example.csv` is a template.
 couple of days to get a feel for it, THEN tackle the 5 V AVDD fault (which unblocks
 buffer-on, the biggest remaining noise lever -- see `doc/rev2-frontend.md`).
 
-Current configuration = the first clean epoch: RDATAC 60 sps gapless, galvanic
-isolator in (reversed), gain 64, garage slab, **no shunt damping fitted**. What two
+Current configuration = RDATAC **100 sps** epoch (2026-07-25; was 60 sps, see the
+switch note above) gapless, galvanic isolator in (reversed), gain 64, garage slab,
+**no shunt damping fitted**. (PPSD/template work that started on the `rdatac-60sps`
+epoch now has a `rdatac-100sps` successor epoch.) What two
 undisturbed days buys, all passive:
 - The **spike-rate test** that settles whether the 1-3 min spikes were electrical
   (BACKLOG "Suppress faux (cultural) detections") -- watch the 20:00-23:00 local

@@ -15,13 +15,19 @@ WorkingDirectory=/home/charles/seismo/station
 Environment=SEISMO_NETWORK=XX
 Environment=SEISMO_STATION=OAKMT
 Environment=SEISMO_GAIN=64
-Environment=SEISMO_DRATE=60
+Environment=SEISMO_DRATE=100
 # RDATAC: free-running continuous read -- the ADC samples on its own crystal at
-# exactly DRATE. Measured 0 gaps vs 41.2 s/hour lost on the legacy per-sample-SYNC
-# path. Declared rate is DRATE (60), NOT the legacy 57: this is a new epoch and the
-# files are not mergeable with the 57 sps archive.
+# exactly DRATE (measured 0 gaps vs 41.2 s/hour lost on the legacy per-sample-SYNC
+# path). Declared rate = DRATE, so each rate change starts a NEW EPOCH: files are not
+# mergeable across it, and the prior day-files are renamed *.<rate>sps-epoch at cutover.
+# 100 sps epoch (2026-07-25): a back-to-back RDATAC measurement on this hardware
+# REVERSED the old bring-up call -- 100 sps is LOWER noise in the quake band than 60
+# (1-15 Hz 2.74 vs 3.99 uV, 3-15 Hz 2.62 vs 3.86), sustains cleanly (99.91 sps, 5
+# glitches/90 s; the "~92 sps ceiling" was the legacy SYNC path, not RDATAC), and
+# lifts Nyquist 30->50 Hz. Cost: 60 Hz mains no longer falls on a sinc notch (aliases
+# to 40 Hz, above the quake band -- digital notch in post if it bothers a spectrum).
 Environment=SEISMO_RDATAC=1
-Environment=SEISMO_RATE=60
+Environment=SEISMO_RATE=100
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/charles/seismo/venv/bin/python recorder.py
 # recorder.py traps SIGTERM -> flushes the partial block and releases the ADC
