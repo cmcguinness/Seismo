@@ -46,7 +46,19 @@ loop. Blue NeoPixel blinks = alive.
 **Deploy:** copy `clue/code.py` to the CLUE's `CLUEPY/code.py` (CircuitPython auto-runs it).
 On Linux the CLUE's serial is `/dev/ttyACM0`; on macOS `/dev/cu.usbmodem*`.
 
-## TODO — the Pi 4 host logger (not built yet)
+## `host/env_logger.py` — the Pi 4 host logger (DONE, running on pi4env)
 
-Read `/dev/ttyACM0`, drop `#` lines, prepend `datetime.now(timezone.utc)`, append to a
-daily CSV, rsync to the pi5. Trivial; the CLUE side (the harder half) is done and verified.
+Reads the CLUE's stable by-id serial, drops `#` lines, prepends **NTP-UTC** (millisecond),
+appends to a daily CSV `~/env-data/env-YYYY-MM-DD.csv` (schema above, raw values). A
+reconnect loop survives unplug/reset; malformed lines are dropped. Runs as the
+**`env-logger`** systemd service (`enabled`, `Restart=always`).
+
+Deploy on pi4env: venv at `~/env_node/.venv` (`pip install pyserial`), copy `env_logger.py`
++ `env-logger.service` (install commands in the service file's header).
+
+## TODO — pull to the pi5 + analyze
+
+- A pi5-side rsync (like the seismic mirror) pulls `pi4env:~/env-data/` next to the seismic
+  data, so the pressure/tilt series sits UTC-aligned beside the stream.
+- Then the actual question: **does pressure or tilt explain the 0.02–0.12 Hz undulation?**
+  (and the slow DC-bias drift vs temperature). This is why the node exists.
