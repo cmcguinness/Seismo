@@ -40,6 +40,7 @@ GAIN = 64
 
 # palette (matches the dashboard's accent)
 TEAL, INK, RED, BLUE, MUT = "#2f6f6b", "#16211f", "#c0392b", "#2c6e9b", "#6b7775"
+AMBER = "#d97a1e"   # smoothed-envelope overlay
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -67,6 +68,11 @@ def main():
     ap.add_argument("--expect-s", action="store_true",
                     help="overlay the catalog-PREDICTED S arrival (hypo/Vs) as a clearly-"
                          "labelled reference line -- honest because it's flagged as a prediction")
+    ap.add_argument("--envelope", action="store_true",
+                    help="overlay the smoothed amplitude envelope (Hilbert), which makes the "
+                         "P hump -> dip -> S/coda hump shape legible at a glance")
+    ap.add_argument("--env-smooth", type=float, default=1.0,
+                    help="envelope smoothing window in seconds (default 1.0)")
     ap.add_argument("--gain", type=int, default=GAIN)
     ap.add_argument("--sta-lat", type=float, default=STA_LAT)
     ap.add_argument("--sta-lon", type=float, default=STA_LON)
@@ -120,6 +126,14 @@ def main():
     ax = fig.add_axes([0.075, 0.155, 0.885, 0.60])
     ax.set_facecolor("white")
     ax.plot(t, uv, color=INK, lw=0.7)
+    if args.envelope:                                # smoothed Hilbert envelope (the "shape")
+        from obspy.signal.filter import envelope as _envelope
+        env = _envelope(uv)
+        w = max(3, int(args.env_smooth * fs))
+        win = np.hanning(w)
+        env_s = np.convolve(env, win / win.sum(), mode="same")
+        ax.plot(t, env_s, color=AMBER, lw=2.4, alpha=0.9, solid_capstyle="round",
+                label="amplitude envelope")
     ax.axvline(0, color=MUT, ls=":", lw=1.1)
     ylim = max(abs(uv)) * 1.18
     ax.set_ylim(-ylim, ylim)
