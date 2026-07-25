@@ -52,6 +52,8 @@ def main():
     ap.add_argument("--origin", required=True, help="origin time, ISO UTC (e.g. 2026-07-25T11:31:41)")
     ap.add_argument("--mag", type=float, required=True)
     ap.add_argument("--place", required=True, help='e.g. "3 km E of St. Helena, California"')
+    ap.add_argument("--source", default="USGS",
+                    help="catalog attribution for the mag/location/origin line")
     ap.add_argument("--event-lat", type=float, default=None)
     ap.add_argument("--event-lon", type=float, default=None)
     ap.add_argument("--depth-km", type=float, default=None)
@@ -140,7 +142,8 @@ def main():
     fig.text(0.075, 0.945, args.title, fontsize=25, fontweight="bold", color=TEAL)
     dist_txt = f"  ·  ~{epi:.0f} km from the epicenter" if epi else ""
     fig.text(0.075, 0.895,
-             f"M {args.mag:g}  ·  {args.place}  ·  {origin.strftime('%Y-%m-%d %H:%M:%S')} UTC",
+             f"M {args.mag:g}  ·  {args.place}  ·  {origin.strftime('%Y-%m-%d %H:%M:%S')} UTC"
+             f"  ·  source: {args.source}",
              fontsize=13.5, color=INK)
     fig.text(0.075, 0.862, f"recorded{dist_txt} at {args.sta_label}".replace("recorded  ·  ", "recorded "),
              fontsize=11.5, color=MUT)
