@@ -1,0 +1,52 @@
+# env_node — environmental / tilt monitoring node
+
+A small sensor node that logs the *environment around the station* — barometric
+**pressure**, **tilt**, **temperature**, **humidity** — at ~1 Hz, timestamped in UTC,
+to correlate against the seismic stream. It targets specific open noise questions
+(see `../STATUS.md`, `../doc/rev2-data-plane.md §10`):
+
+- **Pressure** couples to the sub-Hz (0.02–0.12 Hz) seismic undulation — sampled ~1 Hz
+  so it can be correlated in that band (Nyquist 0.5 Hz).
+- **Tilt** (from the accelerometer's gravity vector) *is* the leading suspect for that
+  undulation — thermal settling = ground tilt. This measures it directly.
+- **Temperature / humidity** — the thermal-settling and moisture-vs-noise correlations.
+  (These are *hyperlocal*, so the node lives near the station, not in the office.)
+
+## Architecture — two idle boards, each doing what it's good at
+
+```
+Adafruit CLUE  ──USB serial (CSV, 1 Hz)──►  Pi 4 (host)  ──rsync CSV──►  pi5
+(sensor pack)                               NTP-UTC clock + logging       (analysis,
+BMP280 / SHT31 / LSM6DS3                     + network                     beside seismic mirror)
+```
+
+The **CLUE has no RTC/NTP**, so it streams only its monotonic clock; the **Pi 4 host
+stamps the authoritative UTC on receipt** — that alignment is the whole point (a pressure
+series that isn't UTC-aligned to the seismic stream is useless for correlation).
+
+**Placement:** garage, near — but *not too near* — the geophone (~1 m+, different surface).
+**Own power supply**, never the station's 5 V rail (the conducted-noise path that already
+bit acquisition). It's a separate electrical island, like the rest of the environmental
+sensors in the rev-2 telemetry design.
+
+## `clue/code.py` — the CircuitPython sensor firmware
+
+Runs on the Adafruit CLUE (CircuitPython 8.x; `adafruit_clue` + drivers already in its
+`lib/`). Each ~1 s it reads pressure/temp/humidity/3-axis accel, shows them on the 240×240
+screen (eyeball verification + curiosity), and prints one CSV row over USB serial:
+
+```
+# seismo-env  mono_s,temp_C,press_hPa,humid_pct,ax_ms2,ay_ms2,az_ms2
+741.06,29.33,1002.19,39.3,-0.863,5.250,-7.959
+```
+
+Self-correcting loop → even 1 Hz. Sensor reads are wrapped so one bad read can't kill the
+loop. Blue NeoPixel blinks = alive.
+
+**Deploy:** copy `clue/code.py` to the CLUE's `CLUEPY/code.py` (CircuitPython auto-runs it).
+On Linux the CLUE's serial is `/dev/ttyACM0`; on macOS `/dev/cu.usbmodem*`.
+
+## TODO — the Pi 4 host logger (not built yet)
+
+Read `/dev/ttyACM0`, drop `#` lines, prepend `datetime.now(timezone.utc)`, append to a
+daily CSV, rsync to the pi5. Trivial; the CLUE side (the harder half) is done and verified.
