@@ -37,9 +37,9 @@ kept here gets a descriptive name and is committed.
   ```
   analysis/.venv/bin/python analysis/quake_share.py \
     --mseed <XX.OAKMT.00.SHZ.D.2026.206.mseed> \
-    --origin 2026-07-25T11:31:41.760 --mag 2.5 --source USGS \
-    --place "3 km E of St. Helena, California" \
-    --event-lat 38.507 --event-lon -122.435 --depth-km 6.2 \
+    --usgs-near 2026-07-25T11:31:45 \
     --p 3.97 --expect-s --spectrogram --out reports/2026-07-25-m2.5-st-helena.png
+  # --usgs-near <time> (~the trigger time) auto-fills mag/place/lat/lon/depth/origin from
+  # the USGS catalog -- no event id, no site lookup. A no-match => probably cultural noise.
     # envelope is on by default; --spectrogram stacks the time-frequency panel below (one image)
   ```

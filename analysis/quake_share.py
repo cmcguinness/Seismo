@@ -51,12 +51,55 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return 2 * r * math.asin(math.sqrt(a))
 
 
+def fetch_usgs_near(when, sta_lat, sta_lon, radius_km=500.0, min_mag=1.0):
+    """Look up the catalog event near `when` (ISO, ~the station's trigger time) within
+    radius_km of the station, via the USGS FDSN event API. No event id needed -- the
+    trigger time is the key. Returns the matched event's fields; raises SystemExit with
+    a clear message on no-match or network error. A no-match is itself informative: the
+    trigger was probably cultural noise, not an earthquake."""
+    import json
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    t = UTCDateTime(when)
+    q = {"format": "geojson",
+         "starttime": (t - 120).strftime("%Y-%m-%dT%H:%M:%S"),
+         "endtime": (t + 60).strftime("%Y-%m-%dT%H:%M:%S"),
+         "latitude": sta_lat, "longitude": sta_lon,
+         "maxradiuskm": radius_km, "minmagnitude": min_mag, "orderby": "time"}
+    url = "https://earthquake.usgs.gov/fdsnws/event/1/query?" + urllib.parse.urlencode(q)
+    try:
+        with urllib.request.urlopen(url, timeout=30) as resp:
+            data = json.loads(resp.read().decode())
+    except (urllib.error.URLError, ValueError, TimeoutError) as e:
+        raise SystemExit(f"USGS query failed: {type(e).__name__}: {e}")
+    feats = data.get("features") or []
+    if not feats:
+        raise SystemExit(f"no USGS event within {radius_km:g} km of the station near {when} "
+                         f"(M>={min_mag:g}) -- cultural noise, or widen --usgs-radius / "
+                         f"lower --usgs-minmag?")
+    best = min(feats, key=lambda f: abs(f["properties"]["time"] / 1000.0 - t.timestamp))
+    p, g = best["properties"], best["geometry"]["coordinates"]   # coords = [lon, lat, depth_km]
+    return {"id": best["id"], "mag": round(float(p["mag"]), 1), "place": p["place"],
+            "lon": float(g[0]), "lat": float(g[1]), "depth": round(float(g[2]), 1),
+            "origin": UTCDateTime(p["time"] / 1000.0).isoformat()}
+
+
 def main():
     ap = argparse.ArgumentParser(description="Render a shareable earthquake image.")
     ap.add_argument("--mseed", required=True, help="miniSEED day-file covering the event")
-    ap.add_argument("--origin", required=True, help="origin time, ISO UTC (e.g. 2026-07-25T11:31:41)")
-    ap.add_argument("--mag", type=float, required=True)
-    ap.add_argument("--place", required=True, help='e.g. "3 km E of St. Helena, California"')
+    ap.add_argument("--origin", default=None,
+                    help="origin time, ISO UTC (e.g. 2026-07-25T11:31:41); or use --usgs-near")
+    ap.add_argument("--mag", type=float, default=None, help="magnitude; or use --usgs-near")
+    ap.add_argument("--place", default=None, help='e.g. "3 km E of St. Helena, CA"; or --usgs-near')
+    ap.add_argument("--usgs-near",
+                    help="fetch the event from the USGS catalog by TIME (ISO, roughly the "
+                         "trigger time) -- auto-fills mag/place/lat/lon/depth/origin, no event "
+                         "id or site-eyeballing needed. No match => probably cultural noise.")
+    ap.add_argument("--usgs-radius", type=float, default=500.0,
+                    help="--usgs-near search radius from the station, km (default 500)")
+    ap.add_argument("--usgs-minmag", type=float, default=1.0,
+                    help="--usgs-near minimum magnitude (default 1.0)")
     ap.add_argument("--source", default="USGS",
                     help="catalog attribution for the mag/location/origin line")
     ap.add_argument("--event-lat", type=float, default=None)
@@ -85,6 +128,22 @@ def main():
     ap.add_argument("--post", type=float, default=38.0, help="seconds of trace after origin")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
+
+    if args.usgs_near:                               # pull catalog facts by time -- no event id
+        ev = fetch_usgs_near(args.usgs_near, args.sta_lat, args.sta_lon,
+                             args.usgs_radius, args.usgs_minmag)
+        print(f"USGS {ev['id']}: M{ev['mag']:g}  {ev['place']}  depth {ev['depth']:g} km  "
+              f"origin {ev['origin']}")
+        if args.mag is None: args.mag = ev["mag"]
+        if args.place is None: args.place = ev["place"]
+        if args.event_lat is None: args.event_lat = ev["lat"]
+        if args.event_lon is None: args.event_lon = ev["lon"]
+        if args.depth_km is None: args.depth_km = ev["depth"]
+        if args.origin is None: args.origin = ev["origin"]
+    missing = [n for n, v in (("--origin", args.origin), ("--mag", args.mag),
+                              ("--place", args.place)) if v is None]
+    if missing:
+        raise SystemExit(f"missing {', '.join(missing)} -- supply them or use --usgs-near <time>")
 
     import matplotlib
     matplotlib.use("Agg")
