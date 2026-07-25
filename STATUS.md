@@ -34,6 +34,26 @@ USGS: **M2.5, 2026-07-25 11:31:41.760 UTC, 38.507°N 122.435°W, depth 6.2 km**
   --mag 2.5 --event-lat 38.507 --event-lon -122.435 --depth-km 6.2 --p 3.97` (P = the
   measured first arrival; S not pickable). Output: `reports/2026-07-25-m2.5-st-helena.png`.
 
+## ✅ Environmental node LIVE in the garage (2026-07-25)
+
+The CLUE→Pi 4 environmental node (pressure / tilt / temp / humidity, 1 Hz, UTC-stamped
+on receipt) is **installed in the garage near the station and logging**. Code in
+`env_node/`; `env-logger` systemd service on **pi4env.local**, daily CSVs at
+`pi4env:~/env-data/env-YYYY-MM-DD.csv` (schema `utc,clue_mono_s,temp_C,press_hPa,
+humid_pct,ax_ms2,ay_ms2,az_ms2`).
+
+- **Hardening from bring-up:** the host log filter now requires all fields numeric
+  (drops CircuitPython reboot-banner lines on replug — was writing junk rows); CLUE
+  backlight off (board mounted **face down**, sensors up in air).
+- **`temp_C` is board self-heat, not ambient — use DELTAS only.** BMP280 is on the CLUE
+  PCB and reads conducted self-heat (~constant offset); no case geometry fixes the
+  absolute value (backlight-off/face-down/air-exposed all landed ~30–32 °C). Fine for
+  the thermal-settling correlation, which wants swings, not absolutes. See
+  `env_node/README.md`.
+- **Open threads:** (1) a pi5-side rsync pull of `pi4env:~/env-data/` beside the
+  seismic mirror, so the env series sits UTC-aligned next to the stream; (2) then the
+  actual question — **does pressure or tilt explain the 0.02–0.12 Hz undulation?**
+
 ## ✅ 24 h UDP loss probe COMPLETE — sets rev-2 redundancy at N=2 (2026-07-25)
 
 Sized the **rev-2 UDP streaming** redundancy (see `doc/rev2-data-plane.md §5`). 24 h,
