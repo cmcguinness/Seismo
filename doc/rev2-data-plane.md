@@ -1,10 +1,12 @@
 # Rev-2 data plane — station ↔ pi5 streaming + the server split
 
-**Status: DESIGN / not started.** This is the agreed architecture for how seismic
-data leaves the station and reaches downstream apps in rev-2. It supersedes the
-current rsync-mirror plumbing. Nothing here is built yet except the read-side of
-the server module (`server/`, a draft façade — see §12). Captured from a design
-session 2026-07-24 so the reasoning isn't lost; freeze specifics as we implement.
+**Status: DESIGN COMPLETE / build not started.** This is the agreed architecture for
+how seismic data leaves the station and reaches downstream apps in rev-2. It supersedes
+the current rsync-mirror plumbing. Built so far: only the read-side of the server module
+(`server/`, a draft façade — see §12). The **Phase-1 design pass is done** — all §14
+open items are resolved with concrete decisions (wire format, N, backfill, heartbeat,
+retention, ports, build order). Captured from design sessions 2026-07-24 / -07-25 so the
+reasoning isn't lost; freeze specifics as we implement.
 
 Companion docs: `rev2-frontend.md` (the analog interface board), `../STATUS.md`
 (current running system), `../BACKLOG.md`.
@@ -150,10 +152,10 @@ lost only if **N consecutive datagrams all drop** — i.e. it defeats any loss
 - *24 h probe — DONE* (2026-07-24→25, 864,000 pkts, 10 pps × 512 B): **0.0073 %
   loss** (63 lost), 0 reorder, 0 dup. 16 loss events, **sporadic across the day** (no
   time-of-day pattern), **worst fade 1.4 s** (14 pkts). Burst hist (pkts): 1×7, 2×2,
-  3, 4, 7×2, 8, 9, 14. → **Redundancy fixed at N = 2:** at the ~1.75 s natural record
-  cadence a 1.4 s fade drops ≤1 datagram, so "send current + previous record" recovers
-  100 % of observed loss inline; rarer/longer fades fall to backfill. No adaptive-N
-  machinery needed. (Faster batching ~0.5 s/datagram would want N≈4.)
+  3, 4, 7×2, 8, 9, 14. → **Redundancy fixed at N = 2** (see §14.0 for the 100 sps
+  re-derivation — at 57 sps the 1.75 s cadence meant a 1.4 s fade dropped ≤1 datagram
+  and N=2 recovered 100 % inline; at 100 sps the cadence is 1.0 s, so the worst fade can
+  drop both copies and that tail falls to backfill). No adaptive-N machinery needed.
 
 ## 6. Heartbeat
 
@@ -342,12 +344,107 @@ break the one job.** Suggested order:
 5. **Only then** retire the host `seismo-rsync.timer` and `seismo-live-pull`.
 6. Redundancy N (fixed from the probe first; adaptive channel later if needed).
 
-## 14. Open / pending
+## 14. Design decisions — RESOLVED (Phase-1 design pass, 2026-07-25)
 
-- ~~24 h loss probe~~ **DONE** (2026-07-25): 0.0073 % loss, worst fade 1.4 s → **N = 2** (see §5).
-- **N_max** — confirm the MTU-fit ceiling for the chosen record size.
-- **Reverse channel** — pick A vs C.
-- **Backfill protocol** — range-request format + how the pi5 asks (reverse channel
-  command vs a bounded SSH/rsync of the local buffer).
-- **Archive retention** on the pi5 (the server now owns "full dataset" — define it).
-- **Envelope builder** migration (dashboard → server, per the server README).
+The §14 open items are resolved below. Governing constraints unchanged: never
+starve the ADC loop (fail-open everywhere), station stays dumb, reliability lives
+in the archive layer not per-packet.
+
+### 14.0 ⚠️ 100 sps changed the N math — re-derived
+
+N=2 was derived at 57 sps, where 100-sample records = **1.75 s/datagram**. The
+station is now **100 sps** (2026-07-25 epoch, see STATUS), so a 100-sample record
+is **1.0 s/datagram**. N=2 sends record *k* in datagrams *k* and *k+1*, now only
+**1.0 s apart** — so the worst observed fade (**1.4 s**) can drop *both* copies,
+which it could not at 1.75 s spacing.
+
+**Decision: keep 100-sample / 512 B records, N=2.** N=2 still recovers the *common*
+1–2-datagram bursts inline (the bulk of the 24 h probe's 16 loss events); the rare
+>1 s fade falls to **backfill** (§14.4) — the §5 live-vs-archive split. The live
+strip-chart skips ~1 s about once a day; the archive is healed. Rejected: 50-sample
+/256 B records + N=4 (0.5 s cadence, covers 1.4 s inline) — 2× datagrams and
+machinery to claw back a once-a-day 1 s live blip backfill already fixes.
+**N_max at 512 B = 2** regardless (N=3 = 1536 B > MTU, fragments).
+
+### 14.1 Datagram wire format
+
+`8-byte header + n_records × 512 B miniSEED records`, network byte order:
+
+| off | field | bytes | note |
+| --- | --- | --- | --- |
+| 0 | magic `0x53 0x5A` ("SZ") | 2 | cheap sanity/version filter |
+| 2 | version = 1 | 1 | |
+| 3 | n_records | 1 | = effective N in this datagram |
+| 4 | seq | 4 (u32) | datagram counter since recorder start |
+
+Records follow **verbatim** — the exact bytes the file writer packs, so the pi5
+archive is byte-identical to what the station would have written. Max datagram =
+8 + 2×512 = **1032 B < 1472 MTU**. ✓ Never fragment.
+
+### 14.2 Idempotency / dedup / gap detection = record START-TIME
+
+Key the archive on `(channel, record start-time)` from the miniSEED fixed header —
+**not** the seq. N=2 overlap and backfill re-sends dedupe identically. `seq` is only
+a liveness/telemetry hint (did we miss datagrams recently), so its reset-on-restart
+is harmless. On collector restart, rebuild the "seen" set by scanning the current
+day-file's record headers (cheap — start-times only).
+
+### 14.3 Reverse channel — NOT needed in Phase 1
+
+Adaptive N is deferred: **N is fixed at 2**, a Class-1 constant in the unit env.
+Backfill is pi5-initiated (§14.4), so the station needs no inbound port and stays
+outbound-only. Revisit §7 (pick **C** — SSH'd config file + hot-reload) only when
+adaptive N is actually wanted.
+
+### 14.4 Backfill = pi5-initiated rsync of the local buffer
+
+On a detected start-time gap that N=2 didn't fill (bounded by the heartbeat
+interval, §6), pi5 `rsync`s the affected day-file from the station's local buffer
+and merges the missing records (dedup by start-time absorbs the overlap). This is
+**rare catastrophe recovery** (pi5 reboot/redeploy), so a whole-day-file pull is
+acceptable — no custom range-request protocol. Reuses existing SSH/rsync plumbing.
+
+### 14.5 Heartbeat — in Phase 1 (replaces the health.json pull)
+
+Station→pi5 UDP pulse ~1 s on a **separate port**; JSON payload = `hi_seq`,
+station UTC `t`, and the acquisition/QC counters now in `health.json`. Jobs:
+liveness (K missed → down alarm), tail-loss bound, and it **retires the health.json
+rsync**. Best-effort, no retry (§6).
+
+### 14.6 Archive layout & retention
+
+- **pi5 collector** writes `~/seismo-archive/` (distinct from the `~/seismo-data/`
+  rsync mirror during migration), same day-file naming. Keeps the **full archive**
+  — ~44 MB/day @100 sps ≈ 16 GB/yr, trivial; STEIM2-compress old days later if wanted.
+- **Station local buffer** (store-and-forward): retain **~14 days**, then prune —
+  it exists only to serve backfill.
+
+### 14.7 Publisher tap point (station)
+
+The file writer packs each 512 B record; after packing, it also enqueues those exact
+bytes to a **bounded** publisher queue (`put_nowait`, **drop-on-full = fail-open**).
+A publisher thread keeps a deque of the last N records and sends one datagram per new
+record carrying `[k-N+1 … k]`. It never touches the ADC/SPI path; a dead link only
+drops from the publisher queue, never back-pressures acquisition.
+
+### 14.8 Ports
+
+Two fixed random high UDP ports, **station→pi5 only** (LAN): data **48317**,
+heartbeat **48318**. pi5 firewall allows inbound UDP from the station on both.
+
+### 14.9 Deferred to Phase 2 (not Phase-1 blockers)
+
+- **Envelope builder** migration (dashboard → server) — moves when the dashboard is
+  cut to `/v1/*`.
+- Detector → pi5 (§9), retire `seismo-rsync.timer` + `seismo-live-pull` (§13.4–5),
+  reverse channel / adaptive N (§7).
+
+### 14.10 Refined Phase-1 build order
+
+1. **Publisher thread (fail-open) + minimal collector** writing the owned archive
+   **alongside** the existing rsync (nothing retired) → verify byte-faithful vs the
+   rsync mirror with obspy.
+2. **Heartbeat** (retires health.json pull) + **start-time gap detection** +
+   **rsync backfill**.
+
+Then Phase 2 separately.
