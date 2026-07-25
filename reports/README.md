@@ -43,3 +43,28 @@ kept here gets a descriptive name and is committed.
   # the USGS catalog -- no event id, no site lookup. A no-match => probably cultural noise.
     # envelope is on by default; --spectrogram stacks the time-frequency panel below (one image)
   ```
+
+## Non-detections (the envelope's other edge)
+
+### 2026-07-25 — M3.3, Little America, WY (~1140 km) · **not detected**
+
+![M3.3 Wyoming not detected](2026-07-25-wyoming-m3.3-not-detected.png)
+
+- A distant (~1140 km) M3.3. In the geophone band there is **no arrival** at the
+  predicted regional times — Pn(pred) +142 s and Lg(pred) +326 s both sit at ~1×
+  the pre-event noise (1-15 Hz: Pn 1.1×, Lg 1.4×; 1-5 Hz: 1.0×/1.0×). The two
+  bright bursts near +205 s and +290 s are **local cultural noise**: impulsive,
+  broadband to 25 Hz, and unaligned with either predicted phase. A source 1140 km
+  away cannot deliver 15-25 Hz energy (high frequencies attenuate first), so
+  broadband-impulsive is the signature of something local, not teleseismic.
+- This is the useful counter-example to the St. Helena hit: it pins down the
+  station's **local-only detection envelope**. Kept here so the two plots sit on the
+  **same spectrogram colour ruler** (see below) and can be compared directly.
+
+## Spectrogram standard
+
+Every spectrogram in this repo is drawn by [`analysis/specgram.py`](../analysis/specgram.py)
+so they share one absolute colour scale (magma, fixed **−25 .. +25 dB**, 1.5 s window /
+0.2 s hop, 0–25 Hz, high-passed full-band µV). The fixed axis is the point: the same
+colour is the same absolute power in every figure, so a real event and a non-detection
+lie on one ruler. Don't hand-roll spectrograms elsewhere — import `specgram.draw()`.

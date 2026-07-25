@@ -31,6 +31,8 @@ import numpy as np
 import obspy
 from obspy import UTCDateTime
 
+import specgram   # project-standard spectrogram (fixed colour scale, window, band)
+
 # --- station + model defaults (override via CLI) -----------------------------
 STA_LAT, STA_LON = 38.435, -122.630          # Oakmont, Santa Rosa
 STA_LABEL = "Charles McGuinness - Personal Seismometer, Santa Rosa, CA"
@@ -161,6 +163,7 @@ def main():
     tr = st[0]
     fs = float(tr.stats.sampling_rate)
     uvpc = 2.5 * 2 / (args.gain * (2 ** 23 - 1)) * 1e6
+    uv_raw = (tr.data.astype(float) - float(tr.data.mean())) * uvpc  # full band, for the spectrogram
     tr.detrend("demean").filter("bandpass", freqmin=1.0,
                                 freqmax=min(15.0, fs / 2 * 0.99), corners=4, zerophase=True)
     uv = tr.data * uvpc
@@ -237,13 +240,7 @@ def main():
     # spectrogram panel (shares the time axis): shows the P/S/coda frequency evolution
     # and the high-frequency attenuation. Only the spectrogram -- not the noisy ASD.
     if axsp is not None:
-        from scipy.signal import spectrogram as _spectrogram
-        npg = int(1.5 * fs)                          # STFT window length (samples)
-        fsp, tsp, Sxx = _spectrogram(uv, fs=fs, nperseg=npg, noverlap=int(1.3 * fs))
-        axsp.pcolormesh(tsp + t[0], fsp, 10 * np.log10(Sxx + 1e-6),
-                        shading="gouraud", cmap="magma", rasterized=True)
-        ytop = min(fs / 2, 25)
-        axsp.set_ylim(0, ytop)
+        specgram.draw(axsp, uv_raw, fs, t0=t[0])     # project-standard spectrogram
         axsp.set_ylabel("frequency (Hz)", fontsize=11, color="#3a4744")
         axsp.axhline(4.5, color="#8fe9e9", ls=":", lw=1.0, alpha=0.9)
         axsp.text(t[0] + 0.4, 5.0, "4.5 Hz geophone", color="#cdefef", fontsize=8, va="bottom")
@@ -251,7 +248,7 @@ def main():
             if xt is not None:
                 axsp.axvline(xt, color=col, ls=ls, lw=1.1, alpha=0.75)
         axsp.tick_params(colors="#3a4744", labelsize=9)
-        spec_win_s = npg / fs                        # window length -> the N.B. on the axis line
+        spec_win_s = specgram.WINDOW_S               # window length -> the N.B. on the axis line
 
     # x-axis: per-second ticks (elongated at 5 s, labelled at 10 s) on the bottom panel
     bottom = axsp if axsp is not None else ax
