@@ -25,7 +25,8 @@ USGS: **M2.5, 2026-07-25 11:31:41 UTC, 38.507°N 122.435°W, depth 6.2 km**
 - **Shareable image tool:** `analysis/quake_share.py` — parameterized per event (pass
   the catalog facts; it auto-computes distance + the S–P story and renders a labeled
   hero PNG). This event: `--origin 2026-07-25T11:31:41 --mag 2.5 --event-lat 38.507
-  --event-lon -122.435 --depth-km 6.2 --p 2.0 --s 4.4`.
+  --event-lon -122.435 --depth-km 6.2 --p 2.3 --s 4.73` (P/S onsets measured off the
+  envelope). Output cataloged in `reports/2026-07-25-m2.5-st-helena.png`.
 
 ## 🔬 IN PROGRESS: 24 h UDP loss probe, station→pi5 (started 2026-07-24 ~18:12 Z)
 
