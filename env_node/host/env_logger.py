@@ -60,6 +60,10 @@ def main():
                 fields = line.split(",")
                 if len(fields) != NFIELDS:
                     continue                   # partial/garbled line
+                try:                           # all fields must be numeric --
+                    [float(x) for x in fields]  # drops CLUE reboot-banner text
+                except ValueError:              # (banner has no commas, so it
+                    continue                    # can pass the count check alone)
                 write_row(datetime.now(timezone.utc), fields)
         except Exception as exc:
             print(f"serial lost: {exc} -- reopening", flush=True)
