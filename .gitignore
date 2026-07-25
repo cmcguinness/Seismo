@@ -7,6 +7,9 @@ venv/
 # CAD build output
 stl/
 
+# quake_share.py output images (regenerate from the archive via the tool)
+eq_*.png
+
 # IDE
 .idea/
 
