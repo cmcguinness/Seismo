@@ -46,6 +46,8 @@ while True:
     t0 = time.monotonic()
     n += 1
     try:
+        # BMP280 temp reads the CLUE's own self-heat (~+several C, roughly constant),
+        # not ambient -- use DELTAS only. See env_node/README.md.
         temp = clue.temperature           # C     (BMP280)
         press = clue.pressure             # hPa   (BMP280)
         humid = clue.humidity             # %     (SHT31)

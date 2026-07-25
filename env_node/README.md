@@ -49,6 +49,24 @@ loop. Blue NeoPixel blinks = alive.
 **Deploy:** copy `clue/code.py` to the CLUE's `CLUEPY/code.py` (CircuitPython auto-runs it).
 On Linux the CLUE's serial is `/dev/ttyACM0`; on macOS `/dev/cu.usbmodem*`.
 
+### Temperature is self-heated — use DELTAS, not the absolute value
+
+The `temp_C` channel (BMP280, **on the CLUE PCB**) reads the board's own self-heat,
+conducted from the nRF52840 + regulators through the copper — **not** ambient air.
+Measured 2026-07-25 on the desk: it holds a steady **~31.7 °C** equilibrium (was
+~32.4 °C sealed; backlight-off + face-down bought ~1 °C; a case redesign putting the
+Pi 4 inside and the CLUE on top *in moving air* changed it essentially not at all,
+~31.7 °C). Conduction across the PCB dominates; airflow over the top can't beat it,
+so no enclosure geometry fixes the absolute reading — the board simply feels warm to
+the touch.
+
+The offset is roughly **constant**, so it subtracts out: **for the thermal-settling
+correlation (does temperature swing track the 0.02–0.12 Hz undulation) only the
+deltas matter, and those are valid.** The absolute number is *not* garage temperature
+and should not be used as such. Pinning the offset to a real °C would need a reference
+thermometer beside the board (not done — we don't need it). True ambient would require
+a temp probe on a short lead, *off* the board in the airstream (DS18B20 / remote SHT31).
+
 ## `host/env_logger.py` — the Pi 4 host logger (DONE, running on pi4env)
 
 Reads the CLUE's stable by-id serial, drops `#` lines, prepends **NTP-UTC** (millisecond),
