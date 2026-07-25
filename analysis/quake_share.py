@@ -64,6 +64,9 @@ def main():
     ap.add_argument("--dist-km", type=float, default=None, help="epicentral distance override")
     ap.add_argument("--p", type=float, default=None, help="P onset, s after origin (eyeballed)")
     ap.add_argument("--s", type=float, default=None, help="S onset, s after origin (eyeballed)")
+    ap.add_argument("--expect-s", action="store_true",
+                    help="overlay the catalog-PREDICTED S arrival (hypo/Vs) as a clearly-"
+                         "labelled reference line -- honest because it's flagged as a prediction")
     ap.add_argument("--gain", type=int, default=GAIN)
     ap.add_argument("--sta-lat", type=float, default=STA_LAT)
     ap.add_argument("--sta-lon", type=float, default=STA_LON)
@@ -134,6 +137,11 @@ def main():
                     arrowprops=dict(arrowstyle="<->", color=TEAL, lw=1.4))
         ax.text((p_t + s_t) / 2, yb + ylim * 0.05, f"S–P ≈ {s_t - p_t:.1f} s",
                 color=TEAL, fontsize=11.5, ha="center", fontweight="bold")
+    if args.expect_s and hypo is not None:           # catalog-PREDICTED S, flagged as such
+        s_exp = hypo / VS
+        ax.axvline(s_exp, color=RED, ls=":", lw=1.6, alpha=0.55)
+        ax.text(s_exp, ylim * 0.90, " S expected", color=RED, fontsize=10.5,
+                alpha=0.85, va="top", fontstyle="italic")
 
     ax.annotate(f"peak ≈ {abs(pk):.0f} µV", xy=(tpk, pk),
                 xytext=(tpk + 4.5, pk * 0.72), color=TEAL, fontsize=11.5, fontweight="bold",
