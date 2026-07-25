@@ -32,8 +32,11 @@ sensors in the rev-2 telemetry design.
 ## `clue/code.py` — the CircuitPython sensor firmware
 
 Runs on the Adafruit CLUE (CircuitPython 8.x; `adafruit_clue` + drivers already in its
-`lib/`). Each ~1 s it reads pressure/temp/humidity/3-axis accel, shows them on the 240×240
-screen (eyeball verification + curiosity), and prints one CSV row over USB serial:
+`lib/`). Each ~1 s it reads pressure/temp/humidity/3-axis accel and prints one CSV row
+over USB serial. The board is mounted **face down** (sensors up), so the TFT backlight is
+turned **off** (`board.DISPLAY.brightness = 0`) — it lit nothing visible and sat millimetres
+from the temp/humidity sensors as a self-heat source (a sealed-case test plateaued several
+°C above ambient). Liveness = the blue NeoPixel heartbeat + the serial stream itself:
 
 ```
 # seismo-env  mono_s,temp_C,press_hPa,humid_pct,ax_ms2,ay_ms2,az_ms2
