@@ -73,6 +73,9 @@ def main():
                          "S/coda hump); ON by default, --no-envelope to hide")
     ap.add_argument("--env-smooth", type=float, default=1.0,
                     help="envelope smoothing window in seconds (default 1.0)")
+    ap.add_argument("--spectrogram", action="store_true",
+                    help="stack a time-frequency spectrogram panel below the waveform, in ONE "
+                         "image (shows the P/S/coda frequency evolution + HF attenuation)")
     ap.add_argument("--gain", type=int, default=GAIN)
     ap.add_argument("--sta-lat", type=float, default=STA_LAT)
     ap.add_argument("--sta-lon", type=float, default=STA_LON)
@@ -118,12 +121,19 @@ def main():
     # predicting arrivals from the catalog distance -- a graphic that predicts P/S from
     # a distance and then "derives" that distance back from them confirms nothing.
     p_t, s_t = args.p, args.s
+    s_exp = (hypo / VS) if (args.expect_s and hypo is not None) else None  # catalog-predicted S
 
-    # --- figure ---
+    # --- figure --- (waveform alone, or waveform + spectrogram stacked in one image)
     plt.rcParams.update({"font.family": "DejaVu Sans", "axes.edgecolor": "#d5dbda"})
-    fig = plt.figure(figsize=(12.0, 6.75), dpi=140)
+    if args.spectrogram:
+        fig = plt.figure(figsize=(12.0, 9.0), dpi=140)
+        ax = fig.add_axes([0.075, 0.46, 0.885, 0.38])                 # waveform (top)
+        axsp = fig.add_axes([0.075, 0.14, 0.885, 0.28], sharex=ax)    # spectrogram (bottom)
+    else:
+        fig = plt.figure(figsize=(12.0, 6.75), dpi=140)
+        ax = fig.add_axes([0.075, 0.155, 0.885, 0.60])
+        axsp = None
     fig.patch.set_facecolor("white")
-    ax = fig.add_axes([0.075, 0.155, 0.885, 0.60])
     ax.set_facecolor("white")
     ax.plot(t, uv, color=INK, lw=0.7)
     if args.envelope:                                # smoothed Hilbert envelope (the "shape")
@@ -151,8 +161,7 @@ def main():
                     arrowprops=dict(arrowstyle="<->", color=TEAL, lw=1.4))
         ax.text((p_t + s_t) / 2, yb + ylim * 0.05, f"S–P ≈ {s_t - p_t:.1f} s",
                 color=TEAL, fontsize=11.5, ha="center", fontweight="bold")
-    if args.expect_s and hypo is not None:           # catalog-PREDICTED S, flagged as such
-        s_exp = hypo / VS
+    if s_exp is not None:                            # catalog-PREDICTED S, flagged as such
         ax.axvline(s_exp, color=RED, ls=":", lw=1.6, alpha=0.55)
         ax.text(s_exp, ylim * 0.90, " S expected", color=RED, fontsize=10.5,
                 alpha=0.85, va="top", fontstyle="italic")
@@ -160,20 +169,41 @@ def main():
     ax.annotate(f"peak ≈ {abs(pk):.0f} µV", xy=(tpk, pk),
                 xytext=(tpk + 4.5, pk * 0.72), color=TEAL, fontsize=11.5, fontweight="bold",
                 arrowprops=dict(arrowstyle="-", color=TEAL, lw=1.1, alpha=0.7))
-    ax.set_xlabel(f"seconds after origin time  ({origin_disp} UTC)",
-                  fontsize=11, color="#3a4744")
     ax.set_ylabel("ground motion  (µV, 1–15 Hz)", fontsize=11, color="#3a4744")
     ax.tick_params(colors="#3a4744", labelsize=9)
-    # x ticks: every 1 s, elongated at 5 s multiples, labelled only at 10 s
-    ax.xaxis.set_minor_locator(MultipleLocator(1))
-    ax.xaxis.set_major_locator(MultipleLocator(5))
-    ax.xaxis.set_major_formatter(
-        FuncFormatter(lambda v, _p: f"{int(round(v))}" if round(v) % 10 == 0 else ""))
-    ax.tick_params(axis="x", which="minor", length=3.5, color="#3a4744")
-    ax.tick_params(axis="x", which="major", length=6.5, color="#3a4744")
+    ax.grid(axis="y", color="#eef1f0", lw=0.8)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
-    ax.grid(axis="y", color="#eef1f0", lw=0.8)
+
+    # spectrogram panel (shares the time axis): shows the P/S/coda frequency evolution
+    # and the high-frequency attenuation. Only the spectrogram -- not the noisy ASD.
+    if axsp is not None:
+        from scipy.signal import spectrogram as _spectrogram
+        fsp, tsp, Sxx = _spectrogram(uv, fs=fs, nperseg=int(1.5 * fs), noverlap=int(1.3 * fs))
+        axsp.pcolormesh(tsp + t[0], fsp, 10 * np.log10(Sxx + 1e-6),
+                        shading="gouraud", cmap="magma", rasterized=True)
+        axsp.set_ylim(0, min(fs / 2, 25))
+        axsp.set_ylabel("frequency (Hz)", fontsize=11, color="#3a4744")
+        axsp.axhline(4.5, color="#8fe9e9", ls=":", lw=1.0, alpha=0.9)
+        axsp.text(t[0] + 0.4, 5.0, "4.5 Hz geophone", color="#cdefef", fontsize=8, va="bottom")
+        for xt, col, ls in [(p_t, BLUE, "--"), (s_exp, RED, ":")]:
+            if xt is not None:
+                axsp.axvline(xt, color=col, ls=ls, lw=1.1, alpha=0.75)
+        axsp.tick_params(colors="#3a4744", labelsize=9)
+
+    # x-axis: per-second ticks (elongated at 5 s, labelled at 10 s) on the bottom panel
+    bottom = axsp if axsp is not None else ax
+    for a in ([ax, axsp] if axsp is not None else [ax]):
+        a.xaxis.set_minor_locator(MultipleLocator(1))
+        a.xaxis.set_major_locator(MultipleLocator(5))
+        a.xaxis.set_major_formatter(
+            FuncFormatter(lambda v, _p: f"{int(round(v))}" if round(v) % 10 == 0 else ""))
+        a.tick_params(axis="x", which="minor", length=3.5, color="#3a4744")
+        a.tick_params(axis="x", which="major", length=6.5, color="#3a4744")
+    if axsp is not None:
+        ax.tick_params(labelbottom=False)            # waveform shares x; labels on the spectrogram
+    bottom.set_xlabel(f"seconds after origin time  ({origin_disp} UTC)",
+                      fontsize=11, color="#3a4744")
 
     # titles
     fig.text(0.075, 0.945, args.title, fontsize=25, fontweight="bold", color=TEAL)
