@@ -94,7 +94,7 @@ class SeismoStore:
 
     # -- live strip-chart -----------------------------------------------------
     def live(self) -> dict:
-        """The rolling 30 s window as microvolts, demeaned. Mirrors the payload
+        """The rolling 30 s window as microvolts, de-meaned. Mirrors the payload
         render.live_ring_json produced, minus the derived spectrum/band-RMS (those
         pull scipy and are a consumer concern -- see README). `t_end` is the UTC
         epoch of the newest sample, stamped by the station's live_publisher, so

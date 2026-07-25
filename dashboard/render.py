@@ -99,7 +99,7 @@ def spectrum_png(minutes=60):
     every refresh. We instead take the whole `minutes` window and bridge those
     micro-gaps by interpolation, giving one long record and ~50 Welch averages
     for a smooth, stable ASD. (Real outages would interpolate a straight line,
-    which after demean is just a low-freq ramp -- rare and self-corrects hourly.)
+    which after de-mean is just a low-freq ramp -- rare and self-corrects hourly.)
     """
     import numpy.ma as ma
     from scipy import signal
@@ -249,7 +249,7 @@ def _load_recent(n=2, starttime=None):
 
 
 def _event_trace(st, start_iso):
-    """Demeaned single Trace covering [start-PRE, start+POST], or None if that
+    """De-meaned single Trace covering [start-PRE, start+POST], or None if that
     window holds no usable data (real gap, or pruned out of the archive). Sliced
     once and shared by the sparkline and the character scorer."""
     import obspy

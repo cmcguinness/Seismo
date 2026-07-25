@@ -38,7 +38,7 @@ touches the mirror; swap the backend there, the contract holds.
 | --- | --- | --- |
 | GET | `/` | this contract, as JSON |
 | GET | `/v1/health` | station acquisition counters (rate, blocks, dropped, glitches, clock_err…) **plus** `mirror_age_s` — so a consumer can tell "station down" from "feed to me stale" |
-| GET | `/v1/live` | rolling 30 s window: `uv` (microvolts, demeaned), `fs`, `gain`, `pp`, `rms`, `t_end`, `age` |
+| GET | `/v1/live` | rolling 30 s window: `uv` (microvolts, de-meaned), `fs`, `gain`, `pp`, `rms`, `t_end`, `age` |
 | GET | `/v1/events` | detections, newest first. Params: `limit` (default 200), `since` (ISO-8601), `min_ratio`. **Unfiltered by default** — MIN_RATIO/WINDOW_H are display policy and belong to the consumer |
 | GET | `/v1/waveform` | recorded trace over a window. Params: `start`, `end` (ISO-8601, required), `format=json\|mseed`. `mseed` is the canonical currency (feed to ObsPy/Swarm/anything); `json` gives `{seed_id, fs, t0, counts, uv}` for browsers |
 

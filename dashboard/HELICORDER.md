@@ -18,7 +18,7 @@ mirrored miniSEED (/data/data, rsync'd every 60 s)
         │
         ▼  heli_build.py   (obspy ingest — INGEST half, backend)
    /data/heli/heli.YYYY.JJJ.HHMM.npz     one per 15-min interval
-        │                                 mins[], maxs[] (float32 counts, demeaned,
+        │                                 mins[], maxs[] (float32 counts, de-meaned,
         │                                 high-passed; NaN = gap), env, sigma, t0
         ▼  heli_render.py  (numpy+matplotlib, NO obspy — DUMB/fast half)
    1920×1080 drum PNG bytes
@@ -38,7 +38,7 @@ mirrored miniSEED (/data/data, rsync'd every 60 s)
   (service restart) writes every file "now", so mtime can't distinguish old
   intervals from fresh ones.
 - `mins[]`, `maxs[]`: **NPIX** (=1835, the plot-area width) float32 pairs — the
-  per-pixel min/max **envelope**. Values are **demeaned raw counts** after a high-
+  per-pixel min/max **envelope**. Values are **de-meaned raw counts** after a high-
   pass (default 1 Hz, `SEISMO_HELI_HP`) that removes slow tilt/drift which would
   otherwise swamp the drum. `NaN` = no samples in that pixel (real gap, or the
   not-yet-reached tail of the current interval) → renderer draws nothing.

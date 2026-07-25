@@ -9,11 +9,11 @@ touches miniSEED; it just stacks these envelopes into a drum plot.
 
 Design (see dashboard/HELICORDER.md):
   - Intervals are clock-aligned to :00/:15/:30/:45. Each file holds NPIX pairs.
-  - Values are demeaned RAW COUNTS (float32); the drum scales by sigma, so the
+  - Values are de-meaned RAW COUNTS (float32); the drum scales by sigma, so the
     counts->uV factor cancels and the gain is irrelevant here.
   - A pixel bucket with no samples (real gap, or the still-filling current
     interval) is NaN -> the renderer leaves it blank.
-  - sigma is the interval's RMS (demeaned); the renderer's global scale is
+  - sigma is the interval's RMS (de-meaned); the renderer's global scale is
     keyed to the median sigma across retained intervals.
   - Completed intervals are immutable, so we skip ones already on disk; only the
     current partial interval is rebuilt each run. Files older than HOURS (by
@@ -81,7 +81,7 @@ def _fname(t0):
 def _envelope(vals, times, t0):
     """Reduce (vals, times) inside [t0, t0+INTERVAL_S) to NPIX (min,max) pairs.
 
-    vals are demeaned counts. Returns (mins, maxs) float32[NPIX], NaN where a
+    vals are de-meaned counts. Returns (mins, maxs) float32[NPIX], NaN where a
     pixel bucket caught no samples.
     """
     idx = ((times - t0) / INTERVAL_S * NPIX).astype(int)
@@ -155,7 +155,7 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
         sel = (all_t >= t0) & (all_t < t0 + INTERVAL_S)
         v = all_v[sel]
         if v.size:
-            v = v - v.mean()                      # demean this interval
+            v = v - v.mean()                      # de-mean this interval
             mins, maxs = _envelope(v, all_t[sel], t0)
             sigma = float(np.sqrt(np.mean(v * v)))       # sample RMS (kept for reference)
             # `env` = typical single-sided envelope excursion actually DRAWN per pixel
