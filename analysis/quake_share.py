@@ -29,7 +29,7 @@ from obspy import UTCDateTime
 
 # --- station + model defaults (override via CLI) -----------------------------
 STA_LAT, STA_LON = 38.435, -122.630          # Oakmont, Santa Rosa
-STA_LABEL = "Charles’ backyard seismometer, Oakmont · Santa Rosa"
+STA_LABEL = "Charles McGuinness - Personal Seismometer"
 VP, VS = 6.0, 3.46                            # crustal velocities, km/s (Vp/Vs≈1.73)
 SP_TO_KM = VP * VS / (VP - VS)               # S–P seconds -> distance km (≈8.2)
 GAIN = 64
@@ -62,7 +62,7 @@ def main():
     ap.add_argument("--sta-lat", type=float, default=STA_LAT)
     ap.add_argument("--sta-lon", type=float, default=STA_LON)
     ap.add_argument("--sta-label", default=STA_LABEL)
-    ap.add_argument("--title", default="We caught an earthquake.")
+    ap.add_argument("--title", default="Earthquake Report")
     ap.add_argument("--pre", type=float, default=8.0, help="seconds of trace before origin")
     ap.add_argument("--post", type=float, default=38.0, help="seconds of trace after origin")
     ap.add_argument("--out", default=None)
