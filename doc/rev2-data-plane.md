@@ -147,11 +147,13 @@ lost only if **N consecutive datagrams all drop** — i.e. it defeats any loss
 **Empirical (2026-07-24):**
 - *Spot test* — station→pi5, 512 B & 1400 B, 50 pps & 5 pps: **3600 packets, 0
   loss, 0 reorder, 0 dup**; jitter p99 ≤ 41 ms. Size didn't matter.
-- *24 h probe — RUNNING* (started ~18:12 Z 2026-07-24, completes ~18:12 Z
-  2026-07-25): 10 pps × 512 B, per-minute checkpoints to `/tmp/udp24_rx.jsonl` on
-  pi5 (cumulative loss + **burst-length histogram** + timestamps → sizes N). tx
-  PID in `/tmp/udp24_tx.pid` on seismo, rx PID in `/tmp/udp24_rx.pid` on pi5.
-  **TODO: read the histogram, set N, record loss-vs-time-of-day.**
+- *24 h probe — DONE* (2026-07-24→25, 864,000 pkts, 10 pps × 512 B): **0.0073 %
+  loss** (63 lost), 0 reorder, 0 dup. 16 loss events, **sporadic across the day** (no
+  time-of-day pattern), **worst fade 1.4 s** (14 pkts). Burst hist (pkts): 1×7, 2×2,
+  3, 4, 7×2, 8, 9, 14. → **Redundancy fixed at N = 2:** at the ~1.75 s natural record
+  cadence a 1.4 s fade drops ≤1 datagram, so "send current + previous record" recovers
+  100 % of observed loss inline; rarer/longer fades fall to backfill. No adaptive-N
+  machinery needed. (Faster batching ~0.5 s/datagram would want N≈4.)
 
 ## 6. Heartbeat
 
@@ -342,7 +344,7 @@ break the one job.** Suggested order:
 
 ## 14. Open / pending
 
-- **24 h loss probe** — read results, set initial N, note loss-vs-time-of-day.
+- ~~24 h loss probe~~ **DONE** (2026-07-25): 0.0073 % loss, worst fade 1.4 s → **N = 2** (see §5).
 - **N_max** — confirm the MTU-fit ceiling for the chosen record size.
 - **Reverse channel** — pick A vs C.
 - **Backfill protocol** — range-request format + how the pi5 asks (reverse channel

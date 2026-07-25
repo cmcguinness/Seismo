@@ -34,23 +34,23 @@ USGS: **M2.5, 2026-07-25 11:31:41.760 UTC, 38.507°N 122.435°W, depth 6.2 km**
   --mag 2.5 --event-lat 38.507 --event-lon -122.435 --depth-km 6.2 --p 3.97` (P = the
   measured first arrival; S not pickable). Output: `reports/2026-07-25-m2.5-st-helena.png`.
 
-## 🔬 IN PROGRESS: 24 h UDP loss probe, station→pi5 (started 2026-07-24 ~18:12 Z)
+## ✅ 24 h UDP loss probe COMPLETE — sets rev-2 redundancy at N=2 (2026-07-25)
 
-Sizing the **rev-2 UDP streaming** design (see `doc/rev2-data-plane.md`), which moves
-station→pi5 off the rsync mirror onto a best-effort UDP stream. Need real loss +
-**burst-length** stats over the actual Ethernet-bridge→WiFi path to set the "send last
-N" redundancy depth (repetition beats loss bursts shorter than N).
+Sized the **rev-2 UDP streaming** redundancy (see `doc/rev2-data-plane.md §5`). 24 h,
+**864,000 pkts** (10 pps × 512 B) over the real Ethernet-bridge→WiFi path, station→pi5.
 
-- **Running now:** tx on seismo (10 pps × 512 B, 24 h; PID in `/tmp/udp24_tx.pid`),
-  rx on pi5 (per-minute checkpoints → `/tmp/udp24_rx.jsonl` — cumulative loss + burst
-  histogram + timestamps; PID in `/tmp/udp24_rx.pid`). **Completes ~18:12 Z 2026-07-25.**
-  Scripts are in the session scratchpad only (not in the repo).
-- **Spot test (pre-flight):** 3600 pkts at 512 B & 1400 B, 50 & 5 pps → **0 loss, 0
-  reorder, 0 dup**, jitter p99 ≤ 41 ms; packet size didn't matter.
-- **Interim read:** `ssh pi5 'tail -1 /tmp/udp24_rx.jsonl'`. **Clean stop:**
-  `ssh pi5 'kill $(cat /tmp/udp24_rx.pid)'` + `ssh seismo.local 'kill $(cat /tmp/udp24_tx.pid)'`.
-- **On completion (TODO):** read the burst histogram → set initial N; note
-  loss-vs-time-of-day (evening peak?). Top open item in the design doc (§14).
+- **Result: 0.0073 % loss** (63 of 864k), **0 reorder, 0 dup**. 16 loss events,
+  **sporadic across the whole day** (midday, afternoon, evening, *and* 3 am) — random
+  interference, **no time-of-day pattern** (the early-7 h "evening peak" guess did not hold).
+- **Worst fade 1.4 s** (14 pkts @ 10 pps). Burst histogram (pkts): 1×7, 2×2, 3, 4, 7×2, 8, 9, 14.
+- **Decision: fixed N = 2.** At the natural record cadence (~1.75 s/datagram, 100 samples
+  @ 57 sps) a 1.4 s fade drops ≤1 datagram, so "send current + previous record" recovers
+  **100 % of the observed loss inline** — MTU-safe (~1 KB). Rarer/longer fades → file-backfill
+  (would have fired ~16×/day). **No adaptive-N machinery needed.** (Faster batching, e.g.
+  0.5 s/datagram, would want N≈4.)
+- **Spot test (pre-flight):** 3600 pkts at 512 B & 1400 B, 50 & 5 pps → 0 loss, jitter
+  p99 ≤ 41 ms; packet size didn't matter.
+- Probe processes finished; `/tmp` scratch (scripts, jsonl, pids) cleaned off both hosts.
 
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
