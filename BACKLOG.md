@@ -199,6 +199,32 @@ matters is **noise + dynamic range**, not speed.
 - **Oversampling note**: can't lower the floor with a faster external rate — the
   delta-sigma already oversamples internally (that's what the DRATE trade is).
 
+## Higher sample rate — 60 → 100 sps (maybe, 2026-07-25)
+
+**Why it's tempting:** the geophone is flat to ~100+ Hz but we sample at 60 sps, so
+Nyquist caps *recorded* content at ~28 Hz. The M2.5 showed genuine, good-SNR earthquake
+energy up in the 15–28 Hz band (the high-frequency noise floor is quiet, so the quake
+stands out there), and a very-local event retains even more. 100 sps opens Nyquist to
+50 Hz — where the sensor's high-frequency reach would actually pay off for close quakes.
+
+**Capability confirmed (measured 2026-07-25):** a 5-min DRATE=100 RDATAC test on the live
+Pi 2B hit **99.9 sps at ~0 ms clock error**, **~0.025 % drops** (honest 10 ms cut-blocks)
+and ~0.07 % held-sample glitches — the Pi keeps up. The ADS1256 does 100 sps natively
+(maxes at 30 ksps; 100 is a stock rate, well clear of its >2 kHz SPI-noise regime). So
+neither the Pi nor the ADC is the wall.
+
+**Why it's only a "maybe":**
+- **Small quality cost** vs near-zero drops at 60 sps (the faster read loop stalls
+  occasionally under load) — reducible with recorder priority (`nice`/RT sched) if pursued.
+- **~2× data volume** (~40 MB/day) and proportionally more rsync/pull traffic.
+- **New configuration epoch** — the declared archive rate changes, so 100 sps data won't
+  merge with the 60 sps archive (a hard break, like the demo-jumper epoch).
+- Most events are farther/regional, where the high frequencies are attenuated away anyway,
+  so the payoff is mainly for **very local** quakes.
+
+**If done:** bump `SEISMO_DRATE` + `SEISMO_RATE` to 100 in `seismo-recorder.service`,
+declare the epoch, and consider recorder scheduling priority to trim the drop rate.
+
 ## 3-component (X/Y/Z) + azimuth alignment
 
 Turns a "something happened" detector into "something happened *over there*"

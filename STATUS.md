@@ -52,6 +52,30 @@ Sized the **rev-2 UDP streaming** redundancy (see `doc/rev2-data-plane.md §5`).
   p99 ≤ 41 ms; packet size didn't matter.
 - Probe processes finished; `/tmp` scratch (scripts, jsonl, pids) cleaned off both hosts.
 
+## 📏 Instrument characterization from the M2.5 (2026-07-25)
+
+**Absolute amplitude cal reads ~7.5× LOW.** Cross-checked our recorded peak against
+**CE.68327** (Kinemetrics EpiSensor, *calibrated*, 19.6 km ≈ our 18.8 km, same vertical
+component, same 1–15 Hz band, response-removed from NCEDC metadata):
+- CE peak ground velocity **30.6 µm/s** vs ours (nominal 28.8 V/m/s) **4.06 µm/s** →
+  **~7.5× deficit**. We're if anything slightly *closer*, so that's a floor on the error.
+- **We under-report → over-stated sensitivity.** Likely: the **shunt damping resistor loads
+  the 375 Ω coil** (28.8 V/m/s is the *open-circuit* figure; loaded effective sensitivity is
+  lower, up to ~3×) and/or the **element sensitivity ≠ datasheet** (mislabeled-listing risk).
+  Some fraction is **site response** (CE's site vs our garage slab) — the unquantified
+  confound, so 7.5× is the *net* under-scaling, an upper bound on pure instrument error.
+- **Effective sensitivity ≈ 28.8 / 7.5 ≈ 3.8 V/(m/s)** as a first empirical anchor.
+- **Relative** measurements (our own records over time) UNAFFECTED — internal scale is
+  consistent. Only **absolute** ground-motion numbers are ~7.5× low.
+- Firm up: also compare CE horizontals + other neighbors, repeat on future quakes, and
+  bench-measure the damping-loaded sensitivity to split instrument-vs-site.
+
+**Pi 2B does 100 sps (measured).** 5-min DRATE=100 RDATAC test (throwaway dir; recorder
+restarted clean): **99.9 sps, clock err ~0 ms**, **~0.025 % drops** (6 samples / 4 min,
+honest 10 ms cut-blocks), ~0.07 % held-sample glitches, 0 spikes/resyncs. Keeps up; small
+quality cost vs near-zero at 60 sps. Opens Nyquist 28→50 Hz at ~2× data. Switch-or-not is a
+BACKLOG "maybe".
+
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
 Measured, undisturbed, all late-night (comparable cultural noise):
