@@ -68,9 +68,9 @@ def main():
     ap.add_argument("--expect-s", action="store_true",
                     help="overlay the catalog-PREDICTED S arrival (hypo/Vs) as a clearly-"
                          "labelled reference line -- honest because it's flagged as a prediction")
-    ap.add_argument("--envelope", action="store_true",
-                    help="overlay the smoothed amplitude envelope (Hilbert), which makes the "
-                         "P hump -> dip -> S/coda hump shape legible at a glance")
+    ap.add_argument("--envelope", action=argparse.BooleanOptionalAction, default=True,
+                    help="overlay the smoothed Hilbert amplitude envelope (P hump -> dip -> "
+                         "S/coda hump); ON by default, --no-envelope to hide")
     ap.add_argument("--env-smooth", type=float, default=1.0,
                     help="envelope smoothing window in seconds (default 1.0)")
     ap.add_argument("--gain", type=int, default=GAIN)

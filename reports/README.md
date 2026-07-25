@@ -40,5 +40,5 @@ kept here gets a descriptive name and is committed.
     --origin 2026-07-25T11:31:41.760 --mag 2.5 --source USGS \
     --place "3 km E of St. Helena, California" \
     --event-lat 38.507 --event-lon -122.435 --depth-km 6.2 \
-    --p 3.97 --expect-s --envelope --out reports/2026-07-25-m2.5-st-helena.png
+    --p 3.97 --expect-s --out reports/2026-07-25-m2.5-st-helena.png   # envelope is on by default
   ```
