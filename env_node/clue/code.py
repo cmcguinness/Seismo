@@ -47,11 +47,12 @@ while True:
         time.sleep(SAMPLE_S)
         continue
 
-    # Tilt from vertical: angle between the gravity vector and the z-axis (deg).
-    # Indicative for the display only -- raw ax/ay/az are logged so tilt can be
-    # computed properly once we know how the board is finally mounted.
+    # Tilt from horizontal: how far the board has tipped from flat (0 deg = flat,
+    # 90 = on edge). |az| so it reads ~0 flat regardless of which way z points.
+    # Display-only -- raw ax/ay/az are logged so true tilt is computed in the
+    # mounted frame later.
     amag = math.sqrt(ax * ax + ay * ay + az * az) or 1.0
-    tilt = math.degrees(math.acos(max(-1.0, min(1.0, az / amag))))
+    tilt = math.degrees(math.acos(min(1.0, abs(az) / amag)))
 
     # --- USB serial: one CSV row; the host prepends UTC on receipt ---
     print("{:.2f},{:.2f},{:.2f},{:.1f},{:.3f},{:.3f},{:.3f}".format(
