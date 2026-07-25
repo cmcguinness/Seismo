@@ -29,7 +29,7 @@ from obspy import UTCDateTime
 
 # --- station + model defaults (override via CLI) -----------------------------
 STA_LAT, STA_LON = 38.435, -122.630          # Oakmont, Santa Rosa
-STA_LABEL = "Charles McGuinness - Personal Seismometer"
+STA_LABEL = "Charles McGuinness - Personal Seismometer, Santa Rosa, CA"
 VP, VS = 6.0, 3.46                            # crustal velocities, km/s (Vp/Vs≈1.73)
 SP_TO_KM = VP * VS / (VP - VS)               # S–P seconds -> distance km (≈8.2)
 GAIN = 64
