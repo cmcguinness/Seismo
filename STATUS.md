@@ -1,6 +1,49 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-23 (UTC)_
+_Last updated: 2026-07-25 (UTC)_
+
+## 🎉 FIRST CONFIRMED EARTHQUAKE — M2.5, 3 km E of St. Helena (2026-07-25)
+
+The station caught its first confirmed local earthquake — the reason it exists.
+USGS: **M2.5, 2026-07-25 11:31:41 UTC, 38.507°N 122.435°W, depth 6.2 km**
+(~19 km hypocentral from Oakmont, on the Maacama/Rodgers Creek system).
+
+- **STA/LTA triggered 11:31:45 UTC** — 4 s after origin. **peak_ratio 645**
+  (threshold 4.0; every prior trigger was a false positive under 60), **peak
+  ~110–125 µV** vs ~1 µV ambient (**SNR ~100×**), 24 s duration.
+- **Waveform (1–15 Hz):** flat noise → **emergent P ~11:31:43** → **S-wave hammer
+  11:31:45** (jump to ~117 µV) → peak ~126 µV at 11:31:49 → coda to noise by
+  ~11:32:12. Textbook local event.
+- **Single-station distance check:** **S–P ≈ 2 s → ~16–19 km**, consistent with
+  the catalog's ~19 km. Our own timing independently reproduces the distance —
+  this is a *calibrated* detection.
+- **This is the calibration reference** the detector/character work was missing
+  (`dashboard/CHARACTER.md`: "no confirmed event yet to calibrate against"). Now
+  there is ground truth: known M, known distance, clean recording.
+- Recorder healthy throughout; the concurrent 24 h UDP probe did **not** perturb
+  acquisition. Day-file: `data/XX.OAKMT.00.SHZ.D.2026.206.mseed` (event ~11:31:41 UTC).
+- **Shareable image tool:** `analysis/quake_share.py` — parameterized per event (pass
+  the catalog facts; it auto-computes distance + the S–P story and renders a labeled
+  hero PNG). This event: `--origin 2026-07-25T11:31:41 --mag 2.5 --event-lat 38.507
+  --event-lon -122.435 --depth-km 6.2 --p 2.0 --s 4.4`.
+
+## 🔬 IN PROGRESS: 24 h UDP loss probe, station→pi5 (started 2026-07-24 ~18:12 Z)
+
+Sizing the **rev-2 UDP streaming** design (see `doc/rev2-data-plane.md`), which moves
+station→pi5 off the rsync mirror onto a best-effort UDP stream. Need real loss +
+**burst-length** stats over the actual Ethernet-bridge→WiFi path to set the "send last
+N" redundancy depth (repetition beats loss bursts shorter than N).
+
+- **Running now:** tx on seismo (10 pps × 512 B, 24 h; PID in `/tmp/udp24_tx.pid`),
+  rx on pi5 (per-minute checkpoints → `/tmp/udp24_rx.jsonl` — cumulative loss + burst
+  histogram + timestamps; PID in `/tmp/udp24_rx.pid`). **Completes ~18:12 Z 2026-07-25.**
+  Scripts are in the session scratchpad only (not in the repo).
+- **Spot test (pre-flight):** 3600 pkts at 512 B & 1400 B, 50 & 5 pps → **0 loss, 0
+  reorder, 0 dup**, jitter p99 ≤ 41 ms; packet size didn't matter.
+- **Interim read:** `ssh pi5 'tail -1 /tmp/udp24_rx.jsonl'`. **Clean stop:**
+  `ssh pi5 'kill $(cat /tmp/udp24_rx.pid)'` + `ssh seismo.local 'kill $(cat /tmp/udp24_tx.pid)'`.
+- **On completion (TODO):** read the burst histogram → set initial N; note
+  loss-vs-time-of-day (evening peak?). Top open item in the design doc (§14).
 
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
