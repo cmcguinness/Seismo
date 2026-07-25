@@ -50,9 +50,15 @@ humid_pct,ax_ms2,ay_ms2,az_ms2`).
   absolute value (backlight-off/face-down/air-exposed all landed ~30–32 °C). Fine for
   the thermal-settling correlation, which wants swings, not absolutes. See
   `env_node/README.md`.
-- **Open threads:** (1) a pi5-side rsync pull of `pi4env:~/env-data/` beside the
-  seismic mirror, so the env series sits UTC-aligned next to the stream; (2) then the
-  actual question — **does pressure or tilt explain the 0.02–0.12 Hz undulation?**
+- **Mirror + dashboard DONE (2026-07-25):** the host `seismo-rsync.service` on pi5 now
+  also pulls `pi4env.local:~/env-data/` → `~/seismo-data/env/` (= `/data/env` in the
+  container) every minute (pi5→pi4env SSH key authorized, host key trusted). The
+  dashboard has an **`/env` page** (nav "Environment") — current pressure / temp /
+  humidity / tilt tiles + accel + freshness, self-refresh every 15 s off `/env-data`
+  (JSON). `temp_C` tile is captioned "read changes, not the absolute". Deployed +
+  verified live.
+- **Open thread:** the actual question — **does pressure or tilt explain the
+  0.02–0.12 Hz undulation?** (needs a day+ of undisturbed garage data first).
 
 ## ✅ 24 h UDP loss probe COMPLETE — sets rev-2 redundancy at N=2 (2026-07-25)
 

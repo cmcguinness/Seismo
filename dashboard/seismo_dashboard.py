@@ -6,7 +6,9 @@ pre-rendered helicorder + cached spectrum, and streams the mirrored live ring. U
 Bootstrap 5 (light mode, subtle palette); the route handlers stay thin (build data,
 hand HTML/PNG back) with page markup in module-level template helpers.
 """
+import glob
 import json
+import math
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -22,6 +24,9 @@ NETWORK = os.environ.get("SEISMO_NETWORK", "XX")
 PLACE = os.environ.get("SEISMO_PLACE", "Oakmont, Santa Rosa, CA")
 EVENTS = os.environ.get("SEISMO_EVENTS", "/data/events.log")
 SID = f"{NETWORK}.{STATION}.00.SHZ"
+# Environmental node (CLUE -> pi4env -> mirrored here). Directory of daily CSVs
+# `env-YYYY-MM-DD.csv` (schema utc,clue_mono_s,temp_C,press_hPa,humid_pct,ax,ay,az).
+ENV_DIR = os.environ.get("SEISMO_ENV_DIR", "/data/env")
 BRAND = "Charles&rsquo; Seismology Station"
 # Display filter for the detections table: the recorder logs EVERY STA/LTA trigger
 # (down to ratio 4.0) for analysis, but most are cultural noise. Only surface
@@ -114,6 +119,7 @@ def _nav(active):
         + link("/", "Live", "live")
         + link("/detections", "Detections", "detections")
         + link("/spectrum", "Spectrum", "spectrum")
+        + link("/env", "Environment", "env")
         + link("/learn", "Seismology 101", "learn")
         + link("/about", "About this station", "about")
         + '</ul></div></div></nav>'
@@ -771,6 +777,119 @@ def live_data():
     # seismo-live-pull), NOT proxied to the Pi -- so watching the live feed never
     # makes the acquisition Pi transmit (WiFi/Ethernet TX conducts noise into the ADC).
     return JSONResponse(render.live_ring_json())
+
+
+# --- environmental node ------------------------------------------------------
+
+
+def _env_now():
+    """Latest reading from the mirrored CLUE CSVs, or None. Reads the newest
+    env-*.csv and returns the last row whose fields all parse as numbers (so a
+    reboot-banner line can't surface); adds host-clock age (s) and tilt (deg)."""
+    try:
+        files = sorted(glob.glob(os.path.join(ENV_DIR, "env-*.csv")))
+        if not files:
+            return None
+        with open(files[-1]) as f:
+            lines = f.readlines()
+    except Exception:
+        return None
+    for line in reversed(lines):
+        parts = line.strip().split(",")
+        if len(parts) != 8 or parts[0] == "utc":
+            continue
+        try:
+            _mono, temp, press, humid, ax, ay, az = (float(x) for x in parts[1:])
+        except ValueError:
+            continue
+        try:
+            t = datetime.fromisoformat(parts[0])
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=timezone.utc)
+            age = (datetime.now(timezone.utc) - t).total_seconds()
+        except ValueError:
+            age = None
+        amag = math.sqrt(ax * ax + ay * ay + az * az) or 1.0
+        tilt = math.degrees(math.acos(min(1.0, abs(az) / amag)))
+        return {"utc": parts[0], "temp": temp, "press": press, "humid": humid,
+                "ax": ax, "ay": ay, "az": az, "tilt": tilt, "age": age}
+    return None
+
+
+@app.get("/env-data")
+def env_data():
+    return JSONResponse(_env_now() or {})
+
+
+def _env_tile(label, span_id, value, unit, sub=""):
+    val = "&mdash;" if value is None else value
+    sub = f'<div class="text-muted small mt-1">{sub}</div>' if sub else ""
+    return (
+        '<div class="col-6 col-lg-3"><div class="border rounded p-3 h-100 bg-white">'
+        f'<div class="text-muted small text-uppercase">{label}</div>'
+        f'<div class="fs-3 lh-1 mt-2"><span id="{span_id}">{val}</span> '
+        f'<span class="fs-6 text-muted">{unit}</span></div>{sub}</div></div>')
+
+
+ENV_JS = """<script>
+async function envpoll(){
+  try{
+    const e=await(await fetch('/env-data')).json();
+    const set=(id,v)=>{const el=document.getElementById(id);if(el&&v!=null)el.textContent=v;};
+    if(e.utc){
+      set('e_press',e.press.toFixed(2));set('e_temp',e.temp.toFixed(1));
+      set('e_humid',e.humid.toFixed(1));set('e_tilt',e.tilt.toFixed(1));
+      set('e_accel',`ax ${e.ax.toFixed(2)}  ay ${e.ay.toFixed(2)}  az ${e.az.toFixed(2)}`);
+      set('e_utc',e.utc.replace('+00:00','')+' UTC');
+      const st=document.getElementById('e_status'),age=(e.age==null)?null:Math.round(e.age);
+      if(st&&age!=null){
+        if(age<180){st.textContent=`live · ${age}s behind`;st.className='small text-success';}
+        else{st.textContent=`stale · last reading ${Math.round(age/60)} min ago`;st.className='small text-danger';}
+      }
+    }
+  }catch(err){}
+  setTimeout(envpoll,15000);
+}
+envpoll();
+</script>"""
+
+
+@app.get("/env")
+def env_page():
+    e = _env_now()
+    def g(k, fmt):
+        return None if e is None or e.get(k) is None else fmt(e[k])
+    tiles = (
+        _env_tile("Pressure", "e_press", g("press", lambda v: f"{v:.2f}"), "hPa")
+        + _env_tile("Temperature", "e_temp", g("temp", lambda v: f"{v:.1f}"), "&deg;C",
+                    "board self-heat &mdash; read <b>changes</b>, not the absolute")
+        + _env_tile("Humidity", "e_humid", g("humid", lambda v: f"{v:.1f}"), "%")
+        + _env_tile("Tilt from level", "e_tilt", g("tilt", lambda v: f"{v:.1f}"), "&deg;",
+                    "from the gravity vector")
+    )
+    accel = ("&mdash;" if e is None else
+             f'ax {e["ax"]:.2f}&nbsp;&nbsp;ay {e["ay"]:.2f}&nbsp;&nbsp;az {e["az"]:.2f}')
+    utc = "&mdash;" if e is None else e["utc"].replace("+00:00", "") + " UTC"
+    inner = (
+        f'<div class="row g-3">{tiles}</div>'
+        '<div class="d-flex flex-wrap justify-content-between mt-3 text-muted small">'
+        f'<div>acceleration (m/s&sup2;): <span id="e_accel">{accel}</span></div>'
+        f'<div>last reading <span id="e_utc">{utc}</span> '
+        f'&middot; <span id="e_status" class="small"></span></div></div>')
+    body = (
+        _titleblock("Environment",
+                    "CLUE sensor node in the garage beside the station &middot; pressure, "
+                    "tilt, temperature, humidity at 1&nbsp;Hz")
+        + _card("Current conditions", inner)
+        + _card("What this is",
+                '<p class="mb-2">A small sensor node (Adafruit CLUE) sits ~1&nbsp;m from the '
+                'geophone, logging pressure, tilt, temperature and humidity once a second. '
+                'It exists to explain slow station noise: <b>pressure</b> and <b>tilt</b> are the '
+                'leading suspects for the sub-Hz ground undulation the seismometer sees.</p>'
+                '<p class="mb-0 text-muted small">Temperature reads the board&rsquo;s own '
+                'self-heat, not room air, so only its <i>changes</i> are meaningful. Values '
+                'mirror here about once a minute; the page refreshes every 15&nbsp;s.</p>'))
+    return Response(_shell(BRAND, "env", body, ENV_JS), media_type="text/html")
 
 
 heli_service.start()      # background: build envelopes + pre-render the drum
