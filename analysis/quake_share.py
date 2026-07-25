@@ -80,6 +80,9 @@ def main():
     from matplotlib.ticker import FuncFormatter, MultipleLocator
 
     origin = UTCDateTime(args.origin)
+    origin_disp = origin.strftime("%Y-%m-%d %H:%M:%S")     # keep sub-second precision if given
+    if origin.microsecond:
+        origin_disp += ("." + f"{origin.microsecond // 1000:03d}").rstrip("0")
     st = obspy.read(args.mseed, starttime=origin - args.pre, endtime=origin + args.post)
     if not len(st):
         raise SystemExit(f"no data in {args.mseed} around {args.origin}")
@@ -135,7 +138,7 @@ def main():
     ax.annotate(f"peak ≈ {abs(pk):.0f} µV", xy=(tpk, pk),
                 xytext=(tpk + 4.5, pk * 0.72), color=TEAL, fontsize=11.5, fontweight="bold",
                 arrowprops=dict(arrowstyle="-", color=TEAL, lw=1.1, alpha=0.7))
-    ax.set_xlabel(f"seconds after origin time  ({origin.strftime('%Y-%m-%d %H:%M:%S')} UTC)",
+    ax.set_xlabel(f"seconds after origin time  ({origin_disp} UTC)",
                   fontsize=11, color="#3a4744")
     ax.set_ylabel("ground motion  (µV, 1–15 Hz)", fontsize=11, color="#3a4744")
     ax.tick_params(colors="#3a4744", labelsize=9)
@@ -154,7 +157,7 @@ def main():
     fig.text(0.075, 0.945, args.title, fontsize=25, fontweight="bold", color=TEAL)
     dist_txt = f"  ·  ~{epi:.0f} km from the epicenter" if epi else ""
     fig.text(0.075, 0.895,
-             f"M {args.mag:g}  ·  {args.place}  ·  {origin.strftime('%Y-%m-%d %H:%M:%S')} UTC"
+             f"M {args.mag:g}  ·  {args.place}  ·  {origin_disp} UTC"
              f"  ·  source: {args.source}",
              fontsize=13.5, color=INK)
     fig.text(0.075, 0.862, f"recorded{dist_txt} at {args.sta_label}".replace("recorded  ·  ", "recorded "),
