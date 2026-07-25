@@ -179,16 +179,28 @@ def main():
     # and the high-frequency attenuation. Only the spectrogram -- not the noisy ASD.
     if axsp is not None:
         from scipy.signal import spectrogram as _spectrogram
-        fsp, tsp, Sxx = _spectrogram(uv, fs=fs, nperseg=int(1.5 * fs), noverlap=int(1.3 * fs))
+        npg = int(1.5 * fs)                          # STFT window length (samples)
+        fsp, tsp, Sxx = _spectrogram(uv, fs=fs, nperseg=npg, noverlap=int(1.3 * fs))
         axsp.pcolormesh(tsp + t[0], fsp, 10 * np.log10(Sxx + 1e-6),
                         shading="gouraud", cmap="magma", rasterized=True)
-        axsp.set_ylim(0, min(fs / 2, 25))
+        ytop = min(fs / 2, 25)
+        axsp.set_ylim(0, ytop)
         axsp.set_ylabel("frequency (Hz)", fontsize=11, color="#3a4744")
         axsp.axhline(4.5, color="#8fe9e9", ls=":", lw=1.0, alpha=0.9)
         axsp.text(t[0] + 0.4, 5.0, "4.5 Hz geophone", color="#cdefef", fontsize=8, va="bottom")
         for xt, col, ls in [(p_t, BLUE, "--"), (s_exp, RED, ":")]:
             if xt is not None:
                 axsp.axvline(xt, color=col, ls=ls, lw=1.1, alpha=0.75)
+        # time-resolution bar: the STFT window is 1.5 s wide, so a sharp onset smears
+        # +/-0.75 s (energy looks ~0.75 s "early"). Show the window width so nobody is misled.
+        wsec = npg / fs
+        xb, yb = t[0] + 1.5, ytop * 0.88
+        axsp.plot([xb, xb + wsec], [yb, yb], color="white", lw=2.0)
+        for xc in (xb, xb + wsec):
+            axsp.plot([xc, xc], [yb - ytop * 0.03, yb + ytop * 0.03], color="white", lw=2.0)
+        axsp.text(xb, yb - ytop * 0.06,
+                  f"{wsec:.1f} s STFT window\n(±{wsec / 2:.2f} s time smear)",
+                  color="white", fontsize=7.5, ha="left", va="top", linespacing=1.1)
         axsp.tick_params(colors="#3a4744", labelsize=9)
 
     # x-axis: per-second ticks (elongated at 5 s, labelled at 10 s) on the bottom panel
@@ -208,8 +220,9 @@ def main():
     # titles
     fig.text(0.075, 0.945, args.title, fontsize=25, fontweight="bold", color=TEAL)
     dist_txt = f"  ·  ~{epi:.0f} km from the epicenter" if epi else ""
+    depth_txt = f"  ·  focal depth {args.depth_km:g} km" if args.depth_km else ""
     fig.text(0.075, 0.895,
-             f"M {args.mag:g}  ·  {args.place}  ·  {origin_disp} UTC"
+             f"M {args.mag:g}  ·  {args.place}{depth_txt}  ·  {origin_disp} UTC"
              f"  ·  source: {args.source}",
              fontsize=13.5, color=INK)
     fig.text(0.075, 0.862, f"recorded{dist_txt} at {args.sta_label}".replace("recorded  ·  ", "recorded "),
@@ -217,8 +230,6 @@ def main():
 
     seed = f"{tr.stats.network}.{tr.stats.station}.{tr.stats.location}.{tr.stats.channel}"
     bits = [seed, "DIY Raspberry Pi + ADS1256 (ADC) + LGT-4.5 (Geophone)"]
-    if args.depth_km:
-        bits.append(f"depth {args.depth_km:g} km")
     nrms = float(np.sqrt(np.mean(uv[t < -1] ** 2))) if np.any(t < -1) else 0.0
     if nrms > 0:
         bits.append(f"SNR ≈ {abs(pk) / nrms:.0f}×")
