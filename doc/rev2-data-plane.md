@@ -394,12 +394,19 @@ on the Pi 2B, and that GIL-holding burst starved the RDATAC read loop: drops jum
 ~0.05/s (int32) to ~0.35/s (~30k/day).** That degrades the one job for archive-size
 elegance — the wrong trade on a sensitivity-first box. **The station is back on int32.**
 
-**FINAL DECISION (2026-07-26): keep int32, drop STEIM2 entirely** — not a C encoder, not
-a pi5 re-encode. It works, don't fix it: 44 MB/day int32 is trivial on the disk, N=2
-covers the common 1–2-datagram bursts, and the rare 1.4 s fade falls to backfill (proven
-to heal). The station and the pi5 archive are int32. STEIM2's only unique win over that
-was inline-fade-coverage, which backfill already provides — not worth any added moving
-part. This thread is closed; don't reopen it.
+**FINAL DECISION (2026-07-26): keep int32 in the acquisition + archive path; drop STEIM2
+there entirely** — not a C encoder, not a pi5 archive re-encode. It works, don't fix it:
+44 MB/day int32 is trivial on the disk, N=2 covers the common 1–2-datagram bursts, and the
+rare 1.4 s fade falls to backfill (proven to heal). Station and pi5 archive are int32.
+Don't reopen this for storage/redundancy reasons.
+
+**Scope of that closure — it's about acquisition + storage only.** int32 miniSEED is fully
+valid FDSN/SeedLink (dataselect returns stored records as-is; ringserver streams them;
+obspy/SeisComP decode int32 fine), so a public feed does NOT require STEIM2. IF a future
+feed (Phase 3, §14.9) wants STEIM2 for outbound bandwidth/convention, that's a
+**serving-layer** re-encode on the pi5 — on-the-fly as records go out, or an offline pass
+over the day-files — cheap on the capable box, decoupled from the station, not blocked by
+the int32 archive. That is the only context in which STEIM2 legitimately returns.
 
 ### 14.1 Datagram wire format
 
