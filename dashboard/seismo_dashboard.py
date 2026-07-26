@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 from fasthtml.common import FastHTML, serve
 from starlette.responses import JSONResponse, Response
 
+import heli_build
+import heli_render
 import heli_service
 import render
 
@@ -118,6 +120,7 @@ def _nav(active):
         '<div class="collapse navbar-collapse" id="nav"><ul class="navbar-nav ms-auto">'
         + link("/", "Live", "live")
         + link("/detections", "Detections", "detections")
+        + link("/history", "History", "history")
         + link("/spectrum", "Spectrum", "spectrum")
         + link("/env", "Environment", "env")
         + link("/learn", "Seismology 101", "learn")
@@ -893,6 +896,226 @@ def env_page():
                 'self-heat, not room air, so only its <i>changes</i> are meaningful. Values '
                 'mirror here about once a minute; the page refreshes every 15&nbsp;s.</p>'))
     return Response(_shell(BRAND, "env", body, ENV_JS), media_type="text/html")
+
+
+# --- history ------------------------------------------------------------------
+# A drum for any past 4 h window, rendered from the same interval envelopes the
+# live view uses -- so /history costs one npz load per row and no miniSEED parse.
+# Scope is deliberately the CURRENT EPOCH ONLY (see heli_build.EPOCH_START): the
+# archive before 2026-07-25 ran at 57/60 sps through a different analog front end,
+# and putting those drums behind the same picker would invite comparing them.
+
+HIST_H = float(os.environ.get("SEISMO_HISTORY_HOURS", "4"))    # hours per window
+_hist_cache = {}                  # datetime string -> PNG bytes (windows are immutable)
+_HIST_MAX = 24
+
+
+def _utc(ts):
+    """Epoch seconds -> aware UTC datetime. A module-level helper because
+    history_page's `datetime` query param shadows the imported class."""
+    return datetime.fromtimestamp(ts, timezone.utc)
+
+
+_avail_cache = {"at": 0.0, "val": ({}, None, None)}
+AVAIL_TTL = 60.0
+
+
+def _available():
+    """What the picker is allowed to offer: ({YYYY-MM-DD: [start hours]}, lo, hi).
+
+    Derived from the interval envelopes actually on disk, NOT from
+    epoch-start..now -- so a gap in the archive, or a range not yet backfilled,
+    shows up as an hour you cannot select rather than as a drum of blank rows.
+    An hour is offered when its FIRST hour holds data, so every drum you can
+    reach begins on real signal. "Anywhere in the 4 h" was too lax: with the
+    archive starting at 23:45, hours 20/21/22 would each have been offered and
+    drawn fifteen blank rows above one live one.
+
+    Reads only filenames (heli.YYYY.JJJ.HHMM.npz); no npz is opened. Cached for
+    AVAIL_TTL because the page is cheap and the interval set changes every 15 min.
+    """
+    now = time.time()
+    if now - _avail_cache["at"] < AVAIL_TTL:
+        return _avail_cache["val"]
+    t0s = []
+    for p in glob.glob(os.path.join(heli_render.HELI, "heli.*.npz")):
+        try:
+            t0s.append(heli_build._fname_t0(p))
+        except Exception:
+            pass
+    floor = heli_build.epoch_start_ts()
+    t0s = sorted(t for t in t0s if t >= floor)
+    val = ({}, None, None)
+    if t0s:
+        have = set(t0s)
+        # candidate start hours: every hour from the first interval's hour to the
+        # last, keeping those whose OPENING hour holds at least one interval
+        first_h = int(t0s[0]) // 3600 * 3600
+        last_h = int(t0s[-1]) // 3600 * 3600
+        days = {}
+        for hr in range(first_h, last_h + 3600, 3600):
+            if any((hr + k) in have
+                   for k in range(0, 3600, heli_render.INTERVAL_S)):
+                dt = _utc(hr)
+                days.setdefault(dt.strftime("%Y-%m-%d"), []).append(dt.hour)
+        if days:
+            lo = min(t0s) // 3600 * 3600
+            hi = last_h
+            val = (days, lo, hi)
+    _avail_cache.update(at=now, val=val)
+    return val
+
+
+def _epoch_bounds():
+    """(first selectable hour, last selectable hour) as epoch seconds, both on the
+    hour, from what is actually on disk. Falls back to the epoch start when the
+    envelope directory is empty (nothing built yet)."""
+    _, lo, hi = _available()
+    if lo is None:
+        lo = -(-heli_build.epoch_start_ts() // 3600) * 3600     # round UP to the hour
+        hi = max(lo, time.time() // 3600 * 3600)
+    return lo, hi
+
+
+def _parse_dt(s):
+    """YYYYmmDDHHMM -> epoch seconds, or None. Minutes must be :00 -- windows are
+    hour-aligned so the picker and the prev/next steps stay on one grid."""
+    if not s or len(s) != 12 or not s.isdigit() or s[10:] != "00":
+        return None
+    try:
+        return datetime(int(s[:4]), int(s[4:6]), int(s[6:8]), int(s[8:10]),
+                        tzinfo=timezone.utc).timestamp()
+    except ValueError:
+        return None
+
+
+def _fmt_dt(ts):
+    return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y%m%d%H%M")
+
+
+@app.get("/history.png")
+def history_png(datetime: str = ""):
+    ts = _parse_dt(datetime)
+    if ts is None:
+        return Response("bad datetime", status_code=400)
+    if datetime in _hist_cache:
+        return Response(_hist_cache[datetime], media_type="image/png", headers=NOCACHE)
+    png = heli_render.helicorder_png(heli_render.HELI, t_start=ts, hours=HIST_H)
+    if not png:
+        return Response("no data in that window", status_code=404)
+    # Only cache windows that are fully in the past; the current one is still filling.
+    if ts + HIST_H * 3600 < time.time():
+        if len(_hist_cache) >= _HIST_MAX:
+            _hist_cache.pop(next(iter(_hist_cache)), None)
+        _hist_cache[datetime] = png
+    return Response(png, media_type="image/png", headers=NOCACHE)
+
+
+HISTORY_JS = """<script>
+// The picker's job is to build the canonical URL: /history?datetime=YYYYmmDDHHMM.
+// AVAIL maps each available UTC date to the start hours that actually have data,
+// so an hour with no archive behind it can't be chosen at all.
+const AVAIL=%s;
+const dEl=document.getElementById('h_date'),hEl=document.getElementById('h_hour');
+const urlEl=document.getElementById('h_url'),goEl=document.getElementById('h_go');
+function hoursFor(date){return AVAIL[date]||[];}
+function fillHours(keep){
+  const hs=hoursFor(dEl.value);
+  hEl.innerHTML='';
+  for(const h of hs){
+    const o=document.createElement('option');
+    o.value=String(h).padStart(2,'0');
+    o.textContent=o.value+':00';
+    hEl.appendChild(o);
+  }
+  if(keep!=null&&hs.includes(+keep))hEl.value=String(keep).padStart(2,'0');
+  hEl.disabled=hs.length===0;
+  goEl.classList.toggle('disabled',hs.length===0);
+  sync();
+}
+function target(){
+  if(!dEl.value||!hEl.value)return null;
+  return '/history?datetime='+dEl.value.replaceAll('-','')+hEl.value+'00';
+}
+function sync(){
+  const t=target();
+  urlEl.textContent=t?location.origin+t:'\u2014';
+  goEl.href=t||'#';
+}
+dEl.addEventListener('change',()=>fillHours(null));
+hEl.addEventListener('change',sync);
+sync();
+</script>"""
+
+
+@app.get("/history")
+def history_page(datetime: str = "", d: str = "", h: str = ""):
+    days, _, _ = _available()
+    lo, hi = _epoch_bounds()
+    if not datetime and d and h:            # tolerate a plain date+hour GET too
+        datetime = d.replace("-", "") + h.zfill(2) + "00"
+    ts = _parse_dt(datetime)
+    if ts is None:
+        # Newest FULL window, not the newest selectable hour: `hi` is the last hour
+        # that has any data, so starting there would draw one live row and fifteen
+        # blanks. Backing up a window-minus-an-hour ends the drum on current data.
+        ts = max(lo, hi - HIST_H * 3600 + 3600)
+    ts = min(max(ts // 3600 * 3600, lo), hi)
+    cur = _fmt_dt(ts)
+    step = HIST_H * 3600
+    dt0, end = _utc(ts), _utc(ts + step)
+
+    def offered(target):
+        t = _utc(target)
+        return t.hour in days.get(t.strftime("%Y-%m-%d"), [])
+
+    def nav_btn(target, label):
+        if not offered(target):
+            return f'<span class="btn btn-outline-secondary btn-sm disabled">{label}</span>'
+        return (f'<a class="btn btn-outline-secondary btn-sm" '
+                f'href="/history?datetime={_fmt_dt(target)}">{label}</a>')
+
+    cur_day = dt0.strftime("%Y-%m-%d")
+    hours = "".join(
+        f'<option value="{hh:02d}"{" selected" if hh == dt0.hour else ""}>{hh:02d}:00</option>'
+        for hh in days.get(cur_day, []))
+    picker = (
+        '<div class="row row-cols-lg-auto g-2 align-items-center">'
+        '<div class="col"><label class="col-form-label" for="h_date">Date (UTC)</label></div>'
+        f'<div class="col"><input type="date" class="form-control form-control-sm" id="h_date" '
+        f'value="{cur_day}" min="{_utc(lo):%Y-%m-%d}" max="{_utc(hi):%Y-%m-%d}"></div>'
+        '<div class="col"><label class="col-form-label" for="h_hour">start hour</label></div>'
+        f'<div class="col"><select class="form-select form-select-sm" id="h_hour">{hours}'
+        '</select></div>'
+        f'<div class="col"><a class="btn btn-primary btn-sm" id="h_go" href="#">Show '
+        f'{HIST_H:g}&nbsp;h</a></div></div>'
+        '<div class="text-muted small mt-2">link: <code id="h_url"></code></div>')
+    controls = (
+        '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">'
+        f'{nav_btn(ts - step, "&larr; earlier")}'
+        f'<div class="text-muted small">{dt0:%Y-%m-%d %H:%M} &ndash; {end:%H:%M} UTC</div>'
+        f'{nav_btn(ts + step, "later &rarr;")}</div>')
+    body = (
+        _titleblock("History",
+                    f'{SID} &middot; any {HIST_H:g}&nbsp;h window since the station switched '
+                    'to 100&nbsp;sps')
+        + _card("Choose a window", picker + '<hr class="my-3">' + controls)
+        + _card(f"Drum &middot; {dt0:%Y-%m-%d %H:%M} UTC +{HIST_H:g} h",
+                f'<img src="/history.png?datetime={cur}" class="img-fluid" '
+                f'alt="helicorder drum for {dt0:%Y-%m-%d %H:%M} UTC">'
+                '<p class="text-muted small mb-0 mt-2">Same 1&nbsp;Hz high-pass as the live '
+                'drum. The amplitude scale is keyed to each window&rsquo;s own median noise, '
+                'so a quiet night is not drawn smaller than a busy afternoon &mdash; compare '
+                'shapes across windows, not heights. A blank row means no data for that '
+                '15&nbsp;minutes.</p>')
+        + _card("Why it starts on 2026-07-25",
+                '<p class="mb-0 small">The station switched to 100&nbsp;sps late on '
+                '2026-07-25, and before that ran at 57/60&nbsp;sps through a different analog '
+                'front end. Earlier recordings exist but are not comparable to these, so they '
+                'are deliberately not offered here rather than inviting a like-for-like '
+                'reading that would be wrong.</p>'))
+    return Response(_shell(BRAND, "history", body, HISTORY_JS % json.dumps(days)),
+                    media_type="text/html")
 
 
 heli_service.start()      # background: build envelopes + pre-render the drum

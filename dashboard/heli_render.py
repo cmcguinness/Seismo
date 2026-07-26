@@ -49,13 +49,26 @@ CLIP_ROWS = 3.0                               # excursion clip, +/- rows
 ROW_COLORS = ["#a01818", "#186a18", "#1c4fa0", "#111"]   # dark red, dark green, blue, black
 
 
-def _load(heli_dir):
-    """Load interval files, newest 8 h worth, sorted oldest-first (top-down)."""
+WINDOW_H = float(os.environ.get("SEISMO_HELI_HOURS", "4"))   # hours per drum
+INTERVAL_S = INTERVAL_MIN * 60
+
+
+def _load(heli_dir, t_start=None, t_end=None):
+    """Interval files in [t_start, t_end), sorted oldest-first (top-down).
+
+    Bounds are epoch seconds; either may be None for open-ended. Selection is on
+    the `t0` INSIDE each npz, not the filename, so a window that straddles the
+    00:00 UTC day rollover needs no special handling.
+    """
     out = []
     for p in sorted(glob.glob(os.path.join(heli_dir, "heli.*.npz"))):
         try:
             with np.load(p) as d:
-                out.append({"t0": float(d["t0"]), "mins": d["mins"],
+                t0 = float(d["t0"])
+                if (t_start is not None and t0 < t_start) or \
+                   (t_end is not None and t0 >= t_end):
+                    continue
+                out.append({"t0": t0, "mins": d["mins"],
                             "maxs": d["maxs"], "env": float(d["env"])})
         except Exception:
             pass
@@ -63,8 +76,41 @@ def _load(heli_dir):
     return out
 
 
-def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE):
-    rows = _load(heli_dir)
+def _blank_row(t0, npix):
+    """Placeholder for an interval with no envelope on disk (gap, or before the
+    archive starts). Keeps the drum's row-to-time mapping honest: a fixed window
+    always draws the same number of rows, so a missing interval reads as an empty
+    line rather than silently shifting every row below it."""
+    nan = np.full(npix, np.nan, dtype=np.float32)
+    return {"t0": t0, "mins": nan, "maxs": nan.copy(), "env": float("nan")}
+
+
+def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
+                   t_start=None, hours=None):
+    """Drum PNG bytes for a time window, or None if it holds no data at all.
+
+    t_start=None  -> the LIVE view: the newest `hours` worth of intervals on disk.
+    t_start=<ts>  -> a HISTORICAL window: exactly [t_start, t_start + hours), with
+                     missing intervals drawn as blank rows so the row-to-time
+                     mapping stays fixed.
+    """
+    hours = WINDOW_H if hours is None else float(hours)
+    if t_start is None:
+        rows = _load(heli_dir)
+        if rows:                                  # trim to the newest `hours`
+            cut = rows[-1]["t0"] - (hours - 1) * 3600
+            rows = [r for r in rows if r["t0"] >= cut]
+        historical = False
+    else:
+        t_start = float(t_start) // INTERVAL_S * INTERVAL_S      # snap to interval
+        t_end = t_start + hours * 3600
+        have = {r["t0"]: r for r in _load(heli_dir, t_start, t_end)}
+        if not have:
+            return None
+        npix = next(iter(have.values()))["mins"].size
+        rows = [have.get(t, _blank_row(t, npix))
+                for t in np.arange(t_start, t_end, INTERVAL_S)]
+        historical = True
     if not rows:
         return None
     import matplotlib
@@ -114,7 +160,10 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE):
     end_frac = (valid[-1] + 1) / last["maxs"].size if valid.size else 1.0
     end = datetime.datetime.fromtimestamp(
         last["t0"] + end_frac * INTERVAL_MIN * 60, datetime.timezone.utc)
-    d0 = datetime.datetime.fromtimestamp(rows[0]["t0"], datetime.timezone.utc).date()
+    start = datetime.datetime.fromtimestamp(rows[0]["t0"], datetime.timezone.utc)
+    if historical:                                 # fixed window -> show its full span
+        end = start + datetime.timedelta(hours=hours)
+    d0 = start.date()
     date_txt = (f"{end:%Y-%m-%d}" if d0 == end.date()
                 else f"{d0:%Y-%m-%d} – {end:%Y-%m-%d}")
     ax.text(5, 6, f"{date_txt}  (UTC)", ha="left", va="top",
@@ -122,7 +171,9 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE):
     ax.text(5, 33, station_id, ha="left", va="top",
             fontsize=15, color="#444", family="monospace")
     ax.text(5, 54, f"({place})", ha="left", va="top", fontsize=13, color="#666")
-    ax.text(IMG_W - MARGIN_R, 8, f"data to {end:%H:%M} UTC", ha="right", va="top",
+    corner = (f"{start:%H:%M} – {end:%H:%M} UTC" if historical
+              else f"data to {end:%H:%M} UTC")
+    ax.text(IMG_W - MARGIN_R, 8, corner, ha="right", va="top",
             fontsize=12, color="#888")
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---

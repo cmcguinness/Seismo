@@ -213,6 +213,30 @@ confirmed back to ~0.05/s, ~7× lower).
 pi5 re-encode. The working config is kept: 44 MB/day is trivial on the disk, and backfill
 already heals the rare fade N=2 misses. Thread closed. (`doc/rev2-data-plane.md §14.0`.)
 
+### ✅ `/history` — browse any past 4 h window (2026-07-26)
+
+The dashboard has a **History** page: `/history?datetime=YYYYmmDDHHMM` renders a drum
+for that 4 h window, off the **same interval envelopes the live drum uses** — one npz
+load per row, no miniSEED parse, no obspy on the request path.
+
+- **Retention flipped.** `heli_build` used to prune envelopes older than the 4 h live
+  window; it now prunes only what predates `SEISMO_EPOCH_START` (default
+  `2026-07-25T23:45Z`, the first 100 sps interval). ~20 KB/interval → **~2 MB/day**
+  against 87 GB free. `heli_build.py --backfill` is the one-shot that fills the range
+  (ran it: 65 intervals; the dir now holds the whole epoch, 1.6 MB).
+- **Picker is constrained by what's on disk**, not by epoch-start..now: `_available()`
+  reads only the npz *filenames* and offers an hour when its opening hour holds data,
+  so 2026-07-25 offers only hour 23 and a not-yet-backfilled range simply can't be
+  selected. Changing the date repopulates the hour list client-side and rewrites the
+  canonical URL live (shown on the page for copying).
+- **Blank rows are real.** A historical window always draws all 16 rows, missing
+  intervals included, so the row→time mapping can't silently shift.
+- **Scope = current epoch only, on purpose.** Pre-2026-07-25 is 57/60 sps through a
+  different front end; offering it behind the same picker would invite exactly the
+  like-for-like comparison that isn't valid. The page says so.
+- **Operational note:** the live builder only ever builds the last 4 h, so if the
+  dashboard is down >4 h a hole appears in the envelope set. `--backfill` heals it.
+
 ---
 
 ## 🌙 Overnight soak (started 2026-07-26 ~03:30 UTC)

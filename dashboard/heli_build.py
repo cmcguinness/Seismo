@@ -41,6 +41,23 @@ HP_HZ = float(os.environ.get("SEISMO_HELI_HP", "1.0"))   # high-pass corner; 0 d
 DATA = os.environ.get("SEISMO_DATA", "/data/data")
 HELI = os.environ.get("SEISMO_HELI", "/data/heli")
 
+# Envelopes are KEPT back to the start of the current acquisition epoch so the
+# /history page can render any past window. Earlier epochs are deliberately out
+# of scope: the archive before this ran at 57/60 sps through a different analog
+# front end, so those drums are not comparable to today's and putting them behind
+# the same date picker would invite exactly that mistake.
+#
+# 2026-07-25T23:39:01Z = the first 100 sps record (see STATUS.md "SWITCHED TO
+# 100 sps"); 23:45 is the first fully-covered 15-min interval.
+EPOCH_START = os.environ.get("SEISMO_EPOCH_START", "2026-07-25T23:45:00Z")
+
+
+def epoch_start_ts():
+    """EPOCH_START as epoch seconds, snapped down to an interval boundary."""
+    import datetime
+    dt = datetime.datetime.fromisoformat(EPOCH_START.replace("Z", "+00:00"))
+    return dt.timestamp() // INTERVAL_S * INTERVAL_S
+
 
 def _load_day(path, starttime=None):
     """miniSEED day-file -> list of contiguous single-rate traces (gaps blank).
@@ -134,12 +151,26 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
         st.filter("highpass", freq=HP_HZ, corners=2, zerophase=True)
 
     latest = max(t.stats.endtime.timestamp for t in st)
+    first_t0 = (latest - hours * 3600) // INTERVAL_S * INTERVAL_S
+    last_t0 = latest // INTERVAL_S * INTERVAL_S
+    # Prune only what predates the current epoch. Everything inside it is kept for
+    # /history (~20 KB per interval, ~2 MB/day -- nothing next to 44 MB/day of
+    # miniSEED), so the live cycle no longer deletes the window behind it.
+    _prune(heli_dir, epoch_start_ts())
+    return written
+
+
+def _write_intervals(st, heli_dir, first_t0, last_t0, latest):
+    """Envelope every 15-min interval in [first_t0, last_t0] from an already
+    filtered Stream, writing one npz each. Returns the number written.
+
+    Shared by the live `build()` and the one-shot `backfill()` so both produce
+    byte-identical files -- a history window must not look different from the
+    live drum that scrolled past the same minutes.
+    """
     # collect every trace's (timestamp, count) once; bucket per interval below
     all_t = np.concatenate([t.times("timestamp") for t in st])
     all_v = np.concatenate([t.data.astype(np.float64) for t in st])
-
-    first_t0 = (latest - hours * 3600) // INTERVAL_S * INTERVAL_S
-    last_t0 = latest // INTERVAL_S * INTERVAL_S
     written = 0
     t0 = first_t0
     while t0 <= last_t0:
@@ -173,9 +204,48 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
             os.replace(tmp, path)
             written += 1
         t0 += INTERVAL_S
-
-    _prune(heli_dir, first_t0)
     return written
+
+
+def backfill(data_dir=DATA, heli_dir=HELI, t_from=None, t_to=None):
+    """One-shot: build every missing interval from `t_from` to `t_to`, day-file by
+    day-file. Defaults to the whole current epoch up to now.
+
+    Separate from build() because it is deliberately expensive (it decodes whole
+    day-files) and must never run on the live 20 s cycle -- run it once by hand
+    after a deploy, or after a gap is healed by the collector's backfill.
+    """
+    import obspy
+
+    os.makedirs(heli_dir, exist_ok=True)
+    t_from = epoch_start_ts() if t_from is None else t_from
+    total = 0
+    for path in sorted(glob.glob(os.path.join(data_dir, "*.mseed"))):
+        try:
+            hdr = obspy.read(path, headonly=True)
+        except Exception as e:
+            print(f"  skip {os.path.basename(path)}: {e}", flush=True)
+            continue
+        if not len(hdr):
+            continue
+        f_end = max(t.stats.endtime.timestamp for t in hdr)
+        f_start = min(t.stats.starttime.timestamp for t in hdr)
+        if f_end <= t_from or (t_to is not None and f_start >= t_to):
+            continue                                  # file lies outside the range
+        st = _load_day(path, starttime=obspy.UTCDateTime(max(f_start, t_from)))
+        if not len(st):
+            continue
+        if HP_HZ > 0:
+            st.detrend("demean")
+            st.filter("highpass", freq=HP_HZ, corners=2, zerophase=True)
+        latest = max(t.stats.endtime.timestamp for t in st)
+        first = max(f_start, t_from) // INTERVAL_S * INTERVAL_S
+        last = (latest if t_to is None else min(latest, t_to)) // INTERVAL_S * INTERVAL_S
+        n = _write_intervals(st, heli_dir, first, last, latest)
+        total += n
+        print(f"  {os.path.basename(path)}: +{n} interval(s)", flush=True)
+    _prune(heli_dir, epoch_start_ts())
+    return total
 
 
 def _is_complete(path):
@@ -211,7 +281,12 @@ def _prune(heli_dir, cutoff_t0):
 
 
 if __name__ == "__main__":
-    data = sys.argv[1] if len(sys.argv) > 1 else DATA
-    heli = sys.argv[2] if len(sys.argv) > 2 else HELI
-    n = build(data, heli)
+    args = [a for a in sys.argv[1:] if a != "--backfill"]
+    data = args[0] if len(args) > 0 else DATA
+    heli = args[1] if len(args) > 1 else HELI
+    if "--backfill" in sys.argv:
+        print(f"backfilling {heli} from {EPOCH_START} ...", flush=True)
+        n = backfill(data, heli)
+    else:
+        n = build(data, heli)
     print(f"built/updated {n} interval file(s) in {heli}")
