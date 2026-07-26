@@ -152,10 +152,10 @@ lost only if **N consecutive datagrams all drop** — i.e. it defeats any loss
 - *24 h probe — DONE* (2026-07-24→25, 864,000 pkts, 10 pps × 512 B): **0.0073 %
   loss** (63 lost), 0 reorder, 0 dup. 16 loss events, **sporadic across the day** (no
   time-of-day pattern), **worst fade 1.4 s** (14 pkts). Burst hist (pkts): 1×7, 2×2,
-  3, 4, 7×2, 8, 9, 14. → **Redundancy fixed at N = 2** (see §14.0 for the 100 sps
-  re-derivation — at 57 sps the 1.75 s cadence meant a 1.4 s fade dropped ≤1 datagram
-  and N=2 recovered 100 % inline; at 100 sps the cadence is 1.0 s, so the worst fade can
-  drop both copies and that tail falls to backfill). No adaptive-N machinery needed.
+  3, 4, 7×2, 8, 9, 14. → **Redundancy fixed at N = 2** (see §14.0 — at 100 sps the
+  int32 1.0 s cadence would let a 1.4 s fade drop both N=2 copies, so records are encoded
+  **STEIM2** to pack ~180 samples/512 B → ~1.8 s cadence → N=2 again covers the worst fade
+  inline, byte-identically, at half the archive size). No adaptive-N machinery needed.
 
 ## 6. Heartbeat
 
@@ -350,25 +350,46 @@ The §14 open items are resolved below. Governing constraints unchanged: never
 starve the ADC loop (fail-open everywhere), station stays dumb, reliability lives
 in the archive layer not per-packet.
 
-### 14.0 ⚠️ 100 sps changed the N math — re-derived
+### 14.0 STEIM2 records — resolves the N math AND halves the archive
 
-N=2 was derived at 57 sps, where 100-sample records = **1.75 s/datagram**. The
-station is now **100 sps** (2026-07-25 epoch, see STATUS), so a 100-sample record
-is **1.0 s/datagram**. N=2 sends record *k* in datagrams *k* and *k+1*, now only
-**1.0 s apart** — so the worst observed fade (**1.4 s**) can drop *both* copies,
-which it could not at 1.75 s spacing.
+**The 100 sps problem.** N=2 was derived at 57 sps, where 100-sample records =
+**1.75 s/datagram**. At 100 sps a 100-sample int32 record is **1.0 s/datagram**, so
+N=2 spaces the two copies of a record only 1.0 s apart — the worst observed fade
+(**1.4 s**) can drop *both*, which it couldn't at 1.75 s. Going deeper is a dead zone
+at int32: N=3 = 1536 B > MTU (fragments), and shrinking to 256 B records halves the
+cadence so N=3 spans only 1.0 s (still misses 1.4 s) — you'd need 256 B/N=4.
 
-**Decision: keep 100-sample / 512 B records, N=2.** N=2 still recovers the *common*
-1–2-datagram bursts inline (the bulk of the 24 h probe's 16 loss events); the rare
->1 s fade falls to **backfill** (§14.4) — the §5 live-vs-archive split. The live
-strip-chart skips ~1 s about once a day; the archive is healed. Rejected: 50-sample
-/256 B records + N=4 (0.5 s cadence, covers 1.4 s inline) — 2× datagrams and
-machinery to claw back a once-a-day 1 s live blip backfill already fixes.
-**N_max at 512 B = 2** regardless (N=3 = 1536 B > MTU, fragments).
+**The fix: encode records as STEIM2, and pack more samples per 512 B record.**
+Verified 2026-07-25 on the Pi 2B — `simplemseed` (1.0.1) encodes STEIM2, **lossless**
+(0/1237 real-data round-trip mismatches), encode cost negligible (~tens of ms/record,
+≤1 record/~2 s → <1 % of a core). **Measured ratio on THIS station ≈ 1.6×** (not the
+2–4× first estimated: gain 64 → ~770-count std on a ~333 000-count bias, so deltas need
+wide STEIM2 codes; a synthetic loud event still gave ~1.56×, so it barely moves
+quiet→loud). At 1.6×, a fixed 512 B record holds **~180 samples** of STEIM2 instead of
+100 int32 — and *that* is the lever: more samples per fixed record ⇒ longer cadence ⇒
+wider N=2 spacing.
+
+| record | samples / 512 B | cadence | N=2 copy spacing | covers 1.4 s fade? |
+| --- | --- | --- | --- | --- |
+| int32 (current) | 100 | 1.0 s | 1.0 s | ✗ |
+| **STEIM2** | **~180** | **~1.8 s** | **~1.8 s** | **✓ inline** |
+
+**Decision: 512 B STEIM2 records, N=2.** Fits one unfragmented datagram (1032 B),
+byte-identical wire↔archive, covers the worst fade inline, and shrinks the archive
+**~44 → ~24 MB/day**. Supersedes both earlier candidates (int32/N=2-with-backfill-tail
+and 256 B/N=4). Backfill drops to true-catastrophe-only. Corner case: pathological
+~4 B/sample data would shorten the record below 1.4 s of coverage, but real seismic
+never sustains that — that corner still falls to backfill (§14.4). STEIM2 is also the
+SeedLink/FDSN-native encoding, so it's the right archive format for §14.9's downstream
+serving regardless of the wire benefit.
+
+*Implementation:* the recorder's writer moves from fixed 100-sample records to a
+fill-the-STEIM2-record model (7×64 B frames per 512 B record; standard for STEIM
+writers). **ADC/sampling loop untouched** — the change is in the writer + publisher.
 
 ### 14.1 Datagram wire format
 
-`8-byte header + n_records × 512 B miniSEED records`, network byte order:
+`8-byte header + n_records × 512 B STEIM2 records`, network byte order:
 
 | off | field | bytes | note |
 | --- | --- | --- | --- |
@@ -377,9 +398,11 @@ machinery to claw back a once-a-day 1 s live blip backfill already fixes.
 | 3 | n_records | 1 | = effective N in this datagram |
 | 4 | seq | 4 (u32) | datagram counter since recorder start |
 
-Records follow **verbatim** — the exact bytes the file writer packs, so the pi5
-archive is byte-identical to what the station would have written. Max datagram =
-8 + 2×512 = **1032 B < 1472 MTU**. ✓ Never fragment.
+Records are **STEIM2** (miniSEED encoding code 11), fixed 512 B, ~180 samples each
+(variable — the writer fills the frames and flushes), sent **verbatim** so the pi5
+archive is byte-identical to what the station writes. Max datagram = 8 + 2×512 =
+**1032 B < 1472 MTU**. ✓ Never fragment. (`n_records` stays in the header so the
+receiver tolerates a short final datagram or a future N change.)
 
 ### 14.2 Idempotency / dedup / gap detection = record START-TIME
 
@@ -415,7 +438,7 @@ rsync**. Best-effort, no retry (§6).
 
 - **pi5 collector** writes `~/seismo-archive/` (distinct from the `~/seismo-data/`
   rsync mirror during migration), same day-file naming. Keeps the **full archive**
-  — ~44 MB/day @100 sps ≈ 16 GB/yr, trivial; STEIM2-compress old days later if wanted.
+  — with STEIM2 (§14.0) ~24 MB/day @100 sps ≈ 9 GB/yr, trivial.
 - **Station local buffer** (store-and-forward): retain **~14 days**, then prune —
   it exists only to serve backfill.
 
