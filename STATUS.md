@@ -213,6 +213,45 @@ confirmed back to ~0.05/s, ~7× lower).
 pi5 re-encode. The working config is kept: 44 MB/day is trivial on the disk, and backfill
 already heals the rare fade N=2 misses. Thread closed. (`doc/rev2-data-plane.md §14.0`.)
 
+### ✅ ADS1256 reset no longer needs the RESET pin (2026-07-26)
+
+The chip is now recovered over SPI — `SDATAC, SDATAC, RESET(0xFE)` with CS cycled
+between each (`adc_common._soft_reset`), replacing the RESET-pin pulse.
+`CHIP_HARD_RESET_ON_START = False`; the pin is opt-in via `SEISMO_RESET_PIN=1`.
+`rdatac.stop()` uses the same sequence.
+
+- **Why:** a bare ADS1256 breakout (LC Tech ADS1256_V1.1, under evaluation) brings out
+  only SCLK/DIN/DOUT/CS/DRDY/PDWN — RESET stays on the die. The old recovery would
+  simply not exist there, and "chip wedged in RDATAC" bricks every later startup.
+- **Proven on the Waveshare** (`station/reset_test.py`, run with the recorder stopped):
+  **4/4 rounds genuinely wedged** — reproducing the real *"Received wrong chip ID"* —
+  and **4/4 recovered by software alone**, RESET pin untouched.
+- **Test-design trap worth remembering:** the first version wedged and re-opened in ONE
+  interpreter and "passed" 3/3 on `CS pin already used. Must be exclusive!` — that is
+  PiPyADC's class-level GPIO bookkeeping, not a wedged chip. Every phase now runs in
+  its own process, which is the only way the hardware is actually asked anything.
+- Recorder restarted clean: `rate_est 100.0, clock_err 0.0 ms, dropped 0, udp_dropped 0`.
+
+### 🔎 Alternative ADC board under evaluation — LC Tech ADS1256_V1.1
+
+Bare breakout, considered because the Waveshare's demo-sensor block cost us the whole
+pre-2026-07-24 archive and its 5 V AVDD path is faulty. From the board photos:
+**ADS1256IDB + 7.680 MHz crystal** (so `CLKIN_FREQUENCY` is unchanged), **ADR03B** 2.5 V
+XFET reference (better than the Waveshare's LM285-2.5), **AMS1117-3.3** → 5 V in / 3.3 V
+digital, an inductor + 22 µF tantalums on the supplies, and no demo circuitry.
+
+- **The draw:** it is 5 V-only, so AVDD = 5 V and the *buffered* common-mode range is
+  0–3 V. A mid-supply bias is 2.5 V, which fits — that is exactly the ✓ row of
+  `doc/rev2-frontend.md` §"Open decision", i.e. **buffer-on**, the biggest remaining
+  noise lever, currently blocked on the Waveshare's 5 V fault.
+- **Must meter before use:** there is an R/C network between header P1 and the ADC
+  (~16 resistors, many marked `1000` = 100 Ω, plus C12–C20). Series-R + cap to AGND is
+  helpful; a divider to ground would attenuate the signal and load the 385 Ω coil.
+  This is the demo-jumper lesson — do not trust the silkscreen, ring it out.
+- No RESET on the header (hence the work above). Four unpopulated pads sit next to U3 —
+  check whether one is ADS1256 pin 6.
+- Swapping the live station starts a **new epoch**. Bench it first.
+
 ### ✅ `/history` — browse any past 4 h window (2026-07-26)
 
 The dashboard has a **History** page: `/history?datetime=YYYYmmDDHHMM` renders a drum
