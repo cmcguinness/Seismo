@@ -1,0 +1,32 @@
+[Unit]
+Description=Seismo STA/LTA detector (pi5-side, over the owned archive)
+Documentation=https://github.com/cmcguinness/Seismo
+# Phase-2 sec 9: detection moves off the station onto the pi5. Additive -- runs
+# alongside the station's inline detector until parity is confirmed, then that is removed.
+After=network-online.target seismo-collector.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=charles
+Group=charles
+WorkingDirectory=/home/charles/seismo-collector
+Environment=SEISMO_ARCHIVE=/home/charles/seismo-archive
+Environment=SEISMO_GAIN=64
+Environment=SEISMO_RATE=100
+Environment=SEISMO_DETECT_POLL_S=60
+Environment=SEISMO_DETECT_WINDOW_S=600
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/charles/seismo-collector/.venv/bin/python detector.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+# Deploy on pi5 (shares the collector venv):
+#   cp detector.py stalta.py ~/seismo-collector/
+#   sudo cp seismo-detector.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now seismo-detector
+# Retroactive re-detection (retune vs the false positives), e.g.:
+#   ~/seismo-collector/.venv/bin/python ~/seismo-collector/detector.py --day 2026.207 --trig 6

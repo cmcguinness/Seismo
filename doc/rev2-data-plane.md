@@ -466,8 +466,17 @@ heartbeat **48318**. pi5 firewall allows inbound UDP from the station on both.
 
 - **Envelope builder** migration (dashboard → server) — moves when the dashboard is
   cut to `/v1/*`.
-- Detector → pi5 (§9), retire `seismo-rsync.timer` + `seismo-live-pull` (§13.4–5),
-  reverse channel / adaptive N (§7).
+- ✅ **Detector → pi5 (§9) — DONE (2026-07-26).** `server/detector.py` (+`stalta.py`)
+  runs the SAME StaLta on the pi5 over the owned archive; `seismo-detector` service
+  emits to `<archive>/events.log`. **Additive** — the station's inline detector still
+  runs (removal pending). Unlocks retroactive re-detection (`--file/--day` + tunable
+  `--trig/--sta/--lta/--hp`). Parity vs the station's inline events: 10/11 identical
+  duration/ratio/peak; the 2 differences are the station re-priming its LTA at today's
+  restarts (it *missed* a ratio-9 event the continuous pi5 detector caught). Key fix:
+  feed ONE StaLta continuously across small drop-gaps (reset only on a >60 s outage),
+  matching the station's stream-based behavior — per-segment re-priming had killed it.
+- Retire `seismo-rsync.timer` + `seismo-live-pull` (§13.4–5), reverse channel /
+  adaptive N (§7).
 
 ### 14.10 Refined Phase-1 build order
 

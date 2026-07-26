@@ -180,8 +180,27 @@ feed-the-world step.
   a scientific epoch, samples identical).
 
 **Phase 1 is complete** (100 sps · UDP stream · N=2 redundancy · heartbeat · backfill ·
-STEIM2). **Next = Phase 2:** cut the dashboard onto `/v1/*`, move the STA/LTA detector to
-pi5 (retroactive re-detection), then retire the rsync mirror + live-pull.
+STEIM2).
+
+### ✅ Phase 2 step 1: detector → pi5 (2026-07-26)
+
+STA/LTA detection now also runs on the **pi5**, over the owned archive (`server/detector.py`
++ `stalta.py`, `seismo-detector` service → `<archive>/events.log`). It reuses the exact
+`StaLta`, so results match, and it adds the thing the station couldn't do: **retroactive
+re-detection** — `detector.py --day 2026.207 --trig 6 ...` re-runs over the whole archive
+with tuned thresholds (the surface for killing the false positives).
+
+- **Additive:** the station's inline detector is **still running** (removal is the next
+  sub-step, and per house rule needs an explicit go-ahead — it's a working feature).
+- **Parity verified:** 10/11 of the station's day-207 events reproduced with identical
+  duration/ratio/peak. The 2 diffs are the station re-priming its LTA at today's recorder
+  restarts — it actually *missed* a ratio-9 event the continuous pi5 detector caught.
+- **Key fix:** feed one StaLta continuously across the frequent small drop-gaps (reset
+  only on a real >60 s outage) — matching the station's stream-based behavior. Per-segment
+  re-priming had suppressed all but one event.
+
+**Next in Phase 2:** wire the dashboard to `/v1/*` (read pi5 events + owned archive via
+`store.py`), then retire the station's inline detector, the rsync mirror, and live-pull.
 
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
