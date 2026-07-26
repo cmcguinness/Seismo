@@ -20,9 +20,14 @@ LOGLEVEL = logging.WARNING
 SPI_BUS: int = 0
 SPI_CHANNEL: Literal[0, 1, 2] = 0
 SPI_FREQUENCY: Literal[976563, 1953125] = 976563
-CHIP_HARD_RESET_ON_START: bool = True  # RESET_PIN (18) is wired; hard-reset on
-                                       # every init so a prior dirty exit (chip
-                                       # left mid-conversion) recovers cleanly.
+CHIP_HARD_RESET_ON_START: bool = False  # the driver's own post-ID reset is now the
+                                       # SOFTWARE one (CMD_RESET over SPI). We no
+                                       # longer depend on the RESET pin at all:
+                                       # adc_common.reset_adc() has already put the
+                                       # chip in a known state BEFORE construction,
+                                       # and bare ADS1256 breakouts don't break the
+                                       # pin out. Set SEISMO_RESET_PIN=1 to also
+                                       # pulse it on hardware that has one.
 CHIP_ID: int = 3
 CHIP_SELECT_GPIOS_INITIALIZE: tuple[int, ...] = (22, 23)
 CS_PIN: int = 22

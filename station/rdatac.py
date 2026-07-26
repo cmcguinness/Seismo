@@ -29,7 +29,7 @@ import time
 
 import pigpio
 
-from pipyadc.ADS1256_definitions import CMD_RDATAC, CMD_SDATAC
+from pipyadc.ADS1256_definitions import CMD_RDATAC, CMD_RESET, CMD_SDATAC
 
 INT24_BYTES = 3
 
@@ -134,16 +134,24 @@ class RdatacReader:
         then keeps streaming conversions. The next process to open the ADC reads
         data where it expects the ID register and dies with "Received wrong chip ID"
         -- which looks exactly like "the ADC is busy" and cost a debugging detour.
-        So follow it with a hard reset (RESET pin is wired, GPIO18)."""
-        try:
-            self.pi.spi_write(self.spi, CMD_SDATAC.to_bytes())
-            time.sleep(0.005)
-        except Exception:
-            pass
-        try:
-            self.ads.hard_reset()
-        except Exception:
-            pass
+        So follow it with a RESET.
+
+        Both are SPI commands, not a RESET-pin pulse: this has to work on boards that
+        do not break the pin out (see adc_common._soft_reset). CS is cycled between
+        them because the point of the second command is to be seen after the first
+        has ended whatever frame was in flight."""
+        for cmd in (CMD_SDATAC, CMD_SDATAC, CMD_RESET):
+            try:
+                if self.cs is not None:
+                    self.pi.write(self.cs, pigpio.LOW)
+                self.pi.spi_write(self.spi, cmd.to_bytes())
+                time.sleep(0.002)
+                if self.cs is not None:
+                    self.pi.write(self.cs, pigpio.HIGH)
+                time.sleep(0.001)
+            except Exception:
+                pass
+        time.sleep(0.03)              # oscillator settling after RESET
         try:
             if self.cs is not None:
                 self.pi.write(self.cs, pigpio.HIGH)
