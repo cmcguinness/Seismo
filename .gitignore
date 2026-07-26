@@ -37,5 +37,6 @@ analysis/labels.csv
 analysis/labels.events.csv
 analysis/labels.features.csv
 !analysis/labels.example.csv
-annotations.csv
-analysis/annotations.csv
+# annotations.csv is NOT ignored: unlike labels.csv (bulk, regenerable traffic
+# counts), it is hand-observed ground truth -- someone watched the thing happen and
+# wrote down when. It only exists on one Mac, so it belongs in the repo.
