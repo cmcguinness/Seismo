@@ -377,8 +377,10 @@ def _build_spark_svg(tr):
         f'aria-label="waveform around the detection">'
         f'<line x1="0" y1="{yc:.0f}" x2="{SPARK_W}" y2="{yc:.0f}" '
         f'stroke="#e6e8eb" stroke-width="1"/>'
+        # Onset marker. preserveAspectRatio="none" squashes the horizontal stroke
+        # when the SVG is scaled to the cell, so it needs the extra width here.
         f'<line x1="{x_on:.0f}" y1="0" x2="{x_on:.0f}" y2="{SPARK_H}" stroke="#dc322f" '
-        f'stroke-width="1" stroke-dasharray="2 2" opacity="0.55"/>'
+        f'stroke-width="1.8" stroke-dasharray="3 2" opacity="0.95"/>'
         f'<polygon points="{top} {bot}" fill="#2f6f6b" fill-opacity="0.85"/>'
         f'</svg>'
     )

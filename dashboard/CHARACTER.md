@@ -5,7 +5,7 @@ The detections table shows a **character** badge per trigger: `impulsive`,
 from, and — more importantly — what the scoring does *not* claim.
 
 Code: `render._build_character()` (scoring) + `app._char_badge()` (presentation).
-Runs on the same ±30 s window the sparkline already slices, inside the same
+Runs on the same −8/+22 s window the sparkline already slices, inside the same
 memoized cache-fill, so it adds **no extra I/O** and nothing on the steady-state
 request path.
 

@@ -509,7 +509,7 @@ Dokku) = render/serve**, **Jetson = future ML** (backlog). Live at **https://sei
 **Detection character badge** (2026-07-22): the detections table now labels each
 trigger's waveform *shape* — `impulsive` / `sustained` / `near-threshold` — from
 envelope kurtosis + duration-above-25%-of-peak + peak/median SNR, scored on the same
-±30 s slice the sparkline already loads (14 ms/event, no extra I/O). Soft label only:
+−8/+22 s slice the sparkline already loads (14 ms/event, no extra I/O). Soft label only:
 never filters, and NOT an earthquake classifier (a very local quake is impulsive too,
 and there's no confirmed event yet to calibrate against). Thresholds measured from 127
 real triggers; the backlog's HF/spectral-flatness idea was tested and **refuted** —

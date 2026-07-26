@@ -294,7 +294,10 @@ def home():
 
 _DET_HEAD = (
     '<thead><tr><th>start (UTC)</th><th>duration</th><th>STA/LTA</th><th>peak</th>'
-    '<th>waveform <span class="fw-normal text-muted">&plusmn;30&nbsp;s, 1&ndash;15&nbsp;Hz</span></th>'
+    # Window is asymmetric (SPARK_PRE before the trigger, SPARK_POST after), so the
+    # red onset marker sits ~1/3 in, NOT centred -- the label must not say "+/-".
+    f'<th>waveform <span class="fw-normal text-muted">'
+    f'{render.SPARK_PRE + render.SPARK_POST:g}&nbsp;s</span></th>'
     '<th>character <span class="fw-normal text-muted">shape only</span></th></tr></thead>')
 
 
