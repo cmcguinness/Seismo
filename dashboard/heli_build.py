@@ -153,6 +153,7 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
     latest = max(t.stats.endtime.timestamp for t in st)
     first_t0 = (latest - hours * 3600) // INTERVAL_S * INTERVAL_S
     last_t0 = latest // INTERVAL_S * INTERVAL_S
+    written = _write_intervals(st, heli_dir, first_t0, last_t0, latest)
     # Prune only what predates the current epoch. Everything inside it is kept for
     # /history (~20 KB per interval, ~2 MB/day -- nothing next to 44 MB/day of
     # miniSEED), so the live cycle no longer deletes the window behind it.
