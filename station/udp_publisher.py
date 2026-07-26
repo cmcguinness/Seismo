@@ -15,6 +15,8 @@ Fail-open by construction: publish() never blocks or raises (drop-on-full queue)
 a dead link is just UDP fire-and-forget -- the ADC/sampling loop is never touched.
 Archive completeness is the pi5's job (seq-gap detect + backfill), not this path's.
 """
+import datetime
+import json
 import queue
 import socket
 import struct
@@ -51,6 +53,11 @@ class UdpPublisher:
     def stats(self):
         return {"udp_sent": self._sent, "udp_dropped": self._dropped}
 
+    @property
+    def seq(self):
+        """Highest data-datagram seq sent so far (hi_seq for the heartbeat)."""
+        return self._seq
+
     def publish(self, record_bytes):
         """Called from the writer thread. NEVER blocks or raises (fail-open)."""
         try:
@@ -83,3 +90,44 @@ class UdpPublisher:
                 self._stop.wait(dt)
             else:
                 next_send = time.monotonic()       # too far behind: resync, don't spiral
+
+
+class Heartbeat:
+    """Station->pi5 liveness/health pulse (rev2-data-plane.md sec 6), on its OWN port,
+    separate from the data stream -- its *absence* is the signal, so it fires on a fixed
+    ~1 s cadence regardless of whether data is flowing.
+
+    Payload (JSON): the current health counters plus `hi_seq` (highest data seq sent, so
+    the pi5 can bound tail loss) and `hb_seq`/`t`. Best-effort fire-and-forget, no retry;
+    `hi_seq` is cumulative so a lost heartbeat is re-reported by the next.
+    """
+    def __init__(self, host, port, get_state, period_s=1.0):
+        self._addr = (host, int(port))
+        self._get = get_state            # callable -> dict (health counters incl hi_seq)
+        self._period = float(period_s)
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._n = 0
+        self._stop = threading.Event()
+        self._t = threading.Thread(target=self._run, name="udp-heartbeat", daemon=True)
+
+    def start(self):
+        self._t.start()
+
+    def stop(self):
+        self._stop.set()
+
+    def _run(self):
+        while not self._stop.is_set():
+            try:
+                self._n += 1
+                payload = {"t": datetime.datetime.now(datetime.timezone.utc).isoformat(
+                               timespec="milliseconds"),
+                           "hb_seq": self._n}
+                try:
+                    payload.update(self._get() or {})
+                except Exception:
+                    pass                  # never let a bad state read stop the pulse
+                self._sock.sendto(json.dumps(payload).encode(), self._addr)
+            except Exception:
+                pass                      # a dead socket must never kill the recorder
+            self._stop.wait(self._period)

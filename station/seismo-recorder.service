@@ -33,6 +33,7 @@ Environment=SEISMO_RATE=100
 Environment=SEISMO_UDP_HOST=192.168.5.30
 Environment=SEISMO_UDP_PORT=48317
 Environment=SEISMO_UDP_N=2
+Environment=SEISMO_HB_PORT=48318
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/charles/seismo/venv/bin/python recorder.py
 # recorder.py traps SIGTERM -> flushes the partial block and releases the ADC

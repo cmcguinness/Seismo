@@ -51,7 +51,7 @@ from simplemseed import MiniseedHeader, MiniseedRecord
 
 from adc_common import DIFF, measure_rate, open_ads
 from stalta import StaLta
-from udp_publisher import UdpPublisher
+from udp_publisher import Heartbeat, UdpPublisher
 
 STATION = os.environ.get("SEISMO_STATION", "OAKMT")
 NETWORK = os.environ.get("SEISMO_NETWORK", "XX")   # XX = FDSN test/unregistered code.
@@ -79,6 +79,7 @@ BLOCK_S = int(os.environ.get("SEISMO_BLOCK", "10"))
 UDP_HOST = os.environ.get("SEISMO_UDP_HOST", "")
 UDP_PORT = int(os.environ.get("SEISMO_UDP_PORT", "48317"))
 UDP_N = int(os.environ.get("SEISMO_UDP_N", "2"))
+HB_PORT = int(os.environ.get("SEISMO_HB_PORT", "48318"))   # heartbeat -> pi5 (sec 6)
 # Warm-up discarded after ADC init. The ADS1256 emits garbage for the first
 # conversions following a pin reset -- measured as a ~97,800-count step (66x the
 # ambient max) on 2026-07-24, once per restart. Unfiltered it trips the STA/LTA
@@ -114,6 +115,7 @@ LIVE_PERIOD = 0.3                # how often to republish the ring (s)
 
 _stop = threading.Event()
 _q: queue.Queue = queue.Queue(maxsize=64)
+_last_health: dict = {}          # latest health counters, for the heartbeat to snapshot
 
 
 def live_publisher(ring: deque, fs: float) -> None:
@@ -182,6 +184,8 @@ def _health(**kw) -> None:
     try:
         kw["t"] = datetime.datetime.now(datetime.timezone.utc).isoformat(
             timespec="seconds")
+        _last_health.clear()                       # snapshot for the heartbeat sender
+        _last_health.update(kw)
         tmp = f"{HEALTH}.tmp"
         Path(tmp).write_text(json.dumps(kw))
         os.replace(tmp, HEALTH)
@@ -232,6 +236,7 @@ def main() -> None:
     wt = None
     reader = None
     publisher = None
+    heartbeat = None
     try:
         if RDATAC:
             from rdatac import ClockAnchor, Despiker, RdatacReader
@@ -251,12 +256,17 @@ def main() -> None:
         rate = RATE                               # FIXED declared rate -> single-rate archive
         block_n = rate * BLOCK_S
         publisher = None
+        heartbeat = None
         if UDP_HOST:
             publisher = UdpPublisher(UDP_HOST, UDP_PORT, n=UDP_N,
                                      record_period_s=SPR / rate)
             publisher.start()
             print(f"  UDP publisher -> {UDP_HOST}:{UDP_PORT}  (N={UDP_N}, "
                   f"{SPR / rate:.2f}s/record)")
+            heartbeat = Heartbeat(UDP_HOST, HB_PORT,
+                                  lambda: {**_last_health, "hi_seq": publisher.seq})
+            heartbeat.start()
+            print(f"  heartbeat -> {UDP_HOST}:{HB_PORT}  (1 s)")
         wt = threading.Thread(target=writer, args=(rate, publisher), daemon=True)
         wt.start()
         mode = "RDATAC continuous" if RDATAC else "legacy per-sample SYNC"
@@ -399,6 +409,8 @@ def main() -> None:
             if block:                             # flush partial block on stop
                 _q.put((block, start))
     finally:
+        if heartbeat is not None:
+            heartbeat.stop()
         if publisher is not None:
             publisher.stop()                       # fail-open; drops any unsent tail
         if reader is not None:

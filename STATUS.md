@@ -144,9 +144,25 @@ existing rsync mirror; nothing retired.
   arrived, all byte-identical** to the recorder's local day-file — 0 mismatched, 0
   fabricated, `udp_dropped=0`. Records are int32 for now (STEIM2 fill-model is the
   follow-on that lets N=2 also cover the worst 1.4 s fade inline, §14.0).
-- **Next (Phase-1 step 2):** heartbeat (retires the health.json rsync) + start-time gap
-  detection + rsync backfill. Then optionally STEIM2, then Phase 2 (dashboard→/v1,
-  retire rsync).
+### ✅ UDP heartbeat + backfill — Phase-1 step 2 LIVE (2026-07-26)
+
+The stream now has its reliability layer.
+
+- **Heartbeat (sec 6):** `station/udp_publisher.py` `Heartbeat` sends a 1 s station→pi5
+  JSON pulse on port 48318 — health counters + `hi_seq` (highest data seq, bounds tail
+  loss). The collector writes it atomically to `~/seismo-archive/station_health.json`
+  (the eventual replacement for the health.json rsync; feeds `/v1/health` in Phase 2).
+  Fires regardless of data flow, so its *absence* is the liveness signal.
+- **Backfill (sec 14.4):** the collector, on startup and hourly, `ssh`+`rsync`s the
+  station's recent local day-files and merges any records missing from the archive
+  (dedup by start-time; thread-safe under a lock shared with live ingest). Lazy,
+  pi5-initiated, rare-catastrophe recovery — not per-packet plumbing.
+- **Verified:** startup backfill healed **+2033** then **+31** records (exactly the
+  gaps from the deploy restarts); live stream **`seq_gaps=0`**, `udp_dropped=0`; the
+  only ever-residual is the current restart window, which the next cycle converges.
+- **Next (optional):** switch records to **STEIM2** (sec 14.0) so N=2 covers the worst
+  1.4 s fade inline and the archive halves. Then **Phase 2**: cut the dashboard onto
+  `/v1/*`, move the detector to pi5, and retire the rsync mirror + live-pull.
 
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 

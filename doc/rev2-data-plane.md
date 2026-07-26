@@ -474,8 +474,15 @@ heartbeat **48318**. pi5 firewall allows inbound UDP from the station on both.
    fabricated, `udp_dropped=0`. Records are still int32 here (STEIM2 fill-model is a
    follow-on); N=2 at int32/1.0 s cadence covers the *common* bursts inline, the rare
    >1 s fade waits on step 2 backfill.
-2. **Heartbeat** (retires health.json pull) + **start-time gap detection** +
-   **rsync backfill**. (Then optionally switch records to STEIM2 per §14.0 so N=2
-   covers the 1.4 s fade inline and the archive halves.)
+2. ✅ **DONE (2026-07-26)** — **Heartbeat + backfill.** `Heartbeat` in
+   `udp_publisher.py` sends a 1 s station→pi5 JSON pulse on port 48318 (health counters
+   + `hi_seq`); the collector writes it atomically to `station_health.json` (the
+   health.json-pull replacement, wired into `/v1/health` in Phase 2). Backfill (§14.4):
+   the collector, on startup and hourly, `ssh`+`rsync`s the station's recent local
+   day-files and merges records missing from the archive (dedup by start-time). **Verified:**
+   startup backfill healed +2033 then +31 records (exactly the gaps); live stream
+   `seq_gaps=0`; the only ever-residual is the current restart window, converged by the
+   next cycle. Records still int32 (STEIM2 fill-model per §14.0 is the optional next step
+   so N=2 also covers the 1.4 s fade inline and the archive halves).
 
 Then Phase 2 separately.

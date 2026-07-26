@@ -12,6 +12,10 @@ Group=charles
 WorkingDirectory=/home/charles/seismo-collector
 Environment=SEISMO_ARCHIVE=/home/charles/seismo-archive
 Environment=SEISMO_UDP_PORT=48317
+Environment=SEISMO_HB_PORT=48318
+Environment=SEISMO_STATION_HOST=seismo.local
+Environment=SEISMO_STATION_DATA=seismo/data
+Environment=SEISMO_BACKFILL_S=3600
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/charles/seismo-collector/.venv/bin/python udp_collector.py
 Restart=always
