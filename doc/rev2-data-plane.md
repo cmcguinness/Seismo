@@ -387,6 +387,13 @@ serving regardless of the wire benefit.
 fill-the-STEIM2-record model (7×64 B frames per 512 B record; standard for STEIM
 writers). **ADC/sampling loop untouched** — the change is in the writer + publisher.
 
+✅ **DEPLOYED (2026-07-26).** `recorder._write_records` fills records via
+`encodeSteim2FrameBlock(frames=7)`; the publisher paces by each record's own duration.
+Measured live: ~210–250 samples/record (~2.1–2.5 s cadence), **~20 MB/day** archive,
+lossless round-trip, **0 STEIM2 byte-mismatches** station↔pi5-archive, collector
+`seq_gaps=0`, dashboard renders STEIM2 unchanged (obspy). Drop-boundary block-cuts still
+emit the occasional tiny record (pre-existing behavior), which is fine.
+
 ### 14.1 Datagram wire format
 
 `8-byte header + n_records × 512 B STEIM2 records`, network byte order:

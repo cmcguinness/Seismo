@@ -11,10 +11,10 @@ RAW ADC counts are stored (miniSEED convention); volts-per-count and the
 geophone response live in station metadata, applied at analysis time.
 
 Format details (learned the hard way):
-  - int32 encoding (code 3), uncompressed. ~19 MB/day at 56 sps -- fine on the
-    9 GB free here; STEIM2 compression is a later optimisation.
-  - 512-byte records hold ~114 int32 samples, so each block is chunked into
-    100-sample records.
+  - STEIM2 encoding (code 11), lossless. Each 512-byte record is FILLED (~110-250
+    int32 samples depending on compressibility) -> ~20 MB/day at 100 sps, roughly half
+    the int32 size, and it's the SeedLink/FDSN-native encoding. Fill-model also lengthens
+    the UDP datagram cadence to ~2 s so the N=2 redundancy covers the worst fade (sec 14.0).
   - miniSEED2 stores rate as integer factor x mult, and simplemseed's auto-calc
     is broken -> we pass sampRateFactor/sampRateMult explicitly (integer rate).
 
@@ -47,7 +47,7 @@ from collections import deque
 from pathlib import Path
 
 import numpy as np
-from simplemseed import MiniseedHeader, MiniseedRecord
+from simplemseed import MiniseedHeader, MiniseedRecord, encodeSteim2FrameBlock
 
 from adc_common import DIFF, measure_rate, open_ads
 from stalta import StaLta
@@ -103,8 +103,12 @@ EVENTS_LIVE = Path("/dev/shm/seismo_events.json")       # last N events, for the
 QC_LOG = DATADIR.parent / "qc.log"
 HEALTH = DATADIR.parent / "health.json"                 # rsync'd; for the dashboard
 
-SPR = 100                        # samples per 512-byte int32 record (<=114 fits)
-ENC_INT32 = 3
+ENC_STEIM2 = 11                  # SEED encoding code for STEIM2
+STEIM2_FRAMES = 7                # 7 x 64B STEIM2 frames -> a 512-byte record. The writer
+                                 # FILLS each record (~110-250 samples at 100 sps depending
+                                 # on compressibility), so records are variable length and
+                                 # the datagram cadence lengthens to ~2 s -- which is what
+                                 # lets N=2 cover the worst 1.4 s fade inline (sec 14.0).
 
 # Live feed for real-time viewing (live_server.py): the sampling loop mirrors a
 # rolling window of raw counts to a RAM-backed file. No ADC contention -- the
@@ -194,21 +198,31 @@ def _health(**kw) -> None:
 
 
 def _write_records(fh, samples, start, rate, publisher=None):
-    """Chunk one block into 100-sample int32 records, appending to fh.
+    """Pack one block into FILLED 512-byte STEIM2 records, appending to fh.
+
+    Fill-model (sec 14.0): each record is packed until its 7 STEIM2 frames are full, so
+    it holds a variable number of samples (~110-250) and spans ~2 s -- long enough that
+    the publisher's N=2 sliding window covers the worst 1.4 s fade inline. STEIM2 is
+    lossless (decodes to the exact int32 counts) and ~halves the archive vs int32.
 
     Each packed record is also handed to the UDP publisher (fail-open) so the pi5
-    collector receives the exact same bytes it would have rsync'd -- the archive is
-    byte-identical by construction."""
-    for i in range(0, len(samples), SPR):
-        chunk = np.asarray(samples[i:i + SPR], dtype=np.int32)
+    collector receives the exact same bytes -- the archive is byte-identical by
+    construction. The block's final record is whatever samples remain (may be short)."""
+    samples = np.asarray(samples, dtype=np.int32)
+    i, n = 0, len(samples)
+    while i < n:
+        fb = encodeSteim2FrameBlock(samples[i:], frames=STEIM2_FRAMES)
+        k = fb.getNumSamples()
+        if k <= 0:
+            break
         t = start + datetime.timedelta(seconds=i / rate)
-        hdr = MiniseedHeader(NETWORK, STATION, LOCATION, CHANNEL, t, len(chunk),
-                             rate, encoding=ENC_INT32,
-                             sampRateFactor=rate, sampRateMult=1)
-        rec = MiniseedRecord(hdr, chunk).pack()
+        hdr = MiniseedHeader(NETWORK, STATION, LOCATION, CHANNEL, t, k, rate,
+                             encoding=ENC_STEIM2, sampRateFactor=rate, sampRateMult=1)
+        rec = MiniseedRecord(hdr, fb.getEncodedData()).pack()   # pre-encoded bytes as data
         fh.write(rec)
         if publisher is not None:
-            publisher.publish(rec)
+            publisher.publish(rec, period_s=k / rate)
+        i += k
 
 
 def writer(rate: int, publisher=None) -> None:
@@ -259,10 +273,9 @@ def main() -> None:
         heartbeat = None
         if UDP_HOST:
             publisher = UdpPublisher(UDP_HOST, UDP_PORT, n=UDP_N,
-                                     record_period_s=SPR / rate)
+                                     record_period_s=2.0)   # fallback; publish() paces per record
             publisher.start()
-            print(f"  UDP publisher -> {UDP_HOST}:{UDP_PORT}  (N={UDP_N}, "
-                  f"{SPR / rate:.2f}s/record)")
+            print(f"  UDP publisher -> {UDP_HOST}:{UDP_PORT}  (N={UDP_N}, STEIM2 records)")
             heartbeat = Heartbeat(UDP_HOST, HB_PORT,
                                   lambda: {**_last_health, "hi_seq": publisher.seq})
             heartbeat.start()

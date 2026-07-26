@@ -160,9 +160,28 @@ The stream now has its reliability layer.
 - **Verified:** startup backfill healed **+2033** then **+31** records (exactly the
   gaps from the deploy restarts); live stream **`seq_gaps=0`**, `udp_dropped=0`; the
   only ever-residual is the current restart window, which the next cycle converges.
-- **Next (optional):** switch records to **STEIM2** (sec 14.0) so N=2 covers the worst
-  1.4 s fade inline and the archive halves. Then **Phase 2**: cut the dashboard onto
-  `/v1/*`, move the detector to pi5, and retire the rsync mirror + live-pull.
+### ✅ STEIM2 fill-model — records halved, N=2 now covers the fade (2026-07-26)
+
+The recorder now writes **STEIM2** (encoding 11) instead of int32, filling each 512 B
+record (`encodeSteim2FrameBlock`, 7 frames) with ~210–250 samples. Lossless (decodes to
+the exact counts); it is also the SeedLink/FDSN-native encoding for the eventual
+feed-the-world step.
+
+- **Fixes the N math (sec 14.0):** filled records span ~2.1–2.5 s, so the publisher's N=2
+  copies are ~2 s apart → they cover the worst observed **1.4 s fade inline** (int32's
+  1.0 s cadence couldn't). The publisher now paces by each record's own duration.
+- **Archive ~halved:** ~44 → **~20 MB/day** at 100 sps.
+- **Verified live:** records confirmed encoding 11, lossless round-trip, **0 STEIM2
+  byte-mismatches** station↔pi5-archive, collector `seq_gaps=0`, and the **dashboard
+  renders STEIM2 unchanged** (obspy reads it natively). Drop-boundary block-cuts still
+  emit the occasional tiny record (pre-existing, harmless).
+- **The day-file is now mixed int32→STEIM2** across the switch point; that's fine —
+  encoding is per-record and lossless, obspy/simplemseed read the mix transparently (not
+  a scientific epoch, samples identical).
+
+**Phase 1 is complete** (100 sps · UDP stream · N=2 redundancy · heartbeat · backfill ·
+STEIM2). **Next = Phase 2:** cut the dashboard onto `/v1/*`, move the STA/LTA detector to
+pi5 (retroactive re-detection), then retire the rsync mirror + live-pull.
 
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 

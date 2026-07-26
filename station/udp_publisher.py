@@ -58,10 +58,13 @@ class UdpPublisher:
         """Highest data-datagram seq sent so far (hi_seq for the heartbeat)."""
         return self._seq
 
-    def publish(self, record_bytes):
-        """Called from the writer thread. NEVER blocks or raises (fail-open)."""
+    def publish(self, record_bytes, period_s=None):
+        """Called from the writer thread. NEVER blocks or raises (fail-open).
+
+        period_s is the record's own duration (n_samples/rate) -- records are variable
+        length under STEIM2, so pacing must follow each record, not a fixed period."""
         try:
-            self._q.put_nowait(record_bytes)
+            self._q.put_nowait((record_bytes, period_s))
         except queue.Full:
             self._dropped += 1   # link/pi5 behind -> drop; backfill recovers the archive
 
@@ -69,7 +72,7 @@ class UdpPublisher:
         next_send = time.monotonic()
         while not self._stop.is_set():
             try:
-                rec = self._q.get(timeout=0.5)
+                rec, period = self._q.get(timeout=0.5)
             except queue.Empty:
                 next_send = time.monotonic()      # idle: reset the pacing clock
                 continue
@@ -82,9 +85,9 @@ class UdpPublisher:
                 self._sent += 1
             except Exception:
                 pass                               # a dead socket must never kill the recorder
-            # Pace to the record period so the N copies are spaced in time. If a whole
-            # block just landed in the queue we're behind -> catch up without sleeping.
-            next_send += self._period
+            # Pace to this record's own duration so the N copies are spaced in time. If a
+            # whole block just landed in the queue we're behind -> catch up without sleeping.
+            next_send += (period if period else self._period)
             dt = next_send - time.monotonic()
             if dt > 0:
                 self._stop.wait(dt)
