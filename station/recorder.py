@@ -11,10 +11,12 @@ RAW ADC counts are stored (miniSEED convention); volts-per-count and the
 geophone response live in station metadata, applied at analysis time.
 
 Format details (learned the hard way):
-  - STEIM2 encoding (code 11), lossless. Each 512-byte record is FILLED (~110-250
-    int32 samples depending on compressibility) -> ~20 MB/day at 100 sps, roughly half
-    the int32 size, and it's the SeedLink/FDSN-native encoding. Fill-model also lengthens
-    the UDP datagram cadence to ~2 s so the N=2 redundancy covers the worst fade (sec 14.0).
+  - int32 encoding (code 3), uncompressed. ~44 MB/day at 100 sps -- fine on the disk
+    here. STEIM2 halves it and is SeedLink-native, but its pure-Python encoder cost
+    ~211 ms/block on this Pi 2B and starved the read loop, so compression is done
+    DOWNSTREAM on the pi5, not here (see STATUS.md).
+  - 512-byte records hold ~114 int32 samples, so each block is chunked into
+    100-sample records.
   - miniSEED2 stores rate as integer factor x mult, and simplemseed's auto-calc
     is broken -> we pass sampRateFactor/sampRateMult explicitly (integer rate).
 
@@ -47,7 +49,7 @@ from collections import deque
 from pathlib import Path
 
 import numpy as np
-from simplemseed import MiniseedHeader, MiniseedRecord, encodeSteim2FrameBlock
+from simplemseed import MiniseedHeader, MiniseedRecord
 
 from adc_common import DIFF, measure_rate, open_ads
 from stalta import StaLta
@@ -103,12 +105,12 @@ EVENTS_LIVE = Path("/dev/shm/seismo_events.json")       # last N events, for the
 QC_LOG = DATADIR.parent / "qc.log"
 HEALTH = DATADIR.parent / "health.json"                 # rsync'd; for the dashboard
 
-ENC_STEIM2 = 11                  # SEED encoding code for STEIM2
-STEIM2_FRAMES = 7                # 7 x 64B STEIM2 frames -> a 512-byte record. The writer
-                                 # FILLS each record (~110-250 samples at 100 sps depending
-                                 # on compressibility), so records are variable length and
-                                 # the datagram cadence lengthens to ~2 s -- which is what
-                                 # lets N=2 cover the worst 1.4 s fade inline (sec 14.0).
+SPR = 100                        # samples per 512-byte int32 record (<=114 fits)
+ENC_INT32 = 3
+# NOTE: STEIM2 fill-encoding was tried here (sec 14.0) and REVERTED 2026-07-26 -- the
+# pure-Python encoder cost ~211 ms/10 s block on the Pi 2B, and that GIL-holding burst
+# starved the RDATAC read loop (drops jumped from ~0 to ~0.35/s). Compression belongs on
+# the capable box: re-encode to STEIM2 in the pi5 collector, not here. See STATUS.md.
 
 # Live feed for real-time viewing (live_server.py): the sampling loop mirrors a
 # rolling window of raw counts to a RAM-backed file. No ADC contention -- the
@@ -198,31 +200,22 @@ def _health(**kw) -> None:
 
 
 def _write_records(fh, samples, start, rate, publisher=None):
-    """Pack one block into FILLED 512-byte STEIM2 records, appending to fh.
+    """Chunk one block into 100-sample int32 records, appending to fh.
 
-    Fill-model (sec 14.0): each record is packed until its 7 STEIM2 frames are full, so
-    it holds a variable number of samples (~110-250) and spans ~2 s -- long enough that
-    the publisher's N=2 sliding window covers the worst 1.4 s fade inline. STEIM2 is
-    lossless (decodes to the exact int32 counts) and ~halves the archive vs int32.
-
-    Each packed record is also handed to the UDP publisher (fail-open) so the pi5
-    collector receives the exact same bytes -- the archive is byte-identical by
-    construction. The block's final record is whatever samples remain (may be short)."""
-    samples = np.asarray(samples, dtype=np.int32)
-    i, n = 0, len(samples)
-    while i < n:
-        fb = encodeSteim2FrameBlock(samples[i:], frames=STEIM2_FRAMES)
-        k = fb.getNumSamples()
-        if k <= 0:
-            break
+    int32 (not STEIM2): encoding is trivial-cost, so it never steals CPU from the
+    RDATAC read loop -- protecting the one job. Each packed record is also handed to
+    the UDP publisher (fail-open) so the pi5 collector receives the exact same bytes;
+    the archive is byte-identical by construction. (Archive compression, if wanted,
+    is re-encoded downstream on the pi5 -- see the STEIM2 note above / STATUS.md.)"""
+    for i in range(0, len(samples), SPR):
+        chunk = np.asarray(samples[i:i + SPR], dtype=np.int32)
         t = start + datetime.timedelta(seconds=i / rate)
-        hdr = MiniseedHeader(NETWORK, STATION, LOCATION, CHANNEL, t, k, rate,
-                             encoding=ENC_STEIM2, sampRateFactor=rate, sampRateMult=1)
-        rec = MiniseedRecord(hdr, fb.getEncodedData()).pack()   # pre-encoded bytes as data
+        hdr = MiniseedHeader(NETWORK, STATION, LOCATION, CHANNEL, t, len(chunk),
+                             rate, encoding=ENC_INT32, sampRateFactor=rate, sampRateMult=1)
+        rec = MiniseedRecord(hdr, chunk).pack()
         fh.write(rec)
         if publisher is not None:
-            publisher.publish(rec, period_s=k / rate)
-        i += k
+            publisher.publish(rec, period_s=SPR / rate)
 
 
 def writer(rate: int, publisher=None) -> None:
@@ -273,9 +266,10 @@ def main() -> None:
         heartbeat = None
         if UDP_HOST:
             publisher = UdpPublisher(UDP_HOST, UDP_PORT, n=UDP_N,
-                                     record_period_s=2.0)   # fallback; publish() paces per record
+                                     record_period_s=SPR / rate)
             publisher.start()
-            print(f"  UDP publisher -> {UDP_HOST}:{UDP_PORT}  (N={UDP_N}, STEIM2 records)")
+            print(f"  UDP publisher -> {UDP_HOST}:{UDP_PORT}  (N={UDP_N}, "
+                  f"{SPR / rate:.2f}s/record)")
             heartbeat = Heartbeat(UDP_HOST, HB_PORT,
                                   lambda: {**_last_health, "hi_seq": publisher.seq})
             heartbeat.start()

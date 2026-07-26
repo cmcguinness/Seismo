@@ -2,13 +2,14 @@
 """seismo_server.py — the station's data server: middleware between the acquisition
 Pi and every downstream consumer (dashboard, future ML/alert apps).
 
-This is the *pure server* half of the pi5 split. It owns the rsync mirror and
-re-exposes it as ONE versioned HTTP/JSON contract, so consumers stop reaching
-into `/data/*` file paths and stop knowing the Pi's LAN address. All storage
-knowledge lives in store.SeismoStore; this file is only HTTP flow -- parse the
-request, call the store, serialize the result. (Deliberately no framework: the
-payload is data, not HTML, and stdlib http.server already runs the ADC-free
-live_server.py on the station -- same idiom.)
+This is the *pure server* half of the pi5 split. It re-exposes the owned archive
+(the UDP collector's day-files + the pi5 detector's events + heartbeat health) as
+ONE versioned HTTP/JSON contract, so consumers stop reaching into `/data/*` file
+paths and stop knowing the Pi's LAN address. All storage knowledge lives in
+store.SeismoStore; this file is only HTTP flow -- parse the request, call the
+store, serialize the result. (Deliberately no framework: the payload is data, not
+HTML, and stdlib http.server already runs the ADC-free live_server.py on the
+station -- same idiom.)
 
 Contract (v1):
   GET /                       -> this contract, as JSON

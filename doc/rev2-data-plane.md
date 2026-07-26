@@ -387,12 +387,19 @@ serving regardless of the wire benefit.
 fill-the-STEIM2-record model (7×64 B frames per 512 B record; standard for STEIM
 writers). **ADC/sampling loop untouched** — the change is in the writer + publisher.
 
-✅ **DEPLOYED (2026-07-26).** `recorder._write_records` fills records via
-`encodeSteim2FrameBlock(frames=7)`; the publisher paces by each record's own duration.
-Measured live: ~210–250 samples/record (~2.1–2.5 s cadence), **~20 MB/day** archive,
-lossless round-trip, **0 STEIM2 byte-mismatches** station↔pi5-archive, collector
-`seq_gaps=0`, dashboard renders STEIM2 unchanged (obspy). Drop-boundary block-cuts still
-emit the occasional tiny record (pre-existing behavior), which is fine.
+✅ **DEPLOYED then ⛔ REVERTED on the station (2026-07-26).** It worked and was
+byte-faithful (~210–250 samples/record, ~20 MB/day, lossless, 0 mismatches, dashboard
+rendered it) — **but the pure-Python `encodeSteim2FrameBlock` cost ~211 ms per 10 s block
+on the Pi 2B, and that GIL-holding burst starved the RDATAC read loop: drops jumped from
+~0.05/s (int32) to ~0.35/s (~30k/day).** That degrades the one job for archive-size
+elegance — the wrong trade on a sensitivity-first box. **The station is back on int32.**
+
+**Amended decision:** compression belongs on the capable box, not the Pi 2B. Do STEIM2
+**re-encoding in the pi5 collector on ingest** (backlog) — the station stays dumb/cheap
+(int32, no drops), the wire is int32 (N=2 at 1.0 s cadence covers the common 1–2-datagram
+bursts; the rare 1.4 s fade falls to backfill, which is proven to heal), and the pi5
+archive still gets STEIM2's half-size + SeedLink-native encoding. This keeps every STEIM2
+benefit except inline-fade-coverage (which backfill already provides) at zero station cost.
 
 ### 14.1 Datagram wire format
 

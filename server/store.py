@@ -2,11 +2,12 @@
 """store.py — the archive/live abstraction the server serves from.
 
 This is the ONE place that knows how station data physically reaches the
-consumers. Today that is the pi5 rsync mirror: a host-level `seismo-rsync.timer`
-pulls `seismo.local:~/seismo/{data,events.log,...}` into a local directory every
-minute, plus a faster pull of the live ring npz. Every consumer (the dashboard,
-future ML/alert apps) currently reaches into those file paths itself; the point
-of this module is that they stop, and go through one contract instead.
+consumers. As of Phase-2 step 1 the backend is the **owned archive** the UDP
+collector builds (`SEISMO_DATA=~/seismo-archive`), the pi5 detector's events, and
+the heartbeat health -- swapped in purely by env, exactly the backend swap this
+abstraction was built for (the old rsync mirror was the previous backend). Every
+consumer (the dashboard, future ML/alert apps) reaches the data through this one
+contract instead of into file paths.
 
 Why an abstraction and not just "open the files": the mirror is an implementation
 detail with a hard floor -- the archive path is >=60 s stale because it is a

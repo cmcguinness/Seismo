@@ -1,22 +1,28 @@
 [Unit]
-# seismo-server — the station data server (mirror -> HTTP/JSON contract).
-# Runs on the pi5 (16 GB) alongside the rsync timers that feed the mirror; it is
-# a plain consumer of those files, so it has no ordering dependency on the Pi.
-Description=Seismo data server (middleware: rsync mirror -> HTTP contract)
-After=network-online.target
+# seismo-server — the station data server (owned archive -> HTTP/JSON contract).
+# Phase-2 step 1 (rev2-data-plane.md sec 12): serves the OWNED archive the UDP
+# collector builds + the pi5 detector's events + the heartbeat health -- NOT the
+# rsync mirror. Additive: runs alongside the mirror path; the dashboard cutover
+# onto /v1 and the mirror's retirement are later steps.
+Description=Seismo data server (owned archive -> HTTP contract)
+After=network-online.target seismo-collector.service
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=charles
-WorkingDirectory=/home/charles/seismo/server
-# The mirror the rsync timers land into (see STATUS.md "Pipeline").
-Environment=SEISMO_DATA=/home/charles/seismo-data/data
-Environment=SEISMO_EVENTS=/home/charles/seismo-data/events.log
-Environment=SEISMO_HEALTH=/home/charles/seismo-data/health.json
+WorkingDirectory=/home/charles/seismo-server
+# The OWNED data plane: collector archive + pi5 detector events + heartbeat health.
+Environment=SEISMO_DATA=/home/charles/seismo-archive
+Environment=SEISMO_EVENTS=/home/charles/seismo-archive/events.log
+Environment=SEISMO_HEALTH=/home/charles/seismo-archive/station_health.json
+# Live 30 s ring: still the mirror's until a ring is derived from the UDP stream
+# (a later step); /v1/live returns empty if the live-pull path is gone.
 Environment=SEISMO_RING=/home/charles/seismo-data/seismo_live.npz
 Environment=SEISMO_SERVER_PORT=8351
-ExecStart=/home/charles/seismo/server/.venv/bin/python seismo_server.py
+# Reuses the collector venv (numpy); obspy (apt python3-obspy) added for /v1/waveform
+# at the dashboard cutover -- until then waveform returns 503 by design.
+ExecStart=/home/charles/seismo-collector/.venv/bin/python seismo_server.py
 Restart=always
 RestartSec=3
 

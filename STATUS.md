@@ -199,8 +199,41 @@ with tuned thresholds (the surface for killing the false positives).
   only on a real >60 s outage) — matching the station's stream-based behavior. Per-segment
   re-priming had suppressed all but one event.
 
-**Next in Phase 2:** wire the dashboard to `/v1/*` (read pi5 events + owned archive via
-`store.py`), then retire the station's inline detector, the rsync mirror, and live-pull.
+### ✅ Phase 2 step 2a: /v1 server over the owned archive (2026-07-26)
+
+`seismo-server` (pi5, port 8351) now serves the OWNED data plane via `store.py` — env
+swapped to `SEISMO_DATA=~/seismo-archive`, events = the pi5 detector's `events.log`,
+health = the heartbeat's `station_health.json`. Verified: `/`, `/v1/health` (rate 100,
+`udp_dropped=0`, archive age <1 s), `/v1/events` (pi5 detections), `/v1/live` (fresh ring,
+age ~5 s). `/v1/waveform` returns the documented 503 until obspy is added (apt
+`python3-obspy` at the dashboard cutover). **Additive** — the dashboard still reads the
+mirror; nothing retired.
+
+### ⛔ STEIM2 reverted on the station — Pi 2B too weak to encode (2026-07-26)
+
+STEIM2 fill-encoding worked and was byte-faithful, **but its pure-Python encoder cost
+~211 ms/10 s block on the Pi 2B**, and that GIL-holding burst starved the RDATAC read loop:
+**drops jumped ~0.05/s (int32) → ~0.35/s (~30k/day).** That trades the *one job* for
+archive elegance — wrong on a sensitivity-first box. **Station is back on int32** (drops
+confirmed back to ~0.05/s, ~7× lower). Backlog fix: **re-encode to STEIM2 in the pi5
+collector on ingest** — station stays cheap (int32, no drops), wire int32 (N=2 covers the
+common bursts, backfill heals the rare fade), pi5 archive still gets STEIM2's half-size +
+SeedLink-native encoding at zero station cost. (`doc/rev2-data-plane.md §14.0`.)
+
+---
+
+## 🌙 Overnight soak (started 2026-07-26 ~03:30 UTC)
+
+Everything runs; the old rsync path is untouched. **Morning review checklist:**
+- **Station acquisition:** `dropped`/`glitches` over a clean restart-free night (int32
+  baseline; expect low). `cat seismo.local:~/seismo/health.json`.
+- **Link loss:** collector `seq_gaps` + station `udp_dropped` — real WiFi-bridge loss over
+  a full day (the honest N=2 stress number). `journalctl -u seismo-collector` on pi5.
+- **Backfill:** archive completeness vs the station local file (should self-heal to ~0 gap).
+- **Detector:** review `/v1/events` — note the strong 03:14 events (ratio 13.7, **182 µV**;
+  ratio 10.8, 157 µV). Real, or cultural? This is the retune surface (`detector.py --day`).
+- **Then:** decide STEIM2-on-pi5, and Phase 2 step 2b — dashboard → `/v1/*` (add apt
+  `python3-obspy` for `/v1/waveform`), then retire the inline detector + rsync + live-pull.
 
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
