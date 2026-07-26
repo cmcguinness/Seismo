@@ -124,6 +124,30 @@ the current garage hardware (`rdatac_noise_test.py`, 90 s/case, baseline), which
 - **Old 5-min feasibility probe** (for the record): 99.9 sps, ~0.025 % drops,
   ~0.07 % held-sample glitches — corroborated by the above.
 
+## ✅ UDP streaming — Phase-1 step 1 LIVE (2026-07-26)
+
+The station now **streams each miniSEED record to the pi5 over UDP** and the pi5 builds
+an **owned archive** from it — the first piece of the rev-2 data plane
+(`doc/rev2-data-plane.md`, design pass resolved 2026-07-25). Runs **alongside** the
+existing rsync mirror; nothing retired.
+
+- **Station:** `station/udp_publisher.py` — a fail-open publisher thread. The writer
+  hands each packed record to it; a paced daemon (record-period paced so the N=2 copies
+  are spaced in time) sends `MAGIC|ver|n_records|seq + N×512B` datagrams. `publish()`
+  is `put_nowait` drop-on-full → **never blocks or touches the ADC loop.** Enabled by
+  `SEISMO_UDP_HOST` in the unit (→ 192.168.5.30:48317, N=2). `health.json` now carries
+  `udp_sent`/`udp_dropped`.
+- **pi5:** `server/udp_collector.py` + `seismo-collector` systemd service (own venv,
+  simplemseed) → `~/seismo-archive/`. Dedups by record start-time (N=2 sends each twice),
+  restart-safe (rebuilds the seen-set by scanning the day-file). No firewall on pi5.
+- **Verified byte-faithful:** over the streaming window **90/90 in-window records
+  arrived, all byte-identical** to the recorder's local day-file — 0 mismatched, 0
+  fabricated, `udp_dropped=0`. Records are int32 for now (STEIM2 fill-model is the
+  follow-on that lets N=2 also cover the worst 1.4 s fade inline, §14.0).
+- **Next (Phase-1 step 2):** heartbeat (retires the health.json rsync) + start-time gap
+  detection + rsync backfill. Then optionally STEIM2, then Phase 2 (dashboard→/v1,
+  retire rsync).
+
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
 Measured, undisturbed, all late-night (comparable cultural noise):

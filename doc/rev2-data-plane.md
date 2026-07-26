@@ -464,10 +464,18 @@ heartbeat **48318**. pi5 firewall allows inbound UDP from the station on both.
 
 ### 14.10 Refined Phase-1 build order
 
-1. **Publisher thread (fail-open) + minimal collector** writing the owned archive
-   **alongside** the existing rsync (nothing retired) → verify byte-faithful vs the
-   rsync mirror with obspy.
+1. ✅ **DONE (2026-07-26)** — **Publisher thread (fail-open) + minimal collector**
+   writing the owned archive **alongside** the existing rsync (nothing retired).
+   `station/udp_publisher.py` (paced N=2, drop-on-full), wired into `recorder.py`'s
+   writer; `server/udp_collector.py` + `seismo-collector.service` on pi5 →
+   `~/seismo-archive/`, dedup by record start-time, restart-safe. **Verified
+   byte-faithful:** over the streaming window every in-window record (90/90) arrived
+   and was byte-identical to the recorder's local day-file — 0 mismatched, 0
+   fabricated, `udp_dropped=0`. Records are still int32 here (STEIM2 fill-model is a
+   follow-on); N=2 at int32/1.0 s cadence covers the *common* bursts inline, the rare
+   >1 s fade waits on step 2 backfill.
 2. **Heartbeat** (retires health.json pull) + **start-time gap detection** +
-   **rsync backfill**.
+   **rsync backfill**. (Then optionally switch records to STEIM2 per §14.0 so N=2
+   covers the 1.4 s fade inline and the archive halves.)
 
 Then Phase 2 separately.

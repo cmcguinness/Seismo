@@ -1,0 +1,28 @@
+[Unit]
+Description=Seismo UDP ingest collector (station stream -> owned miniSEED archive)
+Documentation=https://github.com/cmcguinness/Seismo
+# Phase-1 step 1 (rev2-data-plane.md sec 14.10): runs ALONGSIDE the rsync mirror.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=charles
+Group=charles
+WorkingDirectory=/home/charles/seismo-collector
+Environment=SEISMO_ARCHIVE=/home/charles/seismo-archive
+Environment=SEISMO_UDP_PORT=48317
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/charles/seismo-collector/.venv/bin/python udp_collector.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+# Deploy on pi5:
+#   mkdir -p ~/seismo-collector && cp udp_collector.py ~/seismo-collector/
+#   python3 -m venv ~/seismo-collector/.venv
+#   ~/seismo-collector/.venv/bin/pip install simplemseed
+#   sudo cp seismo-collector.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now seismo-collector

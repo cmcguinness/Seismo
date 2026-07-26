@@ -28,6 +28,11 @@ Environment=SEISMO_DRATE=100
 # to 40 Hz, above the quake band -- digital notch in post if it bothers a spectrum).
 Environment=SEISMO_RDATAC=1
 Environment=SEISMO_RATE=100
+# UDP publisher -> pi5 collector (rev2-data-plane.md sec 14.10 Phase-1 step 1). Streams
+# each packed record ALONGSIDE the local day-files; fail-open, never touches acquisition.
+Environment=SEISMO_UDP_HOST=192.168.5.30
+Environment=SEISMO_UDP_PORT=48317
+Environment=SEISMO_UDP_N=2
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/charles/seismo/venv/bin/python recorder.py
 # recorder.py traps SIGTERM -> flushes the partial block and releases the ADC

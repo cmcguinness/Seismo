@@ -51,6 +51,7 @@ from simplemseed import MiniseedHeader, MiniseedRecord
 
 from adc_common import DIFF, measure_rate, open_ads
 from stalta import StaLta
+from udp_publisher import UdpPublisher
 
 STATION = os.environ.get("SEISMO_STATION", "OAKMT")
 NETWORK = os.environ.get("SEISMO_NETWORK", "XX")   # XX = FDSN test/unregistered code.
@@ -72,6 +73,12 @@ RATE = int(os.environ.get("SEISMO_RATE", str(DRATE) if RDATAC else "57"))
 #   RDATAC path genuinely achieves DRATE, so it declares that.
 DATADIR = Path(os.environ.get("SEISMO_DATADIR", str(Path.home() / "seismo" / "data")))
 BLOCK_S = int(os.environ.get("SEISMO_BLOCK", "10"))
+# UDP publisher (rev2-data-plane.md sec 4/14): stream each packed record to the pi5
+# collector ALONGSIDE the local day-files (which stay the store-and-forward buffer).
+# Off unless SEISMO_UDP_HOST is set. Fail-open -- never touches the acquisition loop.
+UDP_HOST = os.environ.get("SEISMO_UDP_HOST", "")
+UDP_PORT = int(os.environ.get("SEISMO_UDP_PORT", "48317"))
+UDP_N = int(os.environ.get("SEISMO_UDP_N", "2"))
 # Warm-up discarded after ADC init. The ADS1256 emits garbage for the first
 # conversions following a pin reset -- measured as a ~97,800-count step (66x the
 # ambient max) on 2026-07-24, once per restart. Unfiltered it trips the STA/LTA
@@ -182,18 +189,25 @@ def _health(**kw) -> None:
         pass
 
 
-def _write_records(fh, samples, start, rate):
-    """Chunk one block into 100-sample int32 records, appending to fh."""
+def _write_records(fh, samples, start, rate, publisher=None):
+    """Chunk one block into 100-sample int32 records, appending to fh.
+
+    Each packed record is also handed to the UDP publisher (fail-open) so the pi5
+    collector receives the exact same bytes it would have rsync'd -- the archive is
+    byte-identical by construction."""
     for i in range(0, len(samples), SPR):
         chunk = np.asarray(samples[i:i + SPR], dtype=np.int32)
         t = start + datetime.timedelta(seconds=i / rate)
         hdr = MiniseedHeader(NETWORK, STATION, LOCATION, CHANNEL, t, len(chunk),
                              rate, encoding=ENC_INT32,
                              sampRateFactor=rate, sampRateMult=1)
-        fh.write(MiniseedRecord(hdr, chunk).pack())
+        rec = MiniseedRecord(hdr, chunk).pack()
+        fh.write(rec)
+        if publisher is not None:
+            publisher.publish(rec)
 
 
-def writer(rate: int) -> None:
+def writer(rate: int, publisher=None) -> None:
     """Consume (samples, starttime) blocks and append to UTC day-files."""
     while True:
         item = _q.get()
@@ -203,7 +217,7 @@ def writer(rate: int) -> None:
         fn = (f"{NETWORK}.{STATION}.{LOCATION}.{CHANNEL}.D."
               f"{start.year}.{start.timetuple().tm_yday:03d}.mseed")
         with open(DATADIR / fn, "ab") as fh:      # append -> growing day-file
-            _write_records(fh, samples, start, rate)
+            _write_records(fh, samples, start, rate, publisher)
 
 
 def main() -> None:
@@ -217,6 +231,7 @@ def main() -> None:
     ads = open_ads(GAIN, DRATE)
     wt = None
     reader = None
+    publisher = None
     try:
         if RDATAC:
             from rdatac import ClockAnchor, Despiker, RdatacReader
@@ -235,7 +250,14 @@ def main() -> None:
             fs = measure_rate(ads)                # measured actual rate (also primes read)
         rate = RATE                               # FIXED declared rate -> single-rate archive
         block_n = rate * BLOCK_S
-        wt = threading.Thread(target=writer, args=(rate,), daemon=True)
+        publisher = None
+        if UDP_HOST:
+            publisher = UdpPublisher(UDP_HOST, UDP_PORT, n=UDP_N,
+                                     record_period_s=SPR / rate)
+            publisher.start()
+            print(f"  UDP publisher -> {UDP_HOST}:{UDP_PORT}  (N={UDP_N}, "
+                  f"{SPR / rate:.2f}s/record)")
+        wt = threading.Thread(target=writer, args=(rate, publisher), daemon=True)
         wt.start()
         mode = "RDATAC continuous" if RDATAC else "legacy per-sample SYNC"
         print(f"recording {NETWORK}.{STATION}.{LOCATION}.{CHANNEL}  "
@@ -339,7 +361,8 @@ def main() -> None:
                             clock_err_ms=round(err * 1000, 2),
                             dropped=reader.dropped_total, glitches=reader.glitches,
                             spikes=despiker.spikes, stalls=anchor.outliers,
-                            resyncs=anchor.resyncs)
+                            resyncs=anchor.resyncs,
+                            **(publisher.stats if publisher else {}))
                     if nblocks % 6 == 0:          # ~once/min at 10s blocks
                         print(f"  {nblocks} blocks, clock err {err*1000:+.2f} ms, "
                               f"rate_est {anchor.rate_est:.4f} sps, "
@@ -376,6 +399,8 @@ def main() -> None:
             if block:                             # flush partial block on stop
                 _q.put((block, start))
     finally:
+        if publisher is not None:
+            publisher.stop()                       # fail-open; drops any unsent tail
         if reader is not None:
             reader.stop()                          # leave RDATAC before closing SPI
         if wt is not None:
