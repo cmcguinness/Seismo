@@ -501,6 +501,7 @@ def live_ring_json():
             "rms": round(float(np.sqrt(np.mean(uv * uv))), 2) if uv.size else 0.0,
             "rms_band": _band_rms_cached(uv, fs, t_end),
             "spec": live_spectrum(uv, fs, t_end),
+            "sources": live_sources(uv, fs, t_end),
             "fs": fs, "gain": gain, "age": round(age, 1), "t_end": t_end}
 
 
@@ -508,6 +509,54 @@ SPEC_BINS = int(os.environ.get("SEISMO_LIVE_SPEC_BINS", "110"))   # log-spaced o
 SPEC_FMIN = float(os.environ.get("SEISMO_LIVE_SPEC_FMIN", "0.2"))  # 30 s window -> no
                                                                    # resolution below ~0.15 Hz
 _spec_live_memo = {"t_end": None, "val": None}
+_welch_memo = {"t_end": None, "val": None}
+
+
+def _live_welch(uv, fs, t_end):
+    """Raw Welch (f, asd) of the ring, memoized on t_end.
+
+    Shared by the display spectrum and the source matcher so the FFT runs once per
+    ring update (~3 s) rather than once per consumer per 300 ms poll.
+    """
+    if _welch_memo["t_end"] == t_end:
+        return _welch_memo["val"]
+    val = None
+    try:
+        from scipy.signal import welch
+        nper = int(min(uv.size, 2 ** int(math.log2(max(64.0, fs * 8)))))
+        if uv.size >= 256 and nper >= 64:
+            f, p = welch(uv, fs=fs, nperseg=nper)
+            val = (f, np.sqrt(np.maximum(p, 0.0)))
+    except Exception:
+        val = None
+    _welch_memo.update(t_end=t_end, val=val)
+    return val
+
+
+_sources_memo = {"t_end": None, "val": None}
+
+
+def live_sources(uv, fs, t_end):
+    """Signature matches for the live ring -- the "what is making this noise" badge.
+
+    Soft label only (see sources.py and CHARACTER.md): informational, never filters.
+    Memoized on t_end like everything else on this path.
+    """
+    if _sources_memo["t_end"] == t_end:
+        return _sources_memo["val"]
+    val = []
+    try:
+        import datetime
+        import sources
+        w = _live_welch(uv, fs, t_end)
+        if w is not None:
+            now_iso = datetime.datetime.fromtimestamp(
+                t_end, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            val = sources.match(w[0], w[1], fs, now_iso)
+    except Exception:
+        val = []
+    _sources_memo.update(t_end=t_end, val=val)
+    return val
 
 
 def live_spectrum(uv, fs, t_end):
@@ -525,12 +574,10 @@ def live_spectrum(uv, fs, t_end):
         return _spec_live_memo["val"]
     val = None
     try:
-        from scipy.signal import welch
         nyq = fs / 2
-        nper = int(min(uv.size, 2 ** int(math.log2(max(64.0, fs * 8)))))
-        if uv.size >= 256 and nper >= 64:
-            f, p = welch(uv, fs=fs, nperseg=nper)
-            asd = np.sqrt(np.maximum(p, 0.0))
+        w = _live_welch(uv, fs, t_end)
+        if w is not None:
+            f, asd = w
             fmax = nyq * 0.98
             keep = (f >= SPEC_FMIN) & (f <= fmax) & (asd > 0)
             if keep.sum() > 4:

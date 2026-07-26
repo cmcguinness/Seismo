@@ -213,6 +213,29 @@ confirmed back to ~0.05/s, ~7× lower).
 pi5 re-encode. The working config is kept: 44 MB/day is trivial on the disk, and backfill
 already heals the rare fade N=2 misses. Thread closed. (`doc/rev2-data-plane.md §14.0`.)
 
+### ✅ Live source badge — "garage appliance running" (2026-07-26)
+
+The live page now labels what it can recognise. `dashboard/sources.py` scores the
+live ring against `dashboard/signatures.json` (signatures as versioned DATA); a badge
+appears in the "Live · last 30 s" header with the detail underneath.
+
+- **Free to run:** `render._live_welch()` memoizes the raw Welch on `t_end`, so the
+  display spectrum and the matcher share one FFT per ring update (~3 s) instead of one
+  each per 300 ms poll.
+- **Soft label**, same doctrine as the character badge: informational, never filters.
+  Provisional signatures render light/bordered with a `?`; only `status: active` (seen
+  on ≥2 separate days) would render solid.
+- **Two guards in the matcher:** epoch (a signature is skipped unless `derived_at_sps`
+  matches and `valid_from` has passed — both verified to reject) and an absolute
+  `min_asd` floor alongside the peak/shoulder shape term, because the standing 41 Hz
+  and 20 Hz lines score ×10 over their own continuum with nothing running.
+- **Scored offline against real windows before deploy:** 8/8 true positives (5 washer +
+  3 dryer), 7/8 controls correctly negative. The one hit is 2026-07-26T02:00Z, already
+  flagged as plausibly an unlabelled real run.
+- **Verified in-browser** by intercepting `/live-data` so the real render path runs.
+  Nothing was running at deploy time, so the empty state is also confirmed correct
+  (19.82 Hz sat at 0.85 µV/√Hz — standing-line level).
+
 ### ✅ ADS1256 reset no longer needs the RESET pin (2026-07-26)
 
 The chip is now recovered over SPI — `SDATAC, SDATAC, RESET(0xFE)` with CS cycled

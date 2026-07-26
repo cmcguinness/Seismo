@@ -219,6 +219,31 @@ function spectrum(sp){
   sx.stroke();
   sx.strokeStyle='#dee2e6';sx.lineWidth=1;sx.strokeRect(ML+.5,MT+.5,pw,ph);
 }
+// Source badges: which characterised signature (if any) the live ring matches.
+// SOFT LABEL -- informational only, never gates anything. Provisional signatures
+// (seen on fewer than two separate days) are marked so nobody reads them as fact.
+function sources(list){
+  const box=document.getElementById('srcbadges'),note=document.getElementById('srcnote');
+  if(!box)return;
+  if(!list||!list.length){box.innerHTML='';if(note)note.textContent='';return;}
+  box.innerHTML=list.map(s=>{
+    const prov=s.status!=='active';
+    const cls=prov?'text-bg-light border':'text-bg-success';
+    const mark=prov?' <span class="fw-normal">?</span>':'';
+    const d=s.detail||{};
+    const tip=[s.hint,d.hz?`line ${d.hz} Hz`:null,d.asd?`${d.asd} µV/√Hz`:null,
+               d.peak_shoulder?`×${d.peak_shoulder} over continuum`:null,
+               prov?'provisional — one day of observation':null]
+              .filter(Boolean).join(' · ');
+    return `<span class="badge ${cls} ms-2 fw-normal" title="${tip}">${s.label}${mark}</span>`;
+  }).join('');
+  const s0=list[0],d=s0.detail||{};
+  if(note)note.textContent='looks like: '+s0.label
+    +(s0.hint?' ('+s0.hint+')':'')
+    +(d.hz?' — '+d.hz+' Hz line, ×'+d.peak_shoulder+' over continuum':'')
+    +(s0.status!=='active'?' · provisional':'');
+}
+
 async function live(){
   try{
     const r=await (await fetch('/live-data')).json();
@@ -233,11 +258,13 @@ async function live(){
       for(let i=0;i<n;i++){const x=i/(n-1)*W,y=plotH/2-d[i]/amp*(plotH/2*0.9);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
       ctx.stroke();
       spectrum(r.spec);
+      sources(r.sources);
       const band=(r.rms_band==null)?'':`  rms(1–15 Hz) ${r.rms_band.toFixed(2)} µV`;
       hud.textContent=`gain ${r.gain}  fs ${fs.toFixed(1)} sps  pp ${(r.pp||0).toFixed(0)} µV`
         +`  rms ${(r.rms||0).toFixed(2)} µV`+band
         +(haveT?`  ends ${hms(t1)} UTC (${(r.age||0).toFixed(1)} s behind)`:'');
-    } else hud.textContent='live feed unavailable';
+      
+    } else { hud.textContent='live feed unavailable'; sources(null); }
   }catch(e){hud.textContent='live feed unavailable';}
   setTimeout(live,300);
 }
@@ -277,8 +304,10 @@ def home():
     body = (
         _titleblock(SID, f'DIY geophone seismometer &middot; {PLACE} &middot; vertical '
                          '4.5&nbsp;Hz &middot; independent station (not for scientific use)')
-        + _card("Live &middot; last 30&nbsp;s (UTC)",
-                '<canvas id="c"></canvas><div id="hud">connecting…</div>')
+        + _card('Live &middot; last 30&nbsp;s (UTC)<span id="srcbadges" '
+                'class="float-end"></span>',
+                '<canvas id="c"></canvas><div id="hud">connecting…</div>'
+                '<div id="srcnote" class="small text-muted mt-1"></div>')
         + _card("Live spectrum &middot; same 30&nbsp;s window "
                 '<span class="fw-normal text-muted">&middot; ASD µV/&radic;Hz, log&ndash;log</span>',
                 '<canvas id="s"></canvas>'

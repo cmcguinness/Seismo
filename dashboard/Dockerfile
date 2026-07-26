@@ -15,7 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini build-esse
 RUN pip install --no-cache-dir obspy python-fasthtml
 
 WORKDIR /app
-COPY seismo_dashboard.py render.py heli_build.py heli_render.py heli_service.py /app/
+COPY seismo_dashboard.py render.py heli_build.py heli_render.py heli_service.py sources.py /app/
+COPY signatures.json /app/
 COPY station.jpg /app/
 
 EXPOSE 5000
