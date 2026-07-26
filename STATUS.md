@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-25 (UTC)_
+_Last updated: 2026-07-26 (UTC)_
 
 ## 🎉 FIRST CONFIRMED EARTHQUAKE — M2.5, 3 km E of St. Helena (2026-07-25)
 
@@ -160,24 +160,16 @@ The stream now has its reliability layer.
 - **Verified:** startup backfill healed **+2033** then **+31** records (exactly the
   gaps from the deploy restarts); live stream **`seq_gaps=0`**, `udp_dropped=0`; the
   only ever-residual is the current restart window, which the next cycle converges.
-### ✅ STEIM2 fill-model — records halved, N=2 now covers the fade (2026-07-26)
+### ⛔ STEIM2 fill-model — tried, worked, then REVERTED (2026-07-26)
 
-The recorder now writes **STEIM2** (encoding 11) instead of int32, filling each 512 B
-record (`encodeSteim2FrameBlock`, 7 frames) with ~210–250 samples. Lossless (decodes to
-the exact counts); it is also the SeedLink/FDSN-native encoding for the eventual
-feed-the-world step.
-
-- **Fixes the N math (sec 14.0):** filled records span ~2.1–2.5 s, so the publisher's N=2
-  copies are ~2 s apart → they cover the worst observed **1.4 s fade inline** (int32's
-  1.0 s cadence couldn't). The publisher now paces by each record's own duration.
-- **Archive ~halved:** ~44 → **~20 MB/day** at 100 sps.
-- **Verified live:** records confirmed encoding 11, lossless round-trip, **0 STEIM2
-  byte-mismatches** station↔pi5-archive, collector `seq_gaps=0`, and the **dashboard
-  renders STEIM2 unchanged** (obspy reads it natively). Drop-boundary block-cuts still
-  emit the occasional tiny record (pre-existing, harmless).
-- **The day-file is now mixed int32→STEIM2** across the switch point; that's fine —
-  encoding is per-record and lossless, obspy/simplemseed read the mix transparently (not
-  a scientific epoch, samples identical).
+**Superseded — see "STEIM2 reverted on the station" below.** The recorder briefly wrote
+STEIM2 (encoding 11, `encodeSteim2FrameBlock`, ~210–250 samples/record, ~20 MB/day,
+lossless, byte-faithful, dashboard rendered it) — but the pure-Python encoder cost
+~211 ms/block on the Pi 2B and starved the read loop (drops ~7×). **Rolled back to int32;
+STEIM2 dropped for good in the acquisition/archive path** (int32 miniSEED is valid
+FDSN/SeedLink anyway — compression, if ever wanted, is a pi5 *serving-layer* job). The
+brief STEIM2 records that landed in the day-files before the revert stay readable (mixed
+int32/STEIM2, per-record, lossless).
 
 **Phase 1 is complete** (100 sps · UDP stream · N=2 redundancy · heartbeat · backfill ·
 STEIM2).
@@ -233,8 +225,12 @@ Everything runs; the old rsync path is untouched. **Morning review checklist:**
 - **Backfill:** archive completeness vs the station local file (should self-heal to ~0 gap).
 - **Detector:** review `/v1/events` — note the strong 03:14 events (ratio 13.7, **182 µV**;
   ratio 10.8, 157 µV). Real, or cultural? This is the retune surface (`detector.py --day`).
-- **Then:** decide STEIM2-on-pi5, and Phase 2 step 2b — dashboard → `/v1/*` (add apt
-  `python3-obspy` for `/v1/waveform`), then retire the inline detector + rsync + live-pull.
+- **Then Phase 2 step 2b — dashboard → `/v1/*`:** add apt `python3-obspy` on pi5 (for
+  `/v1/waveform`), point the dashboard at `/v1`, then retire the station's inline detector
+  + rsync mirror + live-pull. At that cutover also update the About page (2 edits, both
+  currently still accurate): the "rsync-mirrored miniSEED" footer (`seismo_dashboard.py`
+  line ~100) → served from `/v1`, and optionally the "Pi 5 renders/serves" line to note it
+  now also stores+serves the archive. **STEIM2 is decided/closed — do NOT reopen it.**
 
 ## ✅ Galvanic Ethernet isolator INSTALLED and it LOWERED the noise floor (2026-07-23)
 
