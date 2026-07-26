@@ -8,3 +8,4 @@ t_start_utc,t_end_utc,label,note
 2026-07-26T21:06:48+00:00,2026-07-26T21:09:07+00:00,washing machine spin,burst 4/5; 19.38 Hz (1163 RPM); screenshotted at 21:07:34
 2026-07-26T21:11:51+00:00,2026-07-26T21:14:21+00:00,washing machine spin,burst 5/5; 19.92 Hz (1195 RPM); still running at archive end
 2026-07-26T19:10:29+00:00,2026-07-26T19:10:41+00:00,unidentified near-field,"HF-only (15-45 Hz 6x, quake band flat), ratio 14.9, peak 84.8 uV; no 19.9 Hz line so NOT the washer"
+2026-07-26T21:16:00+00:00,2026-07-26T21:37:00+00:00,clothes dryer,"Charles reported it running; ~20 Hz line 4.2-7.6 uV/rtHz, indistinguishable from the washer"

@@ -1,0 +1,77 @@
+{
+  "_readme": [
+    "Source signatures for live + retroactive identification. Data, not code, so it",
+    "is diffable and testable offline. Loaded by sources.py; scored against the",
+    "live 30 s ring and (later) against archive windows.",
+    "",
+    "Every signature is EPOCH-STAMPED. Everything we measure depends on the",
+    "acquisition configuration, and this station has already had three epochs in a",
+    "week -- a signature with no valid_from will be quietly wrong the first time the",
+    "front end is touched. sources.py refuses to apply one outside its epoch.",
+    "",
+    "status: 'provisional' until the activity has been observed on >= 2 SEPARATE",
+    "days. Provisional signatures are shown with a hedge in the UI. Thresholds are",
+    "deliberately set for RECALL, not precision: false positives are currently cheap",
+    "and become the labelling queue.",
+    "",
+    "The evidence block is the receipts. Keep it honest -- a year from now it is the",
+    "The evidence block is the receipts. Keep it honest -- a year from now it is the only way to know that garage-appliance-20hz rests on a single afternoon, and that it started life as a washer detector until the dryer proved it wasn't one."
+  ],
+  "version": 1,
+  "signatures": [
+    {
+      "id": "garage-appliance-20hz",
+      "label": "garage appliance running",
+      "hint": "washer or dryer \u2014 the two are NOT separable (measured)",
+      "status": "provisional",
+      "valid_from": "2026-07-25T23:39:00Z",
+      "derived_at_sps": 100,
+      "features": [
+        {
+          "kind": "line",
+          "band": [
+            19.0,
+            20.5
+          ],
+          "min_asd": 2.0,
+          "min_peak_shoulder": 4.0,
+          "shoulder": [
+            1.5,
+            4.0
+          ]
+        }
+      ],
+      "evidence": {
+        "labelled_windows": 9,
+        "days": 1,
+        "observed": "washer 2026-07-26 20:25-21:14 UTC; dryer 2026-07-26 21:16-21:37 UTC",
+        "measured": "washer line 19.34-19.97 Hz, ASD 4.8-9.5; dryer line 19.92-20.02 Hz, ASD 4.2-7.6. Line/broadband ratio washer 14-28, dryer 16-22. Complete overlap on every feature tried.",
+        "controls_max_peak_shoulder": 9.2,
+        "notes": [
+          "RENAMED from washer-spin 2026-07-26: Charles reported the dryer running and it produced the",
+          "SAME ~20 Hz line at the same strength. The caveat 'a dryer would look the same' was written as a",
+          "hypothetical an hour earlier and is now a measurement. This signature detects an appliance, full stop.",
+          "Separating washer from dryer needs a feature we do not have; duty-cycle shape (washer bursts 139-475 s",
+          "with shortening gaps vs dryer's longer run) is the most promising untried angle.",
+          "One control window (2026-07-26T02:00Z, 19:00 PDT Sat) trips this rule at 3.01 / 9.2 -- plausibly an",
+          "unlabelled real run rather than a false positive. Unresolved.",
+          "Thresholds set for RECALL: false positives are currently cheap and become the labelling queue."
+        ]
+      }
+    }
+  ],
+  "standing_lines": [
+    {
+      "hz": 40.9,
+      "note": "persistent, present at full strength in dead quiet; NOT a washer harmonic. Scores ~10x over its own continuum with no source running -- the reason line rules must compare amplitude against a reference, not just against the local continuum."
+    },
+    {
+      "hz": 20.0,
+      "note": "weak standing line at 0.4-1.4 uV/rtHz. Both appliances sit on top of this, which is why min_asd exists alongside the shape term."
+    },
+    {
+      "hz": 1.002,
+      "note": "known instrumental line, long-standing and unattributed (see STATUS.md). Out of band for these rules."
+    }
+  ]
+}

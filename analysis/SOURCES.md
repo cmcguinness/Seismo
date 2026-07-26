@@ -35,12 +35,12 @@ its shaft rate; impacts, vehicles and earthquakes are broadband.
 | source | 1–5 Hz | 5–15 Hz | 15–45 Hz | line | verdict |
 |---|---|---|---|---|---|
 | **M2.5 St Helena, 19 km** (2026-07-25 11:31:44, 60 sps epoch) | **×17.7** | **×20.7** | ×11.7 | none | all bands up, low bands most — *the* earthquake reference |
-| **washing machine spin** (5 bursts, 2026-07-26 20:25–21:14) | ×1.0 | ×1.1 | ×2.6 | **19.9 Hz, ×12 over quiet** | garage, rotating |
+| **garage appliance** — washer (5 bursts) *and* dryer, 2026-07-26 20:25–21:37 | ×1.0 | ×1.1 | ×2.6 | **19.3–20.0 Hz, ×12 over quiet** | detects the appliance; **cannot** say which |
 | **street sweeper** (2026-07-24 18:40) | ×2.1 | ×1.6 | ×4.6 | none | vehicle, close but outside |
 | **unidentified near-field** (2026-07-26 19:10:29, 13 s) | ×1.5 | ×1.0 | **×5.3** | none | impact/vehicle at metres — see below |
 | **"garbage cans in"** (2026-07-26 03:12) | ×1.4 | ×2.2 | ×1.5 | 41 Hz **standing, not the source** | window is contaminated — see below |
 
-### Washing machine spin — the cleanest fingerprint we have
+### Garage appliance (~20 Hz line) — the cleanest fingerprint we have
 
 Five bursts on 2026-07-26, 139–475 s each, gaps shortening 664 → 424 → 183 → 164 s.
 
@@ -53,8 +53,28 @@ Five bursts on 2026-07-26, 139–475 s each, gaps shortening 664 → 424 → 183
 - **~41 Hz is NOT its second harmonic.** 41 Hz sits at 1.11–1.19 µV/√Hz during a
   spin and 0.74–1.37 in quiet: unchanged. It is a standing line.
 
-This is the reference for "appliance in the garage". If a future trigger shows a
-19–20 Hz line that grows against its neighbours, it is this machine.
+#### The dryer falsified the "washer" label within the hour
+
+Charles reported the clothes dryer running at 21:16–21:37 UTC. It produces the
+**same line at 19.92–20.02 Hz**, ASD 4.2–7.6 µV/√Hz, at the same strength:
+
+| | line ~20 Hz | 15–45 Hz broadband (line excluded) | line/broadband |
+|---|---|---|---|
+| washer, 5 windows | 4.8–9.5 | 0.31–0.37 | 14–28 |
+| dryer, 4 windows | 4.2–7.6 | 0.27–0.34 | 16–22 |
+
+Complete overlap on every feature tried. The original entry was written as
+`washer-spin` with "a dryer would look the same" as a *hypothetical caveat*; one
+hour later it was a measurement. The signature is now `garage-appliance-20hz` and
+claims only what it can support.
+
+This is the workflow working, not failing — a signature made a falsifiable claim
+and got falsified by the next observation.
+
+**Untried angle for separating them:** duty-cycle shape. The washer ran in bursts
+of 139–475 s with gaps shortening 664 → 424 → 183 → 164 s; the dryer runs longer
+and steadier. That is a time-domain feature, not a spectral one, and it needs a
+second observation of each before it means anything.
 
 ### The 19:10 event — near-field, but not the washer
 
