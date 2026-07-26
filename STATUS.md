@@ -215,10 +215,11 @@ STEIM2 fill-encoding worked and was byte-faithful, **but its pure-Python encoder
 ~211 ms/10 s block on the Pi 2B**, and that GIL-holding burst starved the RDATAC read loop:
 **drops jumped ~0.05/s (int32) → ~0.35/s (~30k/day).** That trades the *one job* for
 archive elegance — wrong on a sensitivity-first box. **Station is back on int32** (drops
-confirmed back to ~0.05/s, ~7× lower). Backlog fix: **re-encode to STEIM2 in the pi5
-collector on ingest** — station stays cheap (int32, no drops), wire int32 (N=2 covers the
-common bursts, backfill heals the rare fade), pi5 archive still gets STEIM2's half-size +
-SeedLink-native encoding at zero station cost. (`doc/rev2-data-plane.md §14.0`.)
+confirmed back to ~0.05/s, ~7× lower).
+
+**DECISION (2026-07-26): int32 stays; STEIM2 is not pursued** — not a C encoder, not a
+pi5 re-encode. The working config is kept: 44 MB/day is trivial on the disk, and backfill
+already heals the rare fade N=2 misses. Thread closed. (`doc/rev2-data-plane.md §14.0`.)
 
 ---
 

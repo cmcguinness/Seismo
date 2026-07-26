@@ -394,12 +394,12 @@ on the Pi 2B, and that GIL-holding burst starved the RDATAC read loop: drops jum
 ~0.05/s (int32) to ~0.35/s (~30k/day).** That degrades the one job for archive-size
 elegance — the wrong trade on a sensitivity-first box. **The station is back on int32.**
 
-**Amended decision:** compression belongs on the capable box, not the Pi 2B. Do STEIM2
-**re-encoding in the pi5 collector on ingest** (backlog) — the station stays dumb/cheap
-(int32, no drops), the wire is int32 (N=2 at 1.0 s cadence covers the common 1–2-datagram
-bursts; the rare 1.4 s fade falls to backfill, which is proven to heal), and the pi5
-archive still gets STEIM2's half-size + SeedLink-native encoding. This keeps every STEIM2
-benefit except inline-fade-coverage (which backfill already provides) at zero station cost.
+**FINAL DECISION (2026-07-26): keep int32, drop STEIM2 entirely** — not a C encoder, not
+a pi5 re-encode. It works, don't fix it: 44 MB/day int32 is trivial on the disk, N=2
+covers the common 1–2-datagram bursts, and the rare 1.4 s fade falls to backfill (proven
+to heal). The station and the pi5 archive are int32. STEIM2's only unique win over that
+was inline-fade-coverage, which backfill already provides — not worth any added moving
+part. This thread is closed; don't reopen it.
 
 ### 14.1 Datagram wire format
 
