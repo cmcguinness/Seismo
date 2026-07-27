@@ -244,6 +244,89 @@ give the S2 its own power, and take a before/after spectrum when swapping. We no
 mount resonances at 19.95 / 40.97 Hz and a still-unattributed 1.002 Hz line — do not
 add an un-baselined transmitter next to the sensor without a comparison.
 
+## Three-sensor ARRAY on the property — back-azimuth + gain against cultural noise (2026-07-27)
+
+**Far off. Prerequisites first (see below) — this is pointless until the single station
+is understood.** Recorded now because the design was worked through in detail.
+
+**Why an array, not a better single station.** Two things a single vertical channel
+can never do, both of which we hit this week:
+- **Back-azimuth / direction of arrival.** Needed for the northbound-vs-southbound
+  traffic question; geometry forbids it from one vertical component. Three
+  non-collinear sensors solve a 2-D slowness vector — that is the minimum.
+- **Gain against the noise that actually limits us.** Averaging co-located sensors
+  only suppresses *incoherent* noise (electronics, coil thermal) — already ~10× below
+  our measured floor, so worthless. Site ambient (Highway 12 traffic) is REAL ground
+  motion, coherent across nearby sensors, and does not average down. Only a
+  **spatially separated** array beamforms against it, and separation must exceed the
+  noise correlation length ≈ one wavelength: at 10 Hz, Rayleigh ~300 m/s → **~30 m**.
+
+**The site works.** Lot is a trapezoid, sides 26 / 36 / 36 / 41 m → sensors at three
+corners give 25–35 m spacing, aperture ≈ 1λ at 10 Hz. Coarse but real. Traffic at
+5–15 Hz (λ 20–60 m) sits in the useful range.
+
+### Architecture A — cabled (cheaper, better, REJECTED on domestic grounds)
+Geophones are **passive**: no power, no clock, no electronics at the sensor. Shielded
+twisted pair back to one multi-chip digitizer in the garage. 30 m of 24 AWG adds ~2.5 Ω
+against a 385 Ω coil (invisible, damping unaffected) and ~3 nF (pole at 138 kHz,
+irrelevant). This is how exploration seismic has always worked.
+- **Rejected because** it needs trenching, and the lawn service will cut anything not
+  buried. Perimeter routing along fence lines under mulch would avoid turf entirely and
+  is worth reconsidering if the digging ever becomes acceptable.
+
+### Architecture B — autonomous solar nodes (Charles's spec, the live plan)
+`solar → BMS → LiFePO4 → box (MCU + ADS1256 + WiFi) → short shielded cable → buried geophone`
+
+- **TIMING IS GPS, NOT WIFI.** WiFi+NTP gives 1–10 ms with jitter that worsens exactly
+  when the radio is busy; body waves across a 30 m aperture are only **5 ms** of moveout.
+  A GPS module with PPS is $15–30, sub-µs, and **receive-only** — no transmitter. It also
+  makes nodes fully independent, demoting WiFi to "moves bytes, may be laggy".
+- **THE RADIO IS THE KNOWN ENEMY, NOW INSIDE THE BOX.** Our worst-ever noise event was a
+  WiFi dongle's TX current corrupting the ADS1256 via a shared 5 V rail
+  ([[wifi-tx-corrupts-acquisition]]). This design repeats it by construction. Mitigate
+  with **store-and-forward**: record continuously to local flash, transmit in scheduled
+  bursts, and **flag the samples inside each TX window** so contamination is known rather
+  than mysterious. Separate regulators for analog and radio; antenna as far from the
+  front end as the enclosure allows.
+- **LiFePO4, not LiPo.** An outdoor enclosure in Santa Rosa summer reaches ~60 °C
+  internally. Cobalt pouch cells degrade fast there and fail badly.
+- **Power budget** — drives the Pi-vs-MCU choice:
+
+  | | average | daily | panel / battery |
+  |---|---|---|---|
+  | Pi Zero 2W + WiFi | ~0.8 W | 19 Wh | 20 W, ~100 Wh |
+  | MCU + ADS1256, duty-cycled radio | ~0.3 W | 7 Wh | 10 W, ~40 Wh |
+
+  Pi reuses every line of existing acquisition code; MCU halves the solar hardware and
+  drops the SD-card failure mode. Build node one on a Pi to prove it, then decide.
+- **Bury the geophone 30–50 cm** (below most of the diurnal thermal wave) and shade the
+  electronics box. The short cable separating them is doing real work — outdoor thermal
+  cycling is far worse than the settling we already fight indoors.
+- **Site sensors at the PERIMETER near hardscape** (footing, fence-post concrete, bed
+  edges), not mid-lawn. Turf is topsoil + root mat + seasonal moisture — a compliant,
+  variable medium, i.e. the floor-tile problem outdoors.
+- **Geometry need only be KNOWN, not regular.** Beamforming solves from measured
+  positions, so route around obstacles freely. 1 ms at 300 m/s = 0.3 m, so a tape
+  measure at ±10 cm is ample — do NOT use GPS for the positions, a tape is better at 30 m.
+
+### Rejected: FM telemetry (analog subcarrier)
+Historically standard (VCO → FM subcarrier → VHF/phone line → discriminator; 1970s–90s
+USGS practice), and it does make the link amplitude-insensitive. But: it **still needs
+power at the sensor** so it solves nothing; analog FM telemetry delivers ~40–50 dB of
+dynamic range against our ~126 dB, which is why the profession abandoned it; VCO thermal
+drift adds a new sub-Hz error term of exactly the kind we are already chasing; and it
+puts a transmitter next to the geophone.
+
+### Prerequisites (the "long way to go")
+1. **Coupling** — get off the floor tile (top of this file).
+2. **Shunt damping resistor** — Phase 3, still unchecked; no honest response without it.
+3. **Instrument response / report m/s** — needs 2.
+4. **Shorted-input floor test** — tells us whether electronics matter at all.
+5. **Simultaneous sampling within a node** — 3 components need multiple ADS1256 sharing
+   CLKIN with tied SYNC (the MUX staggers channels and inter-channel skew destroys
+   particle motion). Prove on the bench before committing to a board.
+6. Only then: one solar node, validated against the garage station, before three.
+
 ## Compute — faster Pi (upgrade consideration)
 
 A faster Pi is a **scope-expansion enabler, not a fix** for current limits. Do the
