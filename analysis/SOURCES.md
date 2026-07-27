@@ -141,10 +141,31 @@ the record. 15–45 Hz 1 s envelope:
 | 05:19–05:25 | 0.7–1.0 | confirmed quiet, household seated, detector correctly silent |
 | **05:29:47** | → 3.8 | **restart**, compressor and blower together |
 
+**The two-stage shutdown REPEATS with a fixed ~60 s lag** — confirmed on a second
+witnessed stop, so it is a mechanical property of the unit (blower post-purge pulling
+the remaining cooling off the coil), not a coincidence:
+
+| run | compressor off | blower off | lag |
+|---|---|---|---|
+| 1 | 05:16:48 | 05:17:50 | **62 s** |
+| 2 | 05:38:46 | 05:39:45 | **59 s** |
+
+Run 2 envelope: 4.38 → 2.56 → 0.83 µV. Charles reported "10:40" for run 2, 15 s after
+the measured edge — what a rounded human report should look like.
+
+**This is the strongest A/C fingerprint we have.** Washer and dryer stop in one step; a
+high→medium→low decay with a repeatable ~60 s dwell needs no spectral information, and
+like the start transient it is a property of the MACHINE, not the floor — so it survives
+the move onto slab.
+
 **The start carries a transient; the stop does not.** At 05:29:47 the raw trace hits
 **+23/−21 µV** against ~±3 µV in the preceding ten seconds — ~7× — broadband, largest in
 15–45 Hz, riding exactly on the step. The blower stop shows only a clean step down.
-Consistent with motor inrush / the unit rocking on its mounts at engagement.
+Consistent with motor inrush / the unit rocking on its mounts at engagement. Verified
+on BOTH witnessed stops: peak within ±2 s of the edge is *lower* than the peak in the
+preceding 20 s (8.6 vs 11.1 µV; 12.9 vs 15.9), against 23 µV vs ~3 µV at the start.
+Charles independently called this by eye — "no transient that I see on blower stop,
+just less noise".
 
 Charles spotted these by eye on the helicorder first ("littered through it").
 
