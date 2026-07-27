@@ -97,6 +97,7 @@ CSS = """<style>
  .srcpill{border-radius:999px;padding:.3em .85em;font-size:.78rem;font-weight:500;
    background:#e7f1f0;color:#2f6f6b;border:1px solid #cfe3e1;cursor:help}
  .srcpill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+ .tooltip-inner{max-width:360px;text-align:left;line-height:1.45}
  a{color:var(--accent)}
 </style>"""
 
@@ -225,23 +226,56 @@ function spectrum(sp){
 // Source badges: which characterised signature (if any) the live ring matches.
 // SOFT LABEL -- informational only, never gates anything. Provisional signatures
 // (seen on fewer than two separate days) are marked so nobody reads them as fact.
+// Source pills. The element is rebuilt ONLY when the matched set changes -- live()
+// polls at 300 ms, and rewriting innerHTML that often destroys and recreates the
+// span, so a native title tooltip's hover timer never completes and nothing ever
+// appears. Same trap that ate the injected badge during testing. Between rebuilds we
+// only refresh the tooltip TEXT in place, and not while it is being read.
+let _srcKey=null,_srcTips=[];
+function srcTip(s){
+  const d=s.detail||{};
+  return [s.hint,
+          d.hz?`${d.hz} Hz mount resonance`:null,
+          d.asd?`${d.asd} µV/√Hz`:null,
+          d.peak_shoulder?`×${d.peak_shoulder} over continuum`:null,
+          'anything that shakes the floor can ring it',
+          s.status!=='active'?'provisional — one day of observation':null]
+         .filter(Boolean).join(' · ');
+}
 function sources(list){
   const box=document.getElementById('srcbadges');
   if(!box)return;
-  if(!list||!list.length){box.innerHTML='';return;}
-  box.innerHTML=list.map(s=>{
-    const prov=s.status!=='active', d=s.detail||{};
-    // Everything except the name lives in the tooltip -- the header should stay
-    // glanceable, and the measurements only matter when you go looking for them.
-    const tip=[s.hint,
-               d.hz?`${d.hz} Hz mount resonance`:null,
-               d.asd?`${d.asd} µV/\u221AHz`:null,
-               d.peak_shoulder?`\u00D7${d.peak_shoulder} over continuum`:null,
-               'anything that shakes the floor can ring it',
-               prov?'provisional \u2014 one day of observation':null]
-              .filter(Boolean).join(' \u00B7 ');
-    return `<span class="srcpill${prov?'':' active'}" title="${tip}">${s.pill||s.label}</span>`;
-  }).join(' ');
+  list=list||[];
+  const key=list.map(s=>s.id).join(',');
+  if(key!==_srcKey){
+    _srcTips.forEach(t=>{try{t.dispose();}catch(e){}});
+    _srcTips=[];
+    box.innerHTML=list.map(s=>
+      `<span class="srcpill${s.status==='active'?' active':''}"></span>`).join(' ');
+    [...box.children].forEach((el,i)=>{
+      el.textContent=list[i].pill||list[i].label;
+      const tip=srcTip(list[i]);
+      el.dataset.tip=tip;
+      if(window.bootstrap&&bootstrap.Tooltip){
+        _srcTips.push(new bootstrap.Tooltip(el,{title:tip,placement:'bottom'}));
+      } else { el.title=tip; }        // bootstrap.js is deferred; degrade gracefully
+    });
+    _srcKey=key;
+    return;
+  }
+  // Same signatures still matching -- keep the numbers current, but never swap the
+  // text out from under someone reading it. Three guards, because setContent() on a
+  // visible tooltip dismisses it: skip entirely while ANY tooltip is open, skip the
+  // hovered pill, and skip when the text has not actually changed (the values only
+  // move every ~3 s with the ring, not every 300 ms with the poll).
+  if(document.querySelector('.tooltip'))return;
+  [...box.children].forEach((el,i)=>{
+    if(el.matches(':hover'))return;
+    const tip=srcTip(list[i]);
+    if(el.dataset.tip===tip)return;
+    el.dataset.tip=tip;
+    if(_srcTips[i]){_srcTips[i].setContent({'.tooltip-inner':tip});} else {el.title=tip;}
+  });
 }
 
 async function live(){
