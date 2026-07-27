@@ -1,6 +1,46 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-26 (UTC)_
+_Last updated: 2026-07-27 (UTC)_
+
+## 🚗 Traffic direction — a road patch gives the symmetry-breaker (2026-07-27)
+
+Charles found the physical source of the "pop" on northbound transits: **broken/patched
+pavement on Highway 12, in the NORTHBOUND LANE ONLY** (southbound is smooth). Photo +
+measured geometry from satellite:
+
+- **closest approach 336.96 ft** (102.7 m) — and it is essentially the perpendicular foot
+- **patch 481.82 ft** (146.9 m), which puts it **344 ft (105 m) along the road** to the NW
+  of the closest-approach point
+
+**Why this matters.** A single vertical channel cannot give bearing — that is geometry,
+not a sensitivity problem. But a *fixed impulsive source at a known location* breaks the
+transit symmetry. Northbound vehicles pass closest approach, THEN hit the patch;
+southbound never touch it.
+
+**Falsifiable prediction (UNTESTED):**
+- northbound → discrete pop **+4.3 to +6.7 s AFTER** the transit envelope peak (344 ft at
+  35–55 mph)
+- southbound → **no pop at all**
+
+**⚠️ My first test of this was invalid — do not trust it.** I scored 75 "isolated passes"
+overnight and got 7/7 impulses *before* the peak, none after. Three reasons that result
+means nothing:
+1. It assumes the 5–15 Hz envelope peak is closest approach, and I never verified that.
+   Earlier analysis found night events here are **sharp ~1 s features**, not the 8–10 s
+   swells a car at 102 m must produce — so the detector may be locking onto impulses, not
+   transits, in which case "offset from the peak" measures nothing.
+2. Only 7 of 75 candidates carried an impulse (9 %). If every northbound vehicle hits the
+   patch and traffic splits evenly, that should be nearer 50 %.
+3. The impulses found were 3–7 µV — small for a car striking broken pavement.
+
+**What settles it, cheaply:** watch ONE northbound vehicle pass at a quiet hour and note
+the second. That single labelled pass validates the whole chain at once — whether a
+transit swell is visible at all, its shape, whether a pop follows, and at what delay.
+Everything downstream rests on that unverified assumption.
+
+**Superseded:** the earlier ask for ~20 labelled passes. With a known mechanism, a known
+lane and a predicted delay, a handful suffices — and one is enough to validate the
+detector.
 
 ## 🎯 FOUR confirmed earthquakes — and a detector that finds them (2026-07-27)
 
