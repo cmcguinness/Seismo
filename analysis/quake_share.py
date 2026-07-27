@@ -159,7 +159,12 @@ def main():
     st = obspy.read(args.mseed, starttime=origin - args.pre, endtime=origin + args.post)
     if not len(st):
         raise SystemExit(f"no data in {args.mseed} around {args.origin}")
-    st.merge(method=1)
+    # fill_value="interpolate", not a bare merge: the archive carries sub-second
+    # per-block timing gaps, and a plain merge leaves a MASKED array that obspy's
+    # filter() refuses outright ("Trace with masked values found"). Bridging them is
+    # correct here -- they are millisecond bookkeeping seams, not real data loss, and
+    # every other analysis path in this project merges the same way.
+    st.merge(method=1, fill_value="interpolate")
     tr = st[0]
     fs = float(tr.stats.sampling_rate)
     uvpc = 2.5 * 2 / (args.gain * (2 ** 23 - 1)) * 1e6
