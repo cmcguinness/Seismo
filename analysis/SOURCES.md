@@ -149,6 +149,21 @@ the remaining cooling off the coil), not a coincidence:
 |---|---|---|---|
 | 1 | 05:16:48 | 05:17:50 | **62 s** |
 | 2 | 05:38:46 | 05:39:45 | **59 s** |
+| 3 | 06:03:48 | 06:04:47 | **59 s** |
+
+**Three repeatable amplitude levels** (15–45 Hz RMS), consistent across all runs:
+both running **3.8–4.5 µV** · blower only **2.2–2.5 µV** · off **0.8–0.9 µV**. A
+three-state machine with a fixed ~60 s dwell in the middle on the way down — no
+spectral information required.
+
+⚠️ **The start transient is NOT confirmed.** It rests on ONE observation (05:29:47,
+23 µV vs ~3 µV). A test was designed around Charles reporting "blower just kicked on"
+at 05:55 — if blower-only produced no jolt, the transient would be compressor inrush.
+The start showed ratio 0.6 (no transient), but run 3's two-stage stop proves the
+COMPRESSOR WAS RUNNING, so the premise was false and the test proved nothing. The
+ratio-0.6 reading was the contaminated-baseline artifact already flagged (a 20 µV
+excursion sat in the 20 s before the edge). Needs a genuinely blower-only cycle, or
+simply more starts.
 
 Run 2 envelope: 4.38 → 2.56 → 0.83 µV. Charles reported "10:40" for run 2, 15 s after
 the measured edge — what a rounded human report should look like.
