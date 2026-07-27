@@ -4,72 +4,29 @@ Deferred work, not blocking. The current station records 24/7, is
 Raspberry-Shake-class (~41 nm/s floor), and has real-time + helicorder + spectrum
 tooling. These are improvements to fold in when convenient.
 
-## 🌱 BURY THE GEOPHONE outside the garage — likely the single biggest win (2026-07-27)
+## Alternative siting — bury outside the garage (CONSIDERED, deferred to the crawl space)
 
-Charles's proposal: put the geophone in the dirt just outside the garage and run the
-cable back in. All electronics stay indoors, dry and powered. **This should probably
-happen before anything else on this list**, including lifting the floor tile — it
-supersedes that fix rather than competing with it.
+Explored 2026-07-27. **Not the plan.** The plan of record remains the **under-house
+crawl space on bare earth** — see "Target siting" below, which already specifies a
+levelled paver bedded in tamped earth and is better on nearly every axis: no
+weatherproofing, no potting, no drainage, retrievable, sheltered, and thermally
+steadier than 50 cm of soil.
 
-**It does two things at once.** Obviously it replaces the compliant plastic floor tile
-with actual ground. Less obviously, and more importantly, **it removes the building as
-a noise path**. Everything catalogued on 2026-07-26/27 — washer, dryer, A/C, garbage
-cans, the 58–79 % household-activity duty cycle, the 19.95/40.97 Hz mount resonance —
-is structure-borne and arrives through the floor. Buried outside, most of it is simply
-gone. This is what a seismic vault *is*.
-
-### The hole is small
-- **150 mm (6") post-hole, 40–50 cm deep.** Hand auger or clam-shell digger, about an
-  hour, disturbed patch ~15 cm across. The geophone is only 25.4 mm ⌀ × 36 mm.
-- 40–50 cm puts it below the root mat and well below the diurnal thermal wave (which
-  penetrates only 10–15 cm) — attacks the thermal settling directly.
-
-### Build it so you never reach into the hole
-- **Pot the geophone into a ~50 mm (2") PVC pipe**, element aligned to the pipe axis,
-  cable exiting the top through the potting. The assembly becomes a rigid cylinder whose
-  axis *is* the sensitive axis.
-- **Set the pipe into fresh mortar** at the bottom and plumb it with a spirit level
-  against the exposed top end while wet. The mortar is both the coupling base and the
-  alignment fixture, done from the surface.
-- A vertical geophone must be **level** or its response degrades — this is why loose
-  placement is a problem, not fussiness.
-
-### Coupling options, best to worst
-| method | coupling | reversible? |
-|---|---|---|
-| **set in mortar** | best, stable over years | no — semi-permanent |
-| **damp tamped sand bed** | decent, the sensible compromise | yes |
-| **dropped into loose soil** | poor and *drifting* — settles, changes with moisture | yes |
-
-Loose placement is the tempting option and the one to avoid: coupling that varies with
-season means amplitude comparisons across months stop meaning anything, which is exactly
-the property we are trying to establish.
-
-### Sealing — one principle
-**Do not build a sealed AIR volume.** A rigid enclosure with air in it breathes with
-temperature and draws moisture past any imperfect seal until it is wet inside. **Fully
-pot** the geophone and the first few cm of cable in epoxy or polyurethane — no void,
-nothing to pump. And **no underground connector**: one continuous direct-burial shielded
-twisted pair from the potted sensor into the garage.
-
-### The detail that keeps Phase 3 alive
-**Leave the shunt damping resistor indoors**, at the garage end of the cable. It only has
-to be electrically across the coil, and a few metres of cable adds well under an ohm
-against 385 Ω. So burial does NOT lock in a damping value — it stays swappable and
-tunable against a recorded impulse.
-
-### Also
-- A few cm of gravel under the mortar so the hole drains rather than ponds each winter.
-- **Mark the location** — a flush paver, or offsets from two fixed points. "Somewhere
-  along the garage wall" will not be findable in three years.
-
-### Do first (this is a new epoch and semi-permanent)
-1. **Bank labelled sources** while the tile is still there — the mode-ratio fingerprint
-   dies with it, and this is the only chance to measure what the tile was costing.
-2. **Shorted-input floor test** indoors where it is easy, so the electronics term is
-   known before the mechanics change underneath it.
-3. Record the exact swap time; expect the usual ~35 min settling
-   ([[settling-time-after-handling]]) and treat everything before it as a closed epoch.
+Kept only for the parts that transfer:
+- **The motivation is real and now measured.** The station currently stands on
+  inherited plastic floor tile — see "COUPLING" below. That is what the crawl-space
+  move fixes, and it is a stronger argument for that move than anything previously
+  recorded.
+- **Keep the shunt damping resistor at the BOARD end**, wherever the sensor ends up. It
+  only has to be electrically across the coil, and a metre or two of cable adds well
+  under an ohm against 385 Ω — so remote siting never locks in a damping value. This
+  matters for the crawl space too, since Phase 3 is still unchecked.
+- **If outside burial is ever revisited:** 150 mm post-hole, 40–50 cm; geophone potted
+  into 50 mm PVC with the element on the pipe axis; pipe set in fresh mortar and plumbed
+  from the surface with a level on the exposed top end (so nothing is aligned by feel at
+  the bottom of a narrow hole); full potting with **no sealed air volume** (a rigid
+  enclosure breathes with temperature and pumps moisture past any imperfect seal); one
+  continuous direct-burial cable, no underground connector.
 
 ## ⚠️ COUPLING — the geophone is not on the slab (found 2026-07-26)
 
@@ -660,6 +617,13 @@ environmental noise, not the electronics:
 - **No wind/drafts** → retires the garage draft/barometric buffeting.
 - **Direct earth coupling + below-grade quiet** → lower cultural/microseism noise.
 - Does NOT change the electronic noise floor (that's the Rev-2 front-end work).
+- **STRENGTHENED 2026-07-27:** the garage station stands on inherited **plastic floor
+  tile**, and that is now measured — a fixed 19.95 Hz resonance with its second mode at
+  40.97 Hz (ratio 2.03–2.07 across every window), excited **58–79 % of waking hours** by
+  ordinary household activity, against 2 % overnight. Bare earth in the crawl space
+  removes both the compliant layer AND the building as a structure-borne noise path,
+  which is where the washer/dryer/A-C/garbage-can sources all arrive from. See
+  "COUPLING" below and `analysis/SOURCES.md`.
 
 **SEQUENCING: the crawl space is the TERMINAL step, not the next one** (Charles,
 2026-07-23). Once it is under the house every iteration costs a belly-crawl, so
