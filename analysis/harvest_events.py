@@ -56,6 +56,39 @@ def epoch_of(iso):
     return "unknown", 0
 
 
+# Amplitude prediction anchor: the first confirmed quake (M2.5 @ 18.4 km, ~126 uV peak
+# 1-15 Hz). Everything is scaled from it via the California ML attenuation, so `resid`
+# below is "how much louder/quieter than that anchor predicts" -- which is where an
+# azimuth-dependent PATH effect would show up as a systematic offset per direction.
+REF_MAG, REF_DIST_KM, REF_PEAK_UV = 2.5, 18.4, 126.0
+COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+           "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+
+
+def ml_atten(r):
+    """California ML distance term, -log A0."""
+    return 1.11 * math.log10(r) + 0.00189 * r + 0.591
+
+
+def predict_uv(mag, dist):
+    """Peak 1-15 Hz in uV this station would see, scaled from the anchor event."""
+    return REF_PEAK_UV * 10 ** ((mag - REF_MAG) - (ml_atten(dist) - ml_atten(REF_DIST_KM)))
+
+
+def back_azimuth(lat, lon):
+    """Bearing from the STATION to the event, degrees clockwise from north.
+
+    This is the direction the energy arrives FROM, so it is the axis to bin by when
+    testing whether path geology (e.g. the Napa-Sonoma marshes to the SE vs Coast Range
+    basement to the N) systematically changes what reaches us.
+    """
+    p1, p2 = math.radians(STA_LAT), math.radians(lat)
+    dl = math.radians(lon - STA_LON)
+    x = math.sin(dl) * math.cos(p2)
+    y = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return (math.degrees(math.atan2(x, y)) + 360) % 360
+
+
 def hypo_km(lat, lon, depth):
     dlat = (lat - STA_LAT) * 111.32
     dlon = (lon - STA_LON) * 111.32 * math.cos(math.radians((lat + STA_LAT) / 2))
@@ -218,6 +251,11 @@ def main():
         snr_rms = sig15 / pre15 if pre15 > 0 else float("nan")
         lohi = (m["r_lo"] / m["r_hi"]
                 if m["r_hi"] and np.isfinite(m["r_hi"]) and m["r_hi"] > 0 else float("nan"))
+        az = back_azimuth(c[1], c[0])
+        pred = predict_uv(float(p["mag"]), dist)
+        # Residual is ONLY meaningful for events actually seen -- for the rest it is an
+        # upper limit, since `peak15` is then just noise.
+        resid = (math.log10(peak15 / pred) if pred > 0 and peak15 > 0 else float("nan"))
         iso = o.strftime("%Y-%m-%dT%H:%M:%SZ")
         ep, _ = epoch_of(iso)
         # did the STA/LTA fire within the signal window?
@@ -229,7 +267,10 @@ def main():
             "depth_km": round(float(c[2] or 0), 1), "fs": fs, "epoch": ep,
             "pre_1_15": round(pre15, 3), "sig_1_15": round(sig15, 3),
             "snr": round(snr, 2), "snr_rms": round(snr_rms, 2),
-            "peak_1_15": round(peak15, 3), "seen": int(snr >= args.snr_seen),
+            "peak_1_15": round(peak15, 3),
+            "az_deg": round(az, 1), "az": COMPASS[int((az + 11.25) % 360 // 22.5)],
+            "pred_uv": round(pred, 3),
+            "resid_log10": round(resid, 3) if np.isfinite(resid) else "", "seen": int(snr >= args.snr_seen),
             "triggered": int(triggered),
             **{k: round(v, 3) for k, v in m.items() if np.isfinite(v)},
             "lo_hi": round(lohi, 3) if np.isfinite(lohi) else "",
@@ -301,6 +342,25 @@ def main():
             for r in sorted(real, key=lambda r: -r["snr"]):
                 print(f"     M{r['mag']:.1f}  {r['dist_km']:6.1f} km  snr {r['snr']:6.2f}"
                       f"  lo/hi {r['lo_hi']}   {r['place'][:34]}")
+
+    # Azimuth summary -- the reason the column exists. Only SEEN events carry a
+    # meaningful residual; the rest bound it from above.
+    if seen:
+        print("\n  SEEN events, observed vs predicted (residual >0 = louder than the")
+        print("  anchor predicts). Bin these by azimuth once there are enough:")
+        print(f"     {'origin':21s} {'M':>4} {'dist':>7} {'az':>6} {'pred':>8} {'obs':>8}  resid")
+        for r in sorted(seen, key=lambda r: r["az_deg"]):
+            print(f"     {r['origin']:21s} {r['mag']:4.1f} {r['dist_km']:6.1f}k "
+                  f"{r['az']:>4}{r['az_deg']:5.0f} {r['pred_uv']:8.2f} {r['peak_1_15']:8.2f}"
+                  f"  {r['resid_log10']:+}")
+        import collections
+        byaz = collections.defaultdict(list)
+        for r in rows:
+            byaz[r["az"]].append(r)
+        print(f"\n  catalogue coverage by azimuth (all {len(rows)} windows):")
+        for k in sorted(byaz, key=lambda k: -len(byaz[k]))[:8]:
+            n_seen = sum(x["seen"] for x in byaz[k])
+            print(f"     {k:>4}: {len(byaz[k]):4d} events, {n_seen} seen")
 
     ms = [r["mag"] for r in seen]
     if ms:
