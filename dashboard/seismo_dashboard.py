@@ -94,6 +94,9 @@ CSS = """<style>
  #hud{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#6c757d;margin-top:.5rem}
  td.spark-cell{width:196px}
  svg.spark{display:block;width:180px;height:40px;background:#eaf0f4;border:1px solid #c7d4de;border-radius:3px}
+ .srcpill{border-radius:999px;padding:.3em .85em;font-size:.78rem;font-weight:500;
+   background:#e7f1f0;color:#2f6f6b;border:1px solid #cfe3e1;cursor:help}
+ .srcpill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
  a{color:var(--accent)}
 </style>"""
 
@@ -223,26 +226,22 @@ function spectrum(sp){
 // SOFT LABEL -- informational only, never gates anything. Provisional signatures
 // (seen on fewer than two separate days) are marked so nobody reads them as fact.
 function sources(list){
-  const box=document.getElementById('srcbadges'),note=document.getElementById('srcnote');
+  const box=document.getElementById('srcbadges');
   if(!box)return;
-  if(!list||!list.length){box.innerHTML='';if(note)note.textContent='';return;}
+  if(!list||!list.length){box.innerHTML='';return;}
   box.innerHTML=list.map(s=>{
-    const prov=s.status!=='active';
-    const cls=prov?'text-bg-light border':'text-bg-success';
-    const mark=prov?' <span class="fw-normal">?</span>':'';
-    const d=s.detail||{};
-    const tip=[s.hint,d.hz?`line ${d.hz} Hz`:null,d.asd?`${d.asd} µV/√Hz`:null,
-               d.peak_shoulder?`×${d.peak_shoulder} over continuum`:null,
-               prov?'provisional — one day of observation':null]
-              .filter(Boolean).join(' · ');
-    return `<span class="badge ${cls} ms-2 fw-normal" title="${tip}">${s.pill||s.label}${mark}</span>`;
-  }).join('');
-  const s0=list[0],d=s0.detail||{};
-  // Short pill up top, one readable sentence here, full measurements in the tooltip.
-  if(note)note.textContent=(s0.pill||s0.label)
-    +(d.hz?' — '+d.hz+' Hz mount resonance, ×'+d.peak_shoulder+' over continuum':'')
-    +' · anything that shakes the floor can ring it'
-    +(s0.status!=='active'?' · provisional':'');
+    const prov=s.status!=='active', d=s.detail||{};
+    // Everything except the name lives in the tooltip -- the header should stay
+    // glanceable, and the measurements only matter when you go looking for them.
+    const tip=[s.hint,
+               d.hz?`${d.hz} Hz mount resonance`:null,
+               d.asd?`${d.asd} µV/\u221AHz`:null,
+               d.peak_shoulder?`\u00D7${d.peak_shoulder} over continuum`:null,
+               'anything that shakes the floor can ring it',
+               prov?'provisional \u2014 one day of observation':null]
+              .filter(Boolean).join(' \u00B7 ');
+    return `<span class="srcpill${prov?'':' active'}" title="${tip}">${s.pill||s.label}</span>`;
+  }).join(' ');
 }
 
 async function live(){
@@ -307,8 +306,7 @@ def home():
                          '4.5&nbsp;Hz &middot; independent station (not for scientific use)')
         + _card('Live &middot; last 30&nbsp;s (UTC)<span id="srcbadges" '
                 'class="float-end"></span>',
-                '<canvas id="c"></canvas><div id="hud">connecting…</div>'
-                '<div id="srcnote" class="small text-muted mt-1"></div>')
+                '<canvas id="c"></canvas><div id="hud">connecting…</div>')
         + _card("Live spectrum &middot; same 30&nbsp;s window "
                 '<span class="fw-normal text-muted">&middot; ASD µV/&radic;Hz, log&ndash;log</span>',
                 '<canvas id="s"></canvas>'
