@@ -65,7 +65,8 @@
           "dryer was running.",
           "Thresholds set for RECALL: false positives are cheap and become the labelling queue."
         ]
-      }
+      },
+      "pill": "Laundry suspected"
     }
   ],
   "standing_lines": [

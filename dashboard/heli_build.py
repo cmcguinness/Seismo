@@ -135,11 +135,30 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
     if not len(hdr):
         return 0
     newest = max(t.stats.endtime for t in hdr)
+    newest_start = min(t.stats.starttime for t in hdr)
+
+    # PLAN BEFORE DECODING. Completed intervals are immutable and get skipped, so in
+    # the steady state the only interval needing work is the CURRENT PARTIAL one.
+    # This used to decode+filter the whole `hours` window every cycle regardless --
+    # ~4.5 s of CPU to rebuild a single 15-minute interval, once a minute, forever
+    # (~15% of a core doing nothing new; Charles spotted it in htop). Deciding what is
+    # missing costs only the header scan above, so do that first and decode just the
+    # span those intervals need.
+    first_t0 = (newest.timestamp - hours * 3600) // INTERVAL_S * INTERVAL_S
+    last_t0 = newest.timestamp // INTERVAL_S * INTERVAL_S
+    todo = [t0 for t0 in _interval_range(first_t0, last_t0)
+            if not _is_complete(os.path.join(heli_dir, _fname(t0)))]
+    if not todo:                          # nothing to do -- don't decode anything
+        _prune(heli_dir, epoch_start_ts())
+        return 0
+
     # one extra interval of margin so the first row isn't filter-clipped
-    win_start = obspy.UTCDateTime(
-        (newest.timestamp - hours * 3600) // INTERVAL_S * INTERVAL_S - INTERVAL_S)
+    win_start = obspy.UTCDateTime(min(todo) - INTERVAL_S)
+    # The previous day-file is only needed when the window reaches back across the
+    # 00:00 rollover; skipping it otherwise avoids a second scan of a 44 MB file.
+    paths = files[-2:] if win_start < newest_start else files[-1:]
     st = None
-    for path in files[-2:]:
+    for path in paths:
         s = _load_day(path, starttime=win_start)
         if not len(s):
             continue                      # file lies entirely before the window
@@ -151,9 +170,7 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
         st.filter("highpass", freq=HP_HZ, corners=2, zerophase=True)
 
     latest = max(t.stats.endtime.timestamp for t in st)
-    first_t0 = (latest - hours * 3600) // INTERVAL_S * INTERVAL_S
-    last_t0 = latest // INTERVAL_S * INTERVAL_S
-    written = _write_intervals(st, heli_dir, first_t0, last_t0, latest)
+    written = _write_intervals(st, heli_dir, min(todo), last_t0, latest)
     # Prune only what predates the current epoch. Everything inside it is kept for
     # /history (~20 KB per interval, ~2 MB/day -- nothing next to 44 MB/day of
     # miniSEED), so the live cycle no longer deletes the window behind it.
@@ -247,6 +264,14 @@ def backfill(data_dir=DATA, heli_dir=HELI, t_from=None, t_to=None):
         print(f"  {os.path.basename(path)}: +{n} interval(s)", flush=True)
     _prune(heli_dir, epoch_start_ts())
     return total
+
+
+def _interval_range(first_t0, last_t0):
+    """Interval starts from first_t0 to last_t0 inclusive, on the INTERVAL_S grid."""
+    t0 = first_t0
+    while t0 <= last_t0:
+        yield t0
+        t0 += INTERVAL_S
 
 
 def _is_complete(path):

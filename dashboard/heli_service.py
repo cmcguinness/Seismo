@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
-"""heli_service.py — background helicorder builder+renderer for the dashboard.
+"""heli_service.py — background helicorder builder + on-demand renderer.
 
-Takes rendering off the request path entirely. A daemon thread watches the
-mirrored miniSEED; when new data lands (mtime changes) it rebuilds the changed
-interval envelope (heli_build) and re-renders the drum PNG (heli_render) ONCE,
-into a module-level byte buffer. The web route just hands back those bytes --
-O(1), always warm, and N viewers cost nothing extra.
+Two jobs with different economics, so they are scheduled differently:
 
-This is the "compute once per new-data, not once per request-per-viewer" fix.
-Keeps backend work (obspy ingest, plotting) out of the route handlers.
+  BUILD (envelopes) runs on a timer. It is incremental and the ARCHIVE depends on
+  it -- /history can only draw a past window if that window's envelope was banked
+  while the data was in the mirror. Skipping it while nobody watches would leave
+  permanent holes. Since the plan-before-decode fix it costs ~0.2 s per cycle.
+
+  RENDER (the drum PNG) is ON DEMAND. It is a view: if nobody asks for the picture,
+  drawing it is pure waste, and it was the expensive half (~1.4 s per cycle, every
+  cycle, forever). Now a request gets the cached bytes instantly and, if the data
+  has moved on since that render, a refresh runs in the background -- so the next
+  viewer sees fresh pixels and nobody ever waits behind matplotlib.
+
+Rendering used to sit on the request path directly, which cost 24-37 s per hit and
+multiplied by viewers; that is what the precompute was for. Stale-while-revalidate
+keeps that property (requests stay O(1) served bytes) without paying for renders
+nobody wanted.
 """
 import glob
 import os
@@ -23,14 +32,10 @@ HELI = os.environ.get("SEISMO_HELI", "/data/heli")
 POLL_S = float(os.environ.get("SEISMO_HELI_POLL", "20"))   # how often to check mtime
 
 _png = None
+_png_stamp = None            # _latest_mtime() as of the cached render
 _lock = threading.Lock()
+_rendering = False
 _started = False
-
-
-def current_png():
-    """Latest rendered drum PNG bytes, or None until the first build completes."""
-    with _lock:
-        return _png
 
 
 def _latest_mtime():
@@ -38,26 +43,65 @@ def _latest_mtime():
     return max((os.path.getmtime(f) for f in files), default=0.0)
 
 
+def _render_now():
+    """Render and cache. Returns the bytes, or None on failure."""
+    global _png, _png_stamp, _rendering
+    stamp = _latest_mtime()
+    try:
+        png = heli_render.helicorder_png(HELI)
+    except Exception as e:
+        print(f"heli_service render: {e}", flush=True)
+        png = None
+    with _lock:
+        if png:
+            _png, _png_stamp = png, stamp
+        _rendering = False
+    return png
+
+
+def current_png():
+    """Drum PNG bytes, or None until the first render completes.
+
+    Serves the cache immediately. If the mirror has advanced since that render,
+    kicks a background refresh for the NEXT caller rather than making this one wait.
+    The very first request has nothing to serve, so it renders inline.
+    """
+    global _rendering
+    with _lock:
+        png, stamp, busy = _png, _png_stamp, _rendering
+        if png is None and not busy:
+            _rendering = True                 # cold: render inline, below
+            cold = True
+        else:
+            cold = False
+    if cold:
+        return _render_now()
+    if png is not None and stamp != _latest_mtime() and not busy:
+        with _lock:
+            if _rendering:                    # another thread got there first
+                return png
+            _rendering = True
+        threading.Thread(target=_render_now, daemon=True,
+                         name="heli-render").start()
+    return png
+
+
 def _worker():
-    global _png
+    """Keep the envelope archive current. Does NOT render -- see module docstring."""
     last = -1.0
     while True:
         try:
             m = _latest_mtime()
-            if m != last:                      # new data -> rebuild + re-render once
+            if m != last:
                 heli_build.build(DATA, HELI)
-                png = heli_render.helicorder_png(HELI)
-                if png:
-                    with _lock:
-                        _png = png
-                    last = m
-        except Exception as e:                 # never let the worker die on one bad cycle
-            print(f"heli_service: {e}", flush=True)
+                last = m
+        except Exception as e:                 # never let the worker die on one cycle
+            print(f"heli_service build: {e}", flush=True)
         time.sleep(POLL_S)
 
 
 def start():
-    """Spawn the builder/render thread once (idempotent)."""
+    """Spawn the builder thread once (idempotent)."""
     global _started
     if _started:
         return

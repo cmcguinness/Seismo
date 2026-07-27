@@ -235,12 +235,13 @@ function sources(list){
                d.peak_shoulder?`×${d.peak_shoulder} over continuum`:null,
                prov?'provisional — one day of observation':null]
               .filter(Boolean).join(' · ');
-    return `<span class="badge ${cls} ms-2 fw-normal" title="${tip}">${s.label}${mark}</span>`;
+    return `<span class="badge ${cls} ms-2 fw-normal" title="${tip}">${s.pill||s.label}${mark}</span>`;
   }).join('');
   const s0=list[0],d=s0.detail||{};
-  if(note)note.textContent='looks like: '+s0.label
-    +(s0.hint?' ('+s0.hint+')':'')
-    +(d.hz?' — '+d.hz+' Hz line, ×'+d.peak_shoulder+' over continuum':'')
+  // Short pill up top, one readable sentence here, full measurements in the tooltip.
+  if(note)note.textContent=(s0.pill||s0.label)
+    +(d.hz?' — '+d.hz+' Hz mount resonance, ×'+d.peak_shoulder+' over continuum':'')
+    +' · anything that shakes the floor can ring it'
     +(s0.status!=='active'?' · provisional':'');
 }
 

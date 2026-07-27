@@ -112,6 +112,7 @@ def match(f, asd, fs, now_iso=None):
                 break
         if ok:
             out.append({"id": sig["id"], "label": sig.get("label", sig["id"]),
+                        "pill": sig.get("pill") or sig.get("label", sig["id"]),
                         "hint": sig.get("hint", ""),
                         "status": sig.get("status", "provisional"),
                         "detail": details})
