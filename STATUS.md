@@ -2,6 +2,38 @@
 
 _Last updated: 2026-07-26 (UTC)_
 
+## 🎉 SECOND CONFIRMED EARTHQUAKE — M2.5, The Geysers (2026-07-27)
+
+**USGS: M2.5, 2026-07-27 06:29:25.4 UTC, 38.798°N 122.781°W, depth 3.5 km — 41.1 km
+hypocentral**, more than twice the distance of the first. Detected automatically:
+`events.log` 06:29:33, ratio 61.2, peak 55.7 µV, 22.9 s.
+
+**This one was a PREDICTION, which makes it a better validation than the first.**
+Scaling the M2.5 at 18.8 km (126 µV) by the California ML attenuation gives 48 µV at
+41.1 km; observed 55.7 µV — **16%**. Predicted P at +6.9 s, detector fired at +7.6 s.
+
+**Band signature is unambiguous** (S window vs 120 s pre-event):
+`1–5 Hz ×9.4 · 5–15 Hz ×5.6 · 15–45 Hz ×1.4` — all bands up, **low bands most**.
+Contrast the 07:20:55 vehicle the same night: 5–15 Hz ×9 with 1–5 Hz *flat*. The two
+classes separate cleanly on this alone. Figure: `analysis/geysers_m2.5.png`.
+
+### 🔭 The Geysers is a permanent calibration source — use it as the benchmark
+
+**235 catalogued events in 8 days (~29/day)**, median M0.9, at a fixed 40–50 km. Only
+~2/week exceed ~15 µV, but the catalogue supplies origin times, so events far below the
+STA/LTA threshold can still be **examined at known times** rather than detected blind:
+
+| class | predicted peak |
+|---|---|
+| M2.5 @ 41 km | 51 µV (observed 55.7) |
+| M2.2 @ 49 km | 19 µV |
+| M1.8 @ 45 km | ~9 µV — SNR ~2 on a quiet night, invisible to STA/LTA, findable by cut-and-look |
+
+**This is the instrument metric the project has lacked.** "Noise floor in µV" is
+site-contaminated and hard to interpret; **"how many Geysers events can we see"** is
+objective, mission-relevant, and directly comparable across hardware changes. Count
+before lifting the tile, count after — that is the experiment.
+
 ## 🎉 FIRST CONFIRMED EARTHQUAKE — M2.5, 3 km E of St. Helena (2026-07-25)
 
 The station caught its first confirmed local earthquake — the reason it exists.
