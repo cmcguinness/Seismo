@@ -10,3 +10,5 @@ t_start_utc,t_end_utc,label,note
 2026-07-26T19:10:29+00:00,2026-07-26T19:10:41+00:00,unidentified near-field,"HF-only (15-45 Hz 6x, quake band flat), ratio 14.9, peak 84.8 uV; no 19.9 Hz line so NOT the washer"
 2026-07-26T21:16:00+00:00,2026-07-26T21:37:00+00:00,clothes dryer,"Charles reported it running; ~20 Hz line 4.2-7.6 uV/rtHz, indistinguishable from the washer"
 2026-07-26T22:26:36.236191+00:00,2026-07-26T22:26:37.236191+00:00,dryer stopped,Charles reported the dryer stopping; washer still in slow agitation. Marker for attributing the intermittent ~20 Hz line.
+2026-07-27T04:45:53+00:00,2026-07-27T05:00:00+00:00,clothes dryer,"SECOND run. Charles reported it stopped ~05:00; pill turned off with it. Onset sharp (1.11->3.86 uV/rtHz in one 30 s step), then a flat 3.5-4.5 plateau for 11+ min."
+2026-07-27T05:11:12.560311+00:00,2026-07-27T05:11:13.560311+00:00,air conditioning,Charles confirms ONLY the A/C is running; pill showed 'Laundry suspected'. Third source known to excite the mount resonance.

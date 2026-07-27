@@ -22,7 +22,7 @@
     {
       "id": "garage-appliance-20hz",
       "label": "mount resonance excited",
-      "hint": "something is shaking the station \u2014 laundry appliances do it; NOT a shaft rate",
+      "hint": "something is shaking the floor \u2014 washer, dryer and A/C all confirmed doing it",
       "status": "provisional",
       "valid_from": "2026-07-25T23:39:00Z",
       "derived_at_sps": 100,
@@ -73,9 +73,18 @@
           "evening_0200_0300Z": "58%",
           "deep_night_0600_1200Z": "2%",
           "conclusion": "Excitation went UP after the dryer stopped and runs 58-79% through the whole afternoon/evening against 2% overnight. The pill currently reads 'Laundry suspected', which over-claims the same way the '1195 RPM shaft rate' did. 'Household activity' is what the data supports. The 2% overnight also shows the rule is not simply firing on noise."
+        },
+        "confirmed_sources": {
+          "note": "Charles-confirmed sources that excite the 19.95 Hz mount resonance",
+          "washer spin": "2026-07-26 20:25-21:14Z, mode ratio 41/20 = 0.12-0.27",
+          "clothes dryer": "2026-07-27 04:45:53-05:00Z (watched on AND off), ratio 1.04-1.08",
+          "air conditioning": "2026-07-27 05:11Z, ratio 1.10-1.55, 20 Hz at 13-17 uV/rtHz",
+          "garbage cans": "2026-07-26 03:12Z, ratio 1.47 (window also contaminated)",
+          "why the pill was renamed": "It read 'Laundry suspected' and Charles caught it twice: once with only the dryer running long after the washer stopped, once with ONLY the A/C running. Three appliances plus human activity all ring the same resonance, and excitation runs 58-79% of the afternoon/evening vs 2% overnight. 'Household activity' is what the data supports.",
+          "mode ratio as a fingerprint": "Separates the WASHER (0.12-0.27) from everything else (1.0-1.5) with a wide clean gap, but does NOT separate dryer / A-C / cans from each other. Probably reflects the drive spectrum -- a source concentrated near 20 Hz excites mode 1 selectively; broadband sources ring both. Partial fingerprint."
         }
       },
-      "pill": "Laundry suspected"
+      "pill": "Household activity"
     }
   ],
   "standing_lines": [

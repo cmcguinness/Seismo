@@ -54,6 +54,25 @@ lines: they were never machine rates.
 interlocking tile — compliant, hollow, and exactly the panel geometry that resonates in
 the tens of Hz with a harmonic pair.
 
+**Three confirmed sources ring it: washer, dryer, A/C.** Charles caught the
+"Laundry suspected" pill twice — once with only the dryer running, once with *only the
+A/C* running. Renamed to "Household activity".
+
+**Mode ratio (41 Hz / 20 Hz) is a PARTIAL fingerprint:**
+
+| source | ratio |
+|---|---|
+| washer spin | **0.12–0.27** |
+| clothes dryer (confirmed on *and* off) | 1.04–1.08 |
+| air conditioning (confirmed) | 1.10–1.55 |
+| garbage cans | 1.47 |
+
+It separates the washer from everything else with a wide clean gap, but does **not**
+separate dryer / A-C / cans from each other. Likely reflects the drive spectrum rather
+than source location: energy concentrated near 20 Hz excites mode 1 selectively, while
+broadband sources ring both modes. Note this feature is a property of the FLOOR — it
+disappears when the tile does.
+
 **It is a household-activity detector, not a laundry one.** Sampling 30 s windows
 each minute across 2026-07-26/27:
 
