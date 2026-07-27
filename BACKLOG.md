@@ -4,6 +4,35 @@ Deferred work, not blocking. The current station records 24/7, is
 Raspberry-Shake-class (~41 nm/s floor), and has real-time + helicorder + spectrum
 tooling. These are improvements to fold in when convenient.
 
+## ⚠️ COUPLING — the geophone is not on the slab (found 2026-07-26)
+
+The garage has **inherited plastic interlocking tile**, so the station stands on a
+compliant, hollow layer, not on concrete. `CLAUDE.md` already records the principle —
+*"a compliant layer under a vertical geophone would low-pass the signal"* — and we were
+careful to keep museum putty off the bottom of the element, then set the whole assembly
+on plastic.
+
+**Evidence it is doing something:** the ~19.95 Hz line and its second mode at 40.97 Hz
+(ratio measured 2.03–2.07 in every window) sit at a **fixed** frequency across washer
+spin, dryer, dead quiet, midday and afternoon — 0.6 % spread. That is a structural
+resonance being excited, not a machine rate. Hollow tile is exactly the panel geometry
+that rings in the tens of Hz with a harmonic pair. See `analysis/SOURCES.md`.
+
+**Why it may matter more than buffer-on:** the absolute amplitude calibration reads
+**7.5× low**, and STATUS lists shunt loading, element sensitivity and site response as
+the candidates. Coupling loss through a compliant layer is a fourth, is not on that
+list, and is free to test.
+
+**The test:** lift or cut the tile under the station footprint, set the base directly on
+concrete, re-measure. If 19.95 / 40.97 Hz shift or vanish, the attribution is confirmed.
+If the in-band floor drops or a passing car reads larger, real sensitivity was recovered.
+Cost is a utility knife rather than a parts order.
+
+**Caveats:** it is a hardware touch → **new epoch** + the usual ~35 min settling
+([[settling-time-after-handling]]). Everything measured to date (isolator 1.6×, the
+100 sps switch, all noise floors) was measured through this coupling — still valid
+*relative* to each other since the tile was constant, but the absolutes inherit it.
+
 ## Rev-2 geophone → ADC front-end (revised interface board)
 
 The current front-end is a perfboard (2× 100 kΩ bias, shunt socket, XLR in). It
@@ -156,6 +185,64 @@ than the present noise problem needs — buffer-on (Rev-2 item 1) is the bigger 
 It becomes compelling only when sensor and Pi must SEPARATE: crawl-space siting with
 the Pi elsewhere, 3-component, or the Lehman. Not a next step; a real fork to weigh
 when the station layout changes.
+
+## Env node on an ESP32-S2 — retire the Pi 4, and get TRUE ambient (2026-07-26)
+
+**Deferred deliberately: the current CLUE → Pi 4 node works, and the question it
+exists to answer (does pressure or tilt explain the 0.02–0.12 Hz undulation?) needs a
+day-plus of undisturbed data first. Swapping the node restarts that clock.**
+
+Charles has an **ESP32-S2-N16R8** spare. A 1 GB Pi 4 turning a serial stream into a
+CSV is enormously oversized, and it is the least reliable part of the node — SD card,
+boot time, a Linux userland for a job an MCU does better.
+
+**The real reason to do it is not tidiness — it is temperature.** `env_node/README.md`
+says "read changes, not the absolute" as though the deltas are safe. They are only safe
+while the *cooling* is constant: open the garage door or get a draught and the CLUE's
+self-heat offset moves, which is indistinguishable from a real temperature change. Same
+error contaminates humidity (RH is temperature-dependent, so a self-heated sensor reads
+systematically low). **Pressure is unaffected** — which is why the current node is fine
+for its main job and this can wait.
+
+**Shape, as worked out 2026-07-26:**
+- **Discrete sensors, not the CLUE.** BME280 on a short cable in free air (pressure,
+  true ambient temp, unbiased RH). Keeping the CLUE and feeding the S2 over UART works
+  and costs no new parts — but it keeps the self-heat problem, which is the point.
+- **3.3 V, not 5 V.** A 5 V breakout's LDO dumps its drop as heat millimetres from the
+  temperature sensor — exactly the failure being escaped. 3.3 V also means no level
+  shifting on a 3.3 V S2. (Cheap generic BME280 boards have no regulator at all: no
+  `662K` SOT-23-5 next to VIN means 3.3 V only, and 5 V destroys them.)
+- **Forced mode, one read per second.** Continuous conversion self-heats a couple of
+  tenths of a degree. Do not spend the (ample) CPU headroom on oversampling.
+- **Add slab temperature.** A DS18B20 on a cable against the floor beside the geophone.
+  Thermal settling is plausibly driven by the mount, not the air — neither the CLUE nor
+  a remote air sensor measures that. Probably the most informative channel available.
+- **Mount the accelerometer rigidly.** Tilt tells you the tilt of whatever it is bolted
+  to; on the CLUE it reports the tilt of a PCB lying in the garage, not of the floor the
+  geophone sits on. If tilt is a real suspect this must be mechanically fixed down.
+
+**Transport — no retry algorithm needed (Charles, 2026-07-26).** Send a sliding window
+of recent readings in every datagram; a lost packet is covered by the next. Sized
+against the 24 h UDP probe (0.0073 % loss, **worst fade 1.4 s**): ~17 rows of the
+existing CSV schema fits a ~1400 B unfragmented datagram, so every reading is sent ~17×
+and only a continuous 15 s outage loses anything — a 10× margin on the worst event in
+864,000 packets.
+- **Keep plain CSV, not a packed struct.** Not a compute question (the S2 idles at
+  1 Hz) — a wire-format one. CSV is readable under `tcpdump -A`, reuses the collector's
+  existing all-fields-numeric filter, and tolerates adding a slab-temp column later.
+- **Stay under one MTU.** 120 s of CSV is ~10 KB → seven IP fragments, and losing one
+  fragment loses the whole datagram. Fragmentation is the failure mode this avoids.
+- Collector dedups by timestamp, exactly as `udp_collector.py` does for seismic records.
+  S2 stamps its own UTC from SNTP, so the keys are clean.
+- Does **not** cover the node rebooting. Accepted: it is a slow context channel.
+
+**RADIO CAVEAT — see the "Digitize-at-the-sensor" section above.** That entry rightly
+says an ESP32's radio near the geophone recreates [[wifi-tx-corrupts-acquisition]]. It
+applies less here (the env node is a separate box on its own supply, ~1 m away, and the
+Pi 4 it replaces is *already* a WiFi transmitter at that distance), but it is not zero:
+give the S2 its own power, and take a before/after spectrum when swapping. We now have
+mount resonances at 19.95 / 40.97 Hz and a still-unattributed 1.002 Hz line — do not
+add an un-baselined transmitter next to the sensor without a comparison.
 
 ## Compute — faster Pi (upgrade consideration)
 

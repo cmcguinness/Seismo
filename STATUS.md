@@ -213,7 +213,26 @@ confirmed back to ~0.05/s, ~7× lower).
 pi5 re-encode. The working config is kept: 44 MB/day is trivial on the disk, and backfill
 already heals the rare fade N=2 misses. Thread closed. (`doc/rev2-data-plane.md §14.0`.)
 
-### ✅ Live source badge — "garage appliance running" (2026-07-26)
+### ⚠️ The ~20 Hz line is a MOUNT RESONANCE — the station is on plastic tile (2026-07-26)
+
+Charles mentioned the garage floor is **inherited plastic interlocking tile**, not bare
+slab. Re-measured at 0.012 Hz resolution, the ~20 Hz peak sits at **19.885–20.007 Hz**
+across washer spin, dryer, dead quiet, midday and afternoon — a 0.6 % spread — and the
+41 Hz peak is **2.03–2.07× it in every case**. Fixed frequency + a 2:1 mode pair is a
+**structural resonance the appliances excite**, not a shaft rate they generate. The
+"~1195 RPM" reading is **retracted** (`analysis/SOURCES.md`, `dashboard/signatures.json`).
+
+- It dissolves the coincidence that two different machines produced identical lines.
+- **New candidate for the 7.5× amplitude deficit:** coupling loss through a compliant
+  layer, which is not among the causes STATUS currently lists. Free to test.
+- **Fix + test are in `BACKLOG.md` (first item).** Hardware touch → new epoch.
+- The live badge's recall is only **59 %** against "an appliance is running" (80/136
+  30 s windows over the confirmed 21:16–22:24 laundry period), with regularly
+  alternating misses. Charles caught this: the badge was empty while his dryer ran, and
+  I had "confirmed" that empty state by reading the detector's own feature to conclude
+  nothing was running — circular. The signature detects *excitation*, not the appliance.
+
+### ✅ Live source badge (2026-07-26)
 
 The live page now labels what it can recognise. `dashboard/sources.py` scores the
 live ring against `dashboard/signatures.json` (signatures as versioned DATA); a badge
