@@ -128,6 +128,33 @@ of 139–475 s with gaps shortening 664 → 424 → 183 → 164 s; the dryer run
 and steadier. That is a time-domain feature, not a spectral one, and it needs a
 second observation of each before it means anything.
 
+### A/C: two-stage shutdown, and a start transient (2026-07-27)
+
+Charles called out A/C transitions live; all three were witnessed and land on steps in
+the record. 15–45 Hz 1 s envelope:
+
+| time (UTC) | envelope | event |
+|---|---|---|
+| …–05:16:48 | 3.8 | compressor + blower |
+| **05:16:48** | → 2.2 | **compressor stops** (recovered from the record; Charles hadn't noted it) |
+| **05:17:50** | → 0.7 | **blower stops** — Charles's reported time, landing on the sample |
+| 05:19–05:25 | 0.7–1.0 | confirmed quiet, household seated, detector correctly silent |
+| **05:29:47** | → 3.8 | **restart**, compressor and blower together |
+
+**The start carries a transient; the stop does not.** At 05:29:47 the raw trace hits
+**+23/−21 µV** against ~±3 µV in the preceding ten seconds — ~7× — broadband, largest in
+15–45 Hz, riding exactly on the step. The blower stop shows only a clean step down.
+Consistent with motor inrush / the unit rocking on its mounts at engagement.
+
+Charles spotted these by eye on the helicorder first ("littered through it").
+
+**Why this matters more than the mode ratio:** it is discrete, timestamped, large, and
+repeats every cycle — so it can auto-generate dozens of labelled events a day instead of
+needing a human to call each source out. And unlike the mode ratio it is **not a property
+of the tile**, so it should survive the move onto slab.
+
+**A/C mode ratio repeats across runs:** 1.10–1.55 (run 1), 1.00–1.44 (run 2).
+
 ### The 19:10 event — near-field, but not the washer
 
 2026-07-26T19:10:29 UTC, 12.8 s, STA/LTA 14.9, peak 84.8 µV. 15–45 Hz jumps ×5.3

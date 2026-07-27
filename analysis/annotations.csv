@@ -12,3 +12,6 @@ t_start_utc,t_end_utc,label,note
 2026-07-26T22:26:36.236191+00:00,2026-07-26T22:26:37.236191+00:00,dryer stopped,Charles reported the dryer stopping; washer still in slow agitation. Marker for attributing the intermittent ~20 Hz line.
 2026-07-27T04:45:53+00:00,2026-07-27T05:00:00+00:00,clothes dryer,"SECOND run. Charles reported it stopped ~05:00; pill turned off with it. Onset sharp (1.11->3.86 uV/rtHz in one 30 s step), then a flat 3.5-4.5 plateau for 11+ min."
 2026-07-27T05:11:12.560311+00:00,2026-07-27T05:11:13.560311+00:00,air conditioning,Charles confirms ONLY the A/C is running; pill showed 'Laundry suspected'. Third source known to excite the mount resonance.
+2026-07-27T05:17:50+00:00,2026-07-27T05:17:51+00:00,A/C blower stop,"Charles: blower stopped 22:17:50 PDT; compressor had stopped earlier (time unknown, recoverable from the record). Two-stage shutdown = free attribution experiment."
+2026-07-27T05:19:48.910896+00:00,2026-07-27T05:24:48.910896+00:00,confirmed quiet (occupied),"Charles: no washer, dryer or A/C; household seated. CONFIRMED NEGATIVE at an hour when the house is normally active - distinct from the deep-night baseline."
+2026-07-27T05:33:48.180394+00:00,2026-07-27T05:33:49.180394+00:00,air conditioning,"SECOND A/C run, Charles-confirmed. Gives ON->OFF->ON with all three transitions witnessed."
