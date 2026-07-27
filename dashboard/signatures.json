@@ -64,7 +64,16 @@
           "resonance, not the appliance. Charles caught this: the badge was empty while his",
           "dryer was running.",
           "Thresholds set for RECALL: false positives are cheap and become the labelling queue."
-        ]
+        ],
+        "duty_cycle": {
+          "note": "Excitation tracks HOUSEHOLD ACTIVITY, not laundry. Measured 2026-07-26/27 on 30 s windows sampled each minute:",
+          "laundry_confirmed_2116_2226Z": "59%",
+          "after_dryer_stopped_2230_0000Z": "79%",
+          "evening_0000_0200Z": "63%",
+          "evening_0200_0300Z": "58%",
+          "deep_night_0600_1200Z": "2%",
+          "conclusion": "Excitation went UP after the dryer stopped and runs 58-79% through the whole afternoon/evening against 2% overnight. The pill currently reads 'Laundry suspected', which over-claims the same way the '1195 RPM shaft rate' did. 'Household activity' is what the data supports. The 2% overnight also shows the rule is not simply firing on noise."
+        }
       },
       "pill": "Laundry suspected"
     }

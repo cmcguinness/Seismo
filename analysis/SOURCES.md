@@ -54,6 +54,21 @@ lines: they were never machine rates.
 interlocking tile — compliant, hollow, and exactly the panel geometry that resonates in
 the tens of Hz with a harmonic pair.
 
+**It is a household-activity detector, not a laundry one.** Sampling 30 s windows
+each minute across 2026-07-26/27:
+
+| window (local) | excited |
+|---|---|
+| 14:16–15:26, laundry confirmed running | 59 % |
+| 15:30–17:00, **after the dryer stopped** | **79 %** |
+| 17:00–19:00 | 63 % |
+| 19:00–20:00 | 58 % |
+| 23:00–05:00 deep night | **2 %** |
+
+Excitation *rose* after the dryer stopped and runs 58–79 % through the afternoon and
+evening against 2 % overnight. Anything moving in the house rings the floor. (The 2 %
+overnight also shows the rule is not merely firing on noise.)
+
 **Recall is 59 %, not ~100 %.** Over the confirmed 21:16–22:24 laundry period only
 80/136 thirty-second windows match, and the misses alternate regularly (ON 300 s / off
 330 / ON 510 / off 330 …). It detects *excitation of the resonance*, not the appliance.
