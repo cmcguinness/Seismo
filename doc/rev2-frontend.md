@@ -211,6 +211,89 @@ input — **don't**. Keep the corner in the low kHz.
 - **Rb → 1 M** once the buffer is on (input current collapses → lower loading,
   less noise).
 
+## DESIGN FOR TEST — the source must be swappable without a soldering iron (2026-07-27)
+
+**Requirement, not a nicety.** On the current perfboard everything at the geophone end is
+soldered, which means the **shorted-input floor test cannot be run** — and that test is
+the one measurement separating *site ambient* from *electronics noise*. Until it runs,
+every front-end decision below is "build it and see" rather than "measure, then build".
+Deferring it to this board is the right call, but only if this board fixes it.
+
+**What Rev-2 must provide:**
+- **Detachable geophone input.** Crimp ferrules into a plug, or a proper connector — not
+  tinned strands in a screw terminal (`CLAUDE.md` already flags those as cold-flowing
+  and loosening). Needed anyway once the sensor is buried outside.
+- **A dummy-source plug** that drops into the same connector: ~390 Ω metal film across
+  the two signal pins. Any construction is fine — at 0.1–50 Hz a wirewound's few µH is
+  ~3 mΩ, and with ~16 µA of bias current the resistor drops 6 mV so excess noise is
+  single-digit nV. The point is only to preserve the DC operating point while removing
+  the sensor.
+- **A shunt-damping socket that actually accepts a bare resistor lead.** Phase 3 is still
+  unchecked and the value must be tuned empirically against a recorded impulse.
+- **Keep the shunt at the BOARD end**, not at the sensor. Once the geophone is buried
+  (see BACKLOG), a few metres of cable adds well under an ohm against 385 Ω, so damping
+  stays tunable indoors instead of being potted into the ground.
+
+**The three-configuration protocol this enables** (differences localise the noise):
+
+| configuration | measures |
+|---|---|
+| dummy at the **board**, cable disconnected | electronics only |
+| dummy at the **far end** of the cable, cable connected | electronics + cable pickup |
+| geophone connected | everything |
+
+Run each ≥20–30 min, late at night, changing nothing else, and allow ~40 min settling
+after each swap ([[settling-time-after-handling]]).
+
+**The specific number to compare** is the sub-Hz floor. Deconvolving the 2026-07-27
+Nevada M3.4 recording showed noise rising as ~f⁻² below the corner (0.94 µm/s at
+1–3 Hz → 81 µm/s at 0.15–0.5 Hz) with **no microseism bump** — the signature of
+flat-in-counts noise amplified by the inverse response, i.e. NOT ground translation. If
+that floor survives with a resistor in place of the geophone it is electronics; if it
+collapses, the sensor is moving (tilt/thermal) and burial is the fix.
+
+## Analog filtering — LOW-PASS, not a notch (decided 2026-07-27)
+
+Considered a 60 Hz twin-T notch and rejected it. **A notch tracks one frequency and the
+grid drifts**; a low-pass does not care, and also kills the ~57.5 Hz compressor rate that
+folds to 42.5 Hz. Raspberry Shake did exactly this — their V6 is 0.8–29 Hz with complex
+pole pairs near 31 and 49 Hz, i.e. deliberate roll-off well below Nyquist, not a notch.
+
+- **Why it matters at 100 sps:** the sinc nulls now sit at 100/200/300 Hz, so 60 Hz gets
+  only ~6 dB before folding to 40 Hz where nothing can remove it. At the old 60 sps the
+  null sat *on* mains: ~70 dB even with normal ±0.02 Hz grid drift, ~56 dB at ±0.1 Hz.
+  Drift nibbles at the notch; changing the sample rate threw it away.
+- **A 4-pole low-pass at 30 Hz** gives ~48 dB at 60 Hz, plus the sinc's 6 → ~54 dB, with
+  no precision matching required (a passive twin-T's depth is limited by component match).
+- **Must be differential** — two matched sections or a differential active stage. Any
+  mismatch converts common-mode hum into differential signal.
+- **Wants buffer-on.** With the buffer off the switched-cap input loads a passive filter
+  and detunes the corner. Queues behind the 5 V AVDD change, like everything else.
+- **CORNER IS A REAL TRADE.** 30 Hz is ideal for the earthquake mission (1–15 Hz
+  untouched) but guts the **15–45 Hz band** used for near-field source ID — the A/C's
+  three-level state machine, the mount-mode ratio, the near-field discriminator. 40–45 Hz
+  keeps source ID alive at ~34 dB on mains instead of ~54. Decide which mission wins.
+
+## LNA — correct architecture, currently invisible (assessed 2026-07-27)
+
+`coil → LNA → filter → ADC` is the right order (gain first; filtering ahead of the
+amplifier adds resistor noise where nothing has amplified the signal yet).
+
+| source | input-referred noise density |
+|---|---|
+| geophone coil, 385 Ω thermal | 2.5 nV/√Hz |
+| ADS1256 @ PGA 64, ~24 Hz noise BW | ~33 nV/√Hz |
+| AD8429 / INA163 class | ~1 nV/√Hz |
+
+So the converter is ~13× noisier than the sensor. **Move gain, don't add it** — LNA ×100
+with PGA ×1 instead of PGA ×64: same total gain, same clipping point, noise set by a
+1 nV/√Hz part. That takes the electronics floor from ~0.12 µV to ~0.01 µV over 1–15 Hz.
+
+**But the measured floor is 1.17 µV — ten times above where the electronics already sit.**
+An LNA would improve a term that is not dominant. Do the shorted-input test first; if it
+returns ~0.1 µV, the entire front-end programme is chasing 8 % of the noise and the effort
+belongs in coupling and siting instead.
+
 ## Layout tooling — KiCad rejected (2026-07-23)
 
 The KiCad project was created and then deleted: Charles dislikes schematic capture
