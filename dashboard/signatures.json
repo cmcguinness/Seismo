@@ -21,8 +21,8 @@
   "signatures": [
     {
       "id": "garage-appliance-20hz",
-      "label": "garage appliance running",
-      "hint": "washer or dryer \u2014 the two are NOT separable (measured)",
+      "label": "mount resonance excited",
+      "hint": "something is shaking the station \u2014 laundry appliances do it; NOT a shaft rate",
       "status": "provisional",
       "valid_from": "2026-07-25T23:39:00Z",
       "derived_at_sps": 100,
@@ -45,33 +45,41 @@
         "labelled_windows": 9,
         "days": 1,
         "observed": "washer 2026-07-26 20:25-21:14 UTC; dryer 2026-07-26 21:16-21:37 UTC",
-        "measured": "washer line 19.34-19.97 Hz, ASD 4.8-9.5; dryer line 19.92-20.02 Hz, ASD 4.2-7.6. Line/broadband ratio washer 14-28, dryer 16-22. Complete overlap on every feature tried.",
+        "measured": "peak 19.885-20.007 Hz regardless of source (0.6% spread); second mode 40.67-41.19 Hz, ratio 2.03-2.07. Amplitude varies with excitation, frequency does not.",
         "controls_max_peak_shoulder": 9.2,
         "notes": [
-          "RENAMED from washer-spin 2026-07-26: Charles reported the dryer running and it produced the",
-          "SAME ~20 Hz line at the same strength. The caveat 'a dryer would look the same' was written as a",
-          "hypothetical an hour earlier and is now a measurement. This signature detects an appliance, full stop.",
-          "Separating washer from dryer needs a feature we do not have; duty-cycle shape (washer bursts 139-475 s",
-          "with shortening gaps vs dryer's longer run) is the most promising untried angle.",
-          "One control window (2026-07-26T02:00Z, 19:00 PDT Sat) trips this rule at 3.01 / 9.2 -- plausibly an",
-          "unlabelled real run rather than a false positive. Unresolved.",
-          "Thresholds set for RECALL: false positives are currently cheap and become the labelling queue."
+          "RETRACTED 2026-07-26: the '~1195 RPM shaft rate' reading was WRONG. At 0.012 Hz",
+          "resolution the peak sits at 19.885-20.007 Hz across washer spin, dryer, dead quiet,",
+          "midday and afternoon -- a 0.6% spread. A spin cycle ramping through speeds would sweep",
+          "far more. And the 41 Hz peak is 2.03-2.07x it in EVERY case. Fixed frequency + a 2:1",
+          "mode pair = a structural resonance of the mount/floor, which the appliances EXCITE.",
+          "That also explains why two different machines produced identical lines -- they were",
+          "never machine rates at all.",
+          "PRIME SUSPECT: the geophone does not sit on the slab. The garage has inherited plastic",
+          "interlocking tile, which is compliant and hollow -- exactly the panel geometry that",
+          "resonates in the tens of Hz with a harmonic pair. See STATUS.md.",
+          "RECALL against 'an appliance is running' is only 59% (80/136 30 s windows over the",
+          "confirmed 21:16-22:24 laundry period), and the misses alternate regularly",
+          "(ON 300s / off 330 / ON 510 / off 330 ...). So this detects EXCITATION of the",
+          "resonance, not the appliance. Charles caught this: the badge was empty while his",
+          "dryer was running.",
+          "Thresholds set for RECALL: false positives are cheap and become the labelling queue."
         ]
       }
     }
   ],
   "standing_lines": [
     {
-      "hz": 40.9,
-      "note": "persistent, present at full strength in dead quiet; NOT a washer harmonic. Scores ~10x over its own continuum with no source running -- the reason line rules must compare amplitude against a reference, not just against the local continuum."
+      "hz": 19.95,
+      "note": "FIXED resonance, not instrumental and not a machine. Same frequency in dead quiet as under a washer spin; only the amplitude changes. Suspect the plastic floor tile under the station."
     },
     {
-      "hz": 20.0,
-      "note": "weak standing line at 0.4-1.4 uV/rtHz. Both appliances sit on top of this, which is why min_asd exists alongside the shape term."
+      "hz": 40.97,
+      "note": "second mode of the 19.95 Hz resonance -- ratio measured at 2.03-2.07 in every window tested."
     },
     {
       "hz": 1.002,
-      "note": "known instrumental line, long-standing and unattributed (see STATUS.md). Out of band for these rules."
+      "note": "known instrumental line, long-standing and unattributed (see STATUS.md). Different genus from the two above; out of band for these rules."
     }
   ]
 }

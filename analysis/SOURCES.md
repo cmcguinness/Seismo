@@ -40,7 +40,25 @@ its shaft rate; impacts, vehicles and earthquakes are broadband.
 | **unidentified near-field** (2026-07-26 19:10:29, 13 s) | ×1.5 | ×1.0 | **×5.3** | none | impact/vehicle at metres — see below |
 | **"garbage cans in"** (2026-07-26 03:12) | ×1.4 | ×2.2 | ×1.5 | 41 Hz **standing, not the source** | window is contaminated — see below |
 
-### Garage appliance (~20 Hz line) — the cleanest fingerprint we have
+### ⚠️ The ~20 Hz line is a MOUNT RESONANCE, not a machine (corrected 2026-07-26)
+
+Everything below about a "~1200 RPM shaft rate" is **retracted**. Measured at 0.012 Hz
+resolution, the peak sits at **19.885–20.007 Hz** across washer spin, "dryer", dead
+quiet, midday and afternoon — a 0.6 % spread — and the 41 Hz peak is **2.03–2.07× it in
+every case**. A spin cycle ramping through speeds would sweep far more than that. Fixed
+frequency plus a 2:1 mode pair is a **structural resonance**, which the appliances
+*excite* rather than create. That is also why two different machines produced identical
+lines: they were never machine rates.
+
+**Prime suspect: the geophone is not on the slab.** The garage has inherited plastic
+interlocking tile — compliant, hollow, and exactly the panel geometry that resonates in
+the tens of Hz with a harmonic pair.
+
+**Recall is 59 %, not ~100 %.** Over the confirmed 21:16–22:24 laundry period only
+80/136 thirty-second windows match, and the misses alternate regularly (ON 300 s / off
+330 / ON 510 / off 330 …). It detects *excitation of the resonance*, not the appliance.
+
+### (superseded) Garage appliance (~20 Hz line)
 
 Five bursts on 2026-07-26, 139–475 s each, gaps shortening 664 → 424 → 183 → 164 s.
 
