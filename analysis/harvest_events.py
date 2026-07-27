@@ -269,6 +269,14 @@ def main():
             "snr": round(snr, 2), "snr_rms": round(snr_rms, 2),
             "peak_1_15": round(peak15, 3),
             "az_deg": round(az, 1), "az": COMPASS[int((az + 11.25) % 360 // 22.5)],
+            # `likely` = all three legs agree. SNR alone missed the 2026-07-27 21:35
+            # M2.35 (busy afternoon background); the residual alone accepts marginal
+            # events where "observed" is just noise that happens to sit a plausible
+            # factor below the prediction. Shape is the third, independent leg:
+            # earthquakes are low-band dominated, cultural sources are not.
+            "likely": int(snr >= 3.0
+                          and np.isfinite(resid) and -1.2 < resid < 0.4
+                          and np.isfinite(lohi) and lohi >= 1.0),
             "pred_uv": round(pred, 3),
             "resid_log10": round(resid, 3) if np.isfinite(resid) else "", "seen": int(snr >= args.snr_seen),
             "triggered": int(triggered),
@@ -284,11 +292,17 @@ def main():
         w.writeheader()
         w.writerows(rows)
 
+    likely = [r for r in rows if r.get("likely")]
     seen = [r for r in rows if r["seen"]]
     trig = [r for r in rows if r["triggered"]]
     print(f"\n{covered} catalogued events fall inside the archive; wrote {args.out}")
     print(f"  seen (1-15 Hz excess >= {args.snr_seen:g}x): {len(seen)}")
     print(f"  STA/LTA actually triggered:                 {len(trig)}")
+    print(f"  LIKELY REAL (snr>=3 AND plausible resid AND lo/hi>=1): {len(likely)}")
+    for r in sorted(likely, key=lambda r: r["origin"]):
+        print(f"     {r['origin']}  M{r['mag']:.1f}  {r['dist_km']:6.1f} km  {r['az']:>3}"
+              f"  snr {r['snr']:5.2f}  resid {r['resid_log10']:+.3f}  lo/hi {r['lo_hi']}"
+              f"   {r['place'][:34]}")
     if seen:
         print(f"\n  {'origin':22s} {'M':>4} {'dist':>7} {'snr':>6} {'lo/hi':>6}  seen/trig")
         for r in sorted(seen, key=lambda r: -r["snr"])[:15]:

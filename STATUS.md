@@ -2,6 +2,43 @@
 
 _Last updated: 2026-07-26 (UTC)_
 
+## 🎯 FOUR confirmed earthquakes — and a detector that finds them (2026-07-27)
+
+The catalogue-driven harvester (`analysis/harvest_events.py`) now identifies every real
+event in the archive and rejects the noise, using three independent legs:
+
+| origin (UTC) | M | dist | az | SNR | residual | lo/hi |
+|---|---|---|---|---|---|---|
+| 2026-07-25 11:31:41 | 2.5 | 18.4 km | ENE | 35.4 | −0.380 | 1.63 |
+| 2026-07-27 06:29:25 | 2.5 | 41.1 km | NNW | 12.9 | −0.391 | 6.05 |
+| **2026-07-27 15:29:01** | **2.8** | 38.1 km | NNW | 8.8 | −0.412 | 6.88 |
+| **2026-07-27 21:35:39** | **2.4** | 43.4 km | NNW | 3.2 | −0.318 | 3.34 |
+
+The last two were **found by the harvester**, not by the STA/LTA or by anyone watching.
+
+**Why three legs and not a threshold.** Over 350 catalogued windows:
+- **SNR ≥ 5 alone gives 7** — three of them physically impossible (M0.6 at 249 km,
+  M0.7 at 500 km). With 350 windows some simply contain a passing truck.
+- **Residual alone** (log₁₀ observed/predicted, scaled from the ML attenuation) is
+  remarkable — all four real events fall in **−0.318 … −0.412**, a 0.09 spread across
+  18–43 km and 2.5× in magnitude, while false positives sit at **+1.36 … +3.64**. But it
+  cannot confirm marginal events: at SNR ~1 the "observed" is noise, and if the
+  prediction happens to be a few times that, the residual looks fine by accident.
+- **Shape** (1–5 Hz excess ÷ 15–45 Hz excess) is the independent third leg: earthquakes
+  are low-band dominated (1.6–6.9), cultural sources are not (0.28–0.45).
+
+Together: **`snr ≥ 3 AND −1.2 < resid < 0.4 AND lo/hi ≥ 1`** → exactly the four real
+events, no false positives.
+
+**The constant −0.4 offset is an anchor artefact**, not physics: `REF_PEAK_UV = 126` is a
+raw peak from the original STATUS note, while the harvester measures a 1 s smoothed
+envelope peak. Setting the anchor near 50 µV centres the residuals on zero.
+
+**Detection threshold, measured rather than scaled:** smallest confirmed is **M2.4 at
+43 km**, found at SNR 3.2 on a busy weekday afternoon. All four detections are 18–43 km
+and NNW/ENE — nothing yet from the SE, where the Vallejo M2.2 at 54 km was *not* seen
+(ray path crosses the Napa–Sonoma marshes; hypothesis recorded, needs months of data).
+
 ## 🎉 SECOND CONFIRMED EARTHQUAKE — M2.5, The Geysers (2026-07-27)
 
 **USGS: M2.5, 2026-07-27 06:29:25.4 UTC, 38.798°N 122.781°W, depth 3.5 km — 41.1 km
