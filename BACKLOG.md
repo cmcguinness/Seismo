@@ -714,7 +714,10 @@ margin. Battery + LDO is the cleanest if a supply spur ever shows in the spectru
 is differential/floating and rejects common-mode, so confirm a switching hump
 exists before optimizing for it.
 
-**Related — geophone case (separate enclosure):** XLR panel connector for
+**Related — geophone case (separate enclosure):** shopping list in
+`doc/BOM-geophone-case.md` (which **supersedes the D-series part numbers below** with
+the outdoor-rated Neutrik TOP range, now that the case is to be sealed and sitable
+outdoors). XLR panel connector for
 plug/unplug (male chassis NC3MD-L-B on the sensor, female NC3FD-L-B on the Pi end;
 D-series 24 mm bore + 2×M3 @ 19 mm). Shunt **damping resistor lives inside the
 geophone case**, across the coil. Shield (pin 1) bonded to ground **only at the Pi
