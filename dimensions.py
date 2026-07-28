@@ -14,17 +14,29 @@ geophone_mass_g = 74      # informs base-mass / coupling reasoning
 #          (one marked +) and a lead wire -> clamp must clear the center
 #          and route the wire out the side.
 
-# --- Neutrik D-series XLR chassis connector (NC3MD-L-B / NC3FD-L-B) ---
-xlr_bore_dia = 24.0       # standardized "D" panel cutout — this number is reliable
-xlr_panel_th_max = 3.0    # D-series accepts a 1-3 mm panel; wall must be thinned to suit
+# --- XLR chassis connector — MEASURED off the part in hand (Charles, 2026-07-28) ---
+xlr_shell_dia = 22.0      # circular protrusion behind the flange
+xlr_bore_dia = 23.0       # +1 mm on the shell, deliberately loose
+xlr_flange_w = 30.0       # flange, long axis
+xlr_flange_h = 25.0       # flange, short axis
+xlr_screw_spacing = 30.0  # two 5 mm holes, centre-to-centre, ON THE FLANGE DIAGONAL
+xlr_screw_dia = 3.4       # our side: M3 clearance. M3 fits whether the flange's 5 mm
+                          # holes are plain or a countersink over an M3 through-hole;
+                          # use a washer under the head. M4 -> set 4.5 and re-coupon.
+xlr_panel_th_max = 3.0    # connector accepts a 1-3 mm panel; wall thinned to suit
 xlr_body_depth = 32.0     # intrusion behind the panel — this sets the case inner width
-xlr_screw_dia = 3.4       # M3 clearance — flange is countersunk for M3, nut goes inside
-# UNCONFIRMED until measured + proven on parts/xlr_coupon.py. Hand-drilling through the
-# connector does NOT work: countersunk flange holes are a cone, not a drill bushing; the
-# shell protrudes into the chuck's path; and a 3.2 mm bit snatching through a 2.4 mm PLA
-# wall cracks it. Measure with calipers, print the coupon, then commit to the case.
-xlr_screw_spacing = 24.0  # centre-to-centre  <-- MEASURE
-xlr_screw_axis = "X"      # "X" = holes side-by-side, "Z" = stacked  <-- CONFIRM
+
+# Hole offsets from the bore centre, along the flange diagonal (39.05 mm long):
+#   +-15 mm * (30, 25)/39.05  ->  +-(11.52, 9.60)
+_xlr_diag = (xlr_flange_w ** 2 + xlr_flange_h ** 2) ** 0.5
+xlr_screw_dx = xlr_screw_spacing / 2 * xlr_flange_w / _xlr_diag
+xlr_screw_dy = xlr_screw_spacing / 2 * xlr_flange_h / _xlr_diag
+
+# WHICH diagonal is still open: the pattern is symmetric under 180 deg rotation but NOT
+# under mirroring, so the two handednesses are genuinely different parts. The coupon
+# carries both (4 holes); set this to "A" (dx,dy)+(-dx,-dy) or "B" (dx,-dy)+(-dx,dy)
+# once the connector has actually sat on it, and the case will drill just that pair.
+xlr_screw_diagonal = None
 
 # --- Print / fit tuning ---
 fit_clearance = 0.2       # radial slip-fit gap added to bores (FDM, PLA/PETG)
