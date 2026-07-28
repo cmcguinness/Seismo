@@ -7,7 +7,10 @@ proves, in ~15 minutes instead of ~4 hours:
   - the 23 mm bore accepts the 22 mm shell,
   - the flange hole pattern lines up,
   - the 2.4 mm panel is inside the connector's 1-3 mm range,
-  - an M3 nut seats flat on the relief behind it.
+  - an M4 nut seats flat on the relief behind it,
+  - the web between each 5 mm hole and the bore, which is only 1.00 mm, actually
+    survives printing and tightening. That web is the fragile part of this
+    design and is a large part of why the coupon exists.
 
 FOUR holes, both diagonals. The measured pattern (two holes 30 mm apart on the
 flange diagonal) is symmetric under 180 deg rotation but NOT under mirroring, so
@@ -38,9 +41,25 @@ mark_depth = 0.6
 label_size = 5.0
 label_depth = 0.5
 
+if xlr_screw_dx is None or xlr_screw_dy is None:
+    raise SystemExit(
+        "xlr_screw_dx / xlr_screw_dy are unmeasured — see dimensions.py.\n"
+        "Do NOT derive them from the 30 mm diagonal: assuming the holes follow the\n"
+        "flange's corner diagonal leaves 0.40 mm of flange at the long edge, which\n"
+        "is not a real part. Measure the horizontal and vertical hole spacings."
+    )
+
 dx, dy = xlr_screw_dx, xlr_screw_dy
 holes_a = [(dx, dy), (-dx, -dy)]
 holes_b = [(dx, -dy), (-dx, dy)]
+
+# a hole that close to the flange edge means the numbers are wrong, not that the
+# connector is fragile — catch it before it becomes a print
+_edge_long = xlr_flange_h / 2 - dy - xlr_screw_dia / 2
+_edge_short = xlr_flange_w / 2 - dx - xlr_screw_dia / 2
+assert _edge_long > 1.5 and _edge_short > 1.5, (
+    f"only {_edge_long:.2f}/{_edge_short:.2f} mm of flange left at the holes — "
+    "re-check the measured offsets")
 
 with BuildPart() as xlr_coupon:
     # wall offcut, flange face on the bed at z=0

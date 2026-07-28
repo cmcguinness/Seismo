@@ -20,17 +20,25 @@ xlr_bore_dia = 23.0       # +1 mm on the shell, deliberately loose
 xlr_flange_w = 30.0       # flange, long axis
 xlr_flange_h = 25.0       # flange, short axis
 xlr_screw_spacing = 30.0  # two 5 mm holes, centre-to-centre, ON THE FLANGE DIAGONAL
-xlr_screw_dia = 3.4       # our side: M3 clearance. M3 fits whether the flange's 5 mm
-                          # holes are plain or a countersink over an M3 through-hole;
-                          # use a washer under the head. M4 -> set 4.5 and re-coupon.
+xlr_screw_dia = 5.0       # MATCHES the flange holes as measured. Fastener is M4 (+
+                          # washers, + nuts inside); M4 through 5 mm in both the flange
+                          # and the panel is the normal fit for this.
 xlr_panel_th_max = 3.0    # connector accepts a 1-3 mm panel; wall thinned to suit
 xlr_body_depth = 32.0     # intrusion behind the panel — this sets the case inner width
 
-# Hole offsets from the bore centre, along the flange diagonal (39.05 mm long):
-#   +-15 mm * (30, 25)/39.05  ->  +-(11.52, 9.60)
-_xlr_diag = (xlr_flange_w ** 2 + xlr_flange_h ** 2) ** 0.5
-xlr_screw_dx = xlr_screw_spacing / 2 * xlr_flange_w / _xlr_diag
-xlr_screw_dy = xlr_screw_spacing / 2 * xlr_flange_h / _xlr_diag
+# Hole offsets from the bore centre. MEASURE THESE, do not derive them.
+#
+# The first attempt derived them by assuming the holes lie on the flange's corner
+# diagonal: +-15 mm * (30, 25)/39.05 -> +-(11.52, 9.60). That is wrong. On a 30 x 25
+# plate it leaves 12.5 - 9.60 - 2.5 = 0.40 mm of flange at the long edge, which no
+# real connector is built with. "On a diagonal" meant diagonally opposed, not parallel
+# to the plate diagonal — the flange is not square, so those are different lines.
+#
+# Wanted: half the horizontal centre-to-centre distance, and half the vertical.
+# Cross-check: hypot(2*dx, 2*dy) should come out ~= xlr_screw_spacing (30 mm).
+xlr_screw_dx = None       # <-- MEASURE
+xlr_screw_dy = None       # <-- MEASURE
+xlr_bore_centred = True   # assumed; confirm the bore really is centred in the flange
 
 # WHICH diagonal is still open: the pattern is symmetric under 180 deg rotation but NOT
 # under mirroring, so the two handednesses are genuinely different parts. The coupon
