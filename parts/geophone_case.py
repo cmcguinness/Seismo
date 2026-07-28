@@ -63,6 +63,13 @@ inner_r = corner_r - wall
 cup_wall = 3.0
 bore_dia = geophone_dia + 2 * fit_clearance
 pocket_depth = geophone_height
+cup_proud = 2.0       # cup is SHORTER than the element by this, so the element stands
+                      # proud of the rim. Flush (cup == element height) meant any real
+                      # variation put the rim high and a hold-down would bear on the cup
+                      # instead of the element. A pad cannot drop into the bore alongside
+                      # the element either — 0.2 mm radial — so the element has to come
+                      # up. Also makes it easier to lift out.
+cup_h = pocket_depth - cup_proud
 cup_outer = bore_dia + 2 * cup_wall
 
 # --- feet (3 screw heads) ---
@@ -76,13 +83,21 @@ foot_pilot_depth = 9.0
 # in tension at seismic amplitudes and gravity is already the preload; putty on the
 # flanks handles lateral restraint. These exist because they are the part that cannot
 # be retrofitted: with them, a hold-down is a 10-minute print and no case reprint.
-# If one is ever made, give it a COMPLIANT pad (foam / rubber washer) against the
-# element rim — a rigid PLA finger at these dimensions is ~560 N/mm, so FDM tolerance
-# alone swings the preload by +-80 N. Compliance above the element is harmless; it is
-# not in the ground path (element -> floor -> feet).
+# If one is ever made it must be COMPLIANT — a rigid PLA finger at these dimensions is
+# ~560 N/mm, so FDM tolerance alone swings the preload by +-80 N. Compliance above the
+# element is harmless; it is not in the ground path (element -> floor -> feet).
+# Paracord under tension (Charles's suggestion) is the right CLASS of answer for exactly
+# that reason, but nylon creeps under sustained load, so the preload decays over weeks
+# and knots make it unrepeatable — bad in a station meant to sit undisturbed, because
+# you cannot tell when it changed. Same idea without the creep: a silicone O-ring
+# stretched over these bosses, or a light extension spring between them, either with a
+# small printed saddle so the load lands on the element rim and not the terminal pins.
 clamp_boss_x = 20.0   # merges into the cup wall, which stiffens both
 clamp_boss_dia = 9.0
-clamp_boss_top = 43.6                    # 0.4 mm below the element top at z=44
+clamp_boss_top = floor_th + pocket_depth + 6.0   # 6 mm ABOVE the element top: a tall
+                      # anchor, deliberately not sized for one particular hold-down, so a
+                      # screwed bar, a silicone O-ring or an extension spring all work and
+                      # the retrofit part defines its own interface.
 clamp_boss_pilot_depth = 12.0
 
 # --- lid screw bosses ---
@@ -128,7 +143,7 @@ with BuildPart() as geophone_case:
 
     # element cup rising from the floor; pocket floor IS the case floor
     with Locations((0, 0, floor_th)):
-        Cylinder(cup_outer / 2, pocket_depth,
+        Cylinder(cup_outer / 2, cup_h,
                  align=(Align.CENTER, Align.CENTER, Align.MIN))
     with Locations((0, 0, floor_th)):
         Cylinder(bore_dia / 2, pocket_depth + 1,
@@ -209,7 +224,7 @@ with BuildPart() as geophone_case:
 # watertight and the volume looks plausible), so assert the pocket is empty
 # before anything gets sliced.
 _p = geophone_case.part
-for _z in (floor_th + 1, floor_th + pocket_depth / 2, floor_th + pocket_depth - 1):
+for _z in (floor_th + 1, floor_th + cup_h / 2, floor_th + cup_h - 1):
     assert not _p.is_inside((0, 0, _z)), f"element bore is obstructed at z={_z}"
     assert not _p.is_inside((bore_dia / 2 - 0.5, 0, _z)), f"bore narrowed at z={_z}"
 
