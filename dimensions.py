@@ -44,7 +44,11 @@ xlr_body_depth = 32.0     # intrusion behind the panel — this sets the case in
 # flatten, and an inside pocket cannot restrain a flange that bears on the outside. Its
 # only real effect was thinning the panel, which the pad now does properly.)
 xlr_flange_th = 2.0       # measured ~2 mm
-xlr_seat_clearance = 0.4  # added to the flange footprint, total
+xlr_seat_clearance = 1.4  # added to the flange footprint, total. Was 0.4; the printed
+                          # seat came out a smidge tight on the real flange (Charles,
+                          # 2026-07-28) so +1 mm on each axis. Costs 0.5 mm of play per
+                          # side before the seat wall takes load, which is still a far
+                          # better restraint than two screws in 2.5 mm of PLA.
 xlr_seat_depth = 2.0      # = flange thickness, so the flange finishes flush with the pad
 xlr_pad_proud = 1.5       # how far the pad stands out from the wall
 xlr_pad_w = 38.0          # pad footprint — square, so V and H both get an even
