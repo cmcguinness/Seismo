@@ -14,10 +14,19 @@ outdoor use, gaskets/seals, ballast, heat-set inserts, insulation. PLA is fine.
     deterministic where a flat face rocks on unknown high spots, and screws give
     crude leveling. Printed feet would have forced the whole floor to bridge over
     air; this way the floor prints flat on the bed.
-  - XLR: the 24 mm bore is modeled, the two M3 flange holes are NOT. Their
-    spacing is unconfirmed, and a wrong printed pattern scraps a 4-hour print.
-    Hold the connector to the wall, mark through it, drill 2.5 mm. The +Y wall is
-    locally thinned to 2.4 mm because the D-series only accepts a 1-3 mm panel.
+  - XLR: the 24 mm bore is modeled. The two flange holes are modeled too, but
+    ONLY once xlr_screw_spacing / xlr_screw_axis in dimensions.py are confirmed
+    by caliper and proven on parts/xlr_coupon.py — a 10-minute flat plate that
+    the connector either bolts to or does not. Do not drill them by hand: the
+    flange holes are countersunk (a cone, not a bushing, so a bit wanders), the
+    male shell protrudes into where the chuck has to be, and a 3.2 mm bit
+    snatching through a 2.4 mm PLA wall cracks it.
+    Secure with 2x M3 x 10 COUNTERSUNK machine screws + M3 nuts inside, not
+    self-tappers: the +Y wall is thinned to 2.4 mm to land inside the D-series'
+    1-3 mm panel range, which leaves ~2 threads of engagement, and the XLR latch
+    pulls on that joint every time the cable comes off. The inside face of the
+    thinned patch is flat and 34 mm square, so the nuts seat properly.
+    Fit the connector BEFORE the geophone — you need the finger room.
   - NO vents. An earlier revision had six; removed 2026-07-28 after checking the
     arithmetic. There is no heat source inside (passive coil; the Pi and ADC are
     in a different case), and the lowest acoustic mode of a 116 mm cavity is

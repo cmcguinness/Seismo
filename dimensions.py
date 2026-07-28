@@ -18,9 +18,13 @@ geophone_mass_g = 74      # informs base-mass / coupling reasoning
 xlr_bore_dia = 24.0       # standardized "D" panel cutout — this number is reliable
 xlr_panel_th_max = 3.0    # D-series accepts a 1-3 mm panel; wall must be thinned to suit
 xlr_body_depth = 32.0     # intrusion behind the panel — this sets the case inner width
-# NOTE: the two M3 flange-hole positions are deliberately NOT modeled. Their spacing
-# is not confirmed and a wrong printed pattern scraps a whole case print. Mark them
-# through the connector by hand and drill 2.5 mm. See parts/geophone_case.py.
+xlr_screw_dia = 3.4       # M3 clearance — flange is countersunk for M3, nut goes inside
+# UNCONFIRMED until measured + proven on parts/xlr_coupon.py. Hand-drilling through the
+# connector does NOT work: countersunk flange holes are a cone, not a drill bushing; the
+# shell protrudes into the chuck's path; and a 3.2 mm bit snatching through a 2.4 mm PLA
+# wall cracks it. Measure with calipers, print the coupon, then commit to the case.
+xlr_screw_spacing = 24.0  # centre-to-centre  <-- MEASURE
+xlr_screw_axis = "X"      # "X" = holes side-by-side, "Z" = stacked  <-- CONFIRM
 
 # --- Print / fit tuning ---
 fit_clearance = 0.2       # radial slip-fit gap added to bores (FDM, PLA/PETG)
