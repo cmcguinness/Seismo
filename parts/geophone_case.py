@@ -34,7 +34,8 @@ case_side = 116.0     # driven by the XLR: cup radius + clearance + xlr_body_dep
 corner_r = 20.0
 wall = 3.0
 floor_th = 8.0        # thick enough for a 6 mm foot-screw pilot, stiff under the element
-cavity_h = 46.0       # element is 36 tall; leaves 10 mm for terminals and wire
+cavity_h = 66.0       # element is 36 tall; leaves 30 mm for terminals, wire and slack
+                      # (was 46 — Charles asked for another 20 mm, 2026-07-28)
 edge_cham = 0.6       # kills elephant-foot on the bottom face
 
 inner_side = case_side - 2 * wall
