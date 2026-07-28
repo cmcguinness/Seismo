@@ -1,4 +1,14 @@
-# BOM — sealed geophone case (outdoor-capable)
+# BOM — sealed geophone case (outdoor-capable) — **GEN 2**
+
+> **This is not the next thing being built.** Gen-1 is a crude indoor POC
+> (`parts/geophone_case.py` + `parts/geophone_case_lid.py`, 2026-07-28) whose only
+> jobs are easy pick-up/set-down and an XLR on the case. Its entire BOM is: PLA,
+> **9 × #6 × ½″ sheet-metal screws** (4 lid, 3 feet, 2 XLR), and the XLR chassis
+> connector already on hand. No seals, no ballast, no inserts, no paver.
+>
+> Everything below is gen 2 — buy it when gen 1 has proven the shape is right.
+
+
 
 Shopping list for the standalone geophone enclosure: a sealed, portable puck with a
 panel XLR, a clamped element, and three leveling feet. Sealed means it can live

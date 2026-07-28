@@ -14,8 +14,18 @@ geophone_mass_g = 74      # informs base-mass / coupling reasoning
 #          (one marked +) and a lead wire -> clamp must clear the center
 #          and route the wire out the side.
 
+# --- Neutrik D-series XLR chassis connector (NC3MD-L-B / NC3FD-L-B) ---
+xlr_bore_dia = 24.0       # standardized "D" panel cutout — this number is reliable
+xlr_panel_th_max = 3.0    # D-series accepts a 1-3 mm panel; wall must be thinned to suit
+xlr_body_depth = 32.0     # intrusion behind the panel — this sets the case inner width
+# NOTE: the two M3 flange-hole positions are deliberately NOT modeled. Their spacing
+# is not confirmed and a wrong printed pattern scraps a whole case print. Mark them
+# through the connector by hand and drill 2.5 mm. See parts/geophone_case.py.
+
 # --- Print / fit tuning ---
 fit_clearance = 0.2       # radial slip-fit gap added to bores (FDM, PLA/PETG)
+pilot_6 = 2.7             # pilot bore for a #6 sheet-metal screw into PLA
+clear_6 = 3.6             # clearance bore for a #6 screw shank
 
 # --- Raspberry Pi 2B (mounting) ---
 pi_len = 85.0             # board long dimension
