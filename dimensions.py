@@ -56,8 +56,10 @@ xlr_pad_h = 38.0          # 3.8 mm of pad wall around the seat that does the cap
 xlr_screw_off_major = 11.5   # along the flange's 30 mm axis
 xlr_screw_off_minor = 10.0   # along the flange's 25 mm axis
 # Which way the 30 mm axis runs on the case wall: "V" (vertical) or "H" (horizontal).
-# parts/xlr_coupon.py carries both; set this once the connector has sat on it.
-xlr_flange_axis = None
+# This is a free choice of how to mount it, NOT a property of the connector — it fits
+# either way, rotated. Chose V: the screws end up 23 mm apart vertically instead of 20,
+# which resists the downward moment of a hanging cable slightly better.
+xlr_flange_axis = "V"
 xlr_bore_centred = True      # assumed; the coupon confirms it
 
 # --- Print / fit tuning ---
