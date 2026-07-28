@@ -26,19 +26,21 @@ xlr_screw_dia = 5.0       # MATCHES the flange holes as measured. Fastener is M4
 xlr_panel_th_max = 3.0    # connector accepts a 1-3 mm panel; wall thinned to suit
 xlr_body_depth = 32.0     # intrusion behind the panel — this sets the case inner width
 
-# Hole offsets from the bore centre. MEASURE THESE, do not derive them.
+# Hole offsets from the bore centre — the PUBLISHED D-series pattern, not a derivation.
+# Neutrik give x:10 y:11.5 for M3 screws on the 24 mm cutout (x:9.5 y:12 for 3.2 mm
+# drilled holes). That pair is 2*hypot(10, 11.5) = 30.5 mm apart, which is Charles's
+# measured 30 mm centre-to-centre. The LARGER offset lies on the flange's 30 mm axis:
+# against a 30 x 25 flange that leaves 3.5 and 2.5 mm to the edges, a real part.
 #
-# The first attempt derived them by assuming the holes lie on the flange's corner
-# diagonal: +-15 mm * (30, 25)/39.05 -> +-(11.52, 9.60). That is wrong. On a 30 x 25
-# plate it leaves 12.5 - 9.60 - 2.5 = 0.40 mm of flange at the long edge, which no
-# real connector is built with. "On a diagonal" meant diagonally opposed, not parallel
-# to the plate diagonal — the flange is not square, so those are different lines.
-#
-# Wanted: half the horizontal centre-to-centre distance, and half the vertical.
-# Cross-check: hypot(2*dx, 2*dy) should come out ~= xlr_screw_spacing (30 mm).
-xlr_screw_dx = None       # <-- MEASURE
-xlr_screw_dy = None       # <-- MEASURE
-xlr_bore_centred = True   # assumed; confirm the bore really is centred in the flange
+# My first attempt put the holes on the flange's corner diagonal, giving +-(11.52,
+# 9.60) — dx > dy, the wrong way round, leaving 0.40 mm of flange. The flange is not
+# square, so "diagonally opposed" and "along the plate diagonal" are different lines.
+xlr_screw_off_major = 11.5   # along the flange's 30 mm axis
+xlr_screw_off_minor = 10.0   # along the flange's 25 mm axis
+# Which way the 30 mm axis runs on the case wall: "V" (vertical) or "H" (horizontal).
+# parts/xlr_coupon.py carries both; set this once the connector has sat on it.
+xlr_flange_axis = None
+xlr_bore_centred = True      # assumed; the coupon confirms it
 
 # WHICH diagonal is still open: the pattern is symmetric under 180 deg rotation but NOT
 # under mirroring, so the two handednesses are genuinely different parts. The coupon

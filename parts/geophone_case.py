@@ -148,13 +148,19 @@ with BuildPart() as geophone_case:
             align=(Align.CENTER, Align.CENTER, Align.CENTER),
             mode=Mode.SUBTRACT)
     add(_thru(xlr_bore_dia, (0, 20, xlr_z), "+Y"), mode=Mode.SUBTRACT)
-    # flange holes: only once the coupon has said WHICH diagonal (see dimensions.py)
-    if xlr_screw_diagonal:
-        _s = 1 if xlr_screw_diagonal.upper() == "A" else -1
-        for _sx, _sy in ((1, _s), (-1, -_s)):
-            add(_thru(xlr_screw_dia,
-                      (_sx * xlr_screw_dx, 20, xlr_z + _sy * xlr_screw_dy), "+Y"),
-                mode=Mode.SUBTRACT)
+    # Flange holes, once the coupon has said which way the 30 mm flange axis runs
+    # (see dimensions.py). All four sign combinations, as on the coupon: two carry
+    # the screws and two end up hidden under the 30 x 25 flange, so handedness
+    # never has to be established.
+    if xlr_flange_axis:
+        _dx, _dz = ((xlr_screw_off_minor, xlr_screw_off_major)
+                    if xlr_flange_axis.upper() == "V"
+                    else (xlr_screw_off_major, xlr_screw_off_minor))
+        for _sx in (1, -1):
+            for _sz in (1, -1):
+                add(_thru(xlr_screw_dia,
+                          (_sx * _dx, 20, xlr_z + _sz * _dz), "+Y"),
+                    mode=Mode.SUBTRACT)
 
     # chamfer the bottom outer edge so the print sits true
     chamfer(geophone_case.faces().sort_by(Axis.Z)[0].outer_wire().edges(), edge_cham)
