@@ -4,9 +4,9 @@
 > (`parts/geophone_case.py` + `parts/geophone_case_lid.py`, 2026-07-28) whose only
 > jobs are easy pick-up/set-down and an XLR on the case. Its entire BOM is: PLA,
 > **7 × #6 × ½″ sheet-metal screws** (4 lid, 3 feet), **2 × M3 × 12 machine screws
-> + 2 washers + 2 M3 nuts** (XLR flange — 2.4 mm of PLA will not hold a
-> self-tapper against the latch pull, and the flange's holes measure 5 mm so M3
-> wants a washer under the head), and the XLR chassis connector already on hand.
+> + 2 washers + 2 M3 nuts** (XLR flange — 2.5 mm of PLA will not hold a
+> self-tapper against the latch pull, and the flange's countersink wants a washer
+> under the head), and the XLR chassis connector already on hand.
 > No seals, no ballast, no inserts, no paver.
 >
 > Everything below is gen 2 — buy it when gen 1 has proven the shape is right.

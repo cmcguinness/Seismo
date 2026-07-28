@@ -16,13 +16,20 @@ geophone_mass_g = 74      # informs base-mass / coupling reasoning
 
 # --- XLR chassis connector — MEASURED off the part in hand (Charles, 2026-07-28) ---
 xlr_shell_dia = 22.0      # circular protrusion behind the flange
-xlr_bore_dia = 23.0       # +1 mm on the shell, deliberately loose
+# 24.0, NOT shell+1. The shank carries four slots/ribs — three small centring ones and
+# a larger one for the release lever — and the published cutout (23.6-24 mm) is
+# oversized precisely so those CLEAR the panel instead of engaging it. A 23 mm bore
+# fouls them: the connector will not pass through. Our rectangular flange seat is what
+# stops rotation, so the ribs have no job here.
+xlr_bore_dia = 24.0
 xlr_flange_w = 30.0       # flange, long axis
 xlr_flange_h = 25.0       # flange, short axis
 xlr_screw_spacing = 30.0  # two 5 mm holes, centre-to-centre, ON THE FLANGE DIAGONAL
-xlr_screw_dia = 5.0       # MATCHES the flange holes as measured. Fastener is M4 (+
-                          # washers, + nuts inside); M4 through 5 mm in both the flange
-                          # and the panel is the normal fit for this.
+xlr_screw_dia = 3.4       # M3 clearance. The measured 5 mm is the COUNTERSINK's outer
+                          # diameter — the standard flange takes countersunk M3 — and at
+                          # a 24 mm bore a 5 mm hole would leave only 0.74 mm of web to
+                          # the bore. 3.4 restores 1.54 mm. Fastener: M3 x 12 + washer
+                          # (the flange's 5 mm countersink needs one) + nut inside.
 xlr_panel_th_max = 3.0    # connector accepts a 1-3 mm panel
 xlr_body_depth = 32.0     # intrusion behind the panel — this sets the case inner width
 
