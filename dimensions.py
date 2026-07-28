@@ -49,6 +49,11 @@ xlr_seat_clearance = 1.4  # added to the flange footprint, total. Was 0.4; the p
                           # 2026-07-28) so +1 mm on each axis. Costs 0.5 mm of play per
                           # side before the seat wall takes load, which is still a far
                           # better restraint than two screws in 2.5 mm of PLA.
+                          # VALIDATED on the printed coupon with the real Neutrik D:
+                          # both axes were tight at 0.4, both fit at 1.4. The resulting
+                          # play is deliberate and accepted — do NOT tighten this back
+                          # up chasing a snugger fit, the ROI does not justify another
+                          # fitting round.
 xlr_seat_depth = 2.0      # = flange thickness, so the flange finishes flush with the pad
 xlr_pad_proud = 1.5       # how far the pad stands out from the wall
 xlr_pad_w = 38.0          # pad footprint — square, so V and H both get an even
