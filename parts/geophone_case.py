@@ -75,8 +75,16 @@ AIM = {"+Y": Rotation(-90, 0, 0), "-Y": Rotation(90, 0, 0),
 
 
 def _thru(dia, start, aim, length=40.0):
-    """A cylinder of `dia` starting at `start` and running along `aim`."""
-    cyl = Cylinder(dia / 2, length, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    """A cylinder of `dia` starting at `start` and running along `aim`.
+
+    Mode.PRIVATE is load-bearing: a bare Cylinder() inside an active BuildPart
+    context is a *builder operation* and adds itself to the part on the spot.
+    Without it this helper silently deposited every cutter as a solid at the
+    origin — the XLR one plugged the element bore from z=0 to 40 (found on the
+    STL, 2026-07-28), invisible to a manifold/volume check.
+    """
+    cyl = Cylinder(dia / 2, length, align=(Align.CENTER, Align.CENTER, Align.MIN),
+                   mode=Mode.PRIVATE)
     return Location(start) * (AIM[aim] * cyl)
 
 
@@ -137,6 +145,16 @@ with BuildPart() as geophone_case:
 
     # chamfer the bottom outer edge so the print sits true
     chamfer(geophone_case.faces().sort_by(Axis.Z)[0].outer_wire().edges(), edge_cham)
+
+
+# --- sanity check: the element must actually be able to drop in ---
+# A manifold/volume check does NOT catch a plug inside the bore (it stays
+# watertight and the volume looks plausible), so assert the pocket is empty
+# before anything gets sliced.
+_p = geophone_case.part
+for _z in (floor_th + 1, floor_th + pocket_depth / 2, floor_th + pocket_depth - 1):
+    assert not _p.is_inside((0, 0, _z)), f"element bore is obstructed at z={_z}"
+    assert not _p.is_inside((bore_dia / 2 - 0.5, 0, _z)), f"bore narrowed at z={_z}"
 
 show(geophone_case)
 export_stl(geophone_case.part, "stl/geophone_case.stl")
