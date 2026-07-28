@@ -14,19 +14,20 @@ outdoor use, gaskets/seals, ballast, heat-set inserts, insulation. PLA is fine.
     deterministic where a flat face rocks on unknown high spots, and screws give
     crude leveling. Printed feet would have forced the whole floor to bridge over
     air; this way the floor prints flat on the bed.
-  - XLR: the 24 mm bore is modeled. The two flange holes are modeled too, but
-    ONLY once xlr_screw_spacing / xlr_screw_axis in dimensions.py are confirmed
-    by caliper and proven on parts/xlr_coupon.py — a 10-minute flat plate that
-    the connector either bolts to or does not. Do not drill them by hand: the
-    flange holes are countersunk (a cone, not a bushing, so a bit wanders), the
-    male shell protrudes into where the chuck has to be, and a 3.2 mm bit
-    snatching through a 2.4 mm PLA wall cracks it.
+  - XLR (all VALIDATED on parts/xlr_coupon.py with the real Neutrik D): 24 mm
+    bore — the published cutout, oversized so the shank's four alignment ribs
+    clear rather than engage; 23 mm fouls them. Flange seats in a 26.4 x 31.4 x
+    2.0 recess in a 38 x 38 pad standing 1.5 mm proud, leaving 2.5 mm of panel.
+    The recess is structural: it carries the latch's lateral and torsional load
+    in shear so the two screws only clamp. Four 3.4 mm holes at +-(10, 11.5) —
+    all four sign combinations, so the flange's diagonal handedness never had to
+    be established; two take screws and two sit hidden under the flange.
     Secure with 2x M3 x 10 COUNTERSUNK machine screws + M3 nuts inside, not
-    self-tappers: the +Y wall is thinned to 2.4 mm to land inside the D-series'
-    1-3 mm panel range, which leaves ~2 threads of engagement, and the XLR latch
-    pulls on that joint every time the cable comes off. The inside face of the
-    thinned patch is flat and 34 mm square, so the nuts seat properly.
+    self-tappers: 2.5 mm of PLA gives ~2 threads and the latch pulls on that
+    joint every time the cable comes off.
     Fit the connector BEFORE the geophone — you need the finger room.
+  - Two clamp bosses flank the cup, unused in gen 1. They are the only part of a
+    hold-down that cannot be retrofitted; see the note by their parameters.
   - NO vents. An earlier revision had six; removed 2026-07-28 after checking the
     arithmetic. There is no heat source inside (passive coil; the Pi and ADC are
     in a different case), and the lowest acoustic mode of a 116 mm cavity is
@@ -38,7 +39,8 @@ outdoor use, gaskets/seals, ballast, heat-set inserts, insulation. PLA is fine.
     and a way in for dust and spiders. Pressure equalisation needs no holes — an
     FDM print with a bare screwed-on lid and a 24 mm connector bore leaks freely.
 
-Fasteners: #6 x 1/2" sheet-metal screws throughout (4 lid, 3 feet, 2 XLR).
+Fasteners: 7x #6 x 1/2" sheet-metal (4 lid, 3 feet) + 2x M3 x 10 countersunk
++ 2x M3 nut (XLR).
 Print floor-down, no supports.
 """
 from build123d import *
@@ -68,6 +70,20 @@ foot_r = 38.0         # wide enough to be tip-stable, short enough not to flex t
 foot_pad_dia = 16.0
 foot_pad_h = 4.0      # local thickening -> 12 mm of plastic for the pilot
 foot_pilot_depth = 9.0
+
+# --- clamp bosses (flanking the element cup) ---
+# NOT used by gen 1 — the element is vertical under 1 g, so its rim contact is never
+# in tension at seismic amplitudes and gravity is already the preload; putty on the
+# flanks handles lateral restraint. These exist because they are the part that cannot
+# be retrofitted: with them, a hold-down is a 10-minute print and no case reprint.
+# If one is ever made, give it a COMPLIANT pad (foam / rubber washer) against the
+# element rim — a rigid PLA finger at these dimensions is ~560 N/mm, so FDM tolerance
+# alone swings the preload by +-80 N. Compliance above the element is harmless; it is
+# not in the ground path (element -> floor -> feet).
+clamp_boss_x = 20.0   # merges into the cup wall, which stiffens both
+clamp_boss_dia = 9.0
+clamp_boss_top = 43.6                    # 0.4 mm below the element top at z=44
+clamp_boss_pilot_depth = 12.0
 
 # --- lid screw bosses ---
 boss_xy = 47.0        # far enough out to merge into the rounded corner wall
@@ -127,6 +143,15 @@ with BuildPart() as geophone_case:
     with Locations((boss_xy, boss_xy, top_z), (-boss_xy, boss_xy, top_z),
                    (boss_xy, -boss_xy, top_z), (-boss_xy, -boss_xy, top_z)):
         Cylinder(pilot_6 / 2, boss_pilot_depth,
+                 align=(Align.CENTER, Align.CENTER, Align.MAX),
+                 mode=Mode.SUBTRACT)
+
+    # clamp bosses flanking the cup (unused in gen 1 — see note above)
+    with Locations((clamp_boss_x, 0, floor_th), (-clamp_boss_x, 0, floor_th)):
+        Cylinder(clamp_boss_dia / 2, clamp_boss_top - floor_th,
+                 align=(Align.CENTER, Align.CENTER, Align.MIN))
+    with Locations((clamp_boss_x, 0, clamp_boss_top), (-clamp_boss_x, 0, clamp_boss_top)):
+        Cylinder(pilot_6 / 2, clamp_boss_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MAX),
                  mode=Mode.SUBTRACT)
 
