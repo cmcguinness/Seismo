@@ -18,9 +18,16 @@ outdoor use, gaskets/seals, ballast, heat-set inserts, insulation. PLA is fine.
     spacing is unconfirmed, and a wrong printed pattern scraps a 4-hour print.
     Hold the connector to the wall, mark through it, drill 2.5 mm. The +Y wall is
     locally thinned to 2.4 mm because the D-series only accepts a 1-3 mm panel.
-  - Six wall vents near the top: pressure relief, and they stop the box being a
-    sealed cavity resonating over the element. None in the lid — a hole directly
-    above the element is a straight acoustic path down onto it.
+  - NO vents. An earlier revision had six; removed 2026-07-28 after checking the
+    arithmetic. There is no heat source inside (passive coil; the Pi and ADC are
+    in a different case), and the lowest acoustic mode of a 116 mm cavity is
+    c/2L ~ 1.5 kHz — 30x above Nyquist at 100 sps and nowhere near the 1-15 Hz
+    band. Venting would instead make it a ~210 Hz Helmholtz resonator, equally
+    out of band. So the vents bought nothing and cost three things: a through-path
+    for garage convection over the element, faster thermal coupling to the room
+    (we have a known sub-Hz thermal-settling problem that box lag helps smooth),
+    and a way in for dust and spiders. Pressure equalisation needs no holes — an
+    FDM print with a bare screwed-on lid and a 24 mm connector bore leaks freely.
 
 Fasteners: #6 x 1/2" sheet-metal screws throughout (4 lid, 3 feet, 2 XLR).
 Print floor-down, no supports.
@@ -62,11 +69,6 @@ boss_pilot_depth = 12.0
 xlr_z = floor_th + 24.0
 xlr_relief = 34.0     # inside relief patch, square
 xlr_panel_th = 2.4    # inside the D-series 1-3 mm panel range
-
-# --- vents ---
-vent_dia = 4.0
-vent_z = floor_th + cavity_h - 8.0
-vent_x = 20.0
 
 top_z = floor_th + cavity_h
 
@@ -137,12 +139,6 @@ with BuildPart() as geophone_case:
             align=(Align.CENTER, Align.CENTER, Align.CENTER),
             mode=Mode.SUBTRACT)
     add(_thru(xlr_bore_dia, (0, 20, xlr_z), "+Y"), mode=Mode.SUBTRACT)
-
-    # vents: two per wall on the three faces the XLR does not occupy
-    for aim, start in (("-Y", (-vent_x, -40, vent_z)), ("-Y", (vent_x, -40, vent_z)),
-                       ("+X", (40, -vent_x, vent_z)), ("+X", (40, vent_x, vent_z)),
-                       ("-X", (-40, -vent_x, vent_z)), ("-X", (-40, vent_x, vent_z))):
-        add(_thru(vent_dia, start, aim, length=30.0), mode=Mode.SUBTRACT)
 
     # chamfer the bottom outer edge so the print sits true
     chamfer(geophone_case.faces().sort_by(Axis.Z)[0].outer_wire().edges(), edge_cham)
