@@ -3,10 +3,11 @@
 > **This is not the next thing being built.** Gen-1 is a crude indoor POC
 > (`parts/geophone_case.py` + `parts/geophone_case_lid.py`, 2026-07-28) whose only
 > jobs are easy pick-up/set-down and an XLR on the case. Its entire BOM is: PLA,
-> **7 × #6 × ½″ sheet-metal screws** (4 lid, 3 feet), **2 × M3 × 12 machine screws
-> + 2 washers + 2 M3 nuts** (XLR flange — 2.5 mm of PLA will not hold a
-> self-tapper against the latch pull, and the flange's countersink wants a washer
-> under the head), and the XLR chassis connector already on hand.
+> **7 × #6 × ½″ sheet-metal screws** (4 lid, 3 feet), **2 × M3 × 10 countersunk (flat-head) machine
+> screws + 2 M3 nuts** (XLR flange — 2.5 mm of PLA will not hold a self-tapper
+> against the latch pull. Flat head seats natively in the flange's M3 countersink,
+> so no washer; grip is only 2.0 mm flange + 2.5 mm panel = 4.5 mm, and 10 mm
+> leaves room for a plain nut or a nylock. Pan-head instead → add a washer), and the XLR chassis connector already on hand.
 > No seals, no ballast, no inserts, no paver.
 >
 > Everything below is gen 2 — buy it when gen 1 has proven the shape is right.
