@@ -76,8 +76,7 @@ boss_pilot_depth = 12.0
 
 # --- XLR panel (+Y wall) ---
 xlr_z = floor_th + 24.0
-xlr_relief = 34.0     # inside relief patch, square
-xlr_panel_th = 2.4    # inside the D-series 1-3 mm panel range
+xlr_panel_th = wall + xlr_pad_proud - xlr_seat_depth   # 2.5 mm under the flange
 
 top_z = floor_th + cavity_h
 
@@ -141,13 +140,27 @@ with BuildPart() as geophone_case:
                  align=(Align.CENTER, Align.CENTER, Align.MIN),
                  mode=Mode.SUBTRACT)
 
-    # XLR: inside relief patch to bring the +Y wall down to a legal panel
-    # thickness, then the 24 mm bore. Flange holes are drilled by hand.
-    with Locations((0, inner_side / 2 + (wall - xlr_panel_th), xlr_z)):
-        Box(xlr_relief, 2 * (wall - xlr_panel_th), xlr_relief,
-            align=(Align.CENTER, Align.CENTER, Align.CENTER),
-            mode=Mode.SUBTRACT)
-    add(_thru(xlr_bore_dia, (0, 20, xlr_z), "+Y"), mode=Mode.SUBTRACT)
+    # XLR mount. The flange seat is a pad standing proud of the OUTSIDE wall with
+    # the flange footprint recessed into it: the recess carries the lateral and
+    # torsional load of the latch in shear through plastic, leaving the two screws
+    # to do nothing but clamp. Net panel under the flange is 2.5 mm, inside the
+    # connector's 1-3 mm range. (Nothing on the inside face — the case is a
+    # rounded square so that wall is already flat; an inside pocket did nothing.)
+    _wall_y = case_side / 2
+    if xlr_flange_axis:
+        _v = xlr_flange_axis.upper() == "V"
+        _sw = (xlr_flange_h if _v else xlr_flange_w) + xlr_seat_clearance
+        _sh = (xlr_flange_w if _v else xlr_flange_h) + xlr_seat_clearance
+        with BuildSketch(Plane.XZ.offset(-_wall_y)) as _pad:
+            with Locations((0, xlr_z)):
+                RectangleRounded(xlr_pad_w, xlr_pad_h, 3.0)
+        extrude(amount=-xlr_pad_proud)
+        with BuildSketch(Plane.XZ.offset(-(_wall_y + xlr_pad_proud))) as _seat:
+            with Locations((0, xlr_z)):
+                Rectangle(_sw, _sh)
+        extrude(amount=xlr_seat_depth, mode=Mode.SUBTRACT)
+
+    add(_thru(xlr_bore_dia, (0, 20, xlr_z), "+Y", length=60.0), mode=Mode.SUBTRACT)
     # Flange holes, once the coupon has said which way the 30 mm flange axis runs
     # (see dimensions.py). All four sign combinations, as on the coupon: two carry
     # the screws and two end up hidden under the 30 x 25 flange, so handedness

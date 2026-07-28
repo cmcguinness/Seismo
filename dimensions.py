@@ -23,8 +23,26 @@ xlr_screw_spacing = 30.0  # two 5 mm holes, centre-to-centre, ON THE FLANGE DIAG
 xlr_screw_dia = 5.0       # MATCHES the flange holes as measured. Fastener is M4 (+
                           # washers, + nuts inside); M4 through 5 mm in both the flange
                           # and the panel is the normal fit for this.
-xlr_panel_th_max = 3.0    # connector accepts a 1-3 mm panel; wall thinned to suit
+xlr_panel_th_max = 3.0    # connector accepts a 1-3 mm panel
 xlr_body_depth = 32.0     # intrusion behind the panel — this sets the case inner width
+
+# --- flange seat: a raised pad on the OUTSIDE with the flange footprint recessed into it
+# The recess carries lateral and torsional load into the plastic instead of into two
+# screws in a thin wall — that is its job, not cosmetics, and it is why it exists at all.
+# Depth is set to the flange thickness so the flange finishes flush, but nothing depends
+# on that being exact: the screws clamp the flange to the pocket floor whether it ends up
+# proud or sunk. Getting the depth wrong costs appearance, not function.
+# (An earlier revision put a 34 x 34 x 0.6 pocket on the INSIDE instead. Useless: the
+# case is a rounded square precisely so the walls are flat, so there was nothing to
+# flatten, and an inside pocket cannot restrain a flange that bears on the outside. Its
+# only real effect was thinning the panel, which the pad now does properly.)
+xlr_flange_th = 2.0       # measured ~2 mm
+xlr_seat_clearance = 0.4  # added to the flange footprint, total
+xlr_seat_depth = 2.0      # = flange thickness, so the flange finishes flush with the pad
+xlr_pad_proud = 1.5       # how far the pad stands out from the wall
+xlr_pad_w = 38.0          # pad footprint — square, so V and H both get an even
+xlr_pad_h = 38.0          # 3.8 mm of pad wall around the seat that does the capturing
+# wall 3.0 + pad 1.5 - recess 2.0 = 2.5 mm of panel under the flange, inside the 1-3 range
 
 # Hole offsets from the bore centre — the PUBLISHED D-series pattern, not a derivation.
 # Neutrik give x:10 y:11.5 for M3 screws on the 24 mm cutout (x:9.5 y:12 for 3.2 mm
@@ -41,12 +59,6 @@ xlr_screw_off_minor = 10.0   # along the flange's 25 mm axis
 # parts/xlr_coupon.py carries both; set this once the connector has sat on it.
 xlr_flange_axis = None
 xlr_bore_centred = True      # assumed; the coupon confirms it
-
-# WHICH diagonal is still open: the pattern is symmetric under 180 deg rotation but NOT
-# under mirroring, so the two handednesses are genuinely different parts. The coupon
-# carries both (4 holes); set this to "A" (dx,dy)+(-dx,-dy) or "B" (dx,-dy)+(-dx,dy)
-# once the connector has actually sat on it, and the case will drill just that pair.
-xlr_screw_diagonal = None
 
 # --- Print / fit tuning ---
 fit_clearance = 0.2       # radial slip-fit gap added to bores (FDM, PLA/PETG)
