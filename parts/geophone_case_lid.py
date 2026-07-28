@@ -8,6 +8,17 @@ onto it). "GEOPHONE" engraved in the top face. Prints flat, no supports.
 5 mm thick rather than 3: the engraving eats 0.8 mm and a 3 mm plate with a
 recess in it is thin enough to bow when the four corner screws are snugged.
 
+No bubble-level inset (considered and rejected 2026-07-28). Tilt tolerance is
+loose — 5 deg costs 0.4% of axial sensitivity — and a phone laid on this flat
+lid resolves tenths of a degree where a bullseye vial resolves 1-2. Vials that
+size are 7-9 mm tall, so flush-mounting one would double the lid thickness.
+The lid is also the wrong datum: the element seats on the case FLOOR and the
+lid sits on four bosses, so there is an unknown degree or so between the two
+planes. Leveling already exists anyway — the three feet are screws, and #6
+coarse pitch over the 57 mm foot-to-pivot distance is ~1.4 deg per turn.
+Gen 2 does get a real vial (see doc/BOM-geophone-case.md): once it is bedded on
+a paver in the crawl space you cannot iterate and cannot easily read a phone.
+
 Fasteners: 4x #6 x 1/2" sheet-metal screws into the body's corner bosses.
 """
 from build123d import *
