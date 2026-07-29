@@ -30,7 +30,10 @@ from helicorder import LOCAL_DATA, pull
 
 # Station location — Oakmont, Santa Rosa (measured at the sensor site).
 STA_LAT, STA_LON = 38.451817, -122.621049
-VP, VS = 6.0, 3.46               # local crustal P/S velocities (km/s), Vp/Vs≈1.73
+# Local crustal P/S velocities (km/s). Vp is MEASURED at this station, not assumed:
+# five confirmed events over 18.4-45.7 km give onset = dist/5.19 + 0.30 s with <=0.3 s
+# residuals (2026-07-29, STATUS.md). Vp=6.0 predicted arrivals ~1.4 s early at 45 km.
+VP, VS = 5.19, 3.00              # Vp/Vs≈1.73
 
 
 def haversine_km(lat1, lon1, lat2, lon2):

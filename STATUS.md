@@ -1,6 +1,67 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-27 (UTC)_
+_Last updated: 2026-07-29 (UTC)_
+
+## 🌟 M4.2 CLOVERDALE — biggest event yet, plus 4 more the same day (2026-07-29)
+
+**USGS: M4.2, 2026-07-29 02:40:06 UTC, 38.777°N 122.936°W, depth 5.9 km — 45.3 km
+epicentral / 45.7 km hypocentral, azimuth NW.** Recorded cleanly and unmistakably.
+Figures: `reports/2026-07-29-m4.2-cloverdale.png` (shareable),
+`reports/2026-07-29-m4.2-cloverdale-look.png` (coda + onset zoom).
+
+| metric | this event | previous best |
+|---|---|---|
+| detector `peak_ratio` | **8535** | 645 (M2.5 St Helena) |
+| harvester SNR | **186** | 35.4 |
+| peak (1–15 Hz) | **1406 µV** | 126 µV |
+| coda duration (1–15 Hz back to ambient) | **~80 s** | ~25 s |
+
+- **Not remotely clipped.** Raw counts spanned 196,219–491,394 against ±8,388,607 FS —
+  the whole event used **~3.5 % of full scale**. Headroom is ~600× the observed peak, so
+  gain 64 is in no danger for events of this class; a same-distance M6 would be the first
+  to threaten it.
+- **Sub-Hz band carried real signal for the first time:** band excess over the 120 s
+  pre-event window was **0.5–1 Hz ×50 · 1–5 Hz ×306 · 5–15 Hz ×46 · 15–45 Hz ×5.5** —
+  low-band-dominated, the earthquake signature, and by a wider margin than any prior event.
+- **Four MORE confirmed events on the same day** (harvester, all three legs):
+  M2.2 03:48:38 (aftershock), M1.9 10:48:54 (aftershock), M1.5 13 km NNW of Angwin at
+  **28.8 km**, M2.3 20:11:44 (aftershock). That takes the archive from 4 confirmed events
+  to **9**, and **M1.9 at 45.9 km is the new smallest-confirmed** (was M2.4 at 43 km).
+
+### 📐 Vp is now MEASURED, not assumed: 5.19 km/s (this was a real error)
+
+The M4.2's first arrival came in at **+9.06 s**, ~1.4 s later than the Vp = 6.0 km/s
+prediction of +7.6 s. Ruled out a clock error using our own data — a clock offset is
+*constant* with distance, a velocity error *scales* with it:
+
+| event | dist | onset | delay vs Vp 6.0 |
+|---|---|---|---|
+| M2.5 St Helena | 18.4 km | 3.86 s | +0.79 s |
+| M2.5 Geysers | 41.1 km | 8.15 s | +1.30 s |
+| **M4.2 Cloverdale** | 45.7 km | 9.06 s | +1.44 s |
+| M2.2 aftershock | 45.6 km | 8.90 s | +1.29 s |
+| M2.3 aftershock | 45.6 km | 9.38 s | +1.77 s |
+
+The delay scales with distance. Least-squares over the five: **onset = dist / 5.19 km/s
++ 0.30 s**, residuals ≤ 0.3 s over 18–46 km. The +0.30 s intercept is the envelope
+detector's own lag (5× threshold on a 0.3 s smoother), not a clock offset — a
+pure-clock fit needs +1.32 s with 0.32 s of unexplained spread. **The station clock is
+fine; Vp = 6.0 was too fast for these shallow NW paths.** `VP` is now **5.19** (and
+`VS` 3.00, keeping Vp/Vs ≈ 1.73) in `eventcheck.py` and `harvest_events.py`; window
+placement shifts by ~1.4 s at 45 km, so residuals from earlier harvester runs are not
+byte-comparable with new ones. Onset picks: `analysis/` ad-hoc run, method above.
+
+### ⚠️ Peak amplitude under-reads at large magnitude — do not use it as a magnitude proxy
+
+The M4.2's residual is **−0.633**, clearly outside the **−0.16 … −0.31** band the five
+M1.5–M2.5 events sit in (and the earlier four M2.4–2.8 events' −0.318 … −0.412). Same
+day, same azimuth, same distance for three of them, so this is **not** site or path — it
+is **magnitude-dependent**: at M4.2 the source corner frequency drops toward ~1–2 Hz,
+where the 4.5 Hz geophone response is falling steeply, so a growing share of the energy
+lands below the 1–15 Hz metric. The residual leg still *accepts* it (−1.2 < −0.633 <
+0.4), which is the filter working. But the ML-anchored `predict_uv` is only calibrated
+in the M1.5–M2.8 range; inverting our peak to a magnitude would read **~1.7× low at
+M4.2** and worse above it.
 
 ## 🚗 Traffic direction — a road patch gives the symmetry-breaker (2026-07-27)
 

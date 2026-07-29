@@ -36,7 +36,10 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 
 STA_LAT, STA_LON = 38.451817, -122.621049
-VP, VS = 6.0, 3.5                      # km/s, crude crustal model for arrival prediction
+# km/s. Vp measured at this station from five confirmed events, 18.4-45.7 km:
+# onset = dist/5.19 + 0.30 s, residuals <=0.3 s (2026-07-29, STATUS.md). The old 6.0
+# placed the window ~1.4 s early at 45 km.
+VP, VS = 5.19, 3.00
 BANDS = [("lo", 1.0, 5.0), ("mid", 5.0, 15.0), ("hi", 15.0, 45.0)]
 USGS = "https://earthquake.usgs.gov/fdsnws/event/1/query"
 
