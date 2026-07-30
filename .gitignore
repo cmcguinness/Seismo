@@ -40,3 +40,8 @@ analysis/labels.features.csv
 # annotations.csv is NOT ignored: unlike labels.csv (bulk, regenerable traffic
 # counts), it is hand-observed ground truth -- someone watched the thing happen and
 # wrote down when. It only exists on one Mac, so it belongs in the repo.
+
+# USGS seismicity dump for detection_map.py (3 MB, re-fetchable — see the
+# module docstring for the query). State outlines ARE committed: they are small
+# and the map is unusable without them.
+analysis/geo/seismicity.geojson
