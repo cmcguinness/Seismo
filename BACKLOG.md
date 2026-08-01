@@ -28,7 +28,19 @@ Kept only for the parts that transfer:
   enclosure breathes with temperature and pumps moisture past any imperfect seal); one
   continuous direct-burial cable, no underground connector.
 
-## ⚠️ COUPLING — the geophone is not on the slab (found 2026-07-26)
+## ✅ COUPLING — TESTED 2026-07-31, RESULT NEGATIVE (was: the geophone is not on the slab)
+
+**Done 2026-07-31 13:40 PDT: the geophone was moved off the tile onto bare concrete.
+Nothing measurable changed.** The 19.95 / 41 Hz pair came through the move at the same
+frequencies, and the 1-15 Hz ambient floor was flat (4.03 uV on slab vs 4.32-4.47 uV on
+tile, median 5-min RMS). So the tile is **not** the resonator and coupling loss is **not**
+the explanation for the 7.5x-low calibration — that candidate is closed, and the
+remaining ones (shunt loading, element sensitivity, site response) are unchanged. Only
+2.8 h of post-move data was usable: a front-end fault at 16:41 PDT ended the epoch (see
+`STATUS.md`). See `analysis/coupling_test.py`. Original reasoning below, kept for the
+record.
+
+### original entry
 
 The garage has **inherited plastic interlocking tile**, so the station stands on a
 compliant, hollow layer, not on concrete. `CLAUDE.md` already records the principle —

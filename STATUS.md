@@ -1,6 +1,59 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-29 (UTC)_
+_Last updated: 2026-07-31 (UTC)_
+
+## 🔴 STATION IS FAULTED SINCE 2026-07-31 16:41 PDT — data after that is instrument, not ground
+
+At **23:41 UTC / 16:41 PDT** the trace slammed to negative full scale for a few seconds
+and then parked at **≈ −2.2M counts (≈ −20 mV input-referred)**, where it still sits.
+Broadband noise went up **20–200×** (5-min std ~700 → 15k–140k counts) and the STA/LTA
+detector has been firing continuously ever since — the `EVENT` lines in the journal from
+16:41 onward are **all false**. The recorder itself is healthy (no restart, 8 d uptime,
+clock error ±0–14 ms, rate 99.84 sps).
+
+- **It is not the tile→slab move.** The move was at 13:40 PDT; it produced a 2-min
+  handling transient and then the DC returned to its normal ~+334k with std ~700, and
+  stayed clean for three hours. The break is a separate, later event with nobody at the
+  rig.
+- **Signature:** big negative DC offset + broadband, non-sinusoidal, 1/f-ish noise 100×
+  the floor from 0.01 Hz to ~20 Hz, **no mains lines** (see `analysis/break_1641.png`).
+  That is what a **lost DC path on one input leg** looks like — a bias resistor leg or a
+  screw-terminal/ferrule that let go, leaving the input high-impedance and drifting.
+  A move-loosened connection that finally opened three hours later fits the timing.
+- **Next step is physical, not software:** with the Pi off, reseat/verify the two 100 kΩ
+  bias resistors and both signal legs in the ADC screw terminals and at the perfboard,
+  then confirm DC returns to ~mid-scale before trusting anything. Cross-check the coil
+  with a meter (~385 Ω) while it is apart.
+
+## ✅ COUPLING TEST DONE (2026-07-31 13:40 PDT) — tile→slab changed nothing measurable
+
+Geophone taken off the garage's plastic interlocking tile and set directly on the
+concrete slab. Valid post-move data is the **2.8 h window 13:45–16:40 PDT** (settling +
+the fault above), compared against matched clock windows on the tile.
+`analysis/coupling_test.py` → `analysis/coupling_test.png`.
+
+| band (median 5-min RMS) | Jul 30 14:20–16:35 tile | Jul 31 11:00–13:15 tile | **Jul 31 14:20–16:35 SLAB** |
+|---|---|---|---|
+| 0.02–0.12 Hz | 0.83 µV | 0.80 µV | **0.90 µV** |
+| 1–15 Hz | 4.47 µV | 4.32 µV | **4.03 µV** |
+| 18–22 Hz | 5.80 µV | 1.22 µV | **1.96 µV** |
+| 38–44 Hz | 2.68 µV | 1.07 µV | **2.56 µV** |
+
+- **The 19.95 / 41 Hz line pair survived the move at the same frequencies** (19.93–20.00
+  and 40.9–41.2 Hz on both sides). The hollow-tile-resonance hypothesis in `BACKLOG.md`
+  is therefore **not supported** — those lines are something else (instrument or another
+  structure). Their *amplitude* swings 5× with time of day on the tile alone, so
+  amplitude comparisons across windows prove nothing; frequency is the robust part.
+- **No sensitivity was recovered.** The 1–15 Hz ambient floor is unchanged (4.0 vs 4.3–4.5
+  µV), so the 7.5×-low absolute calibration is **not** coupling loss through the tile.
+  That candidate is closed; shunt loading / element sensitivity / site response remain.
+- **Two analysis traps found and fixed while doing this** (both now documented in the
+  script): day-files are fragmented into ~10 s blocks with 2–3 sample gaps, so
+  "longest gapless segment" silently analysed **1 minute** of a 2 h window — bridge the
+  gaps by interpolation instead. And a single 82 µV transient at 14:44 made the post-move
+  1–15 Hz band look **3.8× worse** under mean-averaged Welch; median-averaged Welch plus a
+  median-of-5-min-RMS statistic show the floor was flat. **`spectrum.py` and anything else
+  using `max(st, key=npts)` inherits the first bug.**
 
 ## 🌟 M4.2 CLOVERDALE — biggest event yet, plus 4 more the same day (2026-07-29)
 
