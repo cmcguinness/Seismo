@@ -2,7 +2,21 @@
 
 _Last updated: 2026-07-31 (UTC)_
 
-## 🔴 STATION IS FAULTED SINCE 2026-07-31 16:41 PDT — data after that is instrument, not ground
+## 🔴 STATION IS FAULTED SINCE 2026-07-31 16:41 PDT — ACQUISITION STOPPED, awaiting repair
+
+**Recorder stopped AND `systemctl disable`d at 22:35 PDT** so it does not come back on a
+power cycle during the repair. The Pi itself is still up and reachable (`seismo.local`);
+run `sudo shutdown -h now` on it before touching the wiring. To bring the station back
+after the fix:
+
+```
+sudo systemctl enable --now seismo-recorder     # re-enable + start
+journalctl -u seismo-recorder -f                # expect DC near mid-scale, 5-min std ~700
+```
+
+Data through 2026-08-01T05:35Z is synced to `analysis/data/`. **Everything from 16:41 PDT
+onward is instrument noise, not ground** — exclude it from any archive analysis, and
+ignore the ~200 false `EVENT` entries it wrote to `events.log` in that window.
 
 At **23:41 UTC / 16:41 PDT** the trace slammed to negative full scale for a few seconds
 and then parked at **≈ −2.2M counts (≈ −20 mV input-referred)**, where it still sits.
@@ -20,10 +34,17 @@ clock error ±0–14 ms, rate 99.84 sps).
   That is what a **lost DC path on one input leg** looks like — a bias resistor leg or a
   screw-terminal/ferrule that let go, leaving the input high-impedance and drifting.
   A move-loosened connection that finally opened three hours later fits the timing.
-- **Next step is physical, not software:** with the Pi off, reseat/verify the two 100 kΩ
-  bias resistors and both signal legs in the ADC screw terminals and at the perfboard,
-  then confirm DC returns to ~mid-scale before trusting anything. Cross-check the coil
-  with a meter (~385 Ω) while it is apart.
+- **Ruled out — it is not the ADC's state.** A recorder restart does a hard pin reset plus
+  `cal_self()` (`adc_common.py:143-146`): every register rewritten, offset recalibrated.
+  Done at 22:33 PDT and the offset came back **identical** (−2,174,268 counts, std 22,614).
+  A **reboot is therefore pointless** — it adds only kernel/pigpiod state, and nothing in
+  software can hold a −20 mV offset on an analog input.
+- **Cheapest first move at the rig — unplug the XLR at the case.** DC returns near
+  mid-scale → fault is in the geophone or the cable (meter ~385 Ω across pins 2–3). DC
+  stays at ≈ −2.2M → fault is board-side. That halves the search before anything is opened.
+- **Then, Pi off:** reseat/verify the two 100 kΩ bias resistors and both signal legs in the
+  ADC screw terminals and at the perfboard, then confirm DC returns to ~mid-scale before
+  trusting anything.
 
 ## ✅ COUPLING TEST DONE (2026-07-31 13:40 PDT) — tile→slab changed nothing measurable
 
