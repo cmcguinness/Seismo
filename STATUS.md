@@ -88,6 +88,56 @@ the epoch change becomes mechanical only rather than mechanical *and* electrical
   already ~7.5× low and the project explicitly sensitivity-first, deliberate under-damping
   is defensible. Do it last, in the garage, against a stable baseline.
 
+## 📦 Pi + front-end ENCLOSURE — decisions and parts ordered (2026-08-04)
+
+Design pass for the case holding the Pi 2B + Waveshare + front-end board. Gen-1 geophone
+case is **printed and assembled-tested** (body + lid; handle prints clean, the 24 mm bridge
+at the top of the trapezoidal opening came out with no sag). Everything fits: geophone into
+cup, XLR into case, M3 screws through both.
+
+- **Front end shares the Pi's case — do NOT give it its own.** `BACKLOG.md`'s
+  digitize-at-the-sensor analysis: the geophone run is *differential* across a low 375 Ω
+  source and is fine over a cable; the vulnerable nodes are the **high-impedance,
+  single-ended** bias network and ADC input. A separate front-end case puts exactly those
+  nodes on a connector and cable. Get serviceability from a **removable sub-plate** inside
+  the shared case instead, so rev-1 → rev-2 swaps never touch the enclosure.
+- **⚠️ NEVER panel-mount micro-USB for Pi power.** The 5 V USB side already browns out when
+  extended ([[power-5v-usb-extension-gotcha]]) — dropped sample rate, square-wave plateaus.
+  A feedthrough adds two more contact pairs to the rail that is already marginal. Instead:
+  **panel-mount barrel jack → short heavy run → Pi GPIO 5 V/GND pins.** Tradeoff: the GPIO
+  feed bypasses the Pi's input protection.
+- **Keep the PSU external and extend the AC side, never the 5 V side.** A switcher inside
+  the box is also an EMI source next to a µV front end.
+- **Ethernet: D-type panel coupler**, because it reuses the D-series bore + ±(10, 11.5) mm
+  hole pattern already validated by `parts/xlr_coupon.py`. Unshielded is *preferable* here —
+  the case is PLA with nothing to bond to, and a shielded coupler would risk a second ground
+  path against the single-point-ground doctrine.
+- **Galvanic Ethernet isolator goes INSIDE, on the Pi side**, with the panel jack on the
+  network side — isolation barrier at the enclosure boundary. It measured a real **1.6×**
+  improvement in the signal band; preserve it deliberately.
+- **Print a fit coupon for every new panel connector before committing to a case print.**
+  That is why the XLR fit first try.
+
+### Parts ordered 2026-08-04
+
+| item | part | notes |
+|---|---|---|
+| PSU | **Mean Well GST25A05-P1J** | 5 V 4 A, 20 W, IEC C14 in, 5.5 × 2.1 barrel out, **80 mV published ripple**, ~$13–25 |
+| AC cords | C13→NEMA 5-15, **25 ft** (under-house) + **6 ft** (bench) | AC side is the side you extend |
+| DC jack | **RuiLing 5.5 × 2.1 panel mount, 3-pin, hex nut** | flange Ø14.0, thread length 11.8 mm, receptacle Ø6.3. **Pin 5 = +, pin 2 = −, pin 3 = switch contact, leave unconnected.** Thread OD still to be measured — that is the panel hole |
+| Ethernet | D-type Cat6 female/female feedthrough, 2-pk | verify flange + hole spacing against the validated D pattern |
+| screws | #6 × ½″ 18-8 stainless **pan head** sheet-metal (variety pack) | pan/button head deliberately: the 3 feet ARE the ground contact, so a rounded head gives near-point 3-point contact. `pilot_6 = 2.7` |
+
+**Rejected:** a $135 linear supply. At ~10 % of in-band noise from the whole front end, the
+payoff is bounded; buy ripple performance later only if the floor test says to. Thread-forming
+plastic screws (Plastite / Delta PT) are genuinely better in PLA but not worth re-specifying
+gen-1 pilots for — revisit with heat-set inserts at gen 2.
+
+**Cosmetic:** the engraved `GEOPHONE` will be wax-filled (Stockmar beeswax **sticks** — a
+0.9–1.3 mm marker nib cannot enter the letter strokes, so pack wax in and scrape flush
+rather than trying to paint into the groove). Gen 2 should instead raise the text and do a
+filament change, now that an AMS lite is on order.
+
 ## 🛰️ FDSN network identity: `SS` is available WITHOUT asking (2026-08-03)
 
 `BACKLOG.md` said the only routes were "register an FDSN network code" or "be a Raspberry
