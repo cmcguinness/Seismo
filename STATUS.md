@@ -1,8 +1,116 @@
 # STATUS — Seismo
 
-_Last updated: 2026-07-31 (UTC)_
+_Last updated: 2026-08-03 (UTC)_
 
-## 🔴 STATION IS FAULTED SINCE 2026-07-31 16:41 PDT — ACQUISITION STOPPED, awaiting repair
+## ✅ FAULT FIXED 2026-08-03 — it was a STRAY SHIELD STRAND, not a bias resistor
+
+**Root cause: a single whisker of the cable's shield braid making intermittent contact
+with a coil wire.** Charles found and cleared it on the bench. Everything below in the
+"faulted" section is retained for the diagnostic trail, but **its hypothesis was wrong** —
+it blamed a bias-resistor leg or a cold-flowed ferrule, and the real failure was a loose
+braid strand. Different failure, different prevention: **terminate the shield properly**
+(comb the braid, twist to one pigtail, sleeve/heat-shrink right up to its landing) rather
+than trusting ferrules to fix it. The shield lands at the board end only, right next to
+the input terminals — that is the one place in this build where a stray strand can reach
+a signal leg. Carry this into the rev-2 layout and the case wiring.
+
+**Confirmed restored** (bench, geophone attached, `adc_diag.py` + `capture_raw.py`):
+
+| | faulted | after fix |
+|---|---|---|
+| AIN0 / AIN1 (single-ended) | −1.224 / −1.225 V | **+1.528 / +1.524 V** |
+| DIFF @ gain 64 | −78.125 mV (railed) | **+3.026 mV** |
+| DC, raw counts @ gain 64 | −2,174,268 | **+336,304** (baseline ~334,000 — **0.7 %**) |
+
+Landing within 0.7 % of the pre-fault operating point is the strong confirmation: nothing
+else drifted.
+
+### Diagnostic lessons from this session (worth more than the fix)
+
+- **`adc_diag.py`'s BIAS check is single-ended vs AINCOM**, so it is only meaningful with
+  `JMP_AGND` fitted. With the geophone connected, healthy is ~1.5 V on both legs; **both
+  legs equal but at an arbitrary/negative potential means the pair is FLOATING**, because
+  the coil ties them together. That one reading localises the fault to the DC path.
+- **The rev-1 topology is a series divider** — `V+ –100k– AIN0 – coil – AIN1 –100k– GND`,
+  shield to GND, no damping shunt fitted. It is NOT a common-node bias. Consequence:
+  **a single open 100 k floats BOTH legs**, because there is only one DC path. (I argued
+  the opposite from the rev-2 schematic during this session and was wrong — `doc/rev2-frontend.md`
+  describes the *replacement* board, not what is built.)
+- **The design's own arithmetic checks out:** 3.3 V / 200 kΩ = 16.5 µA through the coil,
+  × 375 Ω = **6.2 mV** standing differential offset. Measured at gain 1: **+6.308 mV**.
+- **`adc_diag.py` prints full-scale as ±VREF/gain; the ADS1256's FSR is ±2·VREF/gain.**
+  Its gain-64 "±39.1 mV" is half the true ±78.125 mV. Convert via raw counts, not its mV.
+- **Do not diagnose off "seems better" after reseating a connection.** A reseat that
+  changed nothing measurable read as an improvement; the ADC said otherwise.
+
+## ✅ V1 ELECTRONICS NOISE FLOOR MEASURED (2026-08-03) — and it bounds rev-2
+
+The **shorted-input floor test** that `BACKLOG.md` puts in the rev-2 critical path is
+**done**, on the bench, geophone disconnected, cable terminated at its far end. Settled,
+RDATAC, 100 sps, gain 64 — same statistic as everything else in this file (median of
+per-10 s band RMS, µV), so the columns are directly comparable.
+
+| band | 0 Ω short | 330 Ω source | garage ambient (100 sps epoch) |
+|---|---|---|---|
+| 1–15 Hz | 1.176 | **1.179** | 2.74 |
+| 3–15 Hz | 0.968 | 1.023 | 2.62 |
+| 15–28 Hz | 1.077 | 1.240 | 5.69 |
+
+- **The old "~1.17 µV electronics floor" was right after all.** It sits in the DEAD column
+  because it was measured through the demo-jumper network; the clean re-measurement lands
+  on **1.176 µV**. The figure is now re-established on valid hardware.
+- **Source impedance costs nothing in the quake band.** 1.179 vs 1.176 µV is noise. The
+  penalty is HF-weighted (+15 % at 15–28 Hz), consistent with switched-cap sampling noise,
+  and above the band of interest. **BACKLOG item 2 (input RC + charge reservoir) is worth
+  ~0 % in 1–15 Hz** — an earlier +4.6 % reading was an unsettled measurement, not physics.
+- **Electronics are ~10 % of the in-band noise.** Noise adds in quadrature: at 2.74 µV
+  ambient, site alone is √(2.74² − 1.18²) = 2.47 µV. Removing the front end *entirely*
+  buys 2.74 → 2.47. **Buffer-on and 5 V AVDD cannot beat that ceiling.**
+- Caveat: measured in the bench's EM environment, not the garage's. Re-run once in place.
+
+### 🔀 DECISION (2026-08-03): rebuild V1 ruggedly; do NOT chase rev-2's noise features
+
+The failure was **mechanical**, and the measurements say the circuit is not the problem.
+So: **same topology, same values, better mechanics** — rigid mounting instead of a rat's
+nest, shield combed/twisted/sleeved to its landing, strain relief both ends, XLR panel
+connector for a real service disconnect. This also keeps the archive comparable, because
+the epoch change becomes mechanical only rather than mechanical *and* electrical.
+
+- **Still carry over: the input anti-alias RC.** That one is *correctness*, not noise — at
+  100 sps, 60 Hz mains aliases to 40 Hz, and no digital filtering afterwards can undo it.
+- **DEFER the LC Tech ADS1256_V1.1 swap.** Its whole draw was enabling buffer-on at 5 V
+  AVDD, and that payoff is now measured as small. It is also the riskiest item on the list
+  (unmetered P1→ADC R/C network, new epoch, unfamiliar board).
+- **Shunt damping is the last step, and it is a real tradeoff, not a default.** No shunt is
+  fitted today. Size it by *measurement* (tap the element, take the log decrement of the
+  ring-down, solve for the difference to target), not from the datasheet. And note a shunt
+  damps by loading the coil, i.e. **it costs sensitivity** — with absolute calibration
+  already ~7.5× low and the project explicitly sensitivity-first, deliberate under-damping
+  is defensible. Do it last, in the garage, against a stable baseline.
+
+## 🛰️ FDSN network identity: `SS` is available WITHOUT asking (2026-08-03)
+
+`BACKLOG.md` said the only routes were "register an FDSN network code" or "be a Raspberry
+Shake". There is a third and it is the easy one: **`SS` ("Single Station") may be used by
+any operator running a single station, with no application to FDSN** — "a generic network
+code for any operator that wishes to produce data in FDSN formats, but is not otherwise
+associated with a network."
+
+- The **ISC International Registry** submission (filed ~2026-07-27, auto-acknowledged, no
+  reply as of 2026-08-03) is the *complement*, not a substitute: within `SS` the station
+  code must not collide with another `SS` station, and the registry is what prevents that.
+- A week of silence is normal; give it a month before following up, quoting the auto-reply's
+  reference number.
+- **Station codes are not globally unique in FDSN** — the unique key is
+  network·station·location·channel. Under `SS` specifically, uniqueness *within* `SS` is
+  the requirement, which is exactly what registering buys.
+- Cutover: flip `SEISMO_NETWORK` `XX` → `SS` once the registry confirms `OAKMT`. It rewrites
+  miniSEED headers, so it is a **metadata** discontinuity (not an instrument epoch), and
+  anything globbing the archive by station code needs to know about both. Do it once.
+- Refs: <https://docs.fdsn.org/projects/source-identifiers/en/v1.0/network-codes.html>,
+  <https://www.fdsn.org/networks/detail/SS/>
+
+## 🔴 (HISTORICAL — RESOLVED, see above) STATION FAULTED 2026-07-31 16:41 PDT
 
 **Recorder stopped AND `systemctl disable`d at 22:35 PDT** so it does not come back on a
 power cycle during the repair. The Pi itself is still up and reachable (`seismo.local`);
@@ -39,9 +147,13 @@ clock error ±0–14 ms, rate 99.84 sps).
   Done at 22:33 PDT and the offset came back **identical** (−2,174,268 counts, std 22,614).
   A **reboot is therefore pointless** — it adds only kernel/pigpiod state, and nothing in
   software can hold a −20 mV offset on an analog input.
-- **Cheapest first move at the rig — unplug the XLR at the case.** DC returns near
-  mid-scale → fault is in the geophone or the cable (meter ~385 Ω across pins 2–3). DC
-  stays at ≈ −2.2M → fault is board-side. That halves the search before anything is opened.
+- **⚠️ WRONG WHEN WRITTEN — there was no XLR to unplug.** This said "unplug the XLR at the
+  case", but the gen-1 case was never assembled and no connector existed in the chain: the
+  geophone was hardwired, salvaged XLR *cable* soldered at the element end and tinned into
+  the ADC screw terminals at the other. There was no disconnect point at all, which is why
+  the XLR panel connector is worth fitting — it turns this diagnosis into a 10-second
+  unplug-and-meter. (Kept as a caution: check what is physically built before writing a
+  repair step against it.)
 - **Then, Pi off:** reseat/verify the two 100 kΩ bias resistors and both signal legs in the
   ADC screw terminals and at the perfboard, then confirm DC returns to ~mid-scale before
   trusting anything.
