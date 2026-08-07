@@ -98,3 +98,21 @@ dongle_clearance = 45.0   # -X (USB) side: Wi-Fi dongle reaches ~45mm past the b
                           # edge (USB-A connectors ~15mm). Sizes the future wall's
                           # dongle slot; the plate only underlies the USB connectors.
 
+
+# --- Panel connectors for the Pi / front-end case (gen 1) ---------------------
+# Ethernet: D-type (D-series) feedthrough. Deliberately reuses the SAME bore and
+# hole pattern as the XLR above -- that pattern is already validated on a printed
+# coupon against a real Neutrik D, so the RJ45 coupler is a drop-in IF its flange
+# really is D-series. That "if" is what the coupon below checks.
+eth_bore_dia = xlr_bore_dia
+eth_flange_w = xlr_flange_w
+eth_flange_h = xlr_flange_h
+
+# Barrel jack: RuiLing 5.5 x 2.1 panel mount, 3-pin, hex nut.
+# Flange OD 14.0 and thread length 11.8 are from the listing; the THREAD OD is the
+# panel hole and is NOT published anywhere trustworthy. Rather than caliper it and
+# then discover print shrinkage moved it anyway, the coupon prints a LADDER of
+# candidate bores and the jack itself picks the winner.
+barrel_flange_dia = 14.0   # must not fall through: every ladder bore stays under this
+barrel_thread_len = 11.8   # panel + nut must fit inside this
+barrel_ladder = [9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0]
