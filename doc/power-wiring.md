@@ -17,14 +17,31 @@ Pi 5 V is on **header pins 2 and 4**, GND on **pin 6** — but the Waveshare boa
 stacked on that header, so those pins are not exposed. Pick an injection point before
 cutting wire:
 
-1. **Waveshare terminal block, if it carries 5 V and GND.** Waveshare describe the board's
-   terminal blocks as encapsulating the input/output interface, and the 5 V there is the
-   same rail as the Pi's. If a 5 V and a GND position exist, this is the tidiest injection
-   point — no soldering to the Pi at all. **Check the silkscreen and confirm continuity to
-   Pi pin 2 with a meter before trusting it.**
-2. **Solder to the underside of the Pi's header pins 2/4 and 6.** Permanent, reliable,
-   and it does not depend on what the HAT exposes.
-3. **A stacking (tall) header** between Pi and Waveshare, leaving the pin tops accessible.
+### ❌ NOT the Waveshare terminal block — this would destroy hardware
+
+Ruled out 2026-08-07. The terminal block's positions are `AD7…AD0 AGND VCC GND DAC1 DAC0`,
+and that **`VCC` is the ANALOG supply selected by the right-block-top jumper, which on this
+board is on `3V3`** (STATUS "Board jumper cheat-sheet"). Two independent confirmations it is
+really 3.3 V: the shunt is physically observed in the `VCC→3V3` position, and the front
+end's own arithmetic depends on it — 3.3 V / 200 kΩ = 16.5 µA through the coil, which is
+the ~6 mV standing offset measured repeatedly.
+
+**Putting 5 V there back-feeds 5 V onto the Pi's 3.3 V rail** and takes out the ADS1256,
+the Pi's 3.3 V regulator, and anything else on that rail.
+
+Moving the jumper to `5V` does not rescue it: STATUS records this board's **5 V path as a
+real fault** — it hard-locked the Pi even on a 2.5 A supply, and on 2026-07-23 produced a
+−32 %-of-full-scale DC offset with ~1500× normal RMS, suspected to be a cap shorting
+5 V↔3V3. That is precisely the fault that would make this injection lethal.
+
+That terminal is a low-current **output** for powering sensor modules. It is not a power
+inlet, and even at the right voltage its trace is not sized to carry the Pi's ~0.8 A.
+
+### ✅ Use the header
+
+1. **Solder to the underside of the Pi's header pins 2 or 4 (5 V) and 6 (GND).** Permanent,
+   reliable, and independent of what the HAT exposes. This is the default.
+2. **A stacking (tall) header** between Pi and Waveshare, leaving the pin tops accessible.
    Cleanest electrically, but it raises the stack — re-measure `stack_h` (currently 30 mm)
    if you do this, because the case cavity is derived from it.
 
