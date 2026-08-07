@@ -156,3 +156,18 @@ barrel_bore_provisional = True
 # terminate his own. Cat6 minimum bend radius is ~4x OD, so 152 mm is about ONE
 # loop -- the case has to swallow slack, not route it tightly.
 patch_len = 152.0
+
+# --- Removable barrel-jack plate -------------------------------------------
+# The XLR and Ethernet cutouts are D-series and already VALIDATED on a printed
+# coupon, so they are cut straight into the case wall. The barrel bore is NOT
+# validated, so it does not get to put a 300 g print at risk: it lives on a small
+# screw-on plate. Wrong bore -> reprint ~6 g, not the case.
+bplate_w = 48.0           # plate footprint. Driven by the screw circle, not chosen:
+bplate_h = 48.0           # the holes must clear the opening AND stay inside the edge.
+bplate_th = 3.0
+bplate_open = 34.0        # square opening in the case wall
+bplate_screw_off = 19.5   # M3 clearance holes, all four corners. Must exceed
+                          # bplate_open/2 + screw_dia/2 = 18.7, or the screws land in
+                          # the middle of the opening with nothing to bite (the plate's
+                          # own assert caught exactly that at 17.5).
+bplate_screw_dia = 3.4

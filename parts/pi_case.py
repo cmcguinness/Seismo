@@ -48,20 +48,37 @@ edge_cham = 0.6         # kills elephant-foot on the bottom face
 bed_max = 180.0         # printer bed; asserted against below
 
 # --- clearances that size the cavity ---
-side_margin = 6.0       # board edge -> inner wall
-band_gap = 8.0          # between bays, for wiring
-panel_band = 32.0       # +Y clear zone: connector intrusion + patch-cable slack
-lid_headroom = 12.0     # above the tallest thing (the Pi stack) for cables
+# GENEROUS ON PURPOSE. An earlier revision derived the shell tightly from the bay
+# table with 6 mm margins, which meant every guessed dimension had to be right or the
+# print was scrap. Several of these numbers ARE guesses (the isolator especially).
+# The A1 Mini is 180 x 180 x 180 and this box is nowhere near the volume limit, so
+# slack is nearly free -- spend it.
+side_margin = 15.0      # board edge -> inner wall (was 6)
+band_gap = 20.0         # between ROWS (Pi row -> component row), for wiring (was 8)
+row_gap_x = 14.0        # between the two bays WITHIN the component row. Smaller than
+                        # band_gap on purpose: this pair is what sets the case width,
+                        # and at 20 the case came out 176 mm on a 180 mm bed -- no room
+                        # for a brim or skirt, which is its own kind of brittle.
+row_slack = 15.0        # added to the deepest bay in the component row, so an
+                        # isolator larger than the placeholder still lands on floor
+lid_headroom = 14.0     # above the connector envelope, for coiled patch cable
 
 # --- component heights ---
 iface_standoff_h = 6.0
 iface_stack_h = 20.0    # board + screw terminals, generous
 
 # --- derived cavity ---
-_row_back = max(iface_wid, iso_wid)                 # iface + isolator sit side by side
-cav_x = max(pi_len, iface_len + band_gap + iso_len) + 2 * side_margin
-cav_y = pi_wid + band_gap + _row_back + band_gap + panel_band + 2 * side_margin
-cav_h = pi_standoff_h + stack_h + lid_headroom
+# Connectors sit ABOVE the component row rather than behind it. That is what kills
+# the old 32 mm `panel_band` of reserved floor: the XLR's 32 mm body intrudes at its
+# own height, passing over the boards, so it costs Z (of which there is 180 mm going
+# spare) instead of Y (which was fighting the bed). The upper cavity that buys is
+# also exactly where the coiled patch cable wants to live.
+_row_back = max(iface_wid, iso_wid) + row_slack      # iface + isolator side by side
+cav_x = max(pi_len, iface_len + row_gap_x + iso_len) + 2 * side_margin
+cav_y = pi_wid + band_gap + _row_back + 2 * side_margin
+_tall_in_row = iface_standoff_h + max(iface_stack_h, iso_h)   # tallest thing under a jack
+_conn_bot = _tall_in_row + 8.0                       # jack envelope clears it by 8 mm
+cav_h = _conn_bot + max(xlr_bore_dia, barrel_flange_dia) + lid_headroom
 
 case_x = cav_x + 2 * wall
 case_y = cav_y + 2 * wall
@@ -71,8 +88,8 @@ top_z = floor_th + cav_h
 _y0 = -cav_y / 2 + side_margin                      # inner face of the -Y wall
 pi_cy = _y0 + pi_wid / 2
 _row_cy = _y0 + pi_wid + band_gap + _row_back / 2
-iface_cx = -(iface_len + band_gap + iso_len) / 2 + iface_len / 2
-iso_cx = (iface_len + band_gap + iso_len) / 2 - iso_len / 2
+iface_cx = -(iface_len + row_gap_x + iso_len) / 2 + iface_len / 2
+iso_cx = (iface_len + row_gap_x + iso_len) / 2 - iso_len / 2
 pi_cx = 0.0
 
 # --- Pi mount points (chassis.py geometry, translated to pi_cx/pi_cy) ---
@@ -113,10 +130,11 @@ foot_pts = [(0, cav_y / 2 - 14.0),
             (cav_x / 2 - 14.0, -cav_y / 2 + 14.0)]
 
 # --- panel connectors, all on the +Y wall ---
-panel_z = floor_th + 26.0     # bore centreline: above the boards, below the ceiling
-xlr_cx = -40.0         # pad half-width is 19, flat wall ends at 61 -> max |cx| is 42
-eth_cx = 6.0           # shifted +6 to open an 8 mm valley between the XLR and ETH pads
-barrel_cx = 42.0        # NOT 52: at 52 the Ø14 flange and its hex nut ran into the
+panel_z = floor_th + _conn_bot + xlr_bore_dia / 2   # bore centreline, set so the
+                        # whole jack envelope clears the tallest thing in the row
+xlr_cx = -42.0         # pad half-width is 19; flat wall ends at 73
+eth_cx = 0.0           # 42 mm from the XLR pad centre = 4 mm valley between pads
+barrel_cx = 46.0        # NOT 52: at 52 the Ø14 flange and its hex nut ran into the
                         # 12 mm corner radius with ~2 mm to spare. The wall is only
                         # FLAT between +-(cav_x/2 - inner corner r); see the assert.
 
@@ -214,19 +232,34 @@ with BuildPart() as pi_case:
                 add(_thru(xlr_screw_dia, (_cx + _sx * _dx, 0, panel_z + _sz * _dz), "+Y",
                           length=case_y), mode=Mode.SUBTRACT)
 
-    # barrel jack: plain bore, hex nut lands on the flat inner face
-    add(_thru(barrel_bore_dia, (barrel_cx, 0, panel_z), "+Y", length=case_y),
-        mode=Mode.SUBTRACT)
+    # Barrel jack: a square OPENING for a removable plate, not a bore. The bore
+    # diameter is the one unvalidated number on this wall, and a 300 g print must
+    # not depend on a guess -- parts/barrel_plate.py carries it instead.
+    with BuildSketch(Plane.XZ.offset(-_wy)):
+        with Locations((barrel_cx, panel_z)):
+            Rectangle(bplate_open, bplate_open)
+    extrude(amount=-wall * 3, mode=Mode.SUBTRACT, both=True)
+    for _sx in (1, -1):
+        for _sz in (1, -1):
+            add(_thru(bplate_screw_dia,
+                      (barrel_cx + _sx * bplate_screw_off, 0,
+                       panel_z + _sz * bplate_screw_off), "+Y", length=case_y),
+                mode=Mode.SUBTRACT)
 
     chamfer(pi_case.faces().sort_by(Axis.Z)[0].outer_wire().edges(), edge_cham)
 
 
 # --- checks that must hold before this is worth printing ---
-assert case_x <= bed_max and case_y <= bed_max, \
-    f"case is {case_x:.0f} x {case_y:.0f} mm, over the {bed_max:.0f} mm bed"
+# Leave room for a brim/skirt -- "fits the bed" and "prints on the bed" differ.
+_brim = 5.0
+assert case_x + 2 * _brim <= bed_max and case_y + 2 * _brim <= bed_max, (
+    f"case is {case_x:.0f} x {case_y:.0f} mm; with {_brim:.0f} mm of brim that "
+    f"needs {case_x + 2*_brim:.0f} x {case_y + 2*_brim:.0f} on a {bed_max:.0f} mm bed")
+assert top_z <= bed_max, f"case is {top_z:.0f} mm tall, over the {bed_max:.0f} mm Z"
 assert cav_h >= pi_standoff_h + stack_h, "cavity is shorter than the Pi + Waveshare stack"
-assert panel_band >= xlr_body_depth, \
-    f"panel band {panel_band} mm is shallower than the XLR's {xlr_body_depth} mm intrusion"
+# Connectors now clear the boards in Z, so that is the check that matters.
+assert panel_z - xlr_bore_dia / 2 > floor_th + _tall_in_row, \
+    "a connector bore would land on the interface board or the isolator"
 # every connector pad must sit inside the wall, and pads must not overlap
 _pads = sorted([xlr_cx, eth_cx])
 assert _pads[1] - _pads[0] > xlr_pad_w, "XLR and Ethernet pads overlap"
@@ -234,23 +267,22 @@ assert _pads[1] - _pads[0] > xlr_pad_w, "XLR and Ethernet pads overlap"
 # that clears cav_x/2 can still land in the curve, where the flange cannot seat and
 # the hex nut has nothing square to pull against. Check the flange, not the bore.
 _flat_half = cav_x / 2 - max(corner_r - wall, 0.5)
-assert abs(barrel_cx) + barrel_flange_dia / 2 + 2.0 < _flat_half, (
-    f"barrel flange reaches x={abs(barrel_cx) + barrel_flange_dia/2:.1f}, "
+assert abs(barrel_cx) + bplate_w / 2 < _flat_half, (
+    f"barrel plate reaches x={abs(barrel_cx) + bplate_w/2:.1f}, "
     f"past the flat wall at {_flat_half:.1f}")
 for _n, _c in (("XLR", xlr_cx), ("ETH", eth_cx)):
     assert abs(_c) + xlr_pad_w / 2 < _flat_half, f"{_n} pad runs into the corner radius"
-assert barrel_cx - barrel_bore_dia / 2 > max(_pads) + xlr_pad_w / 2, \
-    "barrel bore collides with the Ethernet pad"
+assert barrel_cx - bplate_w / 2 > max(_pads) + xlr_pad_w / 2, \
+    "barrel plate collides with the Ethernet pad"
 # Connectors clear the boards by SEPARATION IN Y, not in Z -- the bore bottom
 # (z=20) is in fact below the interface board top (z=32), which is fine only
 # because the component row ends 14 mm short of where the connector band starts.
 # That is the load-bearing check, so assert it directly.
-assert _row_cy + _row_back / 2 < cav_y / 2 - panel_band, \
-    "component row reaches into the connector band -- a jack would land on a board"
+assert _row_cy + _row_back / 2 <= cav_y / 2 + 0.001, "component row overruns the cavity"
 assert panel_z + xlr_bore_dia / 2 < top_z, "connector bore breaks through the cavity ceiling"
 assert panel_z - xlr_bore_dia / 2 > floor_th, "connector bore cuts into the floor"
 # the Pi must not reach into the connector band
-assert pi_cy + pi_wid / 2 < cav_y / 2 - panel_band, "Pi intrudes into the connector band"
+assert xlr_body_depth < cav_y - side_margin, "XLR body is deeper than the cavity"
 # bays must not overlap each other
 assert iface_cx + iface_len / 2 < iso_cx - iso_len / 2, "iface board and isolator overlap"
 assert _row_cy - _row_back / 2 > pi_cy + pi_wid / 2, "component row overlaps the Pi"
