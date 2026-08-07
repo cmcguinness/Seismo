@@ -94,9 +94,12 @@ pi_hole_dia = 2.75        # Pi mounting hole (M2.5 clearance)
 pi_standoff_h = 6.0       # lift board off base; clears bottom SMD + the nuts
                           # protruding under the Pi<->HAT standoff holes (~2-4mm)
 pi_board_th = 1.6         # Pi PCB thickness (~1.4mm) + a hair; sets cotter-hole height
-dongle_clearance = 45.0   # -X (USB) side: Wi-Fi dongle reaches ~45mm past the board
-                          # edge (USB-A connectors ~15mm). Sizes the future wall's
-                          # dongle slot; the plate only underlies the USB connectors.
+dongle_clearance = 0.0    # WAS 45.0. The Wi-Fi dongle is REMOVED (confirmed 2026-08-07)
+                          # -- the station runs on the Ethernet bridge since 2026-07-20
+                          # (WiFi TX was corrupting ADC reads). Dropping it takes 45 mm
+                          # off the case's longest dimension, which was the single
+                          # biggest driver of the envelope. If Wi-Fi ever comes back,
+                          # this is the number to restore.
 
 
 # --- Panel connectors for the Pi / front-end case (gen 1) ---------------------
@@ -116,3 +119,40 @@ eth_flange_h = xlr_flange_h
 barrel_flange_dia = 14.0   # must not fall through: every ladder bore stays under this
 barrel_thread_len = 11.8   # panel + nut must fit inside this
 barrel_ladder = [9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0]
+
+# --- Waveshare AD/DA stacked on the Pi (measured by Charles, 2026-08-07) ---
+stack_h = 30.0            # Pi PCB bottom -> tallest thing on the Waveshare.
+stack_overhang = 0.0      # the Waveshare does NOT overhang the Pi in either axis,
+                          # so the stack's footprint is just the Pi's 85 x 56.
+
+# --- Interface board (front end), measured by Charles 2026-08-07 ---
+iface_len = 50.0          # long axis
+iface_wid = 35.0          # short axis
+iface_hole_dx = 40.0      # two holes, 5.0 mm in from each END of the 50 mm axis
+iface_hole_dy = 0.0       # centred on the 35 mm axis -> both holes on the midline
+iface_hole_inset = 5.0    # hole centre to board edge, along the long axis
+# Hole diameter was reported as "4 or 5 mm, could not easily measure". Do NOT design
+# to that number: use M3 screws, which pass either size, with a washer under the head
+# so a 5 mm hole is still properly captured. The case-side boss carries an M3 pilot.
+iface_screw = 3.0
+iface_washer_od = 9.0     # covers a 5 mm hole with margin
+
+# --- Galvanic Ethernet isolator (inline, RJ45 both ends) ---------------------
+# ⚠️ NOT MEASURED. Charles confirmed 2026-08-07 it is an inline module needing a
+# patch cable on BOTH sides, but it is currently out of circuit and undimensioned.
+# These are a PLACEHOLDER. The case derives its size from the bay table, so
+# correcting these three numbers rescales the case -- it does not force a redesign.
+# Confirm before printing the case (the coupon does not depend on them).
+iso_len = 70.0
+iso_wid = 40.0
+iso_h = 25.0
+
+# Barrel-jack panel bore. PROVISIONAL until panel_coupon.py says which ladder rung
+# the real jack passes. Do not print the case on this guess.
+barrel_bore_dia = 12.0
+barrel_bore_provisional = True
+
+# Ethernet patch cable: shortest Charles has is ~6 in (152 mm) and he does not
+# terminate his own. Cat6 minimum bend radius is ~4x OD, so 152 mm is about ONE
+# loop -- the case has to swallow slack, not route it tightly.
+patch_len = 152.0
