@@ -1,6 +1,71 @@
 # STATUS — Seismo
 
-_Last updated: 2026-08-03 (UTC)_
+_Last updated: 2026-08-07 (UTC)_
+
+## ✅ REBUILT FRONT END CHECKS OUT ON THE BENCH (2026-08-07)
+
+Interface board rewired (same circuit), geophone in its printed case, XLR panel connector
+and cable in the chain for the first time. Read from the ADC side, on the bench, ~3 min
+after power-up (i.e. **not settled** — see [[settling-time-after-handling]]):
+
+| check | known-good 2026-08-03 | now | Δ |
+|---|---|---|---|
+| AIN0 / AIN1 single-ended, **gain 1** | 1.528 / 1.524 V | 1.516 / 1.513 V | −0.8 % |
+| DC counts @ gain 64 | 336,304 | 330,110 | −1.8 % |
+| DIFF @ gain 64 | 3.026 mV | 3.074 mV | +1.6 % |
+
+The standing differential offset is bias current through the coil, so its presence proves
+the DC path is continuous **through both new connector pairs** with no added series
+resistance worth measuring. Landing within 2 % of the pre-rebuild operating point is the
+confirmation.
+
+**Noise** (gain 64, median of per-10 s band RMS — comparable to every other table here).
+Three captures: two unsettled 120 s runs bracketing a `JMP_AGND` remove/replace, then a
+300 s run after **35 min undisturbed**.
+
+| band (µV) | on, unsettled | off, unsettled | **ON, SETTLED** | garage ambient | V1 elec floor |
+|---|---|---|---|---|---|
+| DC counts @ g64 | 330,110 | 330,741 | **330,808** | — | — |
+| 0.02–0.12 Hz | 0.88 | 4.30 | **0.54** | 0.80–0.90 | — |
+| 1–5 Hz | 2.02 | 2.21 | **1.64** | — | — |
+| 1–15 Hz | 15.97 | 18.02 | **11.07** | 2.74 | 1.18 |
+| 10–15 Hz | 17.33 | 18.67 | **11.07** | — | — |
+| 15–28 Hz | 35.31 | 39.26 | **10.12** | 5.69 | 1.08 |
+| 19–21 Hz | 7.99 | 9.09 | **3.08** | — | — |
+
+- **Settling is worth 3.5× at 15–28 Hz and 8× sub-Hz.** Reconfirms
+  [[settling-time-after-handling]] — do not read a noise number within 35 min of a touch.
+- **The residual 1–15 Hz excess is still all the 10–15 Hz hump**; 1–5 Hz is 1.64 µV, *below*
+  the garage number. Benchtop mechanical noise, not electronics. Re-measure on the slab.
+- Figure: `analysis/bench_rebuild_2026-08-07.png` (settled trace + both spectra).
+
+### `JMP_AGND` on vs off: no effect on the signal path (2026-08-07)
+
+Pulled and replaced while measuring. **DC operating point identical across all three runs
+(0.2 % spread)** — expected, since AINCOM is only a mux input node and the common mode is
+set by the 100 k pull-up / 100 k pull-down against the board rails. The ~10 % apparent rise
+with the jumper out was settling, not grounding: it lifted *every* band uniformly including
+the 19–21 and 40–42 Hz mechanical lines, and the settled run came in far below both.
+
+**Keep the jumper fitted.** It buys nothing measurable to remove, and without it the
+single-ended BIAS check — the one 10-second reading that localizes a lost DC path — reads
+both legs at an arbitrary −0.38 V and is useless. Refitted, they read 1.515 / 1.514 V.
+
+**The 19.95 / 41 Hz line pair is still present on the bench** (7.99 µV at 19–21, 9.71 µV at
+40–42) — different room, rebuilt board, new cable. Combined with the negative coupling test,
+that points at the **instrument**, not any structure.
+
+### ⚠️ adc_diag's BIAS check RAILS at any gain above 1 — and reads as a real voltage
+
+At gain 64 the single-ended FSR is ±78.125 mV, so the ~1.5 V bias legs peg and print as
+"+0.078 V" — which looks exactly like the floating-pair signature this project has already
+chased once. **Always run the BIAS check with `SEISMO_GAIN=1`.** `adc_diag.py` now prints
+the correct FSR (it previously mislabelled it ±VREF/gain) and appends `<-- RAILED` when a
+leg is within 1 % of full scale.
+
+**Open, pre-existing:** gain 1 and gain 64 disagree by ~2× on the differential offset
+(7.78 vs 3.07 mV today; 6.31 vs 3.03 mV on 08-03). Predates the rebuild — a scaling bug in
+the gain-1 path, not a hardware change. Trust gain 64; it is what the recorder runs.
 
 ## ✅ FAULT FIXED 2026-08-03 — it was a STRAY SHIELD STRAND, not a bias resistor
 
@@ -146,17 +211,93 @@ any operator running a single station, with no application to FDSN** — "a gene
 code for any operator that wishes to produce data in FDSN formats, but is not otherwise
 associated with a network."
 
-- The **ISC International Registry** submission (filed ~2026-07-27, auto-acknowledged, no
-  reply as of 2026-08-03) is the *complement*, not a substitute: within `SS` the station
-  code must not collide with another `SS` station, and the registry is what prevents that.
-- A week of silence is normal; give it a month before following up, quoting the auto-reply's
-  reference number.
+- ✅ **ISC replied 2026-08-07 (James) and the registration is proceeding under IR** —
+  Charles confirmed "yes, register under IR" the same day. The ISC explicitly stated it is
+  **happy to use stations with FDSN network codes in its operations, and there is no reason
+  not to have it in both**. So IR and `SS` are *complementary*, exactly as assumed: IR is the
+  ISC's own registry (it reserves the station code against collision), `SS` is the FDSN
+  network code used in miniSEED headers. Registering under IR is what makes `SS.<code>` safe
+  to publish.
+- Submission was filed ~2026-07-27 and auto-acknowledged; the human reply took 11 days.
+- 🔤 **The registered code is `OAKM1`, NOT `OAKMT`** (Charles, 2026-08-07) — chosen so a
+  future second station can be `OAKM2`. The cutover is therefore **two fields, not one**:
+  `XX.OAKMT` → `SS.OAKM1`. The station code is embedded in every **day-file name**, so this
+  is a bigger change than the network flip alone.
+- **Still outstanding:** James's confirmation that `OAKM1` is actually registered. The
+  cutover waits on that email, not on the 08-07 reply.
 - **Station codes are not globally unique in FDSN** — the unique key is
   network·station·location·channel. Under `SS` specifically, uniqueness *within* `SS` is
   the requirement, which is exactly what registering buys.
 - Cutover: flip `SEISMO_NETWORK` `XX` → `SS` once the registry confirms `OAKMT`. It rewrites
   miniSEED headers, so it is a **metadata** discontinuity (not an instrument epoch), and
   anything globbing the archive by station code needs to know about both. Do it once.
+- ⏳ **Do the flip while the rig is still off the slab.** The rebuilt front end already makes
+  2026-08-07 an instrument epoch break, and the archive is currently taking throwaway bench
+  data. Flipping `XX` → `SS` now folds the metadata discontinuity into a break that exists
+  anyway, so the production slab epoch starts clean as `SS.OAKM1` with one boundary instead
+  of two. Blocked only on the registration-confirmed email.
+
+#### Cutover checklist — audited 2026-08-07
+
+**Already parameterized** (just set the env): `station/recorder.py`, `server/store.py`,
+`dashboard/seismo_dashboard.py`, `dashboard/heli_render.py` — all read `SEISMO_STATION`
+(default `OAKMT`).
+
+**Hardcoded, will break:**
+- `server/detector.py:41` — `NET, STA, LOC, CHAN = "XX", "OAKMT", "00", "SHZ"`; the pi5
+  detector will not see the renamed files at all.
+- `station/seismo-recorder.service:16` — `Environment=SEISMO_STATION=OAKMT` (+ network).
+- `station/motd-50-seismo.sh` — cosmetic.
+
+**⚠️ Silent failures — FIXED 2026-08-07.** `analysis/ppsd.py` globbed `XX.OAKMT*.mseed`
+and `analysis/coupling_test.py` / `analysis/break_1641.py` built
+`XX.OAKMT.00.SHZ.D.{julian}.mseed` by hand. These would not have errored after the flip —
+they would quietly stop matching new files, so a mixed-epoch analysis would run on
+pre-cutover data only and look healthy. Same class as the `max(st, key=npts)` trap.
+
+### ✅ CUTOVER PREP DONE (2026-08-07) — the flip is now config-only
+
+All code is SEED-id agnostic. **No source change is required at cutover**; it is env vars
+plus a restart.
+
+- **`analysis/helicorder.py` gained `day_path(julian)`** — resolves a day-file by globbing
+  `*.D.{julian}.mseed`, i.e. on the date (stable) rather than the SEED prefix (changes).
+  Refuses to guess when a day has two SEED ids, which is the cutover day itself.
+  `coupling_test.py` and `break_1641.py` now use it.
+- **`analysis/ppsd.py`** globs `*.D.*.mseed`; its state/PNG names follow `SEISMO_STATION`.
+- **`server/detector.py`** no longer hardcodes `NET, STA, LOC, CHAN` — reads the same four
+  env vars as `recorder.py` / `store.py`. **Deployed to pi5 and restarted**; behavior is
+  identical today because the defaults are still `XX`/`OAKMT`.
+- **`analysis/detection_map.py`** figure labels follow `SEISMO_STATION` so the map stops
+  saying OAKMT after the flip.
+- **No change needed in `server/udp_collector.py`** — it derives day-file names from the
+  *record headers* (`_dayfile()`), so it follows the station automatically.
+
+#### 🔎 Found while testing: a shadowed `AM.OAKMT` day-file
+
+`day_path("2026.201")` immediately errored on **two** files for that day:
+`AM.OAKMT.00.SHZ.D.2026.201.mseed` (11.9 MB) alongside `XX.OAKMT...201.mseed` (8.1 MB).
+There was an earlier `AM` → `XX` rename (AM is Raspberry Shake's registered code — see the
+warning in `recorder.py`), and **every analysis that hardcoded the `XX.` prefix has been
+silently ignoring 11.9 MB of day-201 data ever since.** The exact failure mode predicted
+above, already realised once. Only day 201 is affected. Not yet characterised — whether the
+two files overlap or are complementary halves of the day is **open** (blocked on the obspy
+issue below).
+
+#### Cutover runbook — run when James confirms `OAKM1` is registered
+
+1. **Station** (`seismo.local`), `/etc/systemd/system/seismo-recorder.service`:
+   `SEISMO_NETWORK=XX` → `SS`, `SEISMO_STATION=OAKMT` → `OAKM1`.
+   `sudo systemctl daemon-reload && sudo systemctl restart seismo-recorder`
+2. **pi5** — add `Environment=SEISMO_NETWORK=SS` + `SEISMO_STATION=OAKM1` to *both*
+   `seismo-detector.service` and `seismo-server.service`; `daemon-reload` + restart each.
+   The collector needs nothing.
+3. **Dashboard** (dokku on pi5): `dokku config:set seismo SEISMO_NETWORK=SS SEISMO_STATION=OAKM1`
+   (it currently sets neither, so both fall through to the `OAKMT` defaults).
+4. **Verify:** a new `SS.OAKM1.00.SHZ.D.2026.<jjj>.mseed` appears in `~/seismo-archive/`,
+   `/v1/health` still fresh, detector still writing events.
+5. **Do NOT rename historical files.** The archive legitimately spans `AM` → `XX` → `SS`;
+   `day_path()` handles that, and rewriting history would falsify the record.
 - Refs: <https://docs.fdsn.org/projects/source-identifiers/en/v1.0/network-codes.html>,
   <https://www.fdsn.org/networks/detail/SS/>
 

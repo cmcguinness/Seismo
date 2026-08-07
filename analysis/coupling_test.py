@@ -24,7 +24,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from helicorder import LOCAL_DATA, load_day, pull
+from helicorder import day_path, load_day, pull
 from spectrum import UV_PER_COUNT
 
 OUT = Path(__file__).resolve().parent / "coupling_test.png"
@@ -60,7 +60,7 @@ def asd_of(julian: str, t0: str, t1: str, nperseg: int):
     interpolation -- 3 samples in 1000, far too little to bias a PSD below
     50 Hz -- and analyse the whole window.
     """
-    st = load_day(LOCAL_DATA / f"XX.OAKMT.00.SHZ.D.{julian}.mseed")
+    st = load_day(day_path(julian))
     st = st.slice(obspy.UTCDateTime(t0), obspy.UTCDateTime(t1))
     if not len(st):
         return None

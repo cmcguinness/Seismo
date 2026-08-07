@@ -44,6 +44,7 @@ import argparse
 import csv
 import json
 import math
+import os
 from pathlib import Path
 
 import numpy as np
@@ -54,6 +55,10 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon as MplPolygon
 
 from harvest_events import STA_LAT, STA_LON, ml_atten, predict_uv, REF_MAG, REF_DIST_KM
+
+# Figure labels follow the station code so the map does not keep saying OAKMT
+# after the XX.OAKMT -> SS.OAKM1 cutover.
+STATION = os.environ.get("SEISMO_STATION", "OAKMT")
 
 GEO = Path(__file__).parent / "geo"
 CSV = Path(__file__).parent / "event_harvest.csv"
@@ -317,11 +322,11 @@ def main():
                   f"(dashed = validated to {cal['reach']:.0f} km; green = the "
                   f"{cal['n_conf']} confirmed events)",
                   fontsize=8.6, fontweight="bold", pad=5)
-    axi.annotate("OAKMT", (STA_LON, STA_LAT), textcoords="offset points",
+    axi.annotate(STATION, (STA_LON, STA_LAT), textcoords="offset points",
                  xytext=(11, -21), ha="left", fontsize=9, fontweight="bold", zorder=13,
                  bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="#222", lw=1.1))
 
-    fig.suptitle("How far can OAKMT hear?\nDetection range by magnitude — "
+    fig.suptitle(f"How far can {STATION} hear?\nDetection range by magnitude — "
                  "LGT-4.5 geophone / ADS1256, Oakmont, Santa Rosa",
                  fontsize=15, fontweight="bold", y=0.975)
 

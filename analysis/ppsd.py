@@ -159,11 +159,15 @@ def main():
         print(f"rsync {REMOTE} -> {args.data}")
         subprocess.run(["rsync", "-az", REMOTE, args.data + "/"], check=True)
 
-    files = sorted(glob.glob(os.path.join(args.data, "XX.OAKMT*.mseed")))
+    # Glob on the day-file suffix, NOT the SEED-id prefix: the prefix changes at
+    # the XX.OAKMT -> SS.OAKM1 cutover and a stale literal would silently match
+    # nothing new while still producing a plausible-looking PPSD from old data.
+    files = sorted(glob.glob(os.path.join(args.data, "*.D.*.mseed")))
     if not files:
-        sys.exit(f"no XX.OAKMT day-files in {args.data} (use --rsync)")
+        sys.exit(f"no day-files in {args.data} (use --rsync)")
 
-    state = os.path.join(args.out, f"ppsd_OAKMT_{args.epoch}.npz")
+    station = os.environ.get("SEISMO_STATION", "OAKMT")
+    state = os.path.join(args.out, f"ppsd_{station}_{args.epoch}.npz")
     seen_path = os.path.join(args.out, f"ppsd_seen_{args.epoch}.txt")
     seen = set()
     if os.path.exists(seen_path) and not args.reset:
@@ -207,7 +211,7 @@ def main():
     with open(seen_path, "w") as f:
         f.write("\n".join(sorted(seen)) + "\n")
 
-    png = os.path.join(args.out, "ppsd_OAKMT.png")
+    png = os.path.join(args.out, f"ppsd_{station}.png")
     # period_lim in SECONDS: 0.02-20 s = 0.05-50 Hz, which brackets the geophone's
     # useful band. show_noise_models draws Peterson's NLNM/NHNM for reference -- a
     # 4.5 Hz element sits far above the NLNM at long period by construction, so

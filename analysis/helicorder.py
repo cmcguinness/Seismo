@@ -47,6 +47,26 @@ def pick_file(date: str | None) -> Path:
     return matches[-1]
 
 
+def day_path(julian: str, data_dir: Path | None = None) -> Path:
+    """Resolve the day-file for `julian` (e.g. "2026.212") WITHOUT hardcoding the
+    SEED id.
+
+    The network/station prefix changes at the XX.OAKMT -> SS.OAKM1 cutover, so
+    matching a literal prefix would silently stop finding new files -- no error,
+    just an empty result that reads as "nothing happened that day". Glob on the
+    date instead, which is stable across every epoch.
+    """
+    d = data_dir or LOCAL_DATA
+    matches = sorted(d.glob(f"*.D.{julian}.mseed"))
+    if not matches:
+        sys.exit(f"no day-file for {julian} in {d} (pull it first?)")
+    if len(matches) > 1:
+        # Two SEED ids on one day = the cutover day itself. Refuse to guess.
+        names = ", ".join(p.name for p in matches)
+        sys.exit(f"{julian} has multiple day-files ({names}); pass one explicitly")
+    return matches[0]
+
+
 def load_day(path):
     """Read a day-file into a gap-split Stream, normalizing mixed sample rates.
 

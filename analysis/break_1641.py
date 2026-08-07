@@ -18,7 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 warnings.filterwarnings("ignore")
-from helicorder import LOCAL_DATA, load_day          # noqa: E402
+from helicorder import day_path, load_day  # noqa: E402
 from spectrum import UV_PER_COUNT                    # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "break_1641.png"
@@ -26,7 +26,7 @@ FULL_SCALE = 2 ** 23
 
 
 def window(julian, t0, t1):
-    st = load_day(LOCAL_DATA / f"XX.OAKMT.00.SHZ.D.{julian}.mseed")
+    st = load_day(day_path(julian))
     st = st.slice(obspy.UTCDateTime(t0), obspy.UTCDateTime(t1))
     st.merge(method=1, fill_value="interpolate")
     tr = max(st, key=lambda t: t.stats.npts)
