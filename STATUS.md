@@ -273,16 +273,43 @@ plus a restart.
 - **No change needed in `server/udp_collector.py`** — it derives day-file names from the
   *record headers* (`_dayfile()`), so it follows the station automatically.
 
-#### 🔎 Found while testing: a shadowed `AM.OAKMT` day-file
+#### 🔎 Found while testing: a shadowed `AM.OAKMT` day-file — and it is REAL DATA
 
-`day_path("2026.201")` immediately errored on **two** files for that day:
-`AM.OAKMT.00.SHZ.D.2026.201.mseed` (11.9 MB) alongside `XX.OAKMT...201.mseed` (8.1 MB).
-There was an earlier `AM` → `XX` rename (AM is Raspberry Shake's registered code — see the
-warning in `recorder.py`), and **every analysis that hardcoded the `XX.` prefix has been
-silently ignoring 11.9 MB of day-201 data ever since.** The exact failure mode predicted
-above, already realised once. Only day 201 is affected. Not yet characterised — whether the
-two files overlap or are complementary halves of the day is **open** (blocked on the obspy
-issue below).
+`day_path("2026.201")` immediately errored on **two** files for that day. Characterised
+2026-08-07: they are **complementary halves of 2026-07-20, not duplicates.**
+
+| file | covers (UTC) | span | samples | sps |
+|---|---|---|---|---|
+| `AM.OAKMT...201` | 05:31:18 → 16:24:43 | 10.9 h | 2,197,176 | 55 + 57 |
+| `XX.OAKMT...201` | 16:24:48 → 24:00:00 | 7.6 h | 1,510,763 | 57 |
+
+The 5.4 s seam is the recorder restart at the `AM` → `XX` rename (AM is Raspberry Shake's
+registered code — see the warning in `recorder.py`). So the AM file is the **first 10.9 h
+of day 201, 59 % of that day's samples**, and every prefix-hardcoding analysis has silently
+dropped it. The exact failure mode this cutover prep guards against, already realised once.
+
+**Impact is bounded:** day 201 is the 55/57 sps epoch (100 sps did not start until day
+206), so current-epoch work was never affected. What was short-changed is early-archive
+noise/PPSD work, which lost more than half of that day.
+
+**Also found: 2 KB of corruption in the XX day-201 file** — 16 consecutive 128-byte
+non-SEED records at bytes 2,902,016–2,904,063. obspy skips them with a warning, so ~16
+records are lost from that day; not a correctness threat, but it only shows up on a real
+read.
+
+#### 🐍 obspy import failure — cause found, and the manifest was the real bug
+
+`import obspy` failed while `obspy/` sat on `sys.path`: the install was **half-present**
+(dist-info there, package directory gone). `uv pip install --reinstall obspy` fixed it.
+Root cause is that **`pyproject.toml` declared no dependencies at all**, so the whole
+analysis stack was an undeclared local install free to drift. `numpy` / `scipy` / `obspy` /
+`matplotlib` are now declared.
+
+⚠️ **Do NOT run `uv sync` in this repo.** The build123d / ocp-vscode CAD stack shares this
+`.venv` and is deliberately undeclared (dev tooling, per `CLAUDE.md`); `uv sync` prunes
+anything undeclared and would delete it. `[tool.uv] package = false` is set so nothing
+tries to build the repo as a package. Install with
+`uv pip install --python .venv/bin/python <pkg>`.
 
 #### Cutover runbook — run when James confirms `OAKM1` is registered
 

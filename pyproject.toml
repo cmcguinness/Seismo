@@ -2,4 +2,23 @@
 name = "seismo"
 version = "0.1.0"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    # Analysis stack (this repo's dev machine; the Pi station has its own venv).
+    # Declared because an undeclared local install silently half-vanished once and
+    # cost a debugging session -- see STATUS 2026-08-07.
+    "numpy>=2.0",
+    "scipy>=1.14",
+    "obspy>=1.5",
+    "matplotlib>=3.9",
+]
+
+[tool.uv]
+# This repo is a collection of scripts (analysis/, station/, server/, dashboard/,
+# parts/), NOT an importable package -- setuptools auto-discovery chokes on the
+# multiple top-level dirs. package=false tells uv to install only the deps above.
+package = false
+
+# ⚠️ DO NOT RUN `uv sync` HERE. The build123d / ocp-vscode CAD stack lives in this
+# same .venv and is deliberately NOT declared above (it is dev tooling, per
+# CLAUDE.md). `uv sync` prunes anything undeclared and would delete it.
+# Install with:  uv pip install --python .venv/bin/python <pkg>
