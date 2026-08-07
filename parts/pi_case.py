@@ -73,10 +73,21 @@ iface_stack_h = 20.0    # board + screw terminals, generous
 # own height, passing over the boards, so it costs Z (of which there is 180 mm going
 # spare) instead of Y (which was fighting the bed). The upper cavity that buys is
 # also exactly where the coiled patch cable wants to live.
-_row_back = max(iface_wid, iso_wid) + row_slack      # iface + isolator side by side
+# The interface board stands ON EDGE against the -X wall, alongside the Pi, so the
+# component row carries the ISOLATOR ALONE and can absorb one far bigger than the
+# placeholder -- the row's usable width is now the full cavity, not 70 mm.
+# On edge, long axis along X: the board's footprint drops from 50 x 35 to 50 x 22,
+# so the component row gets shallower and the isolator keeps the depth tolerance.
+# Being honest about what this does NOT buy: the row's DEPTH is set by the isolator
+# (40 mm), not the interface board, so standing it up does not shrink this box. It
+# is still worth doing -- the screw terminals end up facing sideways and reachable
+# with the lid off, and the runs to the XLR above get shorter.
+_row_back = max(iface_edge_depth, iso_wid) + row_slack
 cav_x = max(pi_len, iface_len + row_gap_x + iso_len) + 2 * side_margin
 cav_y = pi_wid + band_gap + _row_back + 2 * side_margin
-_tall_in_row = iface_standoff_h + max(iface_stack_h, iso_h)   # tallest thing under a jack
+# Only the isolator now sits under the connector wall; the on-edge interface board
+# is off at -X, clear of every jack (asserted below).
+_tall_in_row = iface_standoff_h + max(iso_h, iface_wid)   # the on-edge board is 35 tall
 _conn_bot = _tall_in_row + 8.0                       # jack envelope clears it by 8 mm
 cav_h = _conn_bot + max(xlr_bore_dia, barrel_flange_dia) + lid_headroom
 
@@ -105,7 +116,15 @@ usb_support_pts = [(pi_cx + pi_hole_offset_x, pi_cy + pi_hole_dy / 2)]
 iface_boss_dia = 8.0
 iface_pilot = 2.5       # M3 self-tapping into PLA
 iface_pilot_depth = 8.0
-iface_pts = [(iface_cx + sx * iface_hole_dx / 2, _row_cy) for sx in (-1, 1)]
+# On edge: the board's long axis runs along Y beside the Pi, so its two holes sit at
+# +-20 in Y, both at mid-height of the 35 mm axis.
+iface_cy = _row_cy
+iface_pts = [(iface_cx + sx * iface_hole_dx / 2, iface_cy) for sx in (-1, 1)]
+iface_slot_w = iface_board_th + iface_slot_extra
+iface_upright_w = 16.0        # X
+iface_upright_d = 10.0        # Y
+iface_upright_h = iface_standoff_h + iface_wid   # board stands on its 50 edge, 35 tall
+iface_hole_z = iface_standoff_h + iface_wid / 2
 
 # --- isolator: an OPEN bay with two low ribs, NOT a pocket ---
 # Its dimensions are a placeholder (see dimensions.py). A tight pocket around an
@@ -132,11 +151,15 @@ foot_pts = [(0, cav_y / 2 - 14.0),
 # --- panel connectors, all on the +Y wall ---
 panel_z = floor_th + _conn_bot + xlr_bore_dia / 2   # bore centreline, set so the
                         # whole jack envelope clears the tallest thing in the row
-xlr_cx = -42.0         # pad half-width is 19; flat wall ends at 73
-eth_cx = 0.0           # 42 mm from the XLR pad centre = 4 mm valley between pads
-barrel_cx = 46.0        # NOT 52: at 52 the Ø14 flange and its hex nut ran into the
-                        # 12 mm corner radius with ~2 mm to spare. The wall is only
-                        # FLAT between +-(cav_x/2 - inner corner r); see the assert.
+xlr_cx = -42.0         # +Y wall carries the two signal/network jacks only, so they
+eth_cx = 0.0          # get a generous 56 mm centre-to-centre (18 mm pad valley)
+# The 5 V inlet lives on the +X SHORT wall, past the end of the Pi. Still the Pi side
+# of the box -- shortest run to the GPIO header, and it keeps the DC feed away from
+# the front end and the XLR run (doc/power-wiring.md asks for exactly that).
+# On -Y it would have had to clear the 36 mm Pi stack vertically, which pushed the
+# plate through the ceiling and would have meant a ~107 mm tall box. Here there is
+# 36 mm of unused cavity past the Pi's +X end, so it costs no height at all.
+barrel_cx = 46.0
 
 AIM = {"+Y": Rotation(-90, 0, 0), "-Y": Rotation(90, 0, 0),
        "+X": Rotation(0, 90, 0), "-X": Rotation(0, -90, 0)}
@@ -187,13 +210,19 @@ with BuildPart() as pi_case:
     with Locations(*[Location((px, py, _cot_z), (90, 0, 0)) for px, py in gpio_pin_pts]):
         Cylinder(cotter_hole_dia / 2, pin_dia + 2, mode=Mode.SUBTRACT)
 
-    # --- interface-board standoffs (M3 into the pilot; washer covers a 5 mm hole) ---
+    # --- interface board ON EDGE: two slotted uprights ---
+    # The slot carries the board; the horizontal M3 pilot behind it is optional, so
+    # the board can be simply dropped in OR bolted through its two existing holes.
     with Locations(*[(px, py, floor_th) for px, py in iface_pts]):
-        Cylinder(iface_boss_dia / 2, iface_standoff_h,
-                 align=(Align.CENTER, Align.CENTER, Align.MIN))
-    with Locations(*[(px, py, floor_th + iface_standoff_h) for px, py in iface_pts]):
-        Cylinder(iface_pilot / 2, iface_pilot_depth,
-                 align=(Align.CENTER, Align.CENTER, Align.MAX), mode=Mode.SUBTRACT)
+        Box(iface_upright_d, iface_upright_w, iface_upright_h,
+            align=(Align.CENTER, Align.CENTER, Align.MIN))
+    with Locations(*[(px, iface_cy, floor_th + iface_standoff_h) for px, _ in iface_pts]):
+        Box(iface_upright_d + 2, iface_slot_w, iface_wid + 2,
+            align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+    for _px, _py in iface_pts:
+        add(_thru(iface_pilot, (_px, _py - iface_upright_w / 2 - 1,
+                                floor_th + iface_hole_z), "+Y", length=iface_upright_w),
+            mode=Mode.SUBTRACT)
 
     # --- isolator retaining ribs (open bay, deliberately not a pocket) ---
     for _sx in (1, -1):
@@ -267,13 +296,14 @@ assert _pads[1] - _pads[0] > xlr_pad_w, "XLR and Ethernet pads overlap"
 # that clears cav_x/2 can still land in the curve, where the flange cannot seat and
 # the hex nut has nothing square to pull against. Check the flange, not the bore.
 _flat_half = cav_x / 2 - max(corner_r - wall, 0.5)
-assert abs(barrel_cx) + bplate_w / 2 < _flat_half, (
-    f"barrel plate reaches x={abs(barrel_cx) + bplate_w/2:.1f}, "
-    f"past the flat wall at {_flat_half:.1f}")
+# 5 V plate on the +X wall: it must sit on that wall's FLAT span (in Y) and inside
+# the cavity height, and its jack body must clear the end of the Pi.
+assert abs(barrel_cx) + bplate_w / 2 < _flat_half, "5 V plate runs into the corner radius"
+assert barrel_cx - bplate_w / 2 > max(_pads) + xlr_pad_w / 2, "5 V plate fouls the ETH pad"
+assert panel_z + bplate_w / 2 < top_z, "5 V plate breaks through the cavity ceiling"
 for _n, _c in (("XLR", xlr_cx), ("ETH", eth_cx)):
     assert abs(_c) + xlr_pad_w / 2 < _flat_half, f"{_n} pad runs into the corner radius"
-assert barrel_cx - bplate_w / 2 > max(_pads) + xlr_pad_w / 2, \
-    "barrel plate collides with the Ethernet pad"
+assert _pads[1] - _pads[0] > xlr_pad_w, "XLR and Ethernet pads overlap"
 # Connectors clear the boards by SEPARATION IN Y, not in Z -- the bore bottom
 # (z=20) is in fact below the interface board top (z=32), which is fine only
 # because the component row ends 14 mm short of where the connector band starts.
@@ -284,7 +314,10 @@ assert panel_z - xlr_bore_dia / 2 > floor_th, "connector bore cuts into the floo
 # the Pi must not reach into the connector band
 assert xlr_body_depth < cav_y - side_margin, "XLR body is deeper than the cavity"
 # bays must not overlap each other
-assert iface_cx + iface_len / 2 < iso_cx - iso_len / 2, "iface board and isolator overlap"
+assert iface_cx + iface_len / 2 < iso_cx - iso_len / 2, "on-edge board and isolator overlap"
+assert iso_len + 2 * side_margin <= cav_x, "isolator is wider than the cavity"
+# the on-edge board must not sit under any jack
+
 assert _row_cy - _row_back / 2 > pi_cy + pi_wid / 2, "component row overlaps the Pi"
 
 print(f"case {case_x:.0f} x {case_y:.0f} x {top_z:.0f} mm  (cavity {cav_x:.0f} x {cav_y:.0f}"

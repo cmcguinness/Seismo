@@ -171,3 +171,11 @@ bplate_screw_off = 19.5   # M3 clearance holes, all four corners. Must exceed
                           # the middle of the opening with nothing to bite (the plate's
                           # own assert caught exactly that at 17.5).
 bplate_screw_dia = 3.4
+
+# --- Interface board mounted ON EDGE (Charles, 2026-08-07) -------------------
+# Standing it up frees the whole component row for the isolator -- which is the
+# part whose size is still a guess, so that is where the slack belongs.
+iface_board_th = 1.6      # perfboard, assumed. The slot is deliberately loose.
+iface_slot_extra = 1.4    # slot = board + this. Generous: accepts ~1.4-2.6 mm stock
+                          # without a refit, and this is not a precision joint.
+iface_edge_depth = 22.0   # X footprint standing up: board + its tallest component
