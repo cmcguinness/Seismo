@@ -53,9 +53,12 @@ bed_max = 180.0         # printer bed; asserted against below
 # print was scrap. Several of these numbers ARE guesses (the isolator especially).
 # The A1 Mini is 180 x 180 x 180 and this box is nowhere near the volume limit, so
 # slack is nearly free -- spend it.
-side_margin = 15.0      # board edge -> inner wall (was 6)
+side_margin = 12.0      # board edge -> inner wall (was 6, briefly 15). Trimmed to
+                        # keep the isolator's 10 mm allowance AND stay inside the bed
+                        # with a brim -- the allowance protects against a wrong listing
+                        # dimension, which is the more likely failure.
 band_gap = 20.0         # between ROWS (Pi row -> component row), for wiring (was 8)
-row_gap_x = 14.0        # between the two bays WITHIN the component row. Smaller than
+row_gap_x = 12.0        # between the two bays WITHIN the component row. Smaller than
                         # band_gap on purpose: this pair is what sets the case width,
                         # and at 20 the case came out 176 mm on a 180 mm bed -- no room
                         # for a brim or skirt, which is its own kind of brittle.
@@ -82,8 +85,8 @@ iface_stack_h = 20.0    # board + screw terminals, generous
 # (40 mm), not the interface board, so standing it up does not shrink this box. It
 # is still worth doing -- the screw terminals end up facing sideways and reachable
 # with the lid off, and the runs to the XLR above get shorter.
-_row_back = max(iface_edge_depth, iso_wid) + row_slack
-cav_x = max(pi_len, iface_len + row_gap_x + iso_len) + 2 * side_margin
+_row_back = max(iface_edge_depth, iso_wid + iso_allow) + row_slack
+cav_x = max(pi_len, iface_len + row_gap_x + iso_len + iso_allow) + 2 * side_margin
 cav_y = pi_wid + band_gap + _row_back + 2 * side_margin
 # Only the isolator now sits under the connector wall; the on-edge interface board
 # is off at -X, clear of every jack (asserted below).
@@ -99,8 +102,8 @@ top_z = floor_th + cav_h
 _y0 = -cav_y / 2 + side_margin                      # inner face of the -Y wall
 pi_cy = _y0 + pi_wid / 2
 _row_cy = _y0 + pi_wid + band_gap + _row_back / 2
-iface_cx = -(iface_len + row_gap_x + iso_len) / 2 + iface_len / 2
-iso_cx = (iface_len + row_gap_x + iso_len) / 2 - iso_len / 2
+iface_cx = -(iface_len + row_gap_x + iso_len + iso_allow) / 2 + iface_len / 2
+iso_cx = (iface_len + row_gap_x + iso_len + iso_allow) / 2 - (iso_len + iso_allow) / 2
 pi_cx = 0.0
 
 # --- Pi mount points (chassis.py geometry, translated to pi_cx/pi_cy) ---
@@ -226,8 +229,8 @@ with BuildPart() as pi_case:
 
     # --- isolator retaining ribs (open bay, deliberately not a pocket) ---
     for _sx in (1, -1):
-        with Locations((iso_cx + _sx * (iso_len / 2 + iso_rib_th / 2), _row_cy, floor_th)):
-            Box(iso_rib_th, iso_wid, iso_rib_h,
+        with Locations((iso_cx + _sx * ((iso_len + iso_allow) / 2 + iso_rib_th / 2), _row_cy, floor_th)):
+            Box(iso_rib_th, iso_wid + iso_allow, iso_rib_h,
                 align=(Align.CENTER, Align.CENTER, Align.MIN))
 
     # --- feet: local pads inside, blind pilots up from the bottom face ---
@@ -314,8 +317,8 @@ assert panel_z - xlr_bore_dia / 2 > floor_th, "connector bore cuts into the floo
 # the Pi must not reach into the connector band
 assert xlr_body_depth < cav_y - side_margin, "XLR body is deeper than the cavity"
 # bays must not overlap each other
-assert iface_cx + iface_len / 2 < iso_cx - iso_len / 2, "on-edge board and isolator overlap"
-assert iso_len + 2 * side_margin <= cav_x, "isolator is wider than the cavity"
+assert iface_cx + iface_len / 2 < iso_cx - (iso_len + iso_allow) / 2, "on-edge board and isolator bay overlap"
+assert iso_len + iso_allow + 2 * side_margin <= cav_x, "isolator bay is wider than the cavity"
 # the on-edge board must not sit under any jack
 
 assert _row_cy - _row_back / 2 > pi_cy + pi_wid / 2, "component row overlaps the Pi"

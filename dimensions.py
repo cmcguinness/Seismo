@@ -138,14 +138,17 @@ iface_screw = 3.0
 iface_washer_od = 9.0     # covers a 5 mm hole with margin
 
 # --- Galvanic Ethernet isolator (inline, RJ45 both ends) ---------------------
-# ⚠️ NOT MEASURED. Charles confirmed 2026-08-07 it is an inline module needing a
-# patch cable on BOTH sides, but it is currently out of circuit and undimensioned.
-# These are a PLACEHOLDER. The case derives its size from the bay table, so
-# correcting these three numbers rescales the case -- it does not force a redesign.
-# Confirm before printing the case (the coupon does not depend on them).
-iso_len = 70.0
-iso_wid = 40.0
-iso_h = 25.0
+# CLAIMED by the Amazon listing (Charles, 2026-08-07): 1.3" L x 2.6" W x 0.9" H
+# = 33 x 66 x 23 mm. Listing dimensions are frequently the PACKAGE or rounded, and
+# this part is still not in hand, so `iso_allow` below is not decoration -- it is
+# what stops a wrong listing from scrapping a 460 g print.
+iso_len = 66.0            # 2.6 in
+iso_wid = 33.0            # 1.3 in
+iso_h = 23.0              # 0.9 in
+iso_allow = 10.0          # added to the bay on every side before the retaining ribs
+                          # are placed, so a part up to 10 mm over the claim still
+                          # drops in. The bay is open, not a pocket, so being wrong
+                          # by more than that costs a rib trim, not a reprint.
 
 # Barrel-jack panel bore. PROVISIONAL until panel_coupon.py says which ladder rung
 # the real jack passes. Do not print the case on this guess.
