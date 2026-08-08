@@ -107,6 +107,8 @@ dongle_clearance = 0.0    # WAS 45.0. The Wi-Fi dongle is REMOVED (confirmed 202
 # hole pattern as the XLR above -- that pattern is already validated on a printed
 # coupon against a real Neutrik D, so the RJ45 coupler is a drop-in IF its flange
 # really is D-series. That "if" is what the coupon below checks.
+# ✅ VALIDATED 2026-08-08 on the printed panel_coupon: the RJ45 coupler mounts fine in
+# the D-series cutout. Ethernet and XLR are therefore the SAME cutout in the case.
 eth_bore_dia = xlr_bore_dia
 eth_flange_w = xlr_flange_w
 eth_flange_h = xlr_flange_h
@@ -150,10 +152,12 @@ iso_allow = 10.0          # added to the bay on every side before the retaining 
                           # drops in. The bay is open, not a pocket, so being wrong
                           # by more than that costs a rib trim, not a reprint.
 
-# Barrel-jack panel bore. PROVISIONAL until panel_coupon.py says which ladder rung
-# the real jack passes. Do not print the case on this guess.
+# Barrel-jack panel bore. ✅ VALIDATED 2026-08-08 on the printed panel_coupon: the
+# real jack fits best in the rung labelled 12. The provisional guess happened to be
+# right, but it was a guess until the coupon said so -- and it cost ~27 g to find out
+# rather than risking the 454 g case.
 barrel_bore_dia = 12.0
-barrel_bore_provisional = True
+barrel_bore_provisional = False
 
 # Ethernet patch cable: shortest Charles has is ~6 in (152 mm) and he does not
 # terminate his own. Cat6 minimum bend radius is ~4x OD, so 152 mm is about ONE

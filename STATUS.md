@@ -153,6 +153,72 @@ the epoch change becomes mechanical only rather than mechanical *and* electrical
   already ~7.5× low and the project explicitly sensitivity-first, deliberate under-damping
   is defensible. Do it last, in the garage, against a stable baseline.
 
+## 🧰 Pi + front-end CASE — modelled, coupon validated (2026-08-08)
+
+**`parts/pi_case.py` — 168 × 164 × 93 mm, ~454 g PLA.** Minimal tier (Charles's call):
+base + lid + handle, three panel jacks, boards on standoffs. No gasket, vents, inserts or
+labels. Plan + elevation: `parts/pi_case.png`.
+
+### ✅ Coupon results (2026-08-08) — both open connector questions closed
+
+`parts/panel_coupon.py`, 80 × 106 × 3 mm, ~27 g, printed and fitted against the real parts:
+
+- **Barrel jack → the rung labelled `12`.** `barrel_bore_dia = 12.0`, no longer provisional.
+- **RJ45 coupler mounts fine in the D-series cutout**, so **Ethernet and XLR are the same
+  cutout** — the pattern already validated by `xlr_coupon.py` covers both.
+
+The ladder-of-candidate-bores approach is worth reusing: it answers "what size is this
+thread" for ~27 g *including* print shrinkage, which a caliper reading does not.
+
+### Design rules this case is built on
+
+- **SIZE IS DERIVED from a bay table**, not chosen, so a corrected component dimension
+  rescales the case instead of forcing a redesign.
+- **Generous margins are deliberate** (Charles, forcefully, 2026-08-07): do not design a
+  box so tight that everything must be perfect or it is scrap. 12 mm wall clearance,
+  20 mm between rows, and a NAMED `iso_allow = 10 mm` on the isolator bay.
+- **The unvalidated dimension never goes in the expensive part.** The barrel bore lives on
+  `parts/barrel_plate.py` (48 × 48 × 3, ~8 g) behind a plain square opening in the wall.
+  Wrong bore or a different jack later = reprint 8 g.
+- **Connectors ride ABOVE the boards**, so no floor is reserved behind them. The XLR's
+  32 mm body intrudes at its own height, costing Z (180 mm available) instead of Y (which
+  was fighting the bed). The tall upper cavity is where the coiled patch cable lives.
+  This also made the old `panel_band` parameter dead — removed.
+- **Interface board stands ON EDGE** (Charles's suggestion) in two slotted uprights, slot =
+  board + 1.4 mm so it takes ~1.4–2.6 mm stock. Honest accounting: this did NOT shrink the
+  box (the row's depth is set by the isolator), but it puts the screw terminals sideways
+  and reachable, shortens the runs to the XLR, and drops the board's footprint 50 × 35 →
+  50 × 22. It cost 10 mm of height.
+- **The bed check includes a 5 mm brim allowance.** "Fits the bed" and "prints on the bed"
+  are different claims; at 176 mm the case had 4 mm to spare and nowhere to put a skirt.
+
+### Asserts that caught real defects while modelling
+
+Worth keeping because each was invisible to a manifold/volume check:
+
+- Asserting connector positions against the **corner radius** rather than the cavity
+  half-width caught the barrel flange AND then the XLR pad sitting where a flange cannot
+  seat and a nut has nothing square to pull against.
+- The barrel plate's own assert caught its M3 circle at ±17.5 falling **inside** the 34 mm
+  opening — four screws into thin air. Plate resized 44 → 48 mm.
+- An assert written `... or True` could never fail; replaced with the check that matters.
+- Every bore is **point-in-solid scanned** with a control point in solid material, per the
+  `geophone_case` lesson that watertight + plausible volume hides a plug.
+
+### Layouts tried and rejected (do not retry)
+
+- Interface board packed against the −X wall beside the Pi: collides unless the Pi is
+  offset, and offsetting the Pi drives its end into the +X wall where the 5 V jack wants
+  to be.
+- 5 V plate on the −Y wall: must clear the 36 mm Pi stack vertically, breaks through the
+  ceiling, implies a ~107 mm box.
+
+### Still open
+
+- **Lid + handle** — not modelled yet. Reuses the geophone case's handle.
+- Connector intrusion depths were going to set `panel_band`; that parameter no longer
+  exists, so this is now only a sanity check that no body is deeper than the 158 mm cavity.
+
 ## 📦 Pi + front-end ENCLOSURE — decisions and parts ordered (2026-08-04)
 
 Design pass for the case holding the Pi 2B + Waveshare + front-end board. Gen-1 geophone
