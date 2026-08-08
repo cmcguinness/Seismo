@@ -213,6 +213,32 @@ Worth keeping because each was invisible to a manifold/volume check:
 - 5 V plate on the −Y wall: must clear the 36 mm Pi stack vertically, breaks through the
   ceiling, implies a ~107 mm box.
 
+### 🔌 Isolator moved OUT of the case (2026-08-08) — the 08-04 decision was self-contradictory
+
+STATUS 2026-08-04 said "isolator INSIDE, on the Pi side, with the panel jack on the network
+side — **isolation barrier at the enclosure boundary**". Those cannot both hold: an isolator
+inside puts the *barrier* inside, so the **unisolated** segment (panel jack → isolator, and
+6 in is the shortest patch cable Charles has) runs through the case past the front end,
+carrying exactly the common-mode currents the isolator exists to block into the enclosure
+volume. Charles caught this.
+
+**It now lives at the NETWORK TAP**, with isolated cable running the whole way down to the
+box — better than merely "outside the case", because the long run cannot pick up
+common-mode along its length either. Isolate at the source, not the destination.
+
+**The case got much smaller as a result: 168 × 164 → 130 × 143 mm, ~454 → ~348 g**, with
+50 mm and 36 mm now spare on the bed. Knock-on changes:
+
+- The 5 V plate moved from the +Y wall to the **+X side wall**. Three pads side by side
+  needed 166 mm of flat wall, which would have forced a 196 mm case on a 180 mm bed; +Y now
+  carries XLR + Ethernet only, and +X has room that only exists because the isolator left.
+- **The Pi is deliberately OFF-CENTRE in X** (`pi_cx` derived, not 0). The 5 V jack pokes
+  `barrel_body_depth` into the cavity from +X, and centring the Pi would pay that clearance
+  on both sides — worth ~30 mm of case width for nothing.
+- `cav_x` is now **derived from the connector wall** as well as the component packing, so
+  "the jacks do not fit side by side" is caught by arithmetic instead of by an assert
+  firing late.
+
 ### Still open
 
 - **Lid + handle** — not modelled yet. Reuses the geophone case's handle.

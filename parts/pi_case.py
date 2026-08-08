@@ -62,8 +62,9 @@ row_gap_x = 12.0        # between the two bays WITHIN the component row. Smaller
                         # band_gap on purpose: this pair is what sets the case width,
                         # and at 20 the case came out 176 mm on a 180 mm bed -- no room
                         # for a brim or skirt, which is its own kind of brittle.
-row_slack = 15.0        # added to the deepest bay in the component row, so an
-                        # isolator larger than the placeholder still lands on floor
+row_slack = 15.0        # added to the deepest bay in the component row
+conn_gap = 8.0          # valley between adjacent connector pads on the +Y wall
+conn_end_margin = 4.0   # from the outermost pad to where the wall stops being flat
 lid_headroom = 14.0     # above the connector envelope, for coiled patch cable
 
 # --- component heights ---
@@ -85,12 +86,27 @@ iface_stack_h = 20.0    # board + screw terminals, generous
 # (40 mm), not the interface board, so standing it up does not shrink this box. It
 # is still worth doing -- the screw terminals end up facing sideways and reachable
 # with the lid off, and the runs to the XLR above get shorter.
-_row_back = max(iface_edge_depth, iso_wid + iso_allow) + row_slack
-cav_x = max(pi_len, iface_len + row_gap_x + iso_len + iso_allow) + 2 * side_margin
+_row_back = (max(iface_edge_depth, iso_wid + iso_allow) if iso_internal
+             else iface_edge_depth) + row_slack
+_pack_x = (iface_len + row_gap_x + iso_len + iso_allow) if iso_internal else iface_len
+# The +Y wall has to carry XLR + Ethernet + the 5 V plate side by side, and with the
+# isolator gone that wall -- not the component packing -- is what sets the width.
+# Derive it instead of discovering it in an assert.
+# +Y wall carries XLR + Ethernet only. The 5 V plate moved to the +X SIDE wall: three
+# pads side by side needed 166 mm of flat wall, which would have forced a 196 mm case
+# on a 180 mm bed. There is room on +X now that the isolator is external.
+_conn_wall = (2 * xlr_pad_w + conn_gap
+              + 2 * max(corner_r - wall, 0.5) + 2 * conn_end_margin)
+# The 5 V jack pokes barrel_body_depth into the cavity from +X, so the Pi is OFFSET to
+# -X rather than centred: only one side pays for the jack's depth. Centring it would
+# have cost that clearance twice and put the case back over 160 mm wide.
+_barrel_clear = barrel_body_depth + 5.0
+cav_x = max(_conn_wall, _pack_x + 2 * side_margin,
+            side_margin + pi_len + _barrel_clear)
 cav_y = pi_wid + band_gap + _row_back + 2 * side_margin
 # Only the isolator now sits under the connector wall; the on-edge interface board
 # is off at -X, clear of every jack (asserted below).
-_tall_in_row = iface_standoff_h + max(iso_h, iface_wid)   # the on-edge board is 35 tall
+_tall_in_row = iface_standoff_h + (max(iso_h, iface_wid) if iso_internal else iface_wid)
 _conn_bot = _tall_in_row + 8.0                       # jack envelope clears it by 8 mm
 cav_h = _conn_bot + max(xlr_bore_dia, barrel_flange_dia) + lid_headroom
 
@@ -102,9 +118,9 @@ top_z = floor_th + cav_h
 _y0 = -cav_y / 2 + side_margin                      # inner face of the -Y wall
 pi_cy = _y0 + pi_wid / 2
 _row_cy = _y0 + pi_wid + band_gap + _row_back / 2
-iface_cx = -(iface_len + row_gap_x + iso_len + iso_allow) / 2 + iface_len / 2
-iso_cx = (iface_len + row_gap_x + iso_len + iso_allow) / 2 - (iso_len + iso_allow) / 2
-pi_cx = 0.0
+iface_cx = ((-_pack_x / 2 + iface_len / 2) if iso_internal else 0.0)
+iso_cx = (_pack_x / 2 - (iso_len + iso_allow) / 2) if iso_internal else None
+pi_cx = -cav_x / 2 + side_margin + pi_len / 2
 
 # --- Pi mount points (chassis.py geometry, translated to pi_cx/pi_cy) ---
 standoff_dia = 6.0
@@ -151,18 +167,21 @@ foot_pts = [(0, cav_y / 2 - 14.0),
             (-cav_x / 2 + 14.0, -cav_y / 2 + 14.0),
             (cav_x / 2 - 14.0, -cav_y / 2 + 14.0)]
 
-# --- panel connectors, all on the +Y wall ---
+# --- panel connectors ---
 panel_z = floor_th + _conn_bot + xlr_bore_dia / 2   # bore centreline, set so the
                         # whole jack envelope clears the tallest thing in the row
-xlr_cx = -42.0         # +Y wall carries the two signal/network jacks only, so they
-eth_cx = 0.0          # get a generous 56 mm centre-to-centre (18 mm pad valley)
-# The 5 V inlet lives on the +X SHORT wall, past the end of the Pi. Still the Pi side
-# of the box -- shortest run to the GPIO header, and it keeps the DC feed away from
-# the front end and the XLR run (doc/power-wiring.md asks for exactly that).
-# On -Y it would have had to clear the 36 mm Pi stack vertically, which pushed the
-# plate through the ceiling and would have meant a ~107 mm tall box. Here there is
-# 36 mm of unused cavity past the Pi's +X end, so it costs no height at all.
-barrel_cx = 46.0
+# +Y wall carries XLR + Ethernet only, centred as a pair. Three pads side by side
+# needed 166 mm of flat wall, which would have forced a 196 mm case on a 180 mm bed.
+xlr_cx = -(xlr_pad_w + conn_gap) / 2
+eth_cx = (xlr_pad_w + conn_gap) / 2
+# The 5 V inlet goes on the +X SIDE wall, past the end of the Pi -- room that only
+# exists because the isolator is now external. Still the Pi side of the box, so the
+# run to the GPIO header is short and the DC feed stays away from the front end and
+# the XLR (doc/power-wiring.md asks for exactly that).
+# NOT the -Y wall: there it must clear the 36 mm Pi stack vertically, which pushed the
+# plate through the ceiling and implied a ~107 mm tall box.
+barrel_cy = pi_cy + 6.0
+barrel_z = floor_th + 39.0
 
 AIM = {"+Y": Rotation(-90, 0, 0), "-Y": Rotation(90, 0, 0),
        "+X": Rotation(0, 90, 0), "-X": Rotation(0, -90, 0)}
@@ -227,11 +246,13 @@ with BuildPart() as pi_case:
                                 floor_th + iface_hole_z), "+Y", length=iface_upright_w),
             mode=Mode.SUBTRACT)
 
-    # --- isolator retaining ribs (open bay, deliberately not a pocket) ---
-    for _sx in (1, -1):
-        with Locations((iso_cx + _sx * ((iso_len + iso_allow) / 2 + iso_rib_th / 2), _row_cy, floor_th)):
-            Box(iso_rib_th, iso_wid + iso_allow, iso_rib_h,
-                align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # --- isolator retaining ribs: only if it is ever mounted inside ---
+    if iso_internal:
+        for _sx in (1, -1):
+            with Locations((iso_cx + _sx * ((iso_len + iso_allow) / 2 + iso_rib_th / 2),
+                            _row_cy, floor_th)):
+                Box(iso_rib_th, iso_wid + iso_allow, iso_rib_h,
+                    align=(Align.CENTER, Align.CENTER, Align.MIN))
 
     # --- feet: local pads inside, blind pilots up from the bottom face ---
     with Locations(*[(px, py, floor_th) for px, py in foot_pts]):
@@ -267,15 +288,16 @@ with BuildPart() as pi_case:
     # Barrel jack: a square OPENING for a removable plate, not a bore. The bore
     # diameter is the one unvalidated number on this wall, and a 300 g print must
     # not depend on a guess -- parts/barrel_plate.py carries it instead.
-    with BuildSketch(Plane.XZ.offset(-_wy)):
-        with Locations((barrel_cx, panel_z)):
+    _wx = case_x / 2
+    with BuildSketch(Plane.YZ.offset(_wx)):
+        with Locations((barrel_cy, barrel_z)):
             Rectangle(bplate_open, bplate_open)
     extrude(amount=-wall * 3, mode=Mode.SUBTRACT, both=True)
-    for _sx in (1, -1):
+    for _sy in (1, -1):
         for _sz in (1, -1):
             add(_thru(bplate_screw_dia,
-                      (barrel_cx + _sx * bplate_screw_off, 0,
-                       panel_z + _sz * bplate_screw_off), "+Y", length=case_y),
+                      (_wx + 5, barrel_cy + _sy * bplate_screw_off,
+                       barrel_z + _sz * bplate_screw_off), "-X", length=case_x),
                 mode=Mode.SUBTRACT)
 
     chamfer(pi_case.faces().sort_by(Axis.Z)[0].outer_wire().edges(), edge_cham)
@@ -301,9 +323,12 @@ assert _pads[1] - _pads[0] > xlr_pad_w, "XLR and Ethernet pads overlap"
 _flat_half = cav_x / 2 - max(corner_r - wall, 0.5)
 # 5 V plate on the +X wall: it must sit on that wall's FLAT span (in Y) and inside
 # the cavity height, and its jack body must clear the end of the Pi.
-assert abs(barrel_cx) + bplate_w / 2 < _flat_half, "5 V plate runs into the corner radius"
-assert barrel_cx - bplate_w / 2 > max(_pads) + xlr_pad_w / 2, "5 V plate fouls the ETH pad"
-assert panel_z + bplate_w / 2 < top_z, "5 V plate breaks through the cavity ceiling"
+_flat_half_y = cav_y / 2 - max(corner_r - wall, 0.5)
+assert abs(barrel_cy) + bplate_w / 2 < _flat_half_y, "5 V plate runs into the corner radius"
+assert barrel_z - bplate_w / 2 > floor_th and barrel_z + bplate_w / 2 < top_z, \
+    "5 V plate does not fit the cavity height"
+assert cav_x / 2 - barrel_body_depth > pi_cx + pi_len / 2 + 4.0, \
+    "the 5 V jack body would foul the end of the Pi"
 for _n, _c in (("XLR", xlr_cx), ("ETH", eth_cx)):
     assert abs(_c) + xlr_pad_w / 2 < _flat_half, f"{_n} pad runs into the corner radius"
 assert _pads[1] - _pads[0] > xlr_pad_w, "XLR and Ethernet pads overlap"
@@ -317,15 +342,18 @@ assert panel_z - xlr_bore_dia / 2 > floor_th, "connector bore cuts into the floo
 # the Pi must not reach into the connector band
 assert xlr_body_depth < cav_y - side_margin, "XLR body is deeper than the cavity"
 # bays must not overlap each other
-assert iface_cx + iface_len / 2 < iso_cx - (iso_len + iso_allow) / 2, "on-edge board and isolator bay overlap"
-assert iso_len + iso_allow + 2 * side_margin <= cav_x, "isolator bay is wider than the cavity"
+if iso_internal:
+    assert iface_cx + iface_len / 2 < iso_cx - (iso_len + iso_allow) / 2, \
+        "on-edge board and isolator bay overlap"
+    assert iso_len + iso_allow + 2 * side_margin <= cav_x, "isolator bay is wider than the cavity"
 # the on-edge board must not sit under any jack
 
 assert _row_cy - _row_back / 2 > pi_cy + pi_wid / 2, "component row overlaps the Pi"
 
 print(f"case {case_x:.0f} x {case_y:.0f} x {top_z:.0f} mm  (cavity {cav_x:.0f} x {cav_y:.0f}"
       f" x {cav_h:.0f})\n  Pi @ ({pi_cx:.0f},{pi_cy:.0f})  iface @ ({iface_cx:.0f},{_row_cy:.0f})"
-      f"  iso @ ({iso_cx:.0f},{_row_cy:.0f})\n  panel z {panel_z:.0f}"
+      f"  iso @ {'(%.0f,%.0f)' % (iso_cx, _row_cy) if iso_internal else 'EXTERNAL'}"
+      f"\n  panel z {panel_z:.0f}  | 5V plate on +X @ y={barrel_cy:.0f} z={barrel_z:.0f}"
       f"  | barrel bore {barrel_bore_dia} mm"
       f"{'  ** PROVISIONAL — run panel_coupon first **' if barrel_bore_provisional else ''}")
 

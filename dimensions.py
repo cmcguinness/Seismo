@@ -120,6 +120,9 @@ eth_flange_h = xlr_flange_h
 # candidate bores and the jack itself picks the winner.
 barrel_flange_dia = 14.0   # must not fall through: every ladder bore stays under this
 barrel_thread_len = 11.8   # panel + nut must fit inside this
+barrel_body_depth = 22.0   # how far the whole jack sticks in behind the panel, incl.
+                           # its solder lugs. Assumed generously -- measure on the
+                           # coupon if it matters, but the case now allows +5 on top.
 barrel_ladder = [9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0]
 
 # --- Waveshare AD/DA stacked on the Pi (measured by Charles, 2026-08-07) ---
@@ -147,10 +150,20 @@ iface_washer_od = 9.0     # covers a 5 mm hole with margin
 iso_len = 66.0            # 2.6 in
 iso_wid = 33.0            # 1.3 in
 iso_h = 23.0              # 0.9 in
-iso_allow = 10.0          # added to the bay on every side before the retaining ribs
-                          # are placed, so a part up to 10 mm over the claim still
-                          # drops in. The bay is open, not a pocket, so being wrong
-                          # by more than that costs a rib trim, not a reprint.
+iso_allow = 10.0          # bay allowance, IF it were ever mounted inside.
+
+# ⛔ The isolator lives OUTSIDE the case (Charles, 2026-08-08) — inline on the LAN
+# cable before it reaches the box. STATUS 2026-08-04 said "isolator INSIDE, on the Pi
+# side, with the panel jack on the network side — barrier at the enclosure boundary",
+# which is self-contradictory: an isolator inside puts the BARRIER inside, so the
+# unisolated segment (panel jack -> isolator, and 6 in is the shortest cable Charles
+# has) runs through the case past the front end, carrying precisely the common-mode
+# currents the isolator exists to block into the enclosure volume.
+# Outside, only isolated copper ever enters. Charles's refinement (2026-08-08) is
+# better still: put it AT THE NETWORK TAP and run isolated cable the whole way down to
+# the box, so the long run cannot pick up common-mode along its length either. Isolate
+# at the source, not at the destination.
+iso_internal = False
 
 # Barrel-jack panel bore. ✅ VALIDATED 2026-08-08 on the printed panel_coupon: the
 # real jack fits best in the rung labelled 12. The provisional guess happened to be
