@@ -25,8 +25,15 @@ the STA/LTA false triggers.
 
 ## Step 0 — measure what you already have
 
-Do this **in situ**, in the garage, on the slab, with the case assembled. Damping is a
-property of the whole suspended system, not the bare element.
+**Do it on the bench.** An earlier version of this said to do it in situ on the slab,
+which was over-cautious: ζ is set by the element's own suspension losses plus the
+electrical load, and the ring-down after a tap is its mass-spring decaying against its
+own damping. Bench and slab are both effectively rigid compared with that suspension —
+you would only see a difference on something compliant like foam. Ambient noise does not
+argue for it either, since the tap is a few hundred µV against a ~2 µV floor.
+
+(The **noise floor** re-measurement is different and genuinely does need to be in situ —
+that one is measuring the site.)
 
 ```
 # station settled, quiet hour, recorder stopped
