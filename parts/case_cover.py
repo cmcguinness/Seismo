@@ -77,10 +77,10 @@ with BuildPart() as case_cover:
     # The handle screws in from inside, so the roof carries the screw HEAD, not a
     # thread. Thicken it locally: a #6 head bearing on 3 mm of PLA is what lets go
     # when the case is lifted.
-    with Locations(*[(sx * handle_screw_off, 0, cav_h) for sx in (1, -1)]):
+    with Locations(*[(px, py, cav_h) for px, py in handle_screw_pts]):
         Cylinder(handle_pad_dia / 2, handle_pad_h,
                  align=(Align.CENTER, Align.CENTER, Align.MAX))
-    with Locations(*[(sx * handle_screw_off, 0, cav_h - handle_pad_h) for sx in (1, -1)]):
+    with Locations(*[(px, py, cav_h - handle_pad_h) for px, py in handle_screw_pts]):
         Cylinder(clear_6 / 2, handle_pad_h + cover_top_th,
                  align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
 
@@ -152,7 +152,14 @@ assert _skin > 1.0, (
 # The roof bears the screw HEAD now, so what matters is bearing thickness, not depth.
 assert cover_top_th + handle_pad_h >= 8.0, \
     "too little roof under the handle screw heads -- this is the joint that carries the case"
-assert handle_screw_off + handle_pad_dia / 2 < cav_x / 2, "handle pad overruns the cavity"
+for _hx, _hy in handle_screw_pts:
+    assert (abs(_hx) + handle_pad_dia / 2 < cav_x / 2
+            and abs(_hy) + handle_pad_dia / 2 < cav_y / 2), "handle pad overruns the cavity"
+    for _sx in (1, -1):
+        for _sy in (1, -1):
+            _dd = ((_hx - _sx * asm_x) ** 2 + (_hy - _sy * asm_y) ** 2) ** 0.5
+            assert _dd > (handle_pad_dia + asm_boss_dia) / 2 + 1.0, \
+                "handle pad collides with a corner boss"
 _brim = 5.0
 assert case_x + 2 * _brim <= 180 and case_y + 2 * _brim <= 180, \
     f"cover is {case_x:.0f} x {case_y:.0f}; with brim that exceeds the 180 mm bed"

@@ -324,6 +324,13 @@ handle_top_r = 6.0
 # Legs run from handle_open_w/2 (24) to handle_span/2 (35); screw on the centreline
 # of each leg. Derived, not chosen, so changing the opening moves the screws with it.
 handle_screw_off = (handle_open_w / 2 + handle_span / 2) / 2      # = 29.5
+# Which way the bar runs across the roof. "Y" = along the case's LONG axis.
+# Aesthetics (Charles, 2026-08-08); it is a free choice mechanically, since the bar
+# is well inside the footprint either way and sits over the centre regardless.
+handle_axis = "Y"
+handle_screw_pts = ([(0.0, sy * handle_screw_off) for sy in (1, -1)]
+                    if handle_axis.upper() == "Y"
+                    else [(sx * handle_screw_off, 0.0) for sx in (1, -1)])
 handle_pilot_depth = 11.0  # up into the leg. A #6 x 1/2in (12.7) through a 3 mm roof
                            # plus a 5 mm bearing pad still leaves ~4.7 mm engaged, so
                            # the pilot only has to be deeper than that.

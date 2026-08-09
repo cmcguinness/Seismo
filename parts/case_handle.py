@@ -49,6 +49,12 @@ with BuildPart() as case_handle:
         Cylinder(pilot_6 / 2, handle_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
 
+# The bar is modelled along X, then turned to `handle_axis`. Rotating about Z does
+# not change how it prints -- it still lies legs-down with the opening bridging
+# itself -- so this is purely which way it reads on the case.
+_part = (case_handle.part.rotate(Axis.Z, 90) if handle_axis.upper() == "Y"
+         else case_handle.part)
+
 
 # --- checks ---
 assert side_angle >= 45, f"opening sides overhang at {side_angle:.1f} deg — needs support"
@@ -60,9 +66,9 @@ assert handle_pilot_depth < handle_open_h, \
     "pilot is deeper than the leg is tall before the opening starts"
 assert handle_open_h > 15.0, "not enough finger clearance under the bar"
 
-print(f"handle {handle_span:.0f} x {handle_w:.0f} x {handle_h:.0f} mm | opening "
+print(f"handle along {handle_axis} | {handle_span:.0f} x {handle_w:.0f} x {handle_h:.0f} mm | opening "
       f"{handle_open_w:.0f} -> {handle_open_top:.0f} at {side_angle:.1f} deg | "
       f"blind pilots +-{handle_screw_off:.1f}, {handle_pilot_depth:.0f} deep into the legs")
 
-show(case_handle)
-export_stl(case_handle.part, "stl/case_handle.stl")
+show(_part)
+export_stl(_part, "stl/case_handle.stl")
