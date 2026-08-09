@@ -86,8 +86,8 @@ iface_stack_h = 20.0    # board + screw terminals, generous
 # (40 mm), not the interface board, so standing it up does not shrink this box. It
 # is still worth doing -- the screw terminals end up facing sideways and reachable
 # with the lid off, and the runs to the XLR above get shorter.
-_row_back = (max(iface_edge_depth, iso_wid + iso_allow) if iso_internal
-             else iface_edge_depth) + row_slack
+_row_back = (max(iface_wid, iso_wid + iso_allow) if iso_internal
+             else iface_wid) + row_slack
 _pack_x = (iface_len + row_gap_x + iso_len + iso_allow) if iso_internal else iface_len
 # The connector walls, not the component packing, can set the width -- derive that
 # instead of discovering it in an assert.
@@ -103,9 +103,15 @@ _wall_back = (xlr_pad_w + conn_gap + 2 * _nut_clear
 cav_x = max(_wall_front, _wall_back, _pack_x + 2 * side_margin,
             pi_len + 2 * side_margin)
 cav_y = pi_wid + band_gap + _row_back + 2 * side_margin
-# Tallest thing a jack has to ride over, inside.
-_tall_in_row = iface_standoff_h + (max(iso_h, iface_wid) if iso_internal else iface_wid)
-_conn_bot = _tall_in_row + 8.0                       # jack envelope clears it by 8 mm
+# Tallest thing a jack has to ride over. Connectors are now on BOTH long walls and
+# share one centreline, so this is the max over the whole cavity, not just the
+# component row: the +Y jack clears the interface board, but the -Y jacks ride over
+# the PI, which is the taller obstacle. Using the row alone put the -Y bores 2 mm
+# into the Waveshare.
+_tall_row = iface_standoff_h + (max(iso_h, iface_stack_h) if iso_internal
+                                else iface_stack_h)
+_tall_inside = max(_tall_row, pi_standoff_h + stack_h)
+_conn_bot = _tall_inside + 8.0                       # jack envelope clears it by 8 mm
 cav_h = _conn_bot + max(xlr_bore_dia, barrel_flange_dia) + lid_headroom
 
 case_x = cav_x + 2 * wall
@@ -133,15 +139,9 @@ usb_support_pts = [(pi_cx + pi_hole_offset_x, pi_cy + pi_hole_dy / 2)]
 iface_boss_dia = 8.0
 iface_pilot = 2.5       # M3 self-tapping into PLA
 iface_pilot_depth = 8.0
-# On edge: the board's long axis runs along Y beside the Pi, so its two holes sit at
-# +-20 in Y, both at mid-height of the 35 mm axis.
+# Flat: long axis along X, two holes on the midline 40 mm apart.
 iface_cy = _row_cy
 iface_pts = [(iface_cx + sx * iface_hole_dx / 2, iface_cy) for sx in (-1, 1)]
-iface_slot_w = iface_board_th + iface_slot_extra
-iface_upright_w = 16.0        # X
-iface_upright_d = 10.0        # Y
-iface_upright_h = iface_standoff_h + iface_wid   # board stands on its 50 edge, 35 tall
-iface_hole_z = iface_standoff_h + iface_wid / 2
 
 # --- isolator: an OPEN bay with two low ribs, NOT a pocket ---
 # Its dimensions are a placeholder (see dimensions.py). A tight pocket around an
@@ -223,19 +223,15 @@ with BuildPart() as pi_case:
     with Locations(*[Location((px, py, _cot_z), (90, 0, 0)) for px, py in gpio_pin_pts]):
         Cylinder(cotter_hole_dia / 2, pin_dia + 2, mode=Mode.SUBTRACT)
 
-    # --- interface board ON EDGE: two slotted uprights ---
-    # The slot carries the board; the horizontal M3 pilot behind it is optional, so
-    # the board can be simply dropped in OR bolted through its two existing holes.
+    # --- interface board FLAT on two standoffs ---
+    # M3 through the board's own holes into these pilots, with a washer under the head
+    # (the hole is 4-5 mm, unmeasured, so a washer is what actually captures it).
     with Locations(*[(px, py, floor_th) for px, py in iface_pts]):
-        Box(iface_upright_d, iface_upright_w, iface_upright_h,
-            align=(Align.CENTER, Align.CENTER, Align.MIN))
-    with Locations(*[(px, iface_cy, floor_th + iface_standoff_h) for px, _ in iface_pts]):
-        Box(iface_upright_d + 2, iface_slot_w, iface_wid + 2,
-            align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
-    for _px, _py in iface_pts:
-        add(_thru(iface_pilot, (_px, _py - iface_upright_w / 2 - 1,
-                                floor_th + iface_hole_z), "+Y", length=iface_upright_w),
-            mode=Mode.SUBTRACT)
+        Cylinder(iface_boss_dia / 2, iface_standoff_h,
+                 align=(Align.CENTER, Align.CENTER, Align.MIN))
+    with Locations(*[(px, py, floor_th + iface_standoff_h) for px, py in iface_pts]):
+        Cylinder(iface_pilot / 2, iface_pilot_depth,
+                 align=(Align.CENTER, Align.CENTER, Align.MAX), mode=Mode.SUBTRACT)
 
     # --- isolator retaining ribs: only if it is ever mounted inside ---
     if iso_internal:
@@ -302,8 +298,8 @@ assert case_x + 2 * _brim <= bed_max and case_y + 2 * _brim <= bed_max, (
 assert top_z <= bed_max, f"case is {top_z:.0f} mm tall, over the {bed_max:.0f} mm Z"
 assert cav_h >= pi_standoff_h + stack_h, "cavity is shorter than the Pi + Waveshare stack"
 # Connectors now clear the boards in Z, so that is the check that matters.
-assert panel_z - xlr_bore_dia / 2 > floor_th + _tall_in_row, \
-    "a connector bore would land on the interface board or the isolator"
+assert panel_z - xlr_bore_dia / 2 > floor_th + _tall_inside, \
+    "a connector bore would land on a board"
 # Each wall is only FLAT between +-(cav_x/2 - inner corner radius). A cutout that
 # clears cav_x/2 can still land in the curve, where a flange cannot seat and a hex nut
 # has nothing square to pull against.

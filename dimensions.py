@@ -183,10 +183,16 @@ patch_len = 152.0
 # against is gone and the case takes a plain bore. Do not reintroduce it without a
 # new reason -- it cost a part, four screws and a 34 mm opening.
 
-# --- Interface board mounted ON EDGE (Charles, 2026-08-07) -------------------
-# Standing it up frees the whole component row for the isolator -- which is the
-# part whose size is still a guess, so that is where the slack belongs.
-iface_board_th = 1.6      # perfboard, assumed. The slot is deliberately loose.
-iface_slot_extra = 1.4    # slot = board + this. Generous: accepts ~1.4-2.6 mm stock
-                          # without a refit, and this is not a precision joint.
-iface_edge_depth = 22.0   # X footprint standing up: board + its tallest component
+# --- Interface board: FLAT on two standoffs --------------------------------
+# ⛔ Mounting it ON EDGE was tried and abandoned 2026-08-08. It has screw terminals
+# along BOTH long edges (4 to the Waveshare, 3 to the XLR, 2 for the future shunt),
+# so standing it on a 50 mm edge puts a whole row of terminals on the floor -- there
+# is no clear edge to slot. Charles caught this.
+# Flat is what the board's own holes are for: 40 mm apart on the midline = a two-post
+# pattern. Terminals face UP, so a screwdriver reaches them with the lid off, and a
+# flat board is ~20 mm tall instead of 35, which makes the CASE SHORTER because the
+# connectors sit lower.
+# (Standing it on the 35 mm edge instead does work mechanically -- terminals face
+# sideways -- but the holes are then 40 mm apart vertically, so the board is 50 mm
+# tall and the case grows to ~108 mm. Not worth it.)
+iface_board_th = 1.6      # perfboard, assumed
