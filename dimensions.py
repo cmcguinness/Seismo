@@ -88,36 +88,61 @@ pi_len = 85.0             # board long dimension
 pi_wid = 56.0             # board short dimension
 pi_hole_dx = 58.0         # mounting-hole rectangle, long axis
 pi_hole_dy = 49.0         # mounting-hole rectangle, short axis
-pi_hole_offset_x = -10.0  # hole-block center offset from board center along length
+pi_hole_offset_x = 10.0   # hole-block center offset from board center along length
                           # (holes sit 3.5mm from one short edge, 23.5mm from the other)
 pi_hole_dia = 2.75        # Pi mounting hole (M2.5 clearance)
 pi_standoff_h = 6.0       # lift board off base; clears bottom SMD + the nuts
                           # protruding under the Pi<->HAT standoff holes (~2-4mm)
 pi_board_th = 1.6         # Pi PCB thickness (~1.4mm) + a hair; sets cotter-hole height
-# ⚠️ PORT SIDE IS +X. Established from the official mechanical drawing and confirmed
-# on Charles's photo (2026-08-09): the 58 x 49 hole rectangle sits 3.5 mm from ONE
-# short edge and 23.5 mm from the other, and the Ethernet + USB stacks are on the
-# 23.5 mm edge. With pi_hole_offset_x = -10 the hole block leans to -X, so the 3.5 mm
-# edge is -X and THE CONNECTORS FACE +X.
-# chassis.py's comment says "-X short edge: USB + Ethernet". That comment is WRONG,
-# it contradicts the offset sitting three lines above it, and building a layout off
-# it instead of off the number cost a whole printed base. Trust the geometry.
+# --- Pi placement, derived from the drawing rather than hand-signed -----------
+# EVERY error in this layout has been a sign or a mirror in a hand-written offset.
+# So: state the hole positions in BOARD coordinates straight off the mechanical
+# drawing, state how the board is turned, and let the code do the mapping. Then
+# "ports +X with GPIO -Y" -- a reflection of the real board, and the thing that put
+# the locating pins in the standoff holes -- is not expressible.
+#
+# Board frame, viewed component-side up: x runs 0..85 TOWARD THE PORTS, y runs
+# 0..56 TOWARD THE GPIO EDGE. Holes form a 58 x 49 rectangle, 3.5 mm from the
+# NON-port short edge and 3.5 mm from both long edges.
+pi_holes_gpio = [(3.5, 52.5), (61.5, 52.5)]    # FREE — take the locating pins
+pi_holes_far = [(3.5, 3.5), (61.5, 3.5)]       # occupied by the Waveshare standoffs
+pi_board_c = (42.5, 28.0)
+pi_rot = 0                # 0 -> GPIO +Y and ports +X; 180 -> GPIO -Y and ports -X.
+                          # 0 (Charles, 2026-08-09): it puts the COTTER PINS toward the
+                          # middle of the case and the round support post out at the
+                          # -Y edge -- swapping what gen-1 had -- which turns the Pi
+                          # 180 deg so its cables emerge into the open side of the box
+                          # instead of into a wall.
 pi_conn_overhang = 3.0    # connectors stand proud of the PCB edge (drawing)
-pi_gpio_side = "-Y"       # which way the GPIO long edge faces; the two FREE mounting
-                          # holes are the pair flanking it (photo, 2026-08-09). The
-                          # opposite pair carries the Pi<->Waveshare standoffs, with
-                          # NUTS under the board, so nothing may sit beneath them.
 
-# Clearance past the PORT edge, and this is the number that was missing entirely.
-# Built from real parts, not from the PCB rectangle:
+
+def pi_map(px, py, cx, cy):
+    """Board-local (px, py) -> case coords, honouring pi_rot. Rotation only, never
+    a reflection, which is what makes the mirror bug unrepresentable."""
+    dx, dy = px - pi_board_c[0], py - pi_board_c[1]
+    if pi_rot == 180:
+        dx, dy = -dx, -dy
+    return cx + dx, cy + dy
+
+
+# Clearance past the PORT edge -- the number whose absence scrapped a printed base.
+# Built from real parts, not the PCB rectangle:
 #     3 mm  connector overhang past the board edge
 #   + 21 mm RJ45 plug body
 #   + 12 mm strain-relief boot
 #   + 24 mm minimum bend radius for Cat6 (4 x ~6 mm OD)
-#   = 60 mm, which permits a full 90 deg turn IN THE HORIZONTAL PLANE.
-# Vertical is a free bonus: ~40 mm of cavity above the Pi, so the cable can also
-# simply rise and loop. The old design allowed 12 mm here -- less than a bare plug.
-pi_port_clear = 60.0
+#   = 60 mm, enough for a full 90 deg turn in the horizontal plane. There is also
+# ~40 mm of cavity above the Pi, so the cable may instead simply rise and loop.
+# NOTE the board is NOT symmetric about the pins: their midpoint is 10 mm toward
+# the non-port edge, so the connector faces are 55.5 mm from the pin midpoint.
+pi_port_clear = 54.0
+pi_sd_clear = 20.0        # opposite short edge: the microSD card protrudes and needs
+                          # finger access to swap. It had 12 mm, the same as every
+                          # other edge, because nobody had thought about it.
+# Why 54 and not more: the A1 Mini bed is the binding constraint once a brim is
+# allowed for. 54 = 33 mm of plug + boot, then 21 mm to start the bend -- and the
+# real slack path is VERTICAL, ~40 mm of cavity above the Pi for the cable to rise
+# and loop. A right-angle RJ45 adapter would free ~30 mm if it is ever wanted.
 
 dongle_clearance = 0.0    # WAS 45.0. The Wi-Fi dongle is REMOVED (confirmed 2026-08-07)
                           # -- the station runs on the Ethernet bridge since 2026-07-20
@@ -245,8 +270,8 @@ base_th = 5.0             # flat shelf. 5 not 4 for stiffness: it carries the bo
 cover_top_th = 3.0
 edge_cham = 0.6           # kills elephant-foot on a bottom face
 
-side_margin = 12.0        # board edge -> inner wall
-band_gap = 20.0           # between the Pi row and the component row
+side_margin = 14.0        # board edge -> inner wall
+band_gap = 25.0           # between the Pi row and the component row
 row_slack = 15.0          # spare depth in the component row
 conn_gap = 8.0            # valley between adjacent connector pads on a wall
 conn_end_margin = 4.0     # outermost pad -> where the wall stops being flat
@@ -272,7 +297,7 @@ _wall_front = xlr_pad_w + 2 * corner_inner_r + 2 * conn_end_margin              
 _wall_back = (xlr_pad_w + conn_gap + 2 * nut_clear
               + 2 * corner_inner_r + 2 * conn_end_margin)                         # -Y: ETH + 5V
 cav_x = max(_wall_front, _wall_back, _pack_x + 2 * side_margin,
-            side_margin + pi_len + pi_port_clear)
+            pi_sd_clear + pi_len + pi_conn_overhang + pi_port_clear)
 cav_y = pi_wid + band_gap + _row_back + 2 * side_margin
 
 # Jacks share one centreline and sit on BOTH long walls, so they must clear the
@@ -287,7 +312,7 @@ case_y = cav_y + 2 * case_wall
 
 # --- bay centres (case centred on the origin in X and Y) ---
 _y0 = -cav_y / 2 + side_margin
-pi_cx = -cav_x / 2 + side_margin + pi_len / 2      # hard against -X; +X is the port side
+pi_cx = -cav_x / 2 + pi_sd_clear + pi_len / 2      # ports face +X (pi_rot 0)
 pi_cy = _y0 + pi_wid / 2
 _row_cy = _y0 + pi_wid + band_gap + _row_back / 2
 iface_cx = 0.0
@@ -301,9 +326,13 @@ pi_standoff_dia = 6.0
 pi_pin_dia = pi_hole_dia - 0.15
 pi_pin_extra = 5.0
 cotter_hole_dia = 1.5
-gpio_pin_pts = [(pi_cx + pi_hole_offset_x + sx * pi_hole_dx / 2, pi_cy - pi_hole_dy / 2)
-                for sx in (-1, 1)]
-usb_support_pts = [(pi_cx + pi_hole_offset_x, pi_cy + pi_hole_dy / 2)]
+gpio_pin_pts = [pi_map(px, py, pi_cx, pi_cy) for px, py in pi_holes_gpio]
+pi_far_pts = [pi_map(px, py, pi_cx, pi_cy) for px, py in pi_holes_far]
+# one flat post midway between the two standoff NUTS, never under them
+usb_support_pts = [((pi_far_pts[0][0] + pi_far_pts[1][0]) / 2, pi_far_pts[0][1])]
+# the port edge, mapped the same way -- this is what clearance is measured from
+pi_port_face = pi_map(pi_len, pi_board_c[1], pi_cx, pi_cy)[0] \
+    + (-pi_conn_overhang if pi_rot == 180 else pi_conn_overhang)
 
 # --- connectors. z is measured from the base top face. ---
 panel_z = conn_bot + xlr_bore_dia / 2

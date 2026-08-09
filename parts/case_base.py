@@ -12,11 +12,13 @@ down over the top. That was the other half of the reason for splitting it.
   - Pi: 2 locating pins + 1 flat post. Only the two GPIO-side holes are free (photo,
     2026-08-09); the opposite pair carries the Pi<->Waveshare standoffs with NUTS
     under the board, so nothing may sit beneath them.
-  - THE PI IS OFFSET TO -X, hard against that wall, because its Ethernet and USB
-    stacks face +X and need 60 mm of clearance for a plug and a bend. Centring it
-    would pay that on both sides for nothing. Gen-1 sized the cavity to the 85 mm
-    PCB rectangle with 12 mm margins and never modelled a connector or a mating
-    plug at all -- that is what scrapped the first base.
+  - COTTER PINS TOWARD THE CASE MIDDLE, support post out at the -Y edge (Charles's
+    call, 2026-08-09). That turns the Pi 180 deg from gen-1 so its cables emerge
+    into the open side of the box rather than into a wall. The Pi is then offset
+    to -X, since the ports face +X and need room for a plug and a bend. Centring it would pay that
+    on both sides for nothing. Gen-1 sized the cavity to the 85 mm PCB rectangle
+    with 12 mm margins, never modelled a connector or a mating plug, AND had the
+    board mirrored so the pins landed in the standoff holes. Both are asserted now.
   - Interface board: 2 standoffs with M3 pilots, matching its own 40 mm hole
     spacing. FLAT, not on edge — it has screw terminals along both long edges, so
     there is no clear edge to slot into (found 2026-08-08). Use a WASHER: the
@@ -83,14 +85,31 @@ for _n, _cx, _cy, _w, _d in (("Pi", pi_cx, pi_cy, pi_len, pi_wid),
             assert (abs(_sx * asm_x - _cx) > _w / 2 + clear_6 / 2
                     or abs(_sy * asm_y - _cy) > _d / 2 + clear_6 / 2), \
                 f"a corner screw lands under the {_n} board"
-# THE CHECK THAT WAS MISSING. The cavity was sized to the PCB rectangle, so the port
-# side got 12 mm -- less than a bare RJ45 plug -- and a printed base was wasted.
-# Assert against the CONNECTOR FACE and the space a plugged cable actually needs.
-_port_face = pi_cx + pi_len / 2 + pi_conn_overhang
-assert cav_x / 2 - _port_face >= pi_port_clear - side_margin, (
-    f"only {cav_x / 2 - _port_face:.1f} mm past the Pi's connector face; "
-    f"an RJ45 plug alone is ~33 mm before it can start to turn")
-assert pi_cx - pi_len / 2 >= -cav_x / 2 + side_margin - 0.01, "Pi overhangs the -X wall"
+# Orientation is no longer hand-signed -- dimensions.pi_map() applies a ROTATION to
+# the drawing's board-frame hole positions, so "ports +X with GPIO -Y" (a reflection
+# of the real board, and what put the locating pins in the standoff holes) cannot be
+# expressed. What is still worth asserting is that the result lands where intended.
+_pin_y = gpio_pin_pts[0][1]
+_post_y = usb_support_pts[0][1]
+assert abs(_pin_y - _post_y) > 40.0, "pins and post are not on opposite long edges"
+assert abs(_pin_y - pi_cy) < abs(_post_y - pi_cy) + 1e-9, "pins must be the pair nearer nothing"
+# Charles's layout call: cotter pins toward the MIDDLE of the case, support post out
+# at the -Y edge. That is what turns the board so its cables emerge into open space.
+assert _pin_y > _post_y, "pins must sit toward the case middle, post toward the -Y edge"
+# The post must sit BETWEEN the two standoff nuts, never under one.
+for _fx, _fy in pi_far_pts:
+    assert abs(usb_support_pts[0][0] - _fx) > 12.0, "support post lands on a standoff nut"
+
+# CLEARANCE, measured from the CONNECTOR FACE. The board is not symmetric about the
+# pins: their midpoint is 10 mm toward the non-port edge, so the faces are 55.5 mm
+# away, not 42.5. Sizing to the PCB rectangle is what scrapped the first base.
+_gap = cav_x / 2 - abs(pi_port_face)
+assert _gap >= 33.0, (
+    f"only {_gap:.1f} mm past the connector faces; an RJ45 plug plus boot is ~33 mm "
+    "before the cable can even begin to turn")
+assert _gap >= pi_port_clear - 0.01, f"port clearance is {_gap:.1f}, wanted {pi_port_clear}"
+_sd = cav_x / 2 - abs(pi_cx - pi_len / 2)
+assert _sd >= 18.0, f"only {_sd:.1f} mm at the microSD edge — the card needs finger room"
 assert cav_x >= pi_len + 2 * side_margin, "Pi does not fit the cavity width"
 
 print(f"base {case_x:.0f} x {case_y:.0f} x {base_th:.0f} mm | Pi @ ({pi_cx:.0f},{pi_cy:.0f})"
