@@ -285,20 +285,12 @@ with BuildPart() as pi_case:
                 add(_thru(xlr_screw_dia, (_cx + _sx * _dx, 0, panel_z + _sz * _dz), "+Y",
                           length=case_y), mode=Mode.SUBTRACT)
 
-    # Barrel jack: a square OPENING for a removable plate, not a bore. The bore
-    # diameter is the one unvalidated number on this wall, and a 300 g print must
-    # not depend on a guess -- parts/barrel_plate.py carries it instead.
-    _wx = case_x / 2
-    with BuildSketch(Plane.YZ.offset(_wx)):
-        with Locations((barrel_cy, barrel_z)):
-            Rectangle(bplate_open, bplate_open)
-    extrude(amount=-wall * 3, mode=Mode.SUBTRACT, both=True)
-    for _sy in (1, -1):
-        for _sz in (1, -1):
-            add(_thru(bplate_screw_dia,
-                      (_wx + 5, barrel_cy + _sy * bplate_screw_off,
-                       barrel_z + _sz * bplate_screw_off), "-X", length=case_x),
-                mode=Mode.SUBTRACT)
+    # Barrel jack: a plain bore, hex nut on the flat inner face. This was briefly a
+    # removable plate -- insurance against an unvalidated bore diameter on a ~350 g
+    # print. The coupon settled the bore at 12 mm on this printer and filament, so the
+    # insurance expired and the plate was deleted rather than carried as dead weight.
+    add(_thru(barrel_bore_dia, (case_x / 2 + 5, barrel_cy, barrel_z), "-X",
+              length=case_x), mode=Mode.SUBTRACT)
 
     chamfer(pi_case.faces().sort_by(Axis.Z)[0].outer_wire().edges(), edge_cham)
 
@@ -323,10 +315,12 @@ assert _pads[1] - _pads[0] > xlr_pad_w, "XLR and Ethernet pads overlap"
 _flat_half = cav_x / 2 - max(corner_r - wall, 0.5)
 # 5 V plate on the +X wall: it must sit on that wall's FLAT span (in Y) and inside
 # the cavity height, and its jack body must clear the end of the Pi.
+# The jack needs flat wall for its Ø14 flange outside and its hex nut inside.
 _flat_half_y = cav_y / 2 - max(corner_r - wall, 0.5)
-assert abs(barrel_cy) + bplate_w / 2 < _flat_half_y, "5 V plate runs into the corner radius"
-assert barrel_z - bplate_w / 2 > floor_th and barrel_z + bplate_w / 2 < top_z, \
-    "5 V plate does not fit the cavity height"
+_nut_clear = barrel_flange_dia / 2 + 3.0
+assert abs(barrel_cy) + _nut_clear < _flat_half_y, "5 V jack runs into the corner radius"
+assert barrel_z - _nut_clear > floor_th and barrel_z + _nut_clear < top_z, \
+    "5 V jack does not fit the cavity height"
 assert cav_x / 2 - barrel_body_depth > pi_cx + pi_len / 2 + 4.0, \
     "the 5 V jack body would foul the end of the Pi"
 for _n, _c in (("XLR", xlr_cx), ("ETH", eth_cx)):
@@ -353,7 +347,7 @@ assert _row_cy - _row_back / 2 > pi_cy + pi_wid / 2, "component row overlaps the
 print(f"case {case_x:.0f} x {case_y:.0f} x {top_z:.0f} mm  (cavity {cav_x:.0f} x {cav_y:.0f}"
       f" x {cav_h:.0f})\n  Pi @ ({pi_cx:.0f},{pi_cy:.0f})  iface @ ({iface_cx:.0f},{_row_cy:.0f})"
       f"  iso @ {'(%.0f,%.0f)' % (iso_cx, _row_cy) if iso_internal else 'EXTERNAL'}"
-      f"\n  panel z {panel_z:.0f}  | 5V plate on +X @ y={barrel_cy:.0f} z={barrel_z:.0f}"
+      f"\n  panel z {panel_z:.0f}  | 5V bore on +X @ y={barrel_cy:.0f} z={barrel_z:.0f}"
       f"  | barrel bore {barrel_bore_dia} mm"
       f"{'  ** PROVISIONAL — run panel_coupon first **' if barrel_bore_provisional else ''}")
 

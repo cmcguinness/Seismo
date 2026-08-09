@@ -177,9 +177,12 @@ thread" for ~27 g *including* print shrinkage, which a caliper reading does not.
 - **Generous margins are deliberate** (Charles, forcefully, 2026-08-07): do not design a
   box so tight that everything must be perfect or it is scrap. 12 mm wall clearance,
   20 mm between rows, and a NAMED `iso_allow = 10 mm` on the isolator bay.
-- **The unvalidated dimension never goes in the expensive part.** The barrel bore lives on
-  `parts/barrel_plate.py` (48 × 48 × 3, ~8 g) behind a plain square opening in the wall.
-  Wrong bore or a different jack later = reprint 8 g.
+- **The unvalidated dimension never goes in the expensive part** — *while it is still
+  unvalidated*. The barrel bore briefly lived on a removable 48 × 48 × 3 plate for exactly
+  that reason. The coupon then validated it at 12 mm on this printer and filament, so the
+  risk was gone and **the plate was deleted rather than carried as dead weight** (it cost a
+  part, four screws and a 34 mm opening). The case takes a plain bore. The lesson is the
+  pattern, not the plate: isolate a guess until it is settled, then remove the scaffolding.
 - **Connectors ride ABOVE the boards**, so no floor is reserved behind them. The XLR's
   32 mm body intrudes at its own height, costing Z (180 mm available) instead of Y (which
   was fighting the bed). The tall upper cavity is where the coiled patch cable lives.
