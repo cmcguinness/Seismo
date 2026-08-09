@@ -73,13 +73,16 @@ with BuildPart() as case_cover:
         Cylinder(pilot_6 / 2, asm_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
 
-    # --- handle mount pads + blind pilots down from the OUTSIDE roof face ---
+    # --- handle mount: bearing pads INSIDE the roof + clearance holes through it ---
+    # The handle screws in from inside, so the roof carries the screw HEAD, not a
+    # thread. Thicken it locally: a #6 head bearing on 3 mm of PLA is what lets go
+    # when the case is lifted.
     with Locations(*[(sx * handle_screw_off, 0, cav_h) for sx in (1, -1)]):
         Cylinder(handle_pad_dia / 2, handle_pad_h,
                  align=(Align.CENTER, Align.CENTER, Align.MAX))
-    with Locations(*[(sx * handle_screw_off, 0, top_z) for sx in (1, -1)]):
-        Cylinder(pilot_6 / 2, handle_pilot_depth,
-                 align=(Align.CENTER, Align.CENTER, Align.MAX), mode=Mode.SUBTRACT)
+    with Locations(*[(sx * handle_screw_off, 0, cav_h - handle_pad_h) for sx in (1, -1)]):
+        Cylinder(clear_6 / 2, handle_pad_h + cover_top_th,
+                 align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
 
     # --- D-series seats: XLR on +Y, Ethernet on -Y ---
     # Plane.XZ's normal is -Y, so offset(-wy) lands on +Y and offset(+wy) on -Y;
@@ -134,7 +137,6 @@ _panel_th = case_wall + xlr_pad_proud - xlr_seat_depth
 assert 1.0 <= _panel_th <= xlr_panel_th_max, f"panel is {_panel_th} mm, outside 1-3"
 _web = (_dx ** 2 + _dz ** 2) ** 0.5 - xlr_screw_dia / 2 - xlr_bore_dia / 2
 assert _web > 0.8, f"only {_web:.2f} mm of web between a screw hole and its bore"
-assert handle_screw_off + handle_pad_dia / 2 < cav_x / 2, "handle pad overruns the cavity"
 assert asm_pilot_depth < cav_h, "corner pilot is deeper than the boss"
 # A corner boss must stay INSIDE the outer corner skin. The outer corner is an arc of
 # radius case_corner_r centred at (case_x/2 - r, case_y/2 - r); a boss whose centre is
@@ -147,8 +149,10 @@ _skin = case_corner_r - (_d + asm_boss_dia / 2)
 assert _skin > 1.0, (
     f"corner boss leaves {_skin:.2f} mm of skin at the rounded corner "
     f"(negative = it breaks through the outside of the case)")
-assert cover_top_th + handle_pad_h > handle_pilot_depth + 1.0, \
-    "handle pilot would break through the roof into the cavity"
+# The roof bears the screw HEAD now, so what matters is bearing thickness, not depth.
+assert cover_top_th + handle_pad_h >= 8.0, \
+    "too little roof under the handle screw heads -- this is the joint that carries the case"
+assert handle_screw_off + handle_pad_dia / 2 < cav_x / 2, "handle pad overruns the cavity"
 _brim = 5.0
 assert case_x + 2 * _brim <= 180 and case_y + 2 * _brim <= 180, \
     f"cover is {case_x:.0f} x {case_y:.0f}; with brim that exceeds the 180 mm bed"

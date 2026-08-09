@@ -306,10 +306,14 @@ foot_pad_h = 6.0          # local thickening -> 11 mm under a foot screw
 foot_pilot_depth = 9.0    # leaves 2 mm; a pilot that breaks through the TOP face
                           # would surface right where a board sits (caught by assert)
 
-# --- handle (separate part, screws down into the cover roof) ---
-# Bar geometry carried over from geophone_case_lid, which prints clean. The FLANGE
-# is longer than the bar so its two screws land OUTSIDE the legs -- otherwise a
-# clearance hole would have to run down through 24 mm of leg.
+# --- handle (separate part, screwed UP into from inside the cover) ---
+# Bar geometry carried over from geophone_case_lid, which prints clean.
+# NO FLANGE. Screws go from INSIDE the cavity, up through clearance holes in the
+# roof, into blind pilots in the undersides of the bar's two LEGS -- heads hidden,
+# nothing extra sticking out. (An earlier revision put a 92 mm flange on the handle
+# so the screws could land outboard of the legs; that was solving a problem that
+# does not exist. A blind pilot up into a 24 mm leg has more material to bite than
+# anywhere else on the part.)
 handle_span = 70.0        # outer, along X
 handle_w = 16.0           # along Y, and the width your fingers bear on
 handle_h = 24.0           # above the flange
@@ -317,9 +321,9 @@ handle_open_w = 48.0      # finger opening at the base
 handle_open_top = 24.0    # at the top -> ~55 deg sides, self-supporting
 handle_open_h = 17.0      # finger clearance under the bar
 handle_top_r = 6.0
-handle_flange_len = 92.0
-handle_flange_th = 4.0
-handle_screw_off = 40.0   # from centre, clear of the 70 mm bar
-handle_pilot_depth = 9.0  # NOT asm_pilot_depth (12): the roof is thinner than a
-                          # corner boss, and 12 broke through into the cavity. A #6
-                          # x 1/2in through a 4 mm flange engages ~8.7 mm anyway.
+# Legs run from handle_open_w/2 (24) to handle_span/2 (35); screw on the centreline
+# of each leg. Derived, not chosen, so changing the opening moves the screws with it.
+handle_screw_off = (handle_open_w / 2 + handle_span / 2) / 2      # = 29.5
+handle_pilot_depth = 11.0  # up into the leg. A #6 x 1/2in (12.7) through a 3 mm roof
+                           # plus a 5 mm bearing pad still leaves ~4.7 mm engaged, so
+                           # the pilot only has to be deeper than that.
