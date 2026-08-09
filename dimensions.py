@@ -214,9 +214,9 @@ iface_board_th = 1.6      # perfboard, assumed
 # either having to know the other's thickness.
 case_wall = 3.0
 case_corner_r = 12.0
-base_th = 5.0             # flat shelf; foot pads thicken it locally. 5 not 4: the
-                          # foot screws need depth, and this plate also carries the
-                          # board loads unsupported across its span.
+base_th = 5.0             # flat shelf. 5 not 4 for stiffness: it carries the board
+                          # loads unsupported across its span, and it is the face the
+                          # cover clamps against.
 cover_top_th = 3.0
 edge_cham = 0.6           # kills elephant-foot on a bottom face
 
@@ -300,11 +300,12 @@ asm_y = cav_y / 2 - asm_inset
 asm_boss_dia = 10.0
 asm_pilot_depth = 12.0
 
-# --- feet: 3 screw heads on the base underside (geophone-case doctrine) ---
-foot_pad_dia = 16.0
-foot_pad_h = 6.0          # local thickening -> 11 mm under a foot screw
-foot_pilot_depth = 9.0    # leaves 2 mm; a pilot that breaks through the TOP face
-                          # would surface right where a board sits (caught by assert)
+# --- feet: NONE. The base bottom is flat; Charles fits self-adhesive feet. ---
+# The geophone case uses three SCREW heads as feet, but that is a coupling decision
+# specific to it: its load path is element -> floor -> feet -> ground, so near-point
+# 3-point contact is deliberate. Nothing couples through THIS box -- it just sits on
+# a shelf -- so screw feet would be cost with no benefit, and a flat underside prints
+# better besides (bigger first layer, no pilot bores near the board mounts).
 
 # --- handle (separate part, screwed UP into from inside the cover) ---
 # Bar geometry carried over from geophone_case_lid, which prints clean.

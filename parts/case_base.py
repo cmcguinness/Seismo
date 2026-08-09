@@ -18,8 +18,9 @@ down over the top. That was the other half of the reason for splitting it.
     board's holes are an unmeasured 4-5 mm, so the washer is what captures it.
   - 4 clearance holes at the corners for the #6 screws that pull it up into the
     cover's bosses.
-  - 3 foot pads with blind pilots, so the feet are screw heads: 3-point contact is
-    deterministic where a flat face rocks on unknown high spots.
+  - NO feet. The underside is flat and takes self-adhesive feet. The geophone case
+    uses three screw heads instead, but that is a coupling decision specific to it
+    (element -> floor -> feet -> ground); nothing couples through this box.
 
 Z datum: z=0 is the BOTTOM face here; the top face (z=base_th) is the shared datum
 that dimensions.py measures the cover's interior from.
@@ -31,11 +32,6 @@ Print flat, no supports.
 from build123d import *
 from ocp_vscode import show
 from dimensions import *
-
-# Feet: one at the +Y end, two at the -Y end, all inboard of the corner screws.
-foot_pts = [(0.0, cav_y / 2 - 16.0),
-            (-cav_x / 2 + 16.0, -cav_y / 2 + 16.0),
-            (cav_x / 2 - 16.0, -cav_y / 2 + 16.0)]
 
 with BuildPart() as case_base:
     with BuildSketch(Plane.XY):
@@ -64,14 +60,6 @@ with BuildPart() as case_base:
         Cylinder(iface_pilot / 2, iface_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MAX), mode=Mode.SUBTRACT)
 
-    # --- foot pads on the TOP face, blind pilots up from the bottom ---
-    with Locations(*[(px, py, base_th) for px, py in foot_pts]):
-        Cylinder(foot_pad_dia / 2, foot_pad_h,
-                 align=(Align.CENTER, Align.CENTER, Align.MIN))
-    with Locations(*[(px, py, 0) for px, py in foot_pts]):
-        Cylinder(pilot_6 / 2, foot_pilot_depth,
-                 align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
-
     # --- 4 clearance holes for the screws that pull the base into the cover ---
     with BuildSketch(Plane.XY):
         with Locations(*[(sx * asm_x, sy * asm_y) for sx in (1, -1) for sy in (1, -1)]):
@@ -82,8 +70,6 @@ with BuildPart() as case_base:
 
 
 # --- checks ---
-assert base_th > foot_pilot_depth - foot_pad_h, \
-    "foot pilot is deeper than the plate + pad and would break through the top"
 # corner screws must clear the boards
 for _n, _cx, _cy, _w, _d in (("Pi", pi_cx, pi_cy, pi_len, pi_wid),
                              ("interface", iface_cx, iface_cy, iface_len, iface_wid)):
@@ -92,13 +78,6 @@ for _n, _cx, _cy, _w, _d in (("Pi", pi_cx, pi_cy, pi_len, pi_wid),
             assert (abs(_sx * asm_x - _cx) > _w / 2 + clear_6 / 2
                     or abs(_sy * asm_y - _cy) > _d / 2 + clear_6 / 2), \
                 f"a corner screw lands under the {_n} board"
-# feet must not collide with the corner screws or the boards
-for _fx, _fy in foot_pts:
-    for _sx in (1, -1):
-        for _sy in (1, -1):
-            _dist = ((_fx - _sx * asm_x) ** 2 + (_fy - _sy * asm_y) ** 2) ** 0.5
-            assert _dist > foot_pad_dia / 2 + clear_6 / 2 + 1.0, \
-                f"foot at ({_fx:.0f},{_fy:.0f}) collides with a corner screw"
 assert cav_x >= pi_len + 2 * side_margin, "Pi does not fit the cavity width"
 
 print(f"base {case_x:.0f} x {case_y:.0f} x {base_th:.0f} mm | Pi @ ({pi_cx:.0f},{pi_cy:.0f})"
