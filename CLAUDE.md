@@ -40,7 +40,21 @@ The 3D-printed enclosure is modeled with **build123d** (not CadQuery/OpenSCAD). 
 - Parts import `dimensions`, so run with the root on the path: `PYTHONPATH=. .venv/bin/python parts/<name>.py`, or use `.venv/bin/python watch.py parts/<name>.py` (auto-re-renders).
 - **Viewer:** `python -m ocp_vscode` → http://localhost:3939/**viewer**. Must run *before* `show()`, and open the browser tab *before* the push — it won't replay to a late-joining client, so re-run the part after opening.
 - Fasteners + their holes come from `bd_warehouse.fastener` — never hand-size a screw hole.
-- **Current parts:** `geophone_base.py` — geophone coupling pocket (done: prints, seats solid; held by museum putty, no clamp).
+- **Current parts** (as of 2026-08-08):
+  - **Geophone case — COMPLETE, printed and assembled:** `geophone_case.py` (body, XLR
+    mount), `geophone_case_lid.py` (lid + carry handle), `geophone_base.py` (the original
+    coupling pocket — seats solid, held by museum putty, no clamp), `geophone_stand.py`.
+  - **Pi + front-end case — modelled, not yet printed:** `case_base.py` (flat shelf with
+    the Pi and interface-board mounts), `case_cover.py` (domed shell, all three jacks),
+    `case_handle.py` (screws to the cover roof from inside). Three parts on purpose: the
+    piece you iterate on is the cheap flat one.
+  - **Fit coupons, both validated:** `xlr_coupon.py` (D-series cutout), `panel_coupon.py`
+    (barrel bore = 12 mm; RJ45 feedthrough is D-series too).
+  - **Superseded:** `chassis.py` (open tray, replaced by `case_base` + `geophone_case`).
+- **Shared case envelope lives in `dimensions.py`**, not in the parts: the three case
+  parts derive their footprint, bay centres and connector positions from it, with z=0
+  defined as the base's TOP face (= the cover's rim). ⚠️ Names there must NOT start with
+  `_` — `from dimensions import *` silently skips them.
 
 ## Environment
 

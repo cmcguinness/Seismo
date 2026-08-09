@@ -153,6 +153,15 @@ the epoch change becomes mechanical only rather than mechanical *and* electrical
   already ~7.5× low and the project explicitly sensitivity-first, deliberate under-damping
   is defensible. Do it last, in the garage, against a stable baseline.
 
+## ✅ GEOPHONE CASE COMPLETE — printed and assembled (2026-08-08)
+
+Gen-1 geophone enclosure is **done**: body + lid printed, XLR fitted, element in its
+cup, assembled. It has been carrying the bench measurements all week (the 08-07 settled
+run was taken through it), so it is not just built — it is in service.
+
+That closes the sensor end. Everything remaining before the station goes back in the
+garage is the Pi/front-end case below.
+
 ## 🧰 Pi + front-end CASE — modelled, coupon validated (2026-08-08)
 
 **`parts/pi_case.py` — 168 × 164 × 93 mm, ~454 g PLA.** Minimal tier (Charles's call):
