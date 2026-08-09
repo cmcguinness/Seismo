@@ -130,7 +130,10 @@ _flat_half = cav_x / 2 - corner_inner_r
 assert abs(xlr_cx) + xlr_pad_w / 2 < _flat_half, "XLR pad runs into the corner radius"
 assert abs(eth_cx) + xlr_pad_w / 2 < _flat_half, "Ethernet pad runs into the corner radius"
 assert abs(barrel_cx) + nut_clear < _flat_half, "5 V jack runs into the corner radius"
-assert barrel_cx - nut_clear > eth_cx + xlr_pad_w / 2, "5 V jack fouls the Ethernet pad"
+# Order-agnostic: the 5 V jack and the Ethernet pad swapped sides on the -Y wall, and
+# an assert that assumed which one was to the right fired on a perfectly good layout.
+assert abs(barrel_cx - eth_cx) > xlr_pad_w / 2 + nut_clear, \
+    "5 V jack and the Ethernet pad overlap on the -Y wall"
 assert panel_z - xlr_bore_dia / 2 > tall_inside, "a jack bore would land on a board"
 assert panel_z + xlr_bore_dia / 2 < cav_h, "a jack bore breaks through the roof"
 _panel_th = case_wall + xlr_pad_proud - xlr_seat_depth

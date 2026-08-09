@@ -9,9 +9,14 @@ It is also the piece you BUILD ON: boards go down on an open shelf at the bench,
 wired with everything reachable from every side, and only then does the cover come
 down over the top. That was the other half of the reason for splitting it.
 
-  - Pi: 2 locating pins + 1 flat post. Only the two GPIO-side holes are free; the
-    others carry the Pi<->Waveshare standoffs with NUTS protruding under the board
-    (chassis.py), so nothing may sit under them.
+  - Pi: 2 locating pins + 1 flat post. Only the two GPIO-side holes are free (photo,
+    2026-08-09); the opposite pair carries the Pi<->Waveshare standoffs with NUTS
+    under the board, so nothing may sit beneath them.
+  - THE PI IS OFFSET TO -X, hard against that wall, because its Ethernet and USB
+    stacks face +X and need 60 mm of clearance for a plug and a bend. Centring it
+    would pay that on both sides for nothing. Gen-1 sized the cavity to the 85 mm
+    PCB rectangle with 12 mm margins and never modelled a connector or a mating
+    plug at all -- that is what scrapped the first base.
   - Interface board: 2 standoffs with M3 pilots, matching its own 40 mm hole
     spacing. FLAT, not on edge — it has screw terminals along both long edges, so
     there is no clear edge to slot into (found 2026-08-08). Use a WASHER: the
@@ -78,6 +83,14 @@ for _n, _cx, _cy, _w, _d in (("Pi", pi_cx, pi_cy, pi_len, pi_wid),
             assert (abs(_sx * asm_x - _cx) > _w / 2 + clear_6 / 2
                     or abs(_sy * asm_y - _cy) > _d / 2 + clear_6 / 2), \
                 f"a corner screw lands under the {_n} board"
+# THE CHECK THAT WAS MISSING. The cavity was sized to the PCB rectangle, so the port
+# side got 12 mm -- less than a bare RJ45 plug -- and a printed base was wasted.
+# Assert against the CONNECTOR FACE and the space a plugged cable actually needs.
+_port_face = pi_cx + pi_len / 2 + pi_conn_overhang
+assert cav_x / 2 - _port_face >= pi_port_clear - side_margin, (
+    f"only {cav_x / 2 - _port_face:.1f} mm past the Pi's connector face; "
+    f"an RJ45 plug alone is ~33 mm before it can start to turn")
+assert pi_cx - pi_len / 2 >= -cav_x / 2 + side_margin - 0.01, "Pi overhangs the -X wall"
 assert cav_x >= pi_len + 2 * side_margin, "Pi does not fit the cavity width"
 
 print(f"base {case_x:.0f} x {case_y:.0f} x {base_th:.0f} mm | Pi @ ({pi_cx:.0f},{pi_cy:.0f})"

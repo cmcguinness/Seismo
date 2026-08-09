@@ -94,6 +94,31 @@ pi_hole_dia = 2.75        # Pi mounting hole (M2.5 clearance)
 pi_standoff_h = 6.0       # lift board off base; clears bottom SMD + the nuts
                           # protruding under the Pi<->HAT standoff holes (~2-4mm)
 pi_board_th = 1.6         # Pi PCB thickness (~1.4mm) + a hair; sets cotter-hole height
+# ⚠️ PORT SIDE IS +X. Established from the official mechanical drawing and confirmed
+# on Charles's photo (2026-08-09): the 58 x 49 hole rectangle sits 3.5 mm from ONE
+# short edge and 23.5 mm from the other, and the Ethernet + USB stacks are on the
+# 23.5 mm edge. With pi_hole_offset_x = -10 the hole block leans to -X, so the 3.5 mm
+# edge is -X and THE CONNECTORS FACE +X.
+# chassis.py's comment says "-X short edge: USB + Ethernet". That comment is WRONG,
+# it contradicts the offset sitting three lines above it, and building a layout off
+# it instead of off the number cost a whole printed base. Trust the geometry.
+pi_conn_overhang = 3.0    # connectors stand proud of the PCB edge (drawing)
+pi_gpio_side = "-Y"       # which way the GPIO long edge faces; the two FREE mounting
+                          # holes are the pair flanking it (photo, 2026-08-09). The
+                          # opposite pair carries the Pi<->Waveshare standoffs, with
+                          # NUTS under the board, so nothing may sit beneath them.
+
+# Clearance past the PORT edge, and this is the number that was missing entirely.
+# Built from real parts, not from the PCB rectangle:
+#     3 mm  connector overhang past the board edge
+#   + 21 mm RJ45 plug body
+#   + 12 mm strain-relief boot
+#   + 24 mm minimum bend radius for Cat6 (4 x ~6 mm OD)
+#   = 60 mm, which permits a full 90 deg turn IN THE HORIZONTAL PLANE.
+# Vertical is a free bonus: ~40 mm of cavity above the Pi, so the cable can also
+# simply rise and loop. The old design allowed 12 mm here -- less than a bare plug.
+pi_port_clear = 60.0
+
 dongle_clearance = 0.0    # WAS 45.0. The Wi-Fi dongle is REMOVED (confirmed 2026-08-07)
                           # -- the station runs on the Ethernet bridge since 2026-07-20
                           # (WiFi TX was corrupting ADC reads). Dropping it takes 45 mm
@@ -246,7 +271,8 @@ _row_back = (max(iface_wid, iso_wid + iso_allow) if iso_internal else iface_wid)
 _wall_front = xlr_pad_w + 2 * corner_inner_r + 2 * conn_end_margin                # +Y: XLR
 _wall_back = (xlr_pad_w + conn_gap + 2 * nut_clear
               + 2 * corner_inner_r + 2 * conn_end_margin)                         # -Y: ETH + 5V
-cav_x = max(_wall_front, _wall_back, _pack_x + 2 * side_margin, pi_len + 2 * side_margin)
+cav_x = max(_wall_front, _wall_back, _pack_x + 2 * side_margin,
+            side_margin + pi_len + pi_port_clear)
 cav_y = pi_wid + band_gap + _row_back + 2 * side_margin
 
 # Jacks share one centreline and sit on BOTH long walls, so they must clear the
@@ -261,7 +287,7 @@ case_y = cav_y + 2 * case_wall
 
 # --- bay centres (case centred on the origin in X and Y) ---
 _y0 = -cav_y / 2 + side_margin
-pi_cx = 0.0
+pi_cx = -cav_x / 2 + side_margin + pi_len / 2      # hard against -X; +X is the port side
 pi_cy = _y0 + pi_wid / 2
 _row_cy = _y0 + pi_wid + band_gap + _row_back / 2
 iface_cx = 0.0
@@ -283,8 +309,11 @@ usb_support_pts = [(pi_cx + pi_hole_offset_x, pi_cy + pi_hole_dy / 2)]
 panel_z = conn_bot + xlr_bore_dia / 2
 xlr_cx = 0.0                                   # +Y wall: "measurement in"
 _run_back = xlr_pad_w + conn_gap + 2 * nut_clear
-eth_cx = -_run_back / 2 + xlr_pad_w / 2        # -Y wall: "real world out"
-barrel_cx = _run_back / 2 - nut_clear
+# -Y wall, "real world out". 5 V toward -X because the GPIO 5 V pins (4 and 6) are at
+# the -X end of the header; Ethernet toward +X because the Pi's own jack faces +X.
+# Both runs get shorter, and the DC feed ends up furthest from the front end.
+barrel_cx = -_run_back / 2 + nut_clear
+eth_cx = _run_back / 2 - xlr_pad_w / 2
 barrel_z = panel_z
 
 # --- base <-> cover screws: 4 corners, #6 sheet metal ---
