@@ -153,6 +153,53 @@ the epoch change becomes mechanical only rather than mechanical *and* electrical
   already ~7.5× low and the project explicitly sensitivity-first, deliberate under-damping
   is defensible. Do it last, in the garage, against a stable baseline.
 
+## ⛔ FIRST Pi BASE PRINT WAS SCRAP — and why (2026-08-09)
+
+Printed, then found unusable. Two independent defects, both mine, both avoidable.
+
+**1. The cavity was sized to the PCB rectangle.** `pi_len` 85 with 12 mm margins, and no
+connector, mating plug or bend radius modelled anywhere. An RJ45 plug plus boot is ~33 mm
+before the cable can even begin to turn, against 12 mm of clearance. Charles had directed
+me explicitly to oversize well past what I thought I needed; I applied "generous" to a
+rectangle that does not describe the object.
+
+**2. The board was MIRRORED.** `chassis.py` carries a comment saying the ports are on the
+−X short edge. The mechanical drawing (confirmed on a photo) puts the 58 × 49 hole
+rectangle 3.5 mm from one short edge and 23.5 mm from the other, with the connectors on
+the 23.5 mm edge — so the offset three lines above that comment implies the opposite. I
+built the layout off the comment. "Ports +X with GPIO −Y" is a *reflection* of the real
+board, not a rotation, and its symptom is that the locating pins land in the two holes
+occupied by the Waveshare standoffs.
+
+### The fix (Charles's layout call)
+
+**Cotter pins toward the MIDDLE of the case, round support post out at the −Y edge** —
+swapping what gen-1 had. That turns the Pi 180° so its cables emerge into open space.
+
+| | gen-1 | now |
+|---|---|---|
+| connector faces → wall | ~9 mm (**overhung the case**) | **54 mm** |
+| headroom above the Pi | — | 46 mm (cable can rise and loop) |
+| microSD edge | 12 mm | 20 mm |
+| case | 115 × 156 | 168 × 165 |
+
+### What actually prevents a repeat
+
+- **Hole positions are stated in BOARD coordinates from the drawing** and mapped through
+  `pi_map()`, which applies a **rotation**. The mirrored combination is no longer
+  expressible. Every hand-signed offset is gone — every error here was a sign.
+- **Clearance is asserted from the CONNECTOR FACE.** The board is not symmetric about the
+  pins: their midpoint is 10 mm toward the non-port edge, so the faces sit 55.5 mm away,
+  not 42.5. Sizing from the PCB edge is what did it.
+- Asserts also cover: pins and post on opposite long edges, pins toward the middle, post
+  never under a standoff nut, and a minimum at the microSD edge.
+- **`from dimensions import *` silently skips leading-underscore names** — hit twice in one
+  day. Shared values must not start with `_`.
+
+**No microSD access slot** (Charles, 2026-08-09): patches go over the air, so the card is
+effectively never swapped. Card protrudes ~3 mm into 20 mm of clearance; access is by
+lifting the cover.
+
 ## ✅ GEOPHONE CASE COMPLETE — printed and assembled (2026-08-08)
 
 Gen-1 geophone enclosure is **done**: body + lid printed, XLR fitted, element in its
