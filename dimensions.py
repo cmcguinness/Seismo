@@ -196,3 +196,130 @@ patch_len = 152.0
 # sideways -- but the holes are then 40 mm apart vertically, so the board is 50 mm
 # tall and the case grows to ~108 mm. Not worth it.)
 iface_board_th = 1.6      # perfboard, assumed
+
+# =============================================================================
+# CASE ENVELOPE — shared by case_base.py / case_cover.py / case_handle.py
+# =============================================================================
+# THREE PARTS (Charles, 2026-08-08): a flat BASE shelf carrying the board mounts,
+# a domed COVER carrying the jacks, and a separate HANDLE. Reasons, both good:
+# the part you iterate on (board mounting) is then small and fast to print, and
+# you build the shelf up on an open bench instead of reaching into a box.
+#
+# Assembly: cover's open bottom rim sits on the base's top face; screws pass UP
+# through the base into bosses inside the cover's corners. Handle screws DOWN
+# into the cover roof from outside. Feet live on the base's underside.
+#
+# Z DATUM: z=0 is the base's TOP face, which is also the cover's bottom rim. Every
+# interior height below is measured from there, so base and cover agree without
+# either having to know the other's thickness.
+case_wall = 3.0
+case_corner_r = 12.0
+base_th = 5.0             # flat shelf; foot pads thicken it locally. 5 not 4: the
+                          # foot screws need depth, and this plate also carries the
+                          # board loads unsupported across its span.
+cover_top_th = 3.0
+edge_cham = 0.6           # kills elephant-foot on a bottom face
+
+side_margin = 12.0        # board edge -> inner wall
+band_gap = 20.0           # between the Pi row and the component row
+row_slack = 15.0          # spare depth in the component row
+conn_gap = 8.0            # valley between adjacent connector pads on a wall
+conn_end_margin = 4.0     # outermost pad -> where the wall stops being flat
+lid_headroom = 14.0       # above the connector envelope, for cable slack
+
+iface_standoff_h = 6.0
+iface_stack_h = 20.0      # flat board + its screw terminals, generous
+iface_boss_dia = 8.0
+iface_pilot = 2.5         # M3 self-tapping into PLA
+iface_pilot_depth = 8.0
+
+# ⚠️ NAMES HERE MUST NOT START WITH "_". Parts do `from dimensions import *`, and
+# `import *` silently skips leading-underscore names -- a shared value called
+# `_corner` simply does not arrive, and the part dies with a NameError far from the
+# cause. Keep genuinely internal scratch values underscored; export the rest.
+nut_clear = barrel_flange_dia / 2 + 3.0         # flat wall a jack's hex nut needs
+corner_inner_r = max(case_corner_r - case_wall, 0.5)
+
+# --- cavity, derived from the bays AND from both connector walls ---
+_pack_x = (iface_len + 12.0 + iso_len + iso_allow) if iso_internal else iface_len
+_row_back = (max(iface_wid, iso_wid + iso_allow) if iso_internal else iface_wid) + row_slack
+_wall_front = xlr_pad_w + 2 * corner_inner_r + 2 * conn_end_margin                # +Y: XLR
+_wall_back = (xlr_pad_w + conn_gap + 2 * nut_clear
+              + 2 * corner_inner_r + 2 * conn_end_margin)                         # -Y: ETH + 5V
+cav_x = max(_wall_front, _wall_back, _pack_x + 2 * side_margin, pi_len + 2 * side_margin)
+cav_y = pi_wid + band_gap + _row_back + 2 * side_margin
+
+# Jacks share one centreline and sit on BOTH long walls, so they must clear the
+# tallest thing anywhere inside -- which is the Pi stack, not the component row.
+_tall_row = iface_standoff_h + (max(iso_h, iface_stack_h) if iso_internal else iface_stack_h)
+tall_inside = max(_tall_row, pi_standoff_h + stack_h)
+conn_bot = tall_inside + 8.0
+cav_h = conn_bot + max(xlr_bore_dia, barrel_flange_dia) + lid_headroom
+
+case_x = cav_x + 2 * case_wall
+case_y = cav_y + 2 * case_wall
+
+# --- bay centres (case centred on the origin in X and Y) ---
+_y0 = -cav_y / 2 + side_margin
+pi_cx = 0.0
+pi_cy = _y0 + pi_wid / 2
+_row_cy = _y0 + pi_wid + band_gap + _row_back / 2
+iface_cx = 0.0
+iface_cy = _row_cy
+iface_pts = [(iface_cx + sx * iface_hole_dx / 2, iface_cy) for sx in (-1, 1)]
+
+# Pi mount points. Only the two GPIO-side holes are FREE -- the others carry the
+# Pi<->Waveshare standoffs with NUTS under the board (chassis.py), so that edge
+# gets one flat post BETWEEN them: 2 pins + 1 post, 3-point and nut-clear.
+pi_standoff_dia = 6.0
+pi_pin_dia = pi_hole_dia - 0.15
+pi_pin_extra = 5.0
+cotter_hole_dia = 1.5
+gpio_pin_pts = [(pi_cx + pi_hole_offset_x + sx * pi_hole_dx / 2, pi_cy - pi_hole_dy / 2)
+                for sx in (-1, 1)]
+usb_support_pts = [(pi_cx + pi_hole_offset_x, pi_cy + pi_hole_dy / 2)]
+
+# --- connectors. z is measured from the base top face. ---
+panel_z = conn_bot + xlr_bore_dia / 2
+xlr_cx = 0.0                                   # +Y wall: "measurement in"
+_run_back = xlr_pad_w + conn_gap + 2 * nut_clear
+eth_cx = -_run_back / 2 + xlr_pad_w / 2        # -Y wall: "real world out"
+barrel_cx = _run_back / 2 - nut_clear
+barrel_z = panel_z
+
+# --- base <-> cover screws: 4 corners, #6 sheet metal ---
+# Inset only 4 mm so each boss merges into the rounded corner wall (which stiffens
+# both) and stays clear of the Pi, whose corner reaches within ~3 mm otherwise.
+# 6.0, not 4.0. At 4 the boss centre sits 7.07 mm from the outer corner arc centre
+# and its 5 mm radius reaches 12.07 -- through a 12 mm outer radius. The boss BREAKS
+# THE OUTER SKIN at each corner by 0.07 mm: a knife-edge sliver, a hole in the case,
+# and the thing that made the rim chamfer fail. See the assert in case_cover.py.
+asm_inset = 6.0
+asm_x = cav_x / 2 - asm_inset
+asm_y = cav_y / 2 - asm_inset
+asm_boss_dia = 10.0
+asm_pilot_depth = 12.0
+
+# --- feet: 3 screw heads on the base underside (geophone-case doctrine) ---
+foot_pad_dia = 16.0
+foot_pad_h = 6.0          # local thickening -> 11 mm under a foot screw
+foot_pilot_depth = 9.0    # leaves 2 mm; a pilot that breaks through the TOP face
+                          # would surface right where a board sits (caught by assert)
+
+# --- handle (separate part, screws down into the cover roof) ---
+# Bar geometry carried over from geophone_case_lid, which prints clean. The FLANGE
+# is longer than the bar so its two screws land OUTSIDE the legs -- otherwise a
+# clearance hole would have to run down through 24 mm of leg.
+handle_span = 70.0        # outer, along X
+handle_w = 16.0           # along Y, and the width your fingers bear on
+handle_h = 24.0           # above the flange
+handle_open_w = 48.0      # finger opening at the base
+handle_open_top = 24.0    # at the top -> ~55 deg sides, self-supporting
+handle_open_h = 17.0      # finger clearance under the bar
+handle_top_r = 6.0
+handle_flange_len = 92.0
+handle_flange_th = 4.0
+handle_screw_off = 40.0   # from centre, clear of the 70 mm bar
+handle_pilot_depth = 9.0  # NOT asm_pilot_depth (12): the roof is thinner than a
+                          # corner boss, and 12 broke through into the cavity. A #6
+                          # x 1/2in through a 4 mm flange engages ~8.7 mm anyway.
