@@ -335,11 +335,16 @@ associated with a network."
 - Cutover: flip `SEISMO_NETWORK` `XX` → `SS` once the registry confirms `OAKMT`. It rewrites
   miniSEED headers, so it is a **metadata** discontinuity (not an instrument epoch), and
   anything globbing the archive by station code needs to know about both. Do it once.
-- ⏳ **Do the flip while the rig is still off the slab.** The rebuilt front end already makes
-  2026-08-07 an instrument epoch break, and the archive is currently taking throwaway bench
-  data. Flipping `XX` → `SS` now folds the metadata discontinuity into a break that exists
-  anyway, so the production slab epoch starts clean as `SS.OAKM1` with one boundary instead
-  of two. Blocked only on the registration-confirmed email.
+- 🚫 **Do NOT schedule this around epoch boundaries.** Charles, 2026-08-08: the archive to
+  date "went nowhere to nobody" — it is equipment testing and tuning, nothing downstream
+  depends on it being continuous, and it never will. Just flip it when the registration
+  lands. (An earlier note here argued for timing the flip to coincide with the front-end
+  rebuild so the epoch changed once; that was protecting data with no consumer.) The same
+  goes for the bench data now in the archive and the shadowed `AM.OAKMT` day-201 file —
+  neither needs recording, renaming or backfilling.
+- What *does* still matter is code that stays correct ACROSS the change, because a stale
+  `XX.OAKMT` glob fails **silently** and yields a plausible wrong answer. That is
+  correctness, not archive preservation, and it is already done.
 
 #### Cutover checklist — audited 2026-08-07
 
