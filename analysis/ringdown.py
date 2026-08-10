@@ -41,13 +41,14 @@ import sys
 import numpy as np
 from scipy import signal
 
+F_ELEMENT = 4.5          # nominal element resonance, Hz
 RC_COIL = 375.0          # geophone coil resistance, ohms
 R_BIAS = 200_000.0       # the rev-1/2 bias network across the coil: 2 x 100k in
                          # series. Effectively open next to a shunt, but carried
                          # explicitly so "no shunt" is not silently "infinite load".
 
 
-def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0):
+def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0, f_expect=F_ELEMENT):
     """Damping ratio from one ring-down burst.
 
     Fits the FULL damped-sinusoid model  A*exp(-alpha*t)*cos(w_d*t + phi)  by least
@@ -64,7 +65,13 @@ def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0):
          0.70. At 0.2 Hz the error is <= 0.02 out to zeta 0.70. A 4th-order corner
          that low still rejects the known sub-Hz thermal drift by ~250x, and the tap
          is ~300 uV against a ~1 uV drift, so nothing is at risk.
-      3. The fit window must follow the burst. A fixed 4 s window is almost all
+      3. The ringing frequency MUST be bounded near the element's resonance. Tapping
+         the case excites the CASE's own modes, which for a firm tap are louder than
+         the element -- an unbounded fit lands at 7-13 Hz against a 4.5 Hz element
+         and returns a damping ratio for the wrong resonator entirely (measured on
+         real data, 2026-08-10). Bounded to +-40 % of f_expect, a fit that wants to
+         sit at the bound is a signal that the tap was too hard, not a result.
+      4. The fit window must follow the burst. A fixed 4 s window is almost all
          noise once the ring dies in under a second, and least squares then pulls
          the amplitude toward zero and the decay toward nonsense.
 
@@ -115,10 +122,15 @@ def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0):
         return A * np.exp(-alpha * tt) * np.cos(wd * tt + phi)
 
     p0 = [seg[0] if abs(seg[0]) > 0 else np.max(np.abs(seg)), alpha0, 2 * np.pi * fd0, 0.0]
+    w_lo, w_hi = 2 * np.pi * 0.6 * f_expect, 2 * np.pi * 1.5 * f_expect
+    p0[2] = min(max(p0[2], w_lo * 1.01), w_hi * 0.99)
     popt, _ = curve_fit(model, t, seg, p0=p0, maxfev=20000,
-                        bounds=([-np.inf, 0.0, 2 * np.pi * f_lo, -2 * np.pi],
-                                [np.inf, 200.0, 2 * np.pi * f_hi, 2 * np.pi]))
+                        bounds=([-np.inf, 0.0, w_lo, -2 * np.pi],
+                                [np.inf, 200.0, w_hi, 2 * np.pi]))
     _, alpha, w_d, _ = popt
+    if not (w_lo * 1.02 < w_d < w_hi * 0.98):
+        raise ValueError(f"fit pinned at the frequency bound ({w_d/2/np.pi:.2f} Hz) — "
+                         "the tap excited a case mode, not the element. Tap gentler.")
     w_0 = np.hypot(alpha, w_d)
     zeta = alpha / w_0
     return zeta, w_0 / (2 * np.pi), w_d / (2 * np.pi), len(seg) / fs * (w_d / (2 * np.pi))
@@ -161,20 +173,54 @@ def main(argv=None):
     if a.cmd == "measure":
         d = np.load(a.npz)
         fs = float(d["fs"])
-        v = d["counts"].astype(float) * (2 * 2.5 / a.gain / 2 ** 23)
-        zeta, f0, fd, ncyc = zeta_from_ringdown(v, fs, *a.band)
-        print(f"fs {fs:.2f} sps | fitted over {ncyc:.1f} cycles")
-        print(f"  ringing at {fd:.2f} Hz, undamped f0 {f0:.2f} Hz")
-        print(f"  ZETA = {zeta:.3f}")
+        counts = d["counts"].astype(float)
+        v = (counts - counts.mean()) * (2 * 2.5 / a.gain / 2 ** 23)
+        FS = 2 ** 23 - 1
+
+        # Find EVERY tap and fit each. One tap is not a measurement -- the spread
+        # across taps is what tells you whether the number means anything.
+        sos = signal.butter(4, [0.2 / (fs / 2), 20 / (fs / 2)], btype="band", output="sos")
+        env = np.abs(signal.hilbert(signal.sosfiltfilt(sos, v)))
+        noise = np.median(env[-int(2 * fs):])
+        pk, _ = signal.find_peaks(env, height=20 * noise, distance=int(3 * fs))
+        print(f"fs {fs:.2f} sps | {len(pk)} taps | tail noise {noise * 1e6:.1f} uV\n")
+        print(f"{'tap':>4} {'t(s)':>7} {'peak(uV)':>10} {'zeta':>7} {'f0(Hz)':>8}  note")
+        good = []
+        for i, p in enumerate(pk):
+            lo, hi = max(0, p - int(fs)), min(len(v), p + int(11 * fs))
+            clipped = bool((np.abs(counts[lo:hi]) > 0.99 * FS).any())
+            try:
+                z, f0, fd, _ = zeta_from_ringdown(v[lo:hi], fs, *a.band)
+                note = "CLIPPED, ignored" if clipped else ""
+                if not clipped:
+                    good.append(z)
+                print(f"{i+1:>4} {p/fs:>7.1f} {env[p]*1e6:>10.0f} {z:>7.3f} {f0:>8.2f}  {note}")
+            except ValueError as e:
+                print(f"{i+1:>4} {p/fs:>7.1f} {env[p]*1e6:>10.0f} {'--':>7} {'--':>8}  {e}")
+        if not good:
+            print("\nNo usable taps. Tap GENTLY -- aim for a few mV, not tens of mV; a "
+                  "hard strike rings the case instead of the element.")
+            return 1
+        zeta, spread = float(np.median(good)), float(max(good) - min(good))
+        print(f"\n{len(good)} usable taps | ZETA = {zeta:.3f} | spread {spread:.3f}")
+        if len(good) < 3:
+            # A spread of 0.000 across one tap is not agreement, it is a sample size
+            # of one. Do not let it read as a result.
+            print(f"  ⚠ only {len(good)} usable tap(s) — not a measurement. Need at "
+                  "least 3 that agree before this number means anything.")
+            return 1
+        if spread > 0.08:
+            print("  ⚠ spread is too wide to act on — the taps are not measuring the same "
+                  "thing. Tap gentler and more consistently, then re-run.")
+            return 1
         if zeta > 0.6:
-            print("  -> already well damped. Fitting a shunt would cost sensitivity "
-                  "for little gain; leave the socket empty.")
+            print("  -> already well damped. Leave the socket empty; a shunt would cost "
+                  "sensitivity for nothing.")
         elif zeta > 0.4:
-            print("  -> moderately damped. A shunt is optional; decide from whether "
-                  "real events show 4.5 Hz ringing in their coda.")
+            print("  -> moderately damped. Optional; decide from whether real events show "
+                  "4.5 Hz ringing in their coda.")
         else:
-            print("  -> lightly damped. Expect a resonance peak and ringing after "
-                  "transients. Run a trial shunt and use `solve`.")
+            print("  -> lightly damped. Fit a trial shunt and use `solve`.")
         return 0
 
     k, z_mech, rows = solve_shunt(a.z0, a.z1, a.r1, rc=a.rc)
