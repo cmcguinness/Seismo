@@ -87,6 +87,27 @@ Panel jack (RuiLing 5.5 × 2.1, 3-pin, hex nut) — pin numbering per STATUS 202
   and the front end at +Y — keep the power leg on the Pi side of the box.
 - Strain-relieve at the jack: the hex nut holds the jack, not the wires.
 
+### Terminating at the pass-through header
+
+The pass-through pins take Dupont sockets, but a stock jumper is **28 AWG** (213 mΩ/m).
+A 200 mm jumper is 43 mΩ, out-and-back ~85 mΩ, so at the Pi 2B's ~0.7 A that is **~60 mV**
+of drop, plus 20–40 mV across the four Dupont contacts. ~0.1 V total: survivable from a
+5.0 V supply, but thin margin on the one rail whose brownouts this whole arrangement
+exists to prevent. Heating is a non-issue; **drop and contact-resistance drift** are the
+problem — Dupont sockets are stamped tin springs that relax and oxidize, and this is a
+sealed, permanent install.
+
+- **Double the rails.** 5 V on header pins **2 and 4**, GND on **6 and 14** — two jumpers
+  per leg. Halves wire *and* contact resistance (~30 mV total) and gives redundancy if one
+  socket backs off. This is the default.
+- **Or crimp 22 AWG** female Dupont contacts onto a short pigtail off the 20 AWG run.
+  22 AWG is the fattest wire that crimps reliably into a Dupont barrel; 20 AWG will not go.
+- **Hot-glue the housings** once tested. A socket walking off a pin during final assembly
+  is the realistic mechanical failure, and the lid goes on over it.
+
+Bring-up step 4 is the arbiter, not this arithmetic: if it holds above 4.75 V at the Pi
+*under load*, the termination is fine.
+
 ## Bring-up order
 
 1. Wire the jack, fuse fitted, **nothing connected to the Pi**.
