@@ -57,8 +57,10 @@ Read the result:
 
 ## Step 1 — one trial shunt, then solve
 
-Fit any convenient resistor (1 kΩ is a good first try), repeat the tap capture, and
-measure ζ again. Two points is all the algebra needs:
+Fit **~10 kΩ** — NOT 1 kΩ. An earlier version of this said 1 k, which is an order of
+magnitude too small: with the datasheet generator constant a 1 kΩ shunt adds ζ ≈ 0.97
+(grossly overdamped) *and* costs 27 % of the signal. The useful range is 5–20 kΩ.
+Repeat the tap capture and measure ζ again. Two points is all the algebra needs:
 
 ```
 python analysis/ringdown.py solve --z0 <no shunt> --z1 <with trial> --r1 1000
@@ -70,6 +72,32 @@ not trust — and prints the resistor for each target ζ with its sensitivity co
 ## Step 2 — fit it, and re-measure
 
 Fit the chosen value, tap again, confirm ζ landed where predicted. Then leave it alone.
+
+## Scale: why the shunt is TENS of kΩ, not hundreds of ohms
+
+`ζ_e = k/(Rc + Rs)` and the signal kept is `Rs/(Rc + Rs)`, so the fraction of the
+*maximum possible* damping you gain is exactly the fraction of signal you lose. There is
+no free lunch in relative terms — but the maximum is large, so a few per cent buys a lot:
+
+| shunt | signal lost | ζ added (G = 28.8) | ζ added (G = 3.8) |
+|---|---|---|---|
+| 22 kΩ | 1.7 % | 0.060 | 0.001 |
+| **10 kΩ** | **3.6 %** | **0.129** | **0.002** |
+| 4.7 kΩ | 7.4 % | 0.263 | 0.005 |
+| 1 kΩ | 27.3 % | 0.970 | 0.017 |
+
+**The whole scale hinges on G, which is disputed by a factor of 7.5.** At the datasheet
+28.8 V/(m/s), `ζ_e` maxes out at 3.6 and 10 kΩ is a sensible working value. At STATUS's
+measured effective 3.8 V/(m/s), `ζ_e` maxes out at 0.06 and *no shunt of any value does
+anything* — the coil cannot damp the mass. 10 kΩ is therefore the safe pick: 3.6 % is
+unmeasurable against a 7.5× calibration error, and it cannot make things worse.
+
+## 🎯 The real prize: this measures the generator constant
+
+`k = G²/(2·M·ω₀)`, so the two-point measurement **yields k, and hence G**. That is the
+quantity behind the ~7.5×-low absolute calibration open since 2026-07-25. Run this
+experiment for the calibration even if the damping answer turns out to be "leave it
+empty" — it is the cheapest handle anyone has found on that question.
 
 ## The physics, so the method is checkable
 
