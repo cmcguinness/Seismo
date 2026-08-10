@@ -153,6 +153,42 @@ the epoch change becomes mechanical only rather than mechanical *and* electrical
   already ~7.5× low and the project explicitly sensitivity-first, deliberate under-damping
   is defensible. Do it last, in the garage, against a stable baseline.
 
+## 🛑 SHUNT DAMPING — CLOSED, no resistor, not deferred (2026-08-10)
+
+**Decision: the socket stays empty. Permanently.** Not "pending a measurement" — decided.
+
+Charles: *"I just don't see the long term value... who's going to care, really?"* Nobody.
+The station detects local earthquakes and does it well (9 confirmed events, an M4.2 at
+45 km). A shunt makes the response flatter and **costs sensitivity to do it**, on a
+station that is explicitly sensitivity-first and already reads ~7.5× low.
+
+The arithmetic that should have ended this on day one:
+- Ringing is the only practical argument for damping, and it lasts **under a second**
+  even at ζ = 0.2, against event codas of **20–80 s**. It cannot affect STA/LTA,
+  duration, or anything measured here.
+- The resonance peak an undamped element gives you (×1.75 at ζ = 0.3) is **free gain**
+  at 4.5 Hz for a detection instrument, not a defect.
+- A shunt that adds meaningful damping costs 3.6–27 % of signal, in the wrong direction.
+
+### What the attempt did establish, which is worth keeping
+
+- **The tap test on a table measures the TABLE.** Stacked ring-downs peaked at 7.71 Hz
+  with the table clear and 6.39 Hz with a lamp on it — added mass lowering the frequency
+  proves it is a structural mode, not the element. Ambient peaks there too, so noise
+  measured on that table is also contaminated. Any future attempt must be on the slab, or
+  must excite the element **electrically** through its own coil (the Waveshare's DAC8532
+  is on the same terminal block — the hardware exists).
+- **`analysis/ringdown.py` works and is validated**, bounding the fit near the element,
+  fitting every tap, and refusing to report unless ≥3 agree. If damping is ever needed
+  it is ready.
+- **The two-point method measures `k = G²/(2Mω₀)` and hence G** — the quantity behind the
+  7.5×-low calibration. That is the only reason to revisit this, and it is a curiosity,
+  not a need.
+
+**⚠️ For future sessions: do not reopen this.** It consumed most of a session to reach
+"do nothing", and the answer was derivable from the first paragraph above without a
+single measurement.
+
 ## ⛔ FIRST Pi BASE PRINT WAS SCRAP — and why (2026-08-09)
 
 Printed, then found unusable. Two independent defects, both mine, both avoidable.
