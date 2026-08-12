@@ -27,26 +27,37 @@ EVENTS = [
 ]
 
 
-def despike(x: np.ndarray, jump: int):
-    """Faithful replay of Despiker.push(). Returns (output, held_indices).
+WINDOW = 5          # must match Despiker._hist maxlen
 
-    Only indices that could possibly trip the test are visited, but `prev` is
-    propagated exactly, so consecutive candidates behave as they would live.
+
+def _ref(x: np.ndarray, w: int = WINDOW) -> np.ndarray:
+    """ref[i] = median of the w samples BEFORE i (the despiker's rolling reference).
+
+    Computed from the raw series rather than the emitted one. They differ only inside
+    w samples of a hold, and holds run ~58/hour against 360,000 samples/hour, so the
+    approximation is immaterial for counting -- but it is an approximation."""
+    pad = np.concatenate([np.full(w, x[0]), x[:-1]])
+    win = np.lib.stride_tricks.sliding_window_view(pad, w)[: len(x)]
+    return np.median(win, axis=1)
+
+
+def despike(x: np.ndarray, jump: int):
+    """Replay of Despiker.push() as patched 2026-08-12: the isolation test is judged
+    against the MEDIAN of the last 5 validated samples, not the single previous one.
+
+    That change exists because one corrupted sample used to poison the reference for
+    the next (2026-08-12 16:39:01 UTC: a 64 mV artifact survived because its immediate
+    predecessor was itself 59,396 counts off baseline, pushing d_after over threshold).
     """
+    ref = _ref(x)
+    d_before = np.abs(x - ref)
+    d_after = np.abs(np.roll(x, -1) - ref)
+    hit = (d_before > jump) & (d_after < jump)
+    hit[-1] = False
+    held = np.flatnonzero(hit)
     out = x.copy()
-    # A hold needs |judged - prev| > jump. prev == previous OUTPUT, which differs
-    # from x[i-1] only right after a hold, so screen on the raw diff first.
-    cand = np.flatnonzero(np.abs(np.diff(x)) > jump) + 1
-    cand = cand[(cand >= 1) & (cand < len(x) - 1)]
-    held = []
-    prev_override = {}
-    for i in cand:
-        prev = prev_override.get(i - 1, out[i - 1])
-        if abs(x[i] - prev) > jump and abs(x[i + 1] - prev) < jump:
-            out[i] = prev
-            prev_override[i] = prev
-            held.append(i)
-    return out, np.array(held, dtype=int)
+    out[held] = ref[held].astype(x.dtype)
+    return out, held
 
 
 def band_rms(x, fs, lo, hi):

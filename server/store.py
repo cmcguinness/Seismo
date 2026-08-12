@@ -52,6 +52,42 @@ def _utc(epoch: float) -> datetime.datetime:
     return datetime.datetime.fromtimestamp(epoch, datetime.timezone.utc)
 
 
+def _bridge_short_gaps(st, max_gap_s: float = 1.0) -> None:
+    """Interpolate across gaps shorter than `max_gap_s`, in place; leave longer ones.
+
+    `Stream.merge(method=1)` with no fill_value returns a MASKED array at every gap,
+    and this archive has a 20-80 ms gap at EVERY 10 s block boundary -- the recorder
+    cuts a block whenever a sample is dropped, and that runs ~100/hour. Those masked
+    samples reached the browser and the drum rendered each one as a ~1-pixel dropout
+    that reads as missing data (reported 2026-08-12).
+
+    Blanket `fill_value="interpolate"` is the wrong fix: it would also draw a straight
+    line across a REAL outage, e.g. the 265 s the station was unplugged during the move
+    to the garage. Sub-second gaps are a few samples at 100 sps and interpolating them
+    is honest; anything longer stays masked and serializes as null."""
+    for tr in st:
+        mask = getattr(tr.data, "mask", None)
+        if mask is None or mask is False or not mask.any():
+            continue
+        limit = int(max_gap_s * tr.stats.sampling_rate)
+        if limit < 1:
+            continue
+        data = tr.data
+        idx = np.flatnonzero(mask)
+        # contiguous runs of masked samples
+        for run in np.split(idx, np.flatnonzero(np.diff(idx) > 1) + 1):
+            if len(run) == 0 or len(run) > limit:
+                continue
+            a, b = run[0] - 1, run[-1] + 1
+            if a < 0 or b >= len(data):
+                continue                      # gap touches an edge: nothing to span
+            lo, hi = float(data.data[a]), float(data.data[b])
+            span = b - a
+            for k, i in enumerate(run, start=1):
+                data.data[i] = lo + (hi - lo) * k / span
+                data.mask[i] = False
+
+
 class SeismoStore:
     """Read-only view over the station's data, however it currently arrives.
 
@@ -190,26 +226,38 @@ class SeismoStore:
         if len(st):
             st.merge(method=1)
             st.trim(t0, t1)
+            _bridge_short_gaps(st, max_gap_s=1.0)
         if fmt == "mseed":
             import io
             buf = io.BytesIO()
             if len(st):
                 st.write(buf, format="MSEED")
             return buf.getvalue(), "application/vnd.fdsn.mseed"
-        # JSON: first trace only (single channel here); gaps drop out of merge.
+        # JSON: first trace only (single channel here). Samples still missing after
+        # _bridge_short_gaps -- i.e. a REAL outage -- serialize as null, so a consumer
+        # can tell "no data" from "flat". Do not emit 0: the drum would draw a line.
         if not len(st):
             body = {"seed_id": f"{NETWORK}.{STATION}.{LOCATION}.{CHANNEL}",
                     "fs": 0.0, "t0": None, "counts": [], "uv": []}
         else:
             tr = st[0]
             gain = self._gain_hint()
-            counts = tr.data.astype(float)
+            scale = uv_per_count(gain)
+            mask = getattr(tr.data, "mask", None)
+            raw = tr.data.data if mask is not None else tr.data
+            if mask is None or mask is False or not mask.any():
+                counts = [int(c) for c in raw]
+                uv = [round(float(c) * scale, 3) for c in raw]
+            else:
+                counts = [None if m else int(c) for c, m in zip(raw, mask)]
+                uv = [None if m else round(float(c) * scale, 3)
+                      for c, m in zip(raw, mask)]
             body = {
                 "seed_id": tr.id,
                 "fs": float(tr.stats.sampling_rate),
                 "t0": tr.stats.starttime.isoformat(),
-                "counts": [int(c) for c in tr.data],
-                "uv": [round(float(c) * uv_per_count(gain), 3) for c in counts],
+                "counts": counts,
+                "uv": uv,
             }
         return json.dumps(body).encode(), "application/json"
 

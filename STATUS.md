@@ -2,6 +2,59 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 🔧 DESPIKER now judges against a rolling MEDIAN (2026-08-12)
+
+A 64 mV artifact at 16:39:01 UTC survived the despiker at jump=50,000:
+
+```
+16:39:01.45      322,800   normal
+16:39:01.46      263,404   PARTIALLY corrupted -- 59,396 counts off baseline
+16:39:01.47   -6,586,368   -64 mV
+16:39:01.48      323,101   normal
+```
+
+Judging `.47` used `prev = .46`, so `d_after = |323,101 - 263,404| = 59,697` — over the
+50,000 threshold, the "returns to baseline" test failed, and the spike was KEPT.
+**One corrupted sample poisoned the reference used to judge the next.**
+
+Fix: the isolation test now compares against the **median of the last 5 validated
+samples** (`Despiker._hist`), not the single previous one. Same test, same threshold,
+robust reference. Re-run of `analysis/despike_sweep.py` on day 223:
+
+| jump | held/h NEW | held/h old | 1–15 Hz | 1–5 Hz | holds in the M2.8 |
+|---|---|---|---|---|---|
+| 200,000 | 5.9 | 0.0 | 9.59 | 1.18 | none |
+| **50,000 (live)** | **83.4** | 58.4 | **9.56** | 1.18 | **none** |
+| 20,000 | 986 | 1207 | 9.59 | 1.25 | 3 |
+
+Strictly better at the deployed threshold: 44 % more artifacts caught, 1–15 Hz floor
+slightly *lower*, 1–5 Hz unchanged, earthquake untouched. The 5.9/h it catches at
+200,000 (where the old logic caught none) are the poisoned-reference cases.
+
+- `_hist` is a `deque(maxlen=5)` of EMITTED samples; `prev` is retained because
+  `recorder.py` fills zero-frames from it.
+- Patched 2026-08-12 16:55 UTC; backup `station/rdatac.py.bak-prevref`.
+- **Below 20,000 still degrades** exactly as before. 50,000 remains the floor.
+
+## 🖥️ DASHBOARD "gaps" were masked samples, not missing data (2026-08-12)
+
+The pi5 drum showed ~1-pixel dropouts that looked like outages. The archive was
+continuous through every one of them.
+
+Cause: `server/store.py` called `st.merge(method=1)` with **no `fill_value`**, which
+returns a MASKED array at every gap — and this archive has a **20–80 ms gap at EVERY
+10 s block boundary**, because the recorder cuts a block on each dropped sample
+(~100/hour). Those masked samples reached the browser and each one killed a pixel.
+
+- Fix: `_bridge_short_gaps()` interpolates gaps **shorter than 1 s** and leaves longer
+  ones masked; the JSON now serializes still-masked samples as **null** rather than
+  dropping or zeroing them.
+- Blanket `fill_value="interpolate"` was rejected: it would draw a straight line across
+  a REAL outage, e.g. the 265 s the station was unplugged for the garage move.
+- ⚠️ **Every analysis script must `merge(..., fill_value=...)` or handle masks.** This
+  bit twice in one day — the dashboard, and an interactive analysis that silently read
+  only the first contiguous chunk. See [[analysis-window-traps]].
+
 ## 🏠 GARAGE INSTALL — the ~20 Hz mount resonance is 4.4x DOWN (2026-08-12)
 
 Installed 15:24 UTC (08:24 PDT), settled 300 s window to 16:01 UTC.
