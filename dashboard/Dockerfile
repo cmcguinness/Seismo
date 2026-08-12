@@ -14,6 +14,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini build-esse
 
 RUN pip install --no-cache-dir obspy python-fasthtml
 
+# Which commit this image was built from. deploy.sh passes it; a manual `docker build`
+# leaves it "unknown". Visible via `docker image inspect` and to the app as
+# SEISMO_BUILD_SHA, so a running dashboard can say what it is -- pi5 has no git repo and
+# nothing else records the deployed version (that is how signatures.json drifted for two
+# weeks unnoticed, 2026-08-12).
+ARG GIT_SHA=unknown
+ENV SEISMO_BUILD_SHA=$GIT_SHA
+
 WORKDIR /app
 COPY seismo_dashboard.py render.py heli_build.py heli_render.py heli_service.py sources.py /app/
 COPY signatures.json /app/
