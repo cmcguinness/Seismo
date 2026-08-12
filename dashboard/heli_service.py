@@ -26,10 +26,14 @@ import time
 
 import heli_build
 import heli_render
+import usgs_events
 
 DATA = os.environ.get("SEISMO_DATA", "/data/data")
 HELI = os.environ.get("SEISMO_HELI", "/data/heli")
 POLL_S = float(os.environ.get("SEISMO_HELI_POLL", "20"))   # how often to check mtime
+# Catalog poll. The USGS summary feed is CDN-cached and refreshes each minute; small
+# events take minutes to hours to be published anyway, so polling faster buys nothing.
+USGS_POLL_S = float(os.environ.get("SEISMO_USGS_POLL", "180"))
 
 _png = None
 _png_stamp = None            # _latest_mtime() as of the cached render
@@ -89,6 +93,7 @@ def current_png():
 def _worker():
     """Keep the envelope archive current. Does NOT render -- see module docstring."""
     last = -1.0
+    last_usgs = 0.0
     while True:
         try:
             m = _latest_mtime()
@@ -97,6 +102,15 @@ def _worker():
                 last = m
         except Exception as e:                 # never let the worker die on one cycle
             print(f"heli_service build: {e}", flush=True)
+        try:
+            # Catalog marks ride the same thread: it already wakes on a timer, and a
+            # failed poll must not disturb the build (refresh() swallows its own
+            # errors and leaves the previous cache in place).
+            if time.time() - last_usgs >= USGS_POLL_S:
+                last_usgs = time.time()
+                usgs_events.refresh()
+        except Exception as e:
+            print(f"heli_service usgs: {e}", flush=True)
         time.sleep(POLL_S)
 
 

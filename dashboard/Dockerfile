@@ -23,7 +23,7 @@ ARG GIT_SHA=unknown
 ENV SEISMO_BUILD_SHA=$GIT_SHA
 
 WORKDIR /app
-COPY seismo_dashboard.py render.py heli_build.py heli_render.py heli_service.py sources.py /app/
+COPY seismo_dashboard.py render.py heli_build.py heli_render.py heli_service.py sources.py usgs_events.py /app/
 COPY signatures.json /app/
 COPY station.jpg /app/
 

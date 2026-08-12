@@ -47,6 +47,10 @@ ENV_FRAC = float(os.environ.get("SEISMO_HELI_ENV_FRAC", "0.05"))
                                               # without a rebuild once the floor is fixed.
 CLIP_ROWS = 3.0                               # excursion clip, +/- rows
 ROW_COLORS = ["#a01818", "#186a18", "#1c4fa0", "#111"]   # dark red, dark green, blue, black
+# USGS catalog marks. Muted on purpose: they are an annotation over the data, and must
+# never be mistaken for the trace itself or for a detection this station made.
+MARK_COLORS = {"strong": "#c2410c", "likely": "#b45309",
+               "marginal": "#78716c", "unlikely": "#d6d3d1", "unknown": "#d6d3d1"}
 
 
 WINDOW_H = float(os.environ.get("SEISMO_HELI_HOURS", "4"))   # hours per drum
@@ -175,6 +179,45 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
               else f"data to {end:%H:%M} UTC")
     ax.text(IMG_W - MARGIN_R, 8, corner, ha="right", va="top",
             fontsize=12, color="#888")
+
+    # --- USGS catalog marks: where a known quake SHOULD have landed ---
+    # Drawn from a cache written by the poller; never touches the network here. The
+    # mark sits at the PREDICTED P arrival (origin + hypo/5.19 + 0.30 s, the station's
+    # own measured relation), so it points at where to look, not at what was found.
+    # Deliberately NOT a detection claim -- the eye decides.
+    try:
+        import usgs_events
+        marks = usgs_events.load()
+    except Exception:
+        marks = []
+    if marks:
+        t_lo = rows[0]["t0"]
+        t_hi = rows[-1]["t0"] + INTERVAL_S
+        seen = 0
+        for ev in marks:
+            ta = ev.get("arrival")
+            if ta is None or not (t_lo <= ta < t_hi):
+                continue
+            r_i = int((ta - t_lo) // INTERVAL_S)
+            if not (0 <= r_i < len(rows)):
+                continue
+            frac = (ta - rows[r_i]["t0"]) / INTERVAL_S
+            x = MARGIN_L + frac * PLOT_W
+            base = MARGIN_T + (r_i + 0.5) * row_h
+            color = MARK_COLORS.get(ev.get("tier"), "#999")
+            # a caret under the trace plus a tick, so it never hides the waveform
+            y = base + row_h * 0.42
+            ax.plot([x, x], [y, y - row_h * 0.18], color=color, lw=1.4,
+                    solid_capstyle="butt", zorder=5)
+            ax.plot([x], [y], marker="^", color=color, markersize=5, zorder=5)
+            ax.text(x + 4, y, f"M{ev.get('mag')}", ha="left", va="center",
+                    fontsize=9, color=color, zorder=5)
+            seen += 1
+        if seen:
+            ax.text(IMG_W - MARGIN_R, 30,
+                    "▲ USGS catalog: predicted arrival  "
+                    + "  ".join(f"{k}" for k in ("strong", "likely", "marginal")),
+                    ha="right", va="top", fontsize=10, color="#888", zorder=5)
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---
     axis_y = MARGIN_T + PLOT_H                 # bottom of the plot area
