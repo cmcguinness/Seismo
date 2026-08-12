@@ -231,7 +231,11 @@ class SeismoStore:
             import io
             buf = io.BytesIO()
             if len(st):
-                st.write(buf, format="MSEED")
+                # split() FIRST. After _bridge_short_gaps a real outage is still masked,
+                # and ObsPy refuses to write masked arrays ("Masked array writing is not
+                # supported"). split() turns each contiguous run into its own trace, which
+                # is precisely how miniSEED represents a gap: absent records, never fill.
+                st.split().write(buf, format="MSEED")
             return buf.getvalue(), "application/vnd.fdsn.mseed"
         # JSON: first trace only (single channel here). Samples still missing after
         # _bridge_short_gaps -- i.e. a REAL outage -- serialize as null, so a consumer
