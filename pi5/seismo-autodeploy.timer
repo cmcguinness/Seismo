@@ -1,0 +1,12 @@
+[Unit]
+Description=Poll GitHub for Seismo changes every 2 minutes
+Documentation=https://github.com/cmcguinness/Seismo
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=30s
+Unit=seismo-autodeploy.service
+
+[Install]
+WantedBy=timers.target

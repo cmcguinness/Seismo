@@ -1,0 +1,14 @@
+[Unit]
+Description=Seismo autodeploy (pull main from GitHub, redeploy what changed)
+Documentation=https://github.com/cmcguinness/Seismo
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=charles
+WorkingDirectory=/home/charles/seismo-src
+ExecStart=/home/charles/seismo-src/pi5/autodeploy.sh
+# A failed build exits 1 and is logged; do not let that mark the unit degraded forever.
+SuccessExitStatus=0 1
+TimeoutStartSec=1800
