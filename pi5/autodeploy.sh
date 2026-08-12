@@ -61,9 +61,12 @@ if want "dashboard/"; then
         dashboard/ "$HOME/seismo-dashboard/"
   # Build FIRST, deploy only on success: a failed build must leave the running image
   # alone rather than take the dashboard down.
-  if sudo docker build --build-arg GIT_SHA="$SHA" -t "$IMAGE" "$HOME/seismo-dashboard" \
-       >/tmp/seismo-build.log 2>&1; then
-    dokku git:from-image "$APP" "$IMAGE" >/dev/null
+  # Tag by SHA, not just :latest -- `dokku git:from-image` treats an unchanged tag as
+  # "No changes detected", exits non-zero and deploys nothing, leaving the old image
+  # live while everything reports success (hit 2026-08-12).
+  if sudo docker build --build-arg GIT_SHA="$SHA" -t "seismo-dash:$SHA" -t "$IMAGE" \
+       "$HOME/seismo-dashboard" >/tmp/seismo-build.log 2>&1; then
+    dokku git:from-image "$APP" "seismo-dash:$SHA" >/dev/null
     printf '%s\n%s\n' "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
       > "$HOME/seismo-dashboard/DEPLOYED_SHA"
     log "dashboard deployed at $SHA"

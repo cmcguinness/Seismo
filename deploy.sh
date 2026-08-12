@@ -66,11 +66,15 @@ do_dashboard() {
   require_clean
   say "sync dashboard/ -> $HOST:~/seismo-dashboard/"
   rsync -rlv "${RSYNC_EXCLUDES[@]}" dashboard/ "$HOST":seismo-dashboard/
-  say "build $IMAGE on $HOST (GIT_SHA=$SHA)"
+  # Tag by SHA as well as :latest. With ONLY :latest, `dokku git:from-image` sees an
+  # unchanged reference, prints "No changes detected, skipping git commit", exits
+  # non-zero and deploys NOTHING -- the app keeps running the old image while the
+  # build reports success (hit 2026-08-12). A per-commit tag always looks new.
+  say "build $IMAGE + seismo-dash:$SHA on $HOST"
   # sudo: charles is not in the docker group on pi5.
-  ssh "$HOST" "cd ~/seismo-dashboard && sudo docker build --build-arg GIT_SHA='$SHA' -t $IMAGE ."
-  say "dokku git:from-image $APP $IMAGE   (this restarts the app)"
-  ssh "$HOST" "dokku git:from-image $APP $IMAGE"
+  ssh "$HOST" "cd ~/seismo-dashboard && sudo docker build --build-arg GIT_SHA='$SHA' -t 'seismo-dash:$SHA' -t $IMAGE ."
+  say "dokku git:from-image $APP seismo-dash:$SHA   (this restarts the app)"
+  ssh "$HOST" "dokku git:from-image $APP 'seismo-dash:$SHA'"
   stamp '~/seismo-dashboard'
 }
 
