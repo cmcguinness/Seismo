@@ -1,6 +1,158 @@
 # STATUS — Seismo
 
-_Last updated: 2026-08-07 (UTC)_
+_Last updated: 2026-08-12 (UTC)_
+
+## 🏆 BEST NOISE FLOOR YET — and 1–5 Hz is now at the ELECTRONICS limit (2026-08-12)
+
+Station assembled into the printed case, then measured on the bench and again on the
+floor. Median of per-10 s band RMS, gain 64, 300 s windows, each **after 35 min
+undisturbed** ([[settling-time-after-handling]]).
+
+| band (µV) | bench 18:40 | bench 23:01 | **FLOOR 23:53** | garage ambient | V1 elec floor |
+|---|---|---|---|---|---|
+| 0.02–0.12 | 0.31 | 0.33 | **0.36** | 0.80–0.90 | — |
+| **1–5** | 1.44 | 1.16 | **0.67** | — | — |
+| 1–15 | 14.23 | 7.80 | **2.89** | 2.74 | 1.18 |
+| 10–15 | 13.64 | 7.25 | **2.98** | — | — |
+| 15–28 | 17.04 | 8.53 | **4.22** | 5.69 | 1.08 |
+| 19–21 | 4.70 | 3.23 | **2.67** | — | — |
+
+- **1–5 Hz at 0.67 µV is the headline, and it is the FLOOR, not a site number.** The V1
+  electronics floor of 1.18 µV was measured over 1–15 Hz; white noise scales as
+  √bandwidth, so the same electronics in a 4 Hz-wide band predicts
+  `1.18 × √(4/14) = 0.63 µV`. Measured 0.67. **In the quake band this station is no
+  longer limited by its site — it is limited by its own front end.** Further coupling
+  work in 1–5 Hz cannot buy much; the bench injection (below) is the lever that can.
+- **⚠️ DO NOT compare noise numbers across sessions.** At 18:40 the bench read 15–28 Hz
+  at 17.04 µV and it looked like the new enclosure had cost HF performance. By 23:01,
+  with **nothing touched**, it was 8.53. It was the room. This is the third time this
+  trap has been walked into (see the "+10 % in band" figure at the RDATAC entry) — A/B
+  in ONE session or don't claim a delta.
+- Broadband RMS 10.33 µV on the floor vs 31.5 µV on the bench; pp 211 µV.
+
+## ✅ ENCLOSURE CLOSED + 5 V VIA GPIO — the power path is proven (2026-08-12)
+
+Mean Well GST25A05 → panel barrel jack → **GPIO pins 2+4 (5 V), 6+14 (GND)**, doubled
+Dupont jumpers, 2 A slow-blow inline. See `doc/power-wiring.md`.
+
+- **`throttled=0x0` continuously over 14 h.** The Pi 2B's undervoltage detector never
+  fired once — a stronger result than a meter reading, since it watches continuously.
+  The doubled-jumper termination carries it with margin. [[power-5v-usb-extension-gotcha]]
+  is satisfied: the DC side is short and fat, the AC side is the long run.
+- **Operating point unchanged by the rebuild.** DC 325,756–326,395 counts @ g64 vs
+  330,808 on 08-07 — **1.3–1.5 %**. The standing offset is bias current through the coil,
+  so its presence again proves the DC path is continuous end to end.
+- Cover-on cost nothing: DC 3.039 mV open vs 3.032 mV closed.
+- **Boot fault during assembly was the SD CARD**, not the wiring — solid green ACT, no
+  network. Reseating fixed it. Solid RED on a Pi 2B means the rail is *good* (that LED
+  drops out below ~4.63 V), so red-solid + green-solid = power fine, card not read.
+- **The Pi moved to `eth0` 192.168.4.62** (was 192.168.4.47 on Wi-Fi). Ethernet also
+  retires [[wifi-tx-corrupts-acquisition]]. ⚠️ `server/README.md` and the pi5 Dokku
+  config still point the live-feed proxy at **.47**.
+
+## ✅ ROOT CAUSE: the glitch/stall rate is the 60→100 sps SWITCH, not any hardware (2026-08-12)
+
+`zero_frame` glitches run ~550/hour and `dropped` ~110/hour, and this looked alarming
+after the rebuild. It is neither new nor caused by anything physical. Counting the whole
+`qc.log` by day:
+
+```
+2026-07-23    161      2026-07-26  19511   <- 25x step
+2026-07-24    487      2026-07-27  13538
+2026-07-25    568      ...
+                       2026-08-11  13489   <- identical rate today
+```
+
+Hourly across the transition it is a **cliff, not a ramp**: ~18–20/hr through
+07-25T22, 163 at T23, ~550/hr from T04 onward. STATUS puts the first 100 sps interval
+at **2026-07-25T23:45Z**. That is the cliff.
+
+- Per-sample glitch probability went **1-in-12,000 → 1-in-650** (~18×). Mechanism is the
+  one `rdatac.read()` already documents: a frame landing in the ADS1256's register-update
+  window clocks out zeros, and at 100 sps there is less slack between conversions for the
+  read to land in. Same physics as "a higher rate injects proportionally more bursts into
+  shorter windows".
+- The 07-26 T01–T03 spike to ~2900/hr on top of the new baseline was the UDP streaming +
+  detector-to-pi5 work going live. **CPU load modulates the rate; the sample rate causes it.**
+- **`stalls` is a misleading name** — it is `ClockAnchor.outliers`, i.e. block boundaries
+  where the wall-clock read is >10 ms off prediction. `update()` is skipped entirely on any
+  block containing a glitch, so stalls count scheduling latency on the *remaining* blocks.
+- **Impact is small by design and confirmed negligible**: a zero frame HOLDS the previous
+  sample (gapless, no needle), 0.15 % of samples, `resyncs` 0 over 14 h. The 0.67 µV
+  1–5 Hz floor was measured with all of this present.
+- Not worth "fixing": 60 sps is rejected (100 sps measured ~31 % *lower* noise in band),
+  and faster SPI is known to be worse. Leave it.
+
+## 🔧 DESPIKER threshold 200,000 → 50,000 counts (2026-08-12)
+
+Helicorder speckle prompted a full-day threshold sweep (`analysis/despike_sweep.py`,
+day 223, 23.4 h, contains the confirmed M2.8):
+
+| jump (ct) | ~µV | held/h | 1–15 Hz | 1–5 Hz | holds inside the M2.8 |
+|---|---|---|---|---|---|
+| 200,000 (was) | 1863 | 0 | 9.59 | 1.18 | none |
+| **50,000 (now)** | **466** | **58** | **9.57** | **1.18** | **none** |
+| 20,000 | 186 | 1207 | 9.82 | 1.30 | 5 |
+| 10,000 | 93 | 11424 | 12.67 | 3.96 | 188 |
+
+- **50k is the last free threshold.** Below ~25k the ISOLATION test stops discriminating:
+  ordinary HF ambient routinely spikes for one sample and returns, so real samples get
+  held and the injected step discontinuities push the band RMS **UP**, not down.
+- Hard bound: the largest sample-to-sample jump *inside* that M2.8 is **22,512 counts
+  (210 µV)**. Any threshold above that cannot truncate it.
+- **The helicorder speckle at 100–200 µV is NOT removable this way** — it is the HF tail
+  of ordinary noise, not discrete garbage frames (correlation with the ADC's own QC
+  counters is at chance: 24–29 % vs a 22 % baseline). Band-pass the drum for display, or
+  fit the input anti-alias RC. Do not chase it with the despiker.
+- Blind spot worth knowing: the despiker can only ever reject **isolated single samples**.
+  ~12 % of observed excursions are two samples wide and survive at any threshold.
+- Patched on the Pi 2026-08-12 08:03 PDT; backup at `station/rdatac.py.bak-jump200k`.
+
+## 🌟 M2.8 THE GEYSERS DETECTED — and the catalog doublet resolved (2026-08-11)
+
+USGS listed two events at the same spot 17 s apart: **M3.0 at 21:34:57** and **M2.8 at
+21:35:14** (38.826°N, ~122.80°W, ~45 km NNW). The station recorded **one** arrival.
+
+| solution | predicted P onset | observed | residual |
+|---|---|---|---|
+| **M2.8, origin 21:35:14** | 21:35:22.9 | **21:35:23.0** | **+0.1 s** |
+| M3.0, origin 21:34:57 | 21:35:05.9 | — | no arrival |
+
+- Envelope (2–15 Hz, 0.5 s windows): baseline 10.5 µV → **peak 69.3 µV = 6.6×**, coda back
+  to ambient in **~16 s**. An M3.0 at the same range would be ~2× larger and cannot have
+  been missed, so the two catalog entries are almost certainly one earthquake with two
+  solutions — and the 21:35:14 one has the better origin time.
+- Plots: `analysis/2026-08-11-geysers-m2.8.png` (onset on the P marker) and
+  `analysis/2026-08-11-geysers-m3.0.png` (17 s late). `*.png` is gitignored in `analysis/`.
+- **⚠️ THE DETECTOR MISSED IT.** STA/LTA peaked ~2.5–3.7 against `trig 4.0`. A confirmed,
+  catalogued M2.8 producing 6.6× baseline did not fire. That is a trigger-sensitivity gap,
+  not an instrument limit — the signal is unmistakable in the data.
+- Scale check: 69 µV here vs 1406 µV peak from the M2.5 at 18.4 km. Consistent falloff;
+  nowhere near the detection limit for Geysers events at this range.
+
+## 📐 CALIBRATION: split the problem before spending events on it (2026-08-12)
+
+On "can catalog earthquakes calibrate the station?" — yes, but only for half of it, and
+the other half is exactly measurable on the bench first.
+
+- **Electronics half — bench injection, exact, an afternoon.** Two resistors:
+  `source → 100 kΩ (0.1 %) → node → 187 Ω → XLR pin 2`, `10.0 Ω (0.1 %)` node-to-return,
+  `187 Ω → pin 3`. Ratio **10001:1**, so 1.000 Vrms in = **100.0 µVrms out**; the two
+  187 Ω legs put **374 Ω** between the pins so the DC bias lands where the coil puts it
+  (verify ~326,000 counts before trusting anything). Source must be **DC-coupled and
+  floating** — battery-powered DDS module, or the Waveshare's own DAC8552. **Not** a
+  headphone output (AC-coupled, dead below ~20 Hz). Sweep 0.5–30 Hz at 100 µV plus a
+  linearity ladder at 5 Hz. Expect **10,738 counts** per 100 µV at gain 64.
+- **Sensor + site half — regress against a reference station**, not against catalog
+  magnitudes. Pull the same events from a nearby NC/NCEDC station, remove its response to
+  m/s, band-pass identically, regress our counts against its velocity: the slope IS
+  counts-per-m/s, and path/radiation cancel between two stations at similar range.
+  ~15–20 events for ±20–30 %. The ML-residual route needs 2× the events for worse scatter
+  (catalog ML ±0.2–0.3 = 1.5–2× in amplitude; ML is a *horizontal* metric).
+- **Do the bench injection FIRST.** Calibrating against events while an unknown factor
+  sits in the electronics measures the two together and attributes the result to the
+  ground. It also either explains the open ~7.5×-low discrepancy outright or hands the
+  earthquake data a much sharper question.
 
 ## ✅ REBUILT FRONT END CHECKS OUT ON THE BENCH (2026-08-07)
 
