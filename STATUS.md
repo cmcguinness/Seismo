@@ -2,6 +2,47 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 🚫 LAWN EQUIPMENT IS INVISIBLE TO THE STATION — no signature added (2026-08-12)
+
+Lawn service worked the property 17:42–~18:10 UTC, a rare labelled cultural-noise
+window. Median per-10 s band RMS, before (17:30–17:42) vs during (17:45–18:05):
+
+| band (Hz) | before | during | ratio |
+|---|---|---|---|
+| 0.5–2 | 0.49 | 0.48 | 0.99 |
+| 2–5 | 0.68 | 0.64 | 0.94 |
+| 5–15 | 3.64 | 3.63 | 1.00 |
+| 15–28 | 1.74 | 1.91 | 1.10 |
+| 28–45 | 1.74 | 1.35 | **0.77** |
+
+**Nothing in the working band moved.** A Geysers event arriving mid-mow would be as
+detectable as at any other time. Operationally this is the good outcome.
+
+**A "31 Hz line" was claimed and then withdrawn.** A Welch ratio at nperseg=2048 showed
+~2.5–2.7x at 31.0/31.5/35.3/43.9/49.2 Hz, and it was nearly added to
+`dashboard/signatures.json`. Scored the way `sources.py` actually scores (30 s windows,
+nperseg=512, band 30–32.5, shoulder 1.5–4.0):
+
+| window | n | ASD med | peak/shoulder med | max |
+|---|---|---|---|---|
+| lawn | 40 | 0.454 | 1.34 | 2.17 |
+| control: just before | 44 | 0.339 | 1.41 | 2.24 |
+| control: quiet mid-morning | 80 | 0.377 | 1.44 | 2.62 |
+| **control: overnight** | 120 | **0.779** | 1.54 | **4.08** |
+
+Peak/shoulder of 1.34 is not a line (the 20 Hz signature demands 4.0), the CONTROLS are
+stronger than the lawn window, and no threshold separates them. The 2.68x was a
+**multiple-comparisons artifact** — the largest of ~1000 bin ratios, which is ~2.5x from
+noise alone, reported as if it were a finding. The band table in the same output already
+said otherwise (28–45 Hz went DOWN).
+
+- **Rule going forward: score a candidate signature with `sources.py`'s own parameters
+  and against CONTROLS before it goes in the file.** A spectral ratio between two
+  windows is a hypothesis generator, not evidence.
+- For a real lawn signature: equipment much closer, ≥2 separate days (the file's own
+  `provisional` rule), and ideally the anti-alias RC fitted first so >50 Hz content is
+  not folding back into the band being examined.
+
 ## 🔧 DESPIKER now judges against a rolling MEDIAN (2026-08-12)
 
 A 64 mV artifact at 16:39:01 UTC survived the despiker at jump=50,000:
