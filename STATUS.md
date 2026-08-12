@@ -2,6 +2,58 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## ✅ DESPIKER v3 — local noise scale, CENTRED window (2026-08-12)
+
+Third design in one day. The first two shipped and both were wrong; this one was
+validated before deploying, and `analysis/despiker_v2.py` holds the exact class plus
+the harness that justifies it.
+
+| design | verdict |
+|---|---|
+| fixed `jump`, "does the NEXT sample return?" | misses every 2–3 sample burst → false EVENT at 19:37:30, ratio 25.7 |
+| fixed `jump` lowered to 10,000 | held 3.2 % of ALL samples, 1–5 Hz 1.18 → 3.96 µV, ate 188 samples of the M2.8 |
+| median reference, TRAILING window | held 8–13 samples inside synthetic 5/12 Hz events, −21 % peak |
+| **local scale, CENTRED window** | **deployed** |
+
+**The discriminator is the local noise scale**, so during real motion the bar rises
+with the signal and the rule stops firing — which a fixed threshold can never do.
+
+**The trap that cost two attempts: the scale window must be CENTRED, not trailing.**
+A trailing window is blind at event onset, exactly where a quake most resembles a
+glitch. Both failures were "validated" offline with a centred window and then shipped
+with a trailing one — the same class of error as validating a different algorithm than
+you deploy.
+
+Deployed parameters: `NSIGMA=8`, `MAX_RUN=3`, `HALF=25`, `TOL=4`, `MIN_SCALE=100 ct`.
+Physics behind MAX_RUN: the 4.5 Hz element plus the ADS1256's ~25 Hz output bandwidth
+make a 10–30 ms depart-and-return impossible for ground motion. A quake rings.
+
+**Validation** (`python analysis/despiker_v2.py`):
+
+- **39/40 synthetic events** (2–18 Hz × 2,000–400,000 counts × sharp/ramped onset,
+  injected into 60 s of real ambient): **0 held, ≥95 % peak preserved**.
+- The 40th — 12 Hz, 400,000 ct, STEP onset — holds **1 sample and preserves 100 % of
+  the peak**. A 3.7 mV event with an impossible onset. Accepted knowingly.
+- **Both known artifacts caught**, including the width-2 pair at 16:39:01 that no
+  previous version could reject at any threshold.
+- **0 samples altered inside all four confirmed earthquakes** (M2.8 @44.6 km,
+  M2.0 @9.7 km, two M3.2 @43 km).
+- Day 223: 6.7 held/h, 1–15 Hz **9.59 → 9.52 µV**, 1–5 Hz unchanged at 1.18.
+  Day 224: 6.2 held/h, 1–15 Hz 4.02 → 4.00, 1–5 Hz unchanged at 0.68.
+
+**Costs, both accepted:**
+- **0.25 s latency** (was 10 ms). Free here: block times come from the sample INDEX
+  via ClockAnchor, not from wall clock at emission.
+- **26 samples lost per restart** while the window warms up. Timing self-corrects,
+  because ClockAnchor hard-anchors at the first block boundary before that block's
+  start time is computed.
+
+⚠️ `flush()` had a real bug found by the harness: it re-emitted `half`+1 already-judged
+samples into the final block at shutdown. It now returns only the samples after the
+last centre. `recorder.py` loops over the list instead of appending one value.
+
+Backups on the Pi: `rdatac.py.bak-v2median`, `recorder.py.bak-v2flush`.
+
 ## 🚫 LAWN EQUIPMENT IS INVISIBLE TO THE STATION — no signature added (2026-08-12)
 
 Lawn service worked the property 17:42–~18:10 UTC, a rare labelled cultural-noise
