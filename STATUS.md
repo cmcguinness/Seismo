@@ -2,6 +2,81 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 🏠 GARAGE INSTALL — the ~20 Hz mount resonance is 4.4x DOWN (2026-08-12)
+
+Installed 15:24 UTC (08:24 PDT), settled 300 s window to 16:01 UTC.
+
+| band (µV) | **garage settled** | indoor floor 08-12 | garage historical |
+|---|---|---|---|
+| 0.02–0.12 | **0.27** | 0.36 | 0.85 |
+| 1–5 | 0.75 | 0.67 | — |
+| 1–15 | 3.47 | 2.89 | 2.74 |
+| 10–15 | 2.83 | 2.98 | — |
+| 15–28 | **1.84** | 4.22 | 5.69 |
+| 19–21 | **0.61** | 2.67 | — |
+
+- **19–21 Hz down 4.4x, 15–28 Hz down 3.1x vs historical garage.** This is the ~20 Hz
+  line STATUS attributes to a MOUNT RESONANCE — the one that survived tile→slab, the
+  room change and the front-end rebuild. First thing that has ever moved it. It held
+  through settling, so it is not a first-minutes artifact.
+- Sub-Hz 0.27 µV is also the best ever, 3.1x below historical garage.
+- 1–5 Hz 0.75 µV ≈ the electronics floor again (predicted 0.63) — instrument-limited
+  in the quake band here too.
+- **1–15 Hz is the one band UP** (3.47 vs 2.74). Measured 09:00 on a weekday; the
+  historical figure's time of day is not recorded. Wait for the overnight soak before
+  reading anything into it.
+
+## 🔧 ZERO-FRAME FILL FIXED — it was manufacturing unrejectable width-2 spikes (2026-08-12)
+
+A 12.9 mV "event" (peak_ratio 55.4) at 15:28:13 UTC was NOT mechanical — no ringdown,
+and a 4.5 Hz element cannot start and stop in 10 ms. Sample level:
+
+```
+15:28:13.15      322,308     normal
+15:28:13.16   -1,328,192     garbage frame
+15:28:13.17   -1,328,192     ZERO frame, filled with the garbage
+15:28:13.18      322,160     normal
+```
+
+`recorder.py` set `last_good` from the RAW frame, so a garbage frame became the fill
+value for the next zero-frame. One bad read became **two identical samples** — and the
+despiker only rejects ISOLATED samples, so the pair was unrejectable at any threshold.
+
+- **Fix: fill from `despiker.prev`** (already passed the isolation test) instead of
+  `last_good`. This stops the propagation AND lets the despiker reject the original
+  garbage frame, because its lookahead is now back at baseline (`d_after == 0`).
+- **Four false events in `events.log` share the STA/LTA's delta-function signature**
+  (duration 3.68–3.69 s, ratio 54.7–55.4): 08-08 04:20 (39,008 µV), 08-10 23:40
+  (13,380), 08-12 13:48 (10,592), 08-12 15:28 (12,932). All would have been caught.
+- Patched 2026-08-12 15:36 UTC; backup `station/recorder.py.bak-zerofill`.
+
+## ⛔ SCHED_FIFO does NOT reduce the glitch rate — tested and refuted (2026-08-12)
+
+Recorder and pigpiod both ran `SCHED_OTHER` prio 0. Hypothesis: the read is late because
+of scheduling latency, so real-time priority should cut the collision rate.
+
+| | zero_frame | dropped |
+|---|---|---|
+| SCHED_OTHER, 2 h baseline | **585/hr** | 104/hr |
+| SCHED_FIFO prio 20, 21 min | **641/hr** | 106/hr |
+
+641 ± 43 vs 585 ± 17 — indistinguishable. **The collision is intrinsic to the DRDY→read
+window at 100 sps, not scheduling.** Reconciles with 07-26: the 5x spike then was real
+CPU contention (STEIM2 encoding), and RT priority only helps when something competes.
+
+- Override left in place at `/etc/systemd/system/seismo-recorder.service.d/rtprio.conf`
+  as insurance under load; measured no harm. Delete the file to revert.
+- **DO NOT re-litigate the glitch rate.** 60 sps is worse overall (31 % more in-band
+  noise), faster SPI is worse (+7.4 %), redundant reads are impossible in RDATAC
+  (releasing CS aborts the stream, 3737/3737 all-zero) and would inject noise in legacy
+  mode. The answer is the mitigation now in place: detect, hold, don't propagate, keep
+  it away from the detector.
+- The byte-level cause is still open. The one garbage frame examined (`0xEBB800`, low
+  byte zero) is consistent with a one-byte-late read, but a single sample is an anecdote
+  and miniSEED discards the raw bytes. Settling it needs `RdatacReader.read()` to log the
+  actual 3 bytes on deviant frames — best done alongside the bench injection, where a
+  known clean sine makes every bad frame unambiguous.
+
 ## 🏆 BEST NOISE FLOOR YET — and 1–5 Hz is now at the ELECTRONICS limit (2026-08-12)
 
 Station assembled into the printed case, then measured on the bench and again on the
