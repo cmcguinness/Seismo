@@ -2,6 +2,41 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 🎯 ABSOLUTE CALIBRATION MEASURED — ~3.6x low, against a station 1.64 km away (2026-08-13)
+
+Charles noticed the USGS event page lists PGA/PGV per contributing station, and one of
+them is **NP.1835 "Santa Rosa Fire Station 7"** — a USGS National Strong-Motion Project
+accelerometer **1.64 km from OAKMT**, with continuous waveforms and full response served
+by NCEDC. That is a better reference than this project could have hoped for: same basin,
+same events, no dependence on catalogue magnitudes.
+
+`analysis/refstation.py` removes its response to velocity, band-passes both stations to
+**5–15 Hz** — safely above the 4.5 Hz corner, where 28.8 V/(m/s) is flat and no response
+model is needed on our side — and takes the ratio.
+
+| event | reference RMS | OAKMT (nominal) | ratio | implied V/(m/s) |
+|---|---|---|---|---|
+| M4.1 San Leandro | 6.09 µm/s | 1.36 | **4.46×** | 6.45 |
+| M3.2 Geysers | 2.20 | 0.70 | **3.15×** | 9.15 |
+| M2.8 Geysers | 2.16 | 0.66 | **3.26×** | 8.82 |
+| ~~M2.0 Glen Ellen~~ | 0.14 | 0.16 | ~~0.88×~~ | REJECTED |
+
+**OAKMT reads ~3.6× low; implied sensitivity ~8 V/(m/s) against 28.8 nominal.**
+
+- **This supersedes the "7.5×-low" figure**, which came from magnitude inversion in a
+  band straddling the corner. Measured properly above the corner against a real
+  reference, the shortfall is ~3.6×, not 7.5×.
+- **Glen Ellen rejected on principle, not convenience:** 0.14 µm/s is below what a
+  strong-motion accelerometer resolves, so the reference was measuring itself. It is
+  also the event where 1.64 km of separation matters most. `REF_MIN_RMS` now rejects
+  any window where the reference is under 0.5 µm/s RMS.
+- **What it does NOT tell us:** whether the loss is a deaf element or a lossy front end.
+  Only the bench injection separates those, and it is still the top open item.
+- **Site response is the main uncertainty.** 1.64 km is close but not co-sited; at
+  5–15 Hz local conditions can differ ~2× on their own. Three events is enough for a
+  factor, not for a coefficient — more anchors will tighten it, and the method is now a
+  one-line script per event.
+
 ## 📐 SAMPLING BIAS: the amplitude model is an ALONG-STRIKE model (2026-08-13)
 
 Charles asked whether being on the Hayward–Rodgers Creek system with San Leandro
