@@ -103,6 +103,20 @@ CAL_MIN_KM, CAL_MAX_KM = 5.0, 90.0
 # slack either side of the anchors, then say "unknown".
 CAL_MIN_MAG = 1.5                      # low end only; see tier()
 
+# ⚠️ THE FIT IS AN ALONG-STRIKE MODEL, and always will be. Measured 2026-08-13 over the
+# USGS catalogue, M>=1.5 within 100 km, two years, n=3268: 94% of events lie within 30
+# degrees of the Hayward-Rodgers Creek strike (325/145), against 33% if azimuth were
+# uniform. The Geysers geothermal field alone (with Cobb and Anderson Springs) supplies
+# ~1980 of them up the NNW arm; San Ramon adds 319 down the SSE arm.
+#
+# So azimuth is a THIRD axis of extrapolation beside magnitude and distance, and the
+# only off-strike anchor -- Sebastopol at 76 degrees -- came in at 0.51x, i.e. the model
+# OVER-predicted by 2x. That is the direction that produces false "likely" marks.
+# One point cannot justify a correction, so nothing is applied; instead every event
+# records its azimuth and off-strike angle, so the question becomes answerable as
+# anchors accumulate. Events far off strike deserve suspicion until then.
+FAULT_STRIKE = 145.0
+
 
 def _fit(points=CALIBRATION):
     """Least-squares (B, C) for log10(A) = M - B*log10(R) + C. Needs >= 2 points.
@@ -203,11 +217,17 @@ def floor_at(t, hist, default=NOISE_UV):
     return default
 
 
+def off_strike_deg(az):
+    """Angle between a back-azimuth and the fault line, 0 (along) to 90 (fault-normal)."""
+    return abs((az - FAULT_STRIKE + 90) % 180 - 90)
+
+
 def hypo_km(lat, lon, depth_km):
     dlat = (lat - STA_LAT) * 111.32
     dlon = (lon - STA_LON) * 111.32 * math.cos(math.radians((lat + STA_LAT) / 2))
     epi = math.hypot(dlat, dlon)
-    return math.hypot(epi, depth_km or 0.0), epi
+    az = (math.degrees(math.atan2(dlon, dlat)) + 360) % 360
+    return math.hypot(epi, depth_km or 0.0), epi, az
 
 
 def fetch(url=FEED, timeout=20):
@@ -232,7 +252,7 @@ def build(features=None, noise_uv=NOISE_UV, heli_dir=HELI_DIR):
         mag = float(p["mag"])
         if mag < MIN_MAG:
             continue
-        hyp, epi = hypo_km(lat, lon, depth)
+        hyp, epi, az = hypo_km(lat, lon, depth)
         if epi > RADIUS_KM:
             continue
         origin = float(p["time"]) / 1000.0
@@ -249,6 +269,8 @@ def build(features=None, noise_uv=NOISE_UV, heli_dir=HELI_DIR):
             "epi_km": round(epi, 1),
             "hypo_km": round(hyp, 1),
             "depth_km": round(depth, 1),
+            "az_deg": round(az, 1),
+            "off_strike_deg": round(off_strike_deg(az), 1),
             "pred_uv": round(uv, 1) if uv else None,
             "tier": tier(uv, floor, hyp, mag),
             "floor_uv": round(floor, 2),

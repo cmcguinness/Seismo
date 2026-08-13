@@ -2,6 +2,42 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 📐 SAMPLING BIAS: the amplitude model is an ALONG-STRIKE model (2026-08-13)
+
+Charles asked whether being on the Hayward–Rodgers Creek system with San Leandro
+affects transmission, then made the sharper point: the data will be dominated by quakes
+on that fault family. Measured over the USGS catalogue, M≥1.5 within 100 km, two years
+(n=3268):
+
+| angle from strike (325/145) | events |
+|---|---|
+| 0–15° | 1862 |
+| 15–30° | 1196 |
+| 30–45° | 82 |
+| 45–60° | 50 |
+| 60–75° | 32 |
+| 75–90° | 46 |
+
+**94 % within 30° of strike, against 33 % if azimuth were uniform.** The Geysers
+geothermal field with Cobb and Anderson Springs supplies ~1980 of them up the NNW arm;
+San Ramon adds 319 down the SSE arm. This will not improve with time — the seismicity
+is geometrically constrained.
+
+- **Azimuth is a THIRD axis of extrapolation** beside magnitude (the M1.2) and distance
+  (Byron). The single off-strike anchor, Sebastopol at 76°, came in at **0.51×** — the
+  model OVER-predicted by 2×, the direction that produces false "likely" marks.
+- **No correction applied**: one point cannot justify one, and today already produced
+  two retractions from over-reading thin data. Instead every cached event now records
+  `az_deg` and `off_strike_deg`, so the question becomes answerable as anchors
+  accumulate. Off-strike events deserve suspicion meanwhile.
+- **Fault-zone guided waves are NOT evidenced.** The M4.1 at 87.7 km, 7° off strike,
+  landed at 1.02× a model fitted mostly on the NNW arm — no along-strike enhancement.
+  If the azimuthal pattern is real at all, ordinary strike-slip radiation pattern is a
+  simpler explanation than a waveguide.
+- Harmless in practice for now: the model is fitted on along-strike events and used
+  mostly to predict along-strike events, so any azimuthal term is already absorbed for
+  the geometry that dominates.
+
 ## 🌟 M4.1 SAN LEANDRO — biggest signal yet, and it validates the amplitude model (2026-08-13)
 
 USGS M4.1, 15:30:04 UTC, 87.7 km hypocentral. `analysis/2026-08-13-san-leandro-m4.1.png`.
