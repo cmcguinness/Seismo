@@ -43,7 +43,33 @@ from obspy.clients.fdsn import Client
 UV_PER_COUNT = 2.5 * 2 / (64 * (2 ** 23 - 1)) * 1e6
 NOMINAL_SENS = 28.8          # V per m/s, flat above the 4.5 Hz corner
 BAND = (5.0, 15.0)
-REF_MIN_RMS = 0.5e-6      # m/s; below this the reference is measuring its own noise
+
+# --- PROVISIONAL CALIBRATION -------------------------------------------------------
+# Status: PROVISIONAL, in the sense signatures.json uses -- good enough to use, not
+# good enough to trust to a second digit. Adopt it rather than the nominal 28.8, which
+# is measurably wrong by a factor of three.
+#
+#   anchors: M2.8 Geysers 3.26x, M3.2 Geysers 3.15x, M2.99+M2.82 San Leandro 2.99x,
+#            M4.1 San Leandro 4.46x   (2026-08-11..13, ONE amplitude epoch)
+#   median 3.20x low  ->  effective sensitivity 9.0 V/(m/s) vs 28.8 nominal
+#
+# To convert this station's microvolts to ground velocity ABOVE 4.5 Hz:
+#     m/s = uV * 1e-6 / EFFECTIVE_SENS        (or nominal / PROVISIONAL_FACTOR)
+#
+# Uncertainty is dominated by site response, not statistics: FS7 is 1.64 km away and
+# 5-15 Hz site differences of ~2x are ordinary. Treat as "3x, maybe 2.5-4.5".
+# It does NOT say where the loss is -- deaf element or lossy front end. Only the bench
+# injection separates those, and this number tells it what answer to expect.
+# Superseded if anything on the amplitude axis of analysis/epochs.py changes.
+PROVISIONAL_FACTOR = 3.20
+EFFECTIVE_SENS = NOMINAL_SENS / PROVISIONAL_FACTOR      # 9.0 V/(m/s)
+PROVISIONAL_N = 4
+
+REF_MIN_RMS = 0.12e-6     # m/s. Was 0.5e-6, set from ONE window and far too
+                          # conservative: FS7 reaches 0.086 um/s RMS (5-15 Hz) on a
+                          # quiet night, so it is a better instrument than that guard
+                          # assumed. 0.12 still rejects the M2.0 Glen Ellen window,
+                          # where 1.64 km of separation dominates at 9.7 km range.
 REF = ("NP", "1835", "HNZ")  # vertical, to match our single vertical component
 
 

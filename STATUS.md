@@ -2,6 +2,49 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## ✅ PROVISIONAL CALIBRATION ADOPTED: 3.2x low, ~9 V/(m/s) (2026-08-13)
+
+Charles: the superposition still calibrates (both stations feel the same ground, so the
+RATIO is valid however many quakes caused it — correct, and I had wrongly excluded it),
+and one M4.1 is enough for a provisional number. Both right.
+
+| anchor | ratio |
+|---|---|
+| M2.8 Geysers | 3.26× |
+| M3.2 Geysers | 3.15× |
+| M2.99+M2.82 San Leandro (doublet) | 2.99× |
+| M4.1 San Leandro | 4.46× |
+
+**n=4, median 3.21×, spread 2.99–4.46, all in one amplitude epoch.**
+`PROVISIONAL_FACTOR = 3.20`, `EFFECTIVE_SENS = 9.0 V/(m/s)`. **1 µV = ~111 nm/s**, not
+35. Adopted rather than kept in reserve: the nominal 28.8 is measurably wrong by 3×, so
+using it is the less accurate choice.
+
+Uncertainty is site response, not statistics — 1.64 km apart, ~2× band differences are
+ordinary. Treat as "3×, maybe 2.5–4.5". It still does not say WHERE the loss is; the
+bench injection remains the only thing that separates a deaf element from a lossy front
+end, and now it knows what answer to expect.
+
+### ⛔ "What can we see that FS7 cannot?" — nothing, honestly
+
+| band | FS7 | OAKMT (×3.2) |
+|---|---|---|
+| 0.5–2 Hz | 0.342 | 0.058 µm/s |
+| 2–5 Hz | 0.126 | 0.053 |
+| **5–15 Hz** | **0.088** | 0.106 |
+| **15–30 Hz** | **0.110** | 0.168 |
+
+The apparent win below 5 Hz is an ARTIFACT: the geophone is 5× down at 2 Hz and 20× at
+1 Hz, so applying only the flat-band correction makes it look quiet exactly where it is
+deaf. Corrected for roll-off, 0.058 becomes 0.3–1.2 µm/s — comparable or worse.
+
+**Above 5 Hz, where the comparison is fair, FS7 beats us by 1.2–1.5×.** It is a
+professional instrument 1.64 km away. What this station offers is continuous ownership
+of one specific place, not better hardware.
+
+⚠️ `REF_MIN_RMS` cut 0.5 → 0.12 µm/s: the old guard was set from a single window and
+assumed FS7 was far noisier than it is (it reaches 0.086 µm/s on a quiet night).
+
 ## 🧭 EPOCH TABLE — `analysis/epochs.py` (2026-08-13)
 
 Charles: "we have to be careful about any data that precedes the current placement and
