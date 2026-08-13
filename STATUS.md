@@ -2,6 +2,36 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## ⛔ TELESEISMS ARE STRUCTURALLY IMPOSSIBLE HERE — settled with evidence (2026-08-13)
+
+M5.5, 69 km SSW of Chirilagua, El Salvador, 2026-08-13 00:30:04 UTC, depth 56.8 km.
+**4,438 km / 39.9°**, teleseismic P predicted 00:37:32Z (iasp91).
+
+Not detected — and neither we nor **BK.HOPS**, a real broadband 60 km north, shows
+anything in the band we can hear (0.7–2 Hz: P window quieter than pre-event at both).
+So it is not an instrument-quality problem. HOPS DID record it, but only here:
+
+| band (Hz) | HOPS pre-event | P window | surface waves |
+|---|---|---|---|
+| **0.02–0.05** | 2.1 | **6.6** | **36.5 nm/s** |
+| **0.05–0.1** | 9.6 | **17.6** | **40.3** |
+| 0.1–0.3 | 339 | 338 | 329 (microseism swamps) |
+| 0.3–1.0 | 190 | 172 | 197 |
+| 0.7–2.0 | 35 | 31 | 36 |
+
+The whole signal is 20–50 s period surface waves. Nothing survives above 0.1 Hz at
+4,400 km — path attenuation removes it.
+
+**Below its corner a geophone falls as f².** At 0.03 Hz that is `(0.03/4.5)² = 4.4e-5`
+— **~22,000× down, −87 dB**. Those 36 nm/s would appear as 0.0016 nm/s at our output
+against a ~50 nm/s floor: short by ~30,000×. **No siting, electronics or averaging
+changes this.** It is the instrument's defining trade, not a defect.
+
+**Answer for next time a headline quake lands:** if it is more than ~1,000 km away we
+will not see it, however large, because the surviving energy is below 0.1 Hz. What we
+DO see is local — the M4.1 at 88 km was 93× baseline. Do not spend time checking
+distant events; check the catalogue inside ~150 km.
+
 ## ✅ PROVISIONAL CALIBRATION ADOPTED: 3.2x low, ~9 V/(m/s) (2026-08-13)
 
 Charles: the superposition still calibrates (both stations feel the same ground, so the
