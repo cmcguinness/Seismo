@@ -515,7 +515,7 @@ LEARN_SECTIONS = [
      'millionth of a volt, which is why so much of this project is about fighting electrical '
      'noise.</p>'
      '<p class="mb-0 prose">The speeds involved are small too. A quiet night here is ground motion '
-     'of roughly <b>25 nanometres per second</b> &mdash; about the width of a virus, per second. '
+     'of roughly <b>35 nanometres per second</b> &mdash; about the width of a virus, per second. '
      'A person walking past is thousands of times bigger than that.</p>'),
 
     ("Putting real numbers on it",
@@ -527,7 +527,8 @@ LEARN_SECTIONS = [
      '<tr><td><b>1 microvolt</b> (µV)</td><td><b>34.7 nm/s</b> &mdash; the working unit here</td></tr>'
      '<tr><td>1 nanometre/second</td><td>0.029 µV, or about 3 of the digitizer&rsquo;s steps</td></tr>'
      '<tr><td>Smallest step the digitizer can resolve</td><td>0.32 nm/s</td></tr>'
-     '<tr><td>Quiet-night noise floor (~0.7 µV)</td><td>~24 nm/s</td></tr>'
+     '<tr><td>Quiet-night noise floor (~1.1 µV, 10&ndash;15 Hz)</td><td>~37 nm/s</td></tr>'
+     '<tr><td>&hellip; how much of that is the ground</td><td>almost none &mdash; see below</td></tr>'
      '</tbody></table></div>'
      '<p class="prose"><b>How far does the ground actually travel?</b> That is a different question '
      'from how fast, and the answer depends on frequency &mdash; a fast wiggle covers less distance '
@@ -542,6 +543,13 @@ LEARN_SECTIONS = [
      '<p class="prose">Those distances are <b>smaller than a single atom is wide</b> '
      '(an atom is about 0.1&ndash;0.5&nbsp;nm). Detecting motion that small on thirty dollars of '
      'hardware sitting on a garage floor is the part worth being slightly amazed by.</p>'
+     '<p class="prose"><b>And as of August 2026 that floor is no longer the ground.</b> '
+     'On a quiet night the noise in the 15&ndash;28&nbsp;Hz band measures 1.08&nbsp;µV, and the '
+     'electronics on their own &mdash; measured separately, with the sensor disconnected &mdash; '
+     'account for 1.08&nbsp;µV of it. The ground contributes essentially nothing. Between roughly '
+     '1 and 28&nbsp;Hz this station is now listening to its own amplifier rather than to the site, '
+     'which means a quieter location or better coupling can no longer buy anything. The next '
+     'improvement has to come from the electronics.</p>'
      '<p class="mb-0 prose"><b>One catch</b>, and it is why the <a href="/spectrum">spectrum</a> is '
      'cut off at the left: the &ldquo;34.7 nm/s per µV&rdquo; figure only holds <b>above about '
      '4.5&nbsp;Hz</b>. Below that the sensor goes progressively deaf, so the same voltage means '
@@ -648,7 +656,11 @@ LEARN_SECTIONS = [
      '<p class="mb-0 prose"><b>Helicorder</b> &mdash; the classic paper-drum view, one row per '
      '15&nbsp;minutes, four hours per screen. This is where an earthquake looks like an '
      'earthquake: a sudden fat burst that tapers off, unlike the even fuzz of ordinary noise. '
-     'Fat rows during the day and thin rows at 4&nbsp;AM are people, not geology.</p>'),
+     'Fat rows during the day and thin rows at 4&nbsp;AM are people, not geology. '
+     'Small coloured carets mark where quakes in the USGS catalogue <i>should</i> have arrived, so '
+     'you can check the record yourself &mdash; a prediction of where to look, not a claim that this '
+     'station caught anything. Catalogue entries appear minutes to hours after the event, so the '
+     'newest rows are always unmarked.</p>'),
 
     ("Glossary",
      '<div class="table-responsive"><table class="table table-sm align-middle"><tbody>'
@@ -661,7 +673,7 @@ LEARN_SECTIONS = [
      '<tr><td><b>µV (microvolt)</b></td><td>A millionth of a volt. Our quiet-night signal is under '
      'one.</td></tr>'
      '<tr><td><b>nm/s</b></td><td>Nanometres per second &mdash; actual ground speed. A quiet night '
-     'here is ~25.</td></tr>'
+     'here is ~35.</td></tr>'
      '<tr><td><b>Velocity / displacement / acceleration</b></td><td>Three ways to describe the '
      'same motion. A geophone (this station) senses <i>velocity</i> &mdash; how fast the ground '
      'moves. Broadband seismometers report <i>displacement</i> (how far) and accelerometers '
