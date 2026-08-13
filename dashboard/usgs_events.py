@@ -68,17 +68,17 @@ CALIBRATION = [
     (3.2, 43.3, 238.3, "2026-08-12 M3.2 The Geysers (2nd, 108 s later)"),
     (2.0, 9.7, 171.5, "2026-08-12 M2.0 Glen Ellen"),
     (2.3, 22.5, 34.7, "2026-08-12 M2.3 Sebastopol"),
-    # FAR-FIELD, recorded but OUTSIDE the fit -- see _fit(), which uses only points
-    # inside [CAL_MIN_KM, CAL_MAX_KM]. Detected at 105 km: coherent P->S->coda, strong
-    # arrival at +35.5 s against a predicted S of +35.1, 8.8x the pre-event median.
-    # Farthest event this station has recorded, and from an M2.0.
-    # Forcing it into the single power law gives B=0.64 -- BELOW geometric spreading,
-    # physically impossible -- and pushes the worst residual from 1.95x to 3.56x,
-    # degrading every near-field point. One power law cannot describe both the steep
-    # near field and the flattened far field where Moho-refracted and Lg phases carry
-    # the energy. Two or three more points past 60 km would justify a separate
-    # far-field branch; until then this is data, not a constraint.
-    (2.0, 105.2, 46.3, "2026-08-13 M2.0 Byron (far field, not fitted)"),
+    # Unambiguous: peak 504 uV = 93x baseline, 66 s of shaking, P onset +16.0 s against
+    # a predicted +17.2. Doubles the fitted distance range and the fit barely moves
+    # (B 1.58 -> 1.58), which is the strongest evidence yet that the model is sound.
+    (4.1, 87.7, 504.0, "2026-08-13 M4.1 San Leandro"),
+    # ⛔ RETRACTED 2026-08-13. Byron M2.0 @105 km, "detected" at 46.3 uV. The M4.1 below
+    # then showed the model is accurate to 1.02x at 87.7 km, so at 105 km an M2.0 really
+    # should give ~3 uV. For Byron to be real the model would have to be 16x wrong at
+    # 105 km while being 2% right at 88 km. Far likelier: that burst was morning noise
+    # (it was only 2.0x the pre-event MAXIMUM) and the half-second timing match with the
+    # predicted S was coincidence. The same trap as the "31 Hz lawn line".
+    # (2.0, 105.2, 46.3, "2026-08-13 M2.0 Byron"),   # not a detection
 ]
 # The first fit used only the top two rows and gave B=4.18, which predicted 5904 uV
 # for the M2.0 at 9.7 km against 171 uV observed -- 34x high. Two events at similar
@@ -90,14 +90,11 @@ CALIBRATION = [
 
 # Outside these ranges the fit is extrapolation and the tier is reported as "unknown"
 # rather than a confident-looking guess.
-CAL_MIN_KM, CAL_MAX_KM = 5.0, 60.0
-# 150 km was far too generous: the far anchor is 44.6 km, and at 105 km the fit
-# UNDER-predicted by 15x -- an M2.0 near Byron (2026-08-13 14:58 UTC) was predicted at
-# 3.0 uV and arrived at ~46 uV, coherent P->S->coda with the S landing within 0.5 s of
-# prediction. Attenuation flattens past ~60 km as Moho-refracted and Lg phases take
-# over, which a two-parameter fit anchored inside 45 km cannot know. Beyond 60 km,
-# say "unknown" rather than a number that is wrong by an order of magnitude in the
-# DANGEROUS direction (calling a detectable event invisible).
+CAL_MIN_KM, CAL_MAX_KM = 5.0, 90.0
+# Was briefly 60, on the theory that the fit under-predicted far field -- evidence: a
+# 105 km "detection" at Byron. The M4.1 at 87.7 km then landed at 1.02x predicted, the
+# Byron event was retracted as noise, and the theory with it. 90 km is now the measured
+# limit of validity: the farthest CONFIRMED anchor is 87.7 km.
 # MAGNITUDE matters as much as distance and was missed first time round. Every anchor
 # is M2.0-M3.2; the drum called an M1.2 at 13.5 km "likely" (predicted ~12 uV) and the
 # station saw NOTHING -- peak in the P..coda window was 6.4 uV against a pre-event p90

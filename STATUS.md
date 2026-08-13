@@ -2,6 +2,41 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 🌟 M4.1 SAN LEANDRO — biggest signal yet, and it validates the amplitude model (2026-08-13)
+
+USGS M4.1, 15:30:04 UTC, 87.7 km hypocentral. `analysis/2026-08-13-san-leandro-m4.1.png`.
+
+| | |
+|---|---|
+| peak (2–15 Hz, 0.5 s) | **504 µV = 93× baseline** |
+| P onset | **+16.0 s** (predicted +17.2, Vp 5.19) |
+| shaking duration | 66 s to ambient |
+
+- **Travel-time relation holds to 1.2 s at 87.7 km**, nearly double the 45.7 km it was
+  calibrated over.
+- **Amplitude model predicted 493.9 µV against 504 observed — 1.02×.** Adding it as a
+  sixth anchor barely moves the fit (B 1.58 → 1.58, C 1.67 → 1.66) and leaves the worst
+  residual at 1.95×. That is the strongest evidence yet that the model is sound, and it
+  doubles the fitted distance range to 9.7–87.7 km.
+- `CAL_MAX_KM` 60 → **90**, the measured limit of validity.
+
+### ⛔ RETRACTED: the Byron "detection" was noise
+
+Earlier the same day an M2.0 at 105 km (Byron) was called a detection at 46.3 µV, and
+used to argue the fit under-predicts at range — which is why `CAL_MAX_KM` had just been
+cut to 60. The M4.1 kills that:
+
+- The model is **1.02× correct at 87.7 km**, so at 105 km an M2.0 really should give
+  ~3 µV. Byron would require the model to be **16× wrong at 105 km while 2 % right at
+  88 km**.
+- The Byron burst was only **2.0× the pre-event MAXIMUM** in a busy 08:00 local
+  background, and the half-second alignment with the predicted S was coincidence.
+- Row left commented in `CALIBRATION` so it is not re-added.
+
+**Same failure mode as the "31 Hz lawn line":** a feature picked out of noisy data
+because it appeared where it was expected. Timing agreement alone is not detection when
+the amplitude disagrees with a validated model by an order of magnitude.
+
 ## 🏆 INSTRUMENT-LIMITED FROM 1 TO 28 Hz — and the 20 Hz line is NOT the floor (2026-08-13)
 
 Overnight, 600 s to 03:53 UTC, garage on cement.
