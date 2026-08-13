@@ -68,6 +68,17 @@ CALIBRATION = [
     (3.2, 43.3, 238.3, "2026-08-12 M3.2 The Geysers (2nd, 108 s later)"),
     (2.0, 9.7, 171.5, "2026-08-12 M2.0 Glen Ellen"),
     (2.3, 22.5, 34.7, "2026-08-12 M2.3 Sebastopol"),
+    # FAR-FIELD, recorded but OUTSIDE the fit -- see _fit(), which uses only points
+    # inside [CAL_MIN_KM, CAL_MAX_KM]. Detected at 105 km: coherent P->S->coda, strong
+    # arrival at +35.5 s against a predicted S of +35.1, 8.8x the pre-event median.
+    # Farthest event this station has recorded, and from an M2.0.
+    # Forcing it into the single power law gives B=0.64 -- BELOW geometric spreading,
+    # physically impossible -- and pushes the worst residual from 1.95x to 3.56x,
+    # degrading every near-field point. One power law cannot describe both the steep
+    # near field and the flattened far field where Moho-refracted and Lg phases carry
+    # the energy. Two or three more points past 60 km would justify a separate
+    # far-field branch; until then this is data, not a constraint.
+    (2.0, 105.2, 46.3, "2026-08-13 M2.0 Byron (far field, not fitted)"),
 ]
 # The first fit used only the top two rows and gave B=4.18, which predicted 5904 uV
 # for the M2.0 at 9.7 km against 171 uV observed -- 34x high. Two events at similar
@@ -97,7 +108,14 @@ CAL_MIN_MAG = 1.5                      # low end only; see tier()
 
 
 def _fit(points=CALIBRATION):
-    """Least-squares (B, C) for log10(A) = M - B*log10(R) + C. Needs >= 2 points."""
+    """Least-squares (B, C) for log10(A) = M - B*log10(R) + C. Needs >= 2 points.
+
+    Only points inside the guarded distance range take part: the model is a single
+    power law and is only claimed over [CAL_MIN_KM, CAL_MAX_KM], so a far-field
+    observation must not bend it. Raise CAL_MAX_KM and any qualifying rows join
+    automatically.
+    """
+    points = [q for q in points if CAL_MIN_KM <= q[1] <= CAL_MAX_KM] or list(points)
     if len(points) < 2:
         return 2.0, -1.0                     # geometric-spreading fallback
     xs = [math.log10(r) for _, r, _, _ in points]
