@@ -19,11 +19,14 @@ retroactively. This can never be a live "a quake is happening" indicator.
 lands them within ~4x. That is why the drum shows coarse tiers rather than a number,
 and why anything outside 5-150 km is reported as "unknown" instead of guessed.
 """
+import glob
 import json
 import math
 import os
 import time
 import urllib.request
+
+import numpy as np
 
 FEED = os.environ.get(
     "SEISMO_USGS_FEED",
@@ -32,7 +35,10 @@ STA_LAT = float(os.environ.get("SEISMO_STA_LAT", "38.451817"))
 STA_LON = float(os.environ.get("SEISMO_STA_LON", "-122.621049"))
 RADIUS_KM = float(os.environ.get("SEISMO_USGS_RADIUS_KM", "300"))
 MIN_MAG = float(os.environ.get("SEISMO_USGS_MIN_MAG", "1.0"))
-NOISE_UV = float(os.environ.get("SEISMO_NOISE_UV", "3.0"))   # 2-15 Hz, 0.5 s RMS
+NOISE_UV = float(os.environ.get("SEISMO_NOISE_UV", "3.0"))   # fallback only; see floor_at()
+GAIN = int(os.environ.get("SEISMO_GAIN", "64"))
+HELI_DIR = os.environ.get("SEISMO_HELI", "/data/heli")
+ENV_TO_BASELINE = 2.65   # heli `env` (broadband >1 Hz) -> 2-15 Hz 0.5 s peak baseline
 CACHE = os.path.join(os.environ.get("SEISMO_HELI", "/data/heli"), "usgs_events.json")
 MAX_AGE_S = float(os.environ.get("SEISMO_USGS_MAX_AGE_S", "86400"))
 
@@ -129,6 +135,52 @@ def tier(uv, noise_uv=NOISE_UV, hypo_km=None, mag=None):
     return "unlikely"
 
 
+def _uv_per_count(gain=GAIN):
+    return 2.5 * 2 / (gain * (2 ** 23 - 1)) * 1e6
+
+
+def floor_history(heli_dir=HELI_DIR):
+    """[(t0, interval_s, floor_uV)] from the helicorder envelope files, oldest first.
+
+    heli_build already banks exactly the number we need: `env` is the MEDIAN 0.49 s
+    single-sided envelope excursion of each 15-minute interval, in counts, after a
+    1 Hz high-pass. That is the same metric the tier thresholds were derived from --
+    the M2.8's 6.6x was peak-over-median-0.5s-envelope -- so it drops straight in.
+
+    Using it means an event is scored against the floor AT THE HOUR IT ARRIVED, not
+    against whatever the station happens to be doing at poll time. A fixed 3.0 uV
+    called an M1.2 "likely" at 07:32 when the real floor was ~4 uV with excursions to
+    7.5 (2026-08-13, Penngrove -- not detected).
+
+    ENV_TO_BASELINE converts it. `env` is broadband above 1 Hz, while the tier
+    thresholds were derived from a 2-15 Hz 0.5 s peak baseline (the M2.8's 6.6x). The
+    two differ by a stable factor: measured over 68 consecutive intervals spanning a
+    97 -> 9 uV range, median 2.65, IQR 2.49-3.05. Without it every event is under-rated
+    by ~2.65x.
+    """
+    out = []
+    scale = _uv_per_count()
+    for path in sorted(glob.glob(os.path.join(heli_dir, "heli.*.npz"))):
+        try:
+            with np.load(path) as d:
+                env = float(d["env"])
+                if env > 0 and np.isfinite(env):
+                    out.append((float(d["t0"]), float(d["interval_s"]),
+                                env * scale / ENV_TO_BASELINE))
+        except Exception:
+            continue
+    out.sort()
+    return out
+
+
+def floor_at(t, hist, default=NOISE_UV):
+    """Floor in uV for the interval containing epoch `t`, else `default`."""
+    for t0, span, uv in hist:
+        if t0 <= t < t0 + span:
+            return uv
+    return default
+
+
 def hypo_km(lat, lon, depth_km):
     dlat = (lat - STA_LAT) * 111.32
     dlon = (lon - STA_LON) * 111.32 * math.cos(math.radians((lat + STA_LAT) / 2))
@@ -142,8 +194,12 @@ def fetch(url=FEED, timeout=20):
         return json.load(fh).get("features", [])
 
 
-def build(features=None, noise_uv=NOISE_UV):
+def build(features=None, noise_uv=NOISE_UV, heli_dir=HELI_DIR):
     """Catalog features -> the list the drum draws. Sorted by arrival time."""
+    try:
+        hist = floor_history(heli_dir)
+    except Exception:
+        hist = []
     out = []
     for f in (features if features is not None else fetch()):
         p, g = f.get("properties", {}), f.get("geometry", {})
@@ -159,32 +215,35 @@ def build(features=None, noise_uv=NOISE_UV):
             continue
         origin = float(p["time"]) / 1000.0
         uv = predict_uv(mag, hyp)
+        arrival = origin + hyp / VP + T0_OFFSET
+        floor = floor_at(arrival, hist, noise_uv)
         out.append({
             "id": f.get("id"),
             "mag": round(mag, 1),
             "place": p.get("place") or "",
             "origin": origin,
             # when the P should reach US, which is where the drum marks it
-            "arrival": origin + hyp / VP + T0_OFFSET,
+            "arrival": arrival,
             "epi_km": round(epi, 1),
             "hypo_km": round(hyp, 1),
             "depth_km": round(depth, 1),
             "pred_uv": round(uv, 1) if uv else None,
-            "tier": tier(uv, noise_uv, hyp, mag),
+            "tier": tier(uv, floor, hyp, mag),
+            "floor_uv": round(floor, 2),
             "url": p.get("url"),
         })
     out.sort(key=lambda e: e["arrival"])
     return out
 
 
-def refresh(path=CACHE, noise_uv=NOISE_UV):
+def refresh(path=CACHE, noise_uv=NOISE_UV, heli_dir=HELI_DIR):
     """Poll and write the cache. Returns the event list, or None if the fetch failed.
 
     A failed poll leaves the previous cache in place -- a network blip must not blank
     the marks off the drum.
     """
     try:
-        events = build(noise_uv=noise_uv)
+        events = build(noise_uv=noise_uv, heli_dir=heli_dir)
     except Exception as e:
         print(f"usgs_events refresh: {e}", flush=True)
         return None
@@ -214,4 +273,4 @@ if __name__ == "__main__":
     for e in (evs or [])[-25:]:
         print(f"  {time.strftime('%H:%M:%S', time.gmtime(e['arrival']))}Z "
               f"M{e['mag']:<4} {e['epi_km']:>6.1f} km  pred {e['pred_uv']:>9} uV  "
-              f"{e['tier']:<9} {e['place'][:44]}")
+              f"floor {e.get('floor_uv'):>6}  {e['tier']:<9} {e['place'][:40]}")
