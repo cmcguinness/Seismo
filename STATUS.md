@@ -15,15 +15,33 @@ Overnight, 600 s to 03:53 UTC, garage on cement.
 | **15–28** | **1.08** | 1.84 | **1.08** |
 | 19–21 | 0.32 | 0.61 | — |
 
-Decomposed in quadrature against the measured electronics floor:
-- **1–15 Hz:** 1.50 = electronics 1.18 + site **0.92**
-- **15–28 Hz:** 1.08 = electronics 1.08 + site **0.02**
+⚠️ **RETRACTED the same night.** This entry originally decomposed the floor against
+the 2026-08-03 electronics measurement (1.18 µV over 1–15 Hz, 1.08 over 15–28) and
+concluded "the site contributes 0.02 µV, siting is closed, we are measuring our own
+amplifier." Two hours later, at 02:00 PDT, the station read **0.80 µV over 1–15 Hz and
+0.51 over 15–28** — 32 % and 53 % BELOW that electronics floor.
 
-**SITING IS CLOSED.** From 1 to 28 Hz the instrument is the limit, not the location.
-No further gain is available from placement, coupling or timing; 1–5 Hz at 0.54 µV is
-even *below* the 0.63 µV that bandwidth-scaling the electronics floor predicts. The
-only remaining lever is the front end — which promotes the bench injection from
-curiosity to the highest-value open item.
+Reading below a floor measured with the sensor DISCONNECTED is impossible unless the
+electronics themselves changed. **The 2026-08-03 electronics floor is obsolete** — the
+front-end rebuild (08-07), the Mean Well supply replacing micro-USB, and the move off
+Wi-Fi all landed after it, and any of them could be responsible.
+
+| band | 03:53 UTC | 09:04 UTC (02:00 PDT) | elec floor 08-03 |
+|---|---|---|---|
+| 1–5 | 0.54 | **0.52** | — |
+| 1–15 | 1.50 | **0.80** | 1.18 |
+| 10–15 | 1.06 | **0.35** | — |
+| 15–28 | 1.08 | **0.51** | 1.08 |
+| 19–21 | 0.32 | **0.15** | — |
+
+**So we do NOT know how much headroom remains in siting.** That claim required a
+current electronics floor and there isn't one. What is certain: the deep-night floor is
+the best ever recorded, and **re-measuring the electronics floor is now a prerequisite
+for interpreting any of these numbers** — one more reason the bench injection is the
+top open item.
+
+**Lesson:** an "instrument floor" is only a floor until the instrument changes. Three
+things changed after 08-03 and the reference was never re-taken.
 
 Detection at The Geysers overnight: **~M1.4 marginal, ~M1.65 trigger** (vs M2.3/M2.6
 before 2026-08-12).
