@@ -39,13 +39,20 @@ tile→slab at the same frequencies. And there has never been a 3-point-case-on-
 configuration: the geophone left the tile on 07-31, and the printed case arrived 08-08.
 The two changes were sequential, never a controlled A/B.
 
+There are only ever TWO configuration changes in the whole archive: the floor
+(tile → garage floor, 07-31) and the mount (flat/cup → printed 3-point case, 08-08).
+"Garage slab" and "garage cement" are the same surface — the garage floor — so the last
+two rows are the SAME configuration measured twice, three weeks and a relocation apart.
+That is a reproducibility check, not a third data point.
+
 | window | mount | surface | mode 1 | mode 2 | f₂/f₁ |
 |---|---|---|---|---|---|
 | 07-26 | pre-case (flat / cup) | **plastic tile** | 19.995 | 40.894 | 2.045 |
-| 08-11 | printed 3-point case | garage slab | 19.983 | 41.016 | 2.053 |
-| now | printed 3-point case | garage cement | 19.983 | 40.906 | 2.047 |
+| 08-11 | printed 3-point case | garage floor | 19.983 | 41.016 | 2.053 |
+| now | printed 3-point case | garage floor (moved) | 19.983 | 40.906 | 2.047 |
 
-- **Constant to 0.06 % across BOTH a floor change and a mount-geometry change.**
+- **Constant to 0.06 % across BOTH the floor change and the mount change**, and
+  reproducible to 0.000 Hz across a relocation on the same floor.
   Charles proposed the flat bottom → 3-point contact as the cause; it is not. Changing
   contact geometry changes coupling stiffness and changing the floor changes what it
   couples to; neither moved the frequency. The companion mode tracks at a fixed 2.05x
