@@ -214,10 +214,18 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
                     fontsize=9, color=color, zorder=5)
             seen += 1
         if seen:
-            ax.text(IMG_W - MARGIN_R, 30,
-                    "▲ USGS catalog: predicted arrival  "
-                    + "  ".join(f"{k}" for k in ("strong", "likely", "marginal")),
-                    ha="right", va="top", fontsize=10, color="#888", zorder=5)
+            # Each tier word is drawn in ITS OWN colour -- the whole point of the
+            # legend is to decode the caret colours, and a single grey string says
+            # nothing (which is what the first version did).
+            x = IMG_W - MARGIN_R
+            for key in ("marginal", "likely", "strong"):        # right to left
+                ax.text(x, 30, key, ha="right", va="top", fontsize=10,
+                        color=MARK_COLORS[key], zorder=5)
+                # Step per WORD, not a constant: a fixed 62 px fitted "strong" and let
+                # "marginal" collide with its neighbour.
+                x -= 7.4 * len(key) + 18
+            ax.text(x + 6, 30, "▲ USGS catalog, predicted arrival:", ha="right",
+                    va="top", fontsize=10, color="#888", zorder=5)
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---
     axis_y = MARGIN_T + PLOT_H                 # bottom of the plot area
