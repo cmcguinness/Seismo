@@ -49,8 +49,14 @@ CLIP_ROWS = 3.0                               # excursion clip, +/- rows
 ROW_COLORS = ["#a01818", "#186a18", "#1c4fa0", "#111"]   # dark red, dark green, blue, black
 # USGS catalog marks. Muted on purpose: they are an annotation over the data, and must
 # never be mistaken for the trace itself or for a detection this station made.
-MARK_COLORS = {"strong": "#c2410c", "likely": "#b45309",
-               "marginal": "#78716c", "unlikely": "#d6d3d1", "unknown": "#d6d3d1"}
+# Hues are deliberately far apart: the first pass used #c2410c and #b45309, which are
+# neighbouring oranges and indistinguishable at 10 pt (Charles could not tell "strong"
+# from "likely"). Size varies with tier too, so the coding does not rely on colour
+# alone. None of these collide with ROW_COLORS.
+MARK_COLORS = {"strong": "#ea580c", "likely": "#7c3aed",
+               "marginal": "#64748b", "unlikely": "#cbd5e1", "unknown": "#cbd5e1"}
+MARK_SIZE = {"strong": (7.0, 2.0), "likely": (5.5, 1.5), "marginal": (4.5, 1.1),
+             "unlikely": (3.5, 0.8), "unknown": (3.5, 0.8)}
 
 
 WINDOW_H = float(os.environ.get("SEISMO_HELI_HOURS", "4"))   # hours per drum
@@ -204,12 +210,14 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
             frac = (ta - rows[r_i]["t0"]) / INTERVAL_S
             x = MARGIN_L + frac * PLOT_W
             base = MARGIN_T + (r_i + 0.5) * row_h
-            color = MARK_COLORS.get(ev.get("tier"), "#999")
+            tier = ev.get("tier")
+            color = MARK_COLORS.get(tier, "#999")
+            msize, mlw = MARK_SIZE.get(tier, (4.5, 1.1))
             # a caret under the trace plus a tick, so it never hides the waveform
             y = base + row_h * 0.42
-            ax.plot([x, x], [y, y - row_h * 0.18], color=color, lw=1.4,
+            ax.plot([x, x], [y, y - row_h * 0.18], color=color, lw=mlw,
                     solid_capstyle="butt", zorder=5)
-            ax.plot([x], [y], marker="^", color=color, markersize=5, zorder=5)
+            ax.plot([x], [y], marker="^", color=color, markersize=msize, zorder=5)
             ax.text(x + 4, y, f"M{ev.get('mag')}", ha="left", va="center",
                     fontsize=9, color=color, zorder=5)
             seen += 1
@@ -221,9 +229,12 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
             for key in ("marginal", "likely", "strong"):        # right to left
                 ax.text(x, 30, key, ha="right", va="top", fontsize=10,
                         color=MARK_COLORS[key], zorder=5)
+                ax.plot([x - 7.4 * len(key) - 13], [35], marker="^",
+                        color=MARK_COLORS[key], markersize=MARK_SIZE[key][0],
+                        zorder=5)
                 # Step per WORD, not a constant: a fixed 62 px fitted "strong" and let
                 # "marginal" collide with its neighbour.
-                x -= 7.4 * len(key) + 18
+                x -= 7.4 * len(key) + 32   # word + its caret + gap
             ax.text(x + 6, 30, "▲ USGS catalog, predicted arrival:", ha="right",
                     va="top", fontsize=10, color="#888", zorder=5)
 
