@@ -79,7 +79,14 @@ CALIBRATION = [
 
 # Outside these ranges the fit is extrapolation and the tier is reported as "unknown"
 # rather than a confident-looking guess.
-CAL_MIN_KM, CAL_MAX_KM = 5.0, 150.0
+CAL_MIN_KM, CAL_MAX_KM = 5.0, 60.0
+# 150 km was far too generous: the far anchor is 44.6 km, and at 105 km the fit
+# UNDER-predicted by 15x -- an M2.0 near Byron (2026-08-13 14:58 UTC) was predicted at
+# 3.0 uV and arrived at ~46 uV, coherent P->S->coda with the S landing within 0.5 s of
+# prediction. Attenuation flattens past ~60 km as Moho-refracted and Lg phases take
+# over, which a two-parameter fit anchored inside 45 km cannot know. Beyond 60 km,
+# say "unknown" rather than a number that is wrong by an order of magnitude in the
+# DANGEROUS direction (calling a detectable event invisible).
 # MAGNITUDE matters as much as distance and was missed first time round. Every anchor
 # is M2.0-M3.2; the drum called an M1.2 at 13.5 km "likely" (predicted ~12 uV) and the
 # station saw NOTHING -- peak in the P..coda window was 6.4 uV against a pre-event p90
