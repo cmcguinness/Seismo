@@ -797,10 +797,11 @@ def learn():
 def about():
     photo = _card(
         "The station",
-        '<img src="/station.jpg" class="plot" alt="The assembled seismometer '
-        'station on the workbench">'
-        '<p class="text-muted small mb-0 mt-2">The complete station assembled on '
-        'the bench &mdash; geophone, ADS1256 digitizer, and Raspberry&nbsp;Pi.</p>',
+        '<img src="/station.jpg" class="plot" alt="The seismometer during bring-up '
+        'on the workbench, before the printed enclosures">'
+        '<p class="text-muted small mb-0 mt-2">The station during bring-up, July 2026 '
+        '&mdash; geophone, ADS1256 digitizer and Raspberry&nbsp;Pi, before the printed '
+        'enclosures. It now lives in two cases on the garage floor.</p>',
     ) if _STATION_JPG else ""
     cards = photo + "".join(_card(h, inner.replace("{place}", PLACE))
                             for h, inner in ABOUT_SECTIONS)
