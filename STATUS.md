@@ -2,6 +2,54 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 🏆 INSTRUMENT-LIMITED FROM 1 TO 28 Hz — and the 20 Hz line is NOT the floor (2026-08-13)
+
+Overnight, 600 s to 03:53 UTC, garage on cement.
+
+| band (µV) | overnight | garage daytime | V1 elec floor |
+|---|---|---|---|
+| 0.02–0.12 | 0.32 | 0.27 | — |
+| **1–5** | **0.54** | 0.75 | — |
+| 1–15 | **1.50** | 3.47 | 1.18 |
+| 10–15 | 1.06 | 2.83 | — |
+| **15–28** | **1.08** | 1.84 | **1.08** |
+| 19–21 | 0.32 | 0.61 | — |
+
+Decomposed in quadrature against the measured electronics floor:
+- **1–15 Hz:** 1.50 = electronics 1.18 + site **0.92**
+- **15–28 Hz:** 1.08 = electronics 1.08 + site **0.02**
+
+**SITING IS CLOSED.** From 1 to 28 Hz the instrument is the limit, not the location.
+No further gain is available from placement, coupling or timing; 1–5 Hz at 0.54 µV is
+even *below* the 0.63 µV that bandwidth-scaling the electronics floor predicts. The
+only remaining lever is the front end — which promotes the bench injection from
+curiosity to the highest-value open item.
+
+Detection at The Geysers overnight: **~M1.4 marginal, ~M1.65 trigger** (vs M2.3/M2.6
+before 2026-08-12).
+
+### ⛔ The ~20 Hz resonance is NOT the plastic tile, and NOT the floor
+
+Charles suspected the move from plastic floor tile to cement killed it. It did not.
+High-resolution spectra (0.012 Hz bins):
+
+| window | peak Hz | ASD | peak/continuum |
+|---|---|---|---|
+| garage now (cement, overnight) | **19.983** | 1.05 | **2.81** |
+| indoor floor 08-11 night | 19.995 | 6.58 | 2.93 |
+| old garage, on plastic tile | 19.983 | 4.29 | 1.72 |
+| garage daytime (swamped) | 19.690 | 24.5 | 1.00 |
+
+- **The frequency is 19.98–20.00 Hz on all three surfaces.** A floor resonance would
+  MOVE when the floor changes. This one does not — it travels with the instrument.
+  Combined with the 07-31 tile→slab test (no measurable change), the "plastic floor
+  tile" suspect is now ruled out, not merely doubted.
+- The line is **more prominent** relative to its surroundings now (2.81 vs 1.72 on
+  tile). Its band RMS fell only because the whole floor fell around it.
+- The printed geophone case changed on 08-08 and the frequency did not, so even the
+  case is unlikely. Remaining suspects: the element itself, or the electronics.
+  Related: [[one-hz-instrumental-line]], [[coupling-test-negative]].
+
 ## 🎯 ARRIVAL PREDICTION: one real bug, and the velocity model is fine (2026-08-12)
 
 Charles: "I feel like the prediction of arrival logic is off." Two separate things.
