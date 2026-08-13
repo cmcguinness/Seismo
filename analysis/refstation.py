@@ -27,9 +27,12 @@ nonsense 0.88x. REF_MIN_RMS rejects those. It also happens that the closest even
 worst-affected geometrically, since 1.64 km of separation matters most at short range.
 
     python analysis/refstation.py 2026-08-13T15:30:04
+    python analysis/refstation.py --all      # every anchor, with an epoch check
 """
 import sys
 import warnings
+
+import epochs
 
 warnings.filterwarnings("ignore")
 
@@ -93,7 +96,54 @@ def compare(origin, day_path, lead=14.0, span=46.0):
     return rr, rp
 
 
+ANCHORS = [
+    ("M2.8 Geysers", "2026-08-11T21:35:14"),
+    ("M3.2 Geysers", "2026-08-12T10:28:21"),
+    ("M2.0 Glen Ellen", "2026-08-12T09:06:38"),
+    ("M4.1 San Leandro", "2026-08-13T15:30:04"),
+]
+
+
+def run_all():
+    """Every anchor, combined -- and refuse to average across an amplitude boundary."""
+    import numpy as np
+    from obspy import UTCDateTime
+    ratios = []
+    for label, origin in ANCHORS:
+        o = UTCDateTime(origin)
+        day = f"analysis/data/XX.OAKMT.00.SHZ.D.{o.year}.{o.julday:03d}.mseed"
+        print(f"{label}  {origin}")
+        try:
+            got = compare(origin, day)
+        except Exception as e:
+            print(f"  skipped: {type(e).__name__}: {str(e)[:80]}")
+            continue
+        if got:
+            ratios.append((label, origin, got[0]))
+    if not ratios:
+        return
+    # An absolute-scale factor may only be averaged within ONE amplitude epoch. This is
+    # the check that would have kept the M2.5 St Helena out of CALIBRATION.
+    print()
+    first = ratios[0][1]
+    bad = [l for l, t, _ in ratios if epochs.crossed(first, t, "amplitude")]
+    if bad:
+        print(f"  ⚠️ REFUSING to average: {', '.join(bad)} sit in a different amplitude")
+        print("     epoch from the first anchor. Report them separately.")
+        for l, t, r in ratios:
+            print(f"       {l:<20} {r:.2f}x")
+        return
+    vals = np.array([r for _, _, r in ratios])
+    print(f"  {len(vals)} anchors, all in one amplitude epoch")
+    print(f"  ratio  mean {vals.mean():.2f}x  median {np.median(vals):.2f}x  "
+          f"spread {vals.min():.2f}-{vals.max():.2f}")
+    print(f"  implied sensitivity {NOMINAL_SENS/np.median(vals):.2f} V/(m/s) "
+          f"vs {NOMINAL_SENS} nominal")
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--all":
+        raise SystemExit(run_all())
     origin = sys.argv[1] if len(sys.argv) > 1 else "2026-08-13T15:30:04"
     day = sys.argv[2] if len(sys.argv) > 2 else None
     if day is None:

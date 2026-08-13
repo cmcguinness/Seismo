@@ -2,6 +2,37 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 🧭 EPOCH TABLE — `analysis/epochs.py` (2026-08-13)
+
+Charles: "we have to be careful about any data that precedes the current placement and
+hardware." Correct, and it had already cost three wrong answers in two days:
+
+- The M2.5 St Helena sat in the amplitude `CALIBRATION` as a 5.6× outlier until someone
+  noticed it predated the 60 → 100 sps switch by twelve hours.
+- The 2026-08-03 "V1 electronics floor" was used to conclude *siting is closed, we are
+  measuring our own amplifier* — and published to the About page — when three changes
+  had landed after it was measured.
+- The ~20 Hz table implied three configurations when there were two.
+
+`analysis/epochs.py` now holds every boundary with a tag for WHAT it invalidates —
+`amplitude`, `noise`, `timing`, `glitch` — so a comparison is blocked only when it
+matters. Approximate times (STATUS recorded a date but no clock) are flagged, and a
+comparison straddling one is unsafe rather than merely suspect.
+
+Run against today's work it reproduces both failures and clears the good case:
+
+- the five amplitude anchors are **all in one epoch** — the calibration set is valid;
+- the V1 electronics floor is separated from now by **1 amplitude and 4 noise
+  boundaries**, which is exactly why reading below it was impossible.
+
+`refstation.py --all` uses it: it computes the calibration factor across anchors and
+**refuses to average** across an amplitude boundary, printing them separately instead.
+Current output — 3 anchors, one epoch, **mean 3.63× / median 3.26× low, implied
+8.82 V/(m/s)** against 28.8 nominal.
+
+⚠️ The table is only as good as its dates. Add a row the same day a change is made;
+a boundary nobody recorded is worse than no table, because the checks will pass.
+
 ## 🎯 ABSOLUTE CALIBRATION MEASURED — ~3.6x low, against a station 1.64 km away (2026-08-13)
 
 Charles noticed the USGS event page lists PGA/PGV per contributing station, and one of
