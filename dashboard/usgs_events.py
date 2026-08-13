@@ -51,11 +51,17 @@ T0_OFFSET = 0.30
 # absolute amplitude in uV.
 CALIBRATION = [
     # (magnitude, hypocentral km, observed peak uV in 2-15 Hz, label)
-    (2.5, 18.4, 1406.0, "2026-07-25 M2.5 St Helena"),
+    # EXCLUDED 2026-08-12: recorded 2026-07-25 11:31 UTC, i.e. in the PREVIOUS epoch --
+    # the switch to 100 sps was that evening at 23:45 UTC. It is a 5.6x outlier against
+    # the five 100-sps events and physically incoherent with them: an M2.5 at 18.4 km
+    # cannot read 8x an M2.0 at 9.7 km. Different rate, different config, not
+    # comparable. Row kept visible so nobody re-adds it.
+    # (2.5, 18.4, 1406.0, "2026-07-25 M2.5 St Helena"),   # pre-100-sps epoch
     (2.8, 44.6, 69.3, "2026-08-11 M2.8 The Geysers"),
     (3.2, 43.4, 229.2, "2026-08-12 M3.2 The Geysers"),
     (3.2, 43.3, 238.3, "2026-08-12 M3.2 The Geysers (2nd, 108 s later)"),
     (2.0, 9.7, 171.5, "2026-08-12 M2.0 Glen Ellen"),
+    (2.3, 22.5, 34.7, "2026-08-12 M2.3 Sebastopol"),
 ]
 # The first fit used only the top two rows and gave B=4.18, which predicted 5904 uV
 # for the M2.0 at 9.7 km against 171 uV observed -- 34x high. Two events at similar

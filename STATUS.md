@@ -2,6 +2,53 @@
 
 _Last updated: 2026-08-12 (UTC)_
 
+## 🎯 ARRIVAL PREDICTION: one real bug, and the velocity model is fine (2026-08-12)
+
+Charles: "I feel like the prediction of arrival logic is off." Two separate things.
+
+**REAL BUG.** `eventcheck.py` documents the measured relation as
+`onset = dist/5.19 + 0.30 s` and then computed `tP = hypo / VP`, **dropping the
+intercept**. Every P marker was drawn 0.30 s EARLY, so every arrival looked slightly
+late on every plot ever produced. Fixed; `T0_INTERCEPT` is now named and applied.
+
+**THE VELOCITY MODEL IS NOT THE PROBLEM.** STA/LTA onset picks against origin times:
+
+| event | hypo km | residual | STA/LTA |
+|---|---|---|---|
+| M2.0 Glen Ellen | 9.7 | **+0.05** | 753 |
+| M2.8 Geysers | 44.6 | +0.38 | 12.5 |
+| M3.2 #1 | 43.4 | +0.50 | 17.2 |
+| M3.2 #2 | 43.3 | +1.16 | 26.9 |
+| M2.3 Sebastopol | 22.5 | +1.38 | 10.9 |
+
+All positive, and the size tracks **signal quality, not distance**. The cleanest event
+(SNR 753) lands at +0.05 s; the weakest is worst. That is STA/LTA's late-picking bias
+— the ratio needs energy to accumulate. M3.2 #2 is extra-late because it sits inside
+#1's coda, which inflates its LTA.
+
+⚠️ **Do not use ARRIVAL times as origin times.** `usgs_events.__main__` prints
+`e['arrival']`; feeding those to the picker as origins produced −8 s residuals and a
+brief panic that the velocity model was broken.
+
+## 📏 AMPLITUDE MODEL: exclude the pre-epoch event (2026-08-12)
+
+Adding the M2.3 Sebastopol (22.5 km, 34.7 µV, detected at 5.3× baseline in a busy
+midday background) exposed the M2.5 St Helena as a **5.6x outlier** — and physically
+incoherent with the rest: an M2.5 at 18.4 km cannot read **8x** an M2.0 at 9.7 km.
+
+It was recorded **2026-07-25 11:31 UTC, before the switch to 100 sps that evening at
+23:45 UTC** — a different acquisition epoch, so not comparable. Excluded (row left
+commented in `CALIBRATION` so nobody re-adds it).
+
+| fit | B | worst residual |
+|---|---|---|
+| 2 events | 4.18 | predicted 5904 µV where 171 was observed (34x) |
+| 6 events incl. pre-epoch | 2.01 | 5.6x |
+| **5 same-epoch events** | **1.58** | **1.95x** |
+
+B=1.58 is close to plain geometric spreading. **This is the epoch discipline that
+`signatures.json` already preaches, applied to amplitudes.**
+
 ## ✅ DESPIKER v3 — local noise scale, CENTRED window (2026-08-12)
 
 Third design in one day. The first two shipped and both were wrong; this one was

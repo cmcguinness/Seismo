@@ -34,6 +34,7 @@ STA_LAT, STA_LON = 38.451817, -122.621049
 # five confirmed events over 18.4-45.7 km give onset = dist/5.19 + 0.30 s with <=0.3 s
 # residuals (2026-07-29, STATUS.md). Vp=6.0 predicted arrivals ~1.4 s early at 45 km.
 VP, VS = 5.19, 3.00              # Vp/Vs≈1.73
+T0_INTERCEPT = 0.30              # seconds; the fitted intercept of that same relation
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -68,7 +69,10 @@ def main() -> None:
     origin = UTCDateTime(args.origin) - args.offset_hours * 3600.0     # -> UTC
     epi = haversine_km(args.stalat, args.stalon, args.lat, args.lon)
     hypo = math.hypot(epi, args.depth)
-    tP, tS = hypo / VP, hypo / VS
+    # +T0_INTERCEPT on P: the measured relation is onset = dist/5.19 + 0.30 s (see the
+    # VP comment above), and dropping the intercept drew every P marker 0.30 s EARLY,
+    # which made real arrivals look systematically late on every plot (2026-08-12).
+    tP, tS = hypo / VP + T0_INTERCEPT, hypo / VS
     post = args.post if args.post > 0 else tS + 40.0
     fmin, fmax = (float(x) for x in args.band.split(","))
     uvpc = (2.5 * 2 / (args.gain * (2 ** 23 - 1))) * 1e6
