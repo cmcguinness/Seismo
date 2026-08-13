@@ -33,21 +33,32 @@ before 2026-08-12).
 Charles suspected the move from plastic floor tile to cement killed it. It did not.
 High-resolution spectra (0.012 Hz bins):
 
-| window | peak Hz | ASD | peak/continuum |
-|---|---|---|---|
-| garage now (cement, overnight) | **19.983** | 1.05 | **2.81** |
-| indoor floor 08-11 night | 19.995 | 6.58 | 2.93 |
-| old garage, on plastic tile | 19.983 | 4.29 | 1.72 |
-| garage daytime (swamped) | 19.690 | 24.5 | 1.00 |
+⚠️ Two corrections to the first version of this entry. The tile hypothesis was NOT
+newly ruled out here — the 07-31 coupling test already recorded that the pair survived
+tile→slab at the same frequencies. And there has never been a 3-point-case-on-tile
+configuration: the geophone left the tile on 07-31, and the printed case arrived 08-08.
+The two changes were sequential, never a controlled A/B.
 
-- **The frequency is 19.98–20.00 Hz on all three surfaces.** A floor resonance would
-  MOVE when the floor changes. This one does not — it travels with the instrument.
-  Combined with the 07-31 tile→slab test (no measurable change), the "plastic floor
-  tile" suspect is now ruled out, not merely doubted.
-- The line is **more prominent** relative to its surroundings now (2.81 vs 1.72 on
-  tile). Its band RMS fell only because the whole floor fell around it.
-- The printed geophone case changed on 08-08 and the frequency did not, so even the
-  case is unlikely. Remaining suspects: the element itself, or the electronics.
+| window | mount | surface | mode 1 | mode 2 | f₂/f₁ |
+|---|---|---|---|---|---|
+| 07-26 | pre-case (flat / cup) | **plastic tile** | 19.995 | 40.894 | 2.045 |
+| 08-11 | printed 3-point case | garage slab | 19.983 | 41.016 | 2.053 |
+| now | printed 3-point case | garage cement | 19.983 | 40.906 | 2.047 |
+
+- **Constant to 0.06 % across BOTH a floor change and a mount-geometry change.**
+  Charles proposed the flat bottom → 3-point contact as the cause; it is not. Changing
+  contact geometry changes coupling stiffness and changing the floor changes what it
+  couples to; neither moved the frequency. The companion mode tracks at a fixed 2.05x
+  throughout — NOT 2.000x, so it is not harmonic distortion either.
+- **It travels with the ELEMENT.** Leading suspect: a parasitic transverse/rocking mode
+  of the moving mass inside the geophone, which is a property of its own suspension and
+  independent of what it sits on.
+- **Harmless:** 19.98 Hz is above the 1–15 Hz working band and sits at 0.32 µV overnight,
+  below the electronics floor.
+- **Test to settle it**, next time the element is out of the case: tap it on foam at
+  several tilt angles. A transverse mode's coupling into the vertical output varies
+  strongly with tilt while 4.5 Hz does not; if the frequency also holds off the floor
+  entirely, that is conclusive.
   Related: [[one-hz-instrumental-line]], [[coupling-test-negative]].
 
 ## 🎯 ARRIVAL PREDICTION: one real bug, and the velocity model is fine (2026-08-12)
