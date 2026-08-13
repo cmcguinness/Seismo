@@ -124,7 +124,13 @@ def main() -> None:
     mag = f"M{args.mag} " if args.mag is not None else ""
     a1.set_title(f"{tr.id}   {mag}{args.label} ({epi:.0f} km)   raw")
     a2.plot(t, bp, "b", lw=0.6); a2.set_ylabel(f"{fmin:g}-{fmax:g} Hz µV")
-    a2.set_title(f"bandpass (microseism removed)   ratio {ratio:.2f} -> {verdict}")
+    # NOT "microseism removed": this station has essentially no microseism to remove.
+    # The 4.5 Hz element is ~60 dB down at 0.07-0.15 Hz, and measurement agrees --
+    # 0.454 uV in the 0.05-0.2 Hz band against 5.5 uV raw (2026-08-13). What the
+    # filter actually discards here is mostly content ABOVE 15 Hz. That is why the
+    # two panels look nearly identical, which is a property of the instrument, not
+    # a bug -- so name the band and let the reader see it.
+    a2.set_title(f"bandpass {fmin:g}-{fmax:g} Hz   ratio {ratio:.2f} -> {verdict}")
     for a in (a1, a2):
         a.axvline(0, color="g", ls="--"); a.axvline(tP, color="r", ls=":")
         a.axvline(tS, color="orange", ls=":"); a.grid(alpha=0.3)
