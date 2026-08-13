@@ -71,9 +71,16 @@ CALIBRATION = [
 # Residual scatter of 4x is honest for this: depth, focal mechanism and path all
 # matter and none of them are in the model.
 
-# Outside this range the fit is extrapolation and the tier is reported as "unknown"
+# Outside these ranges the fit is extrapolation and the tier is reported as "unknown"
 # rather than a confident-looking guess.
 CAL_MIN_KM, CAL_MAX_KM = 5.0, 150.0
+# MAGNITUDE matters as much as distance and was missed first time round. Every anchor
+# is M2.0-M3.2; the drum called an M1.2 at 13.5 km "likely" (predicted ~12 uV) and the
+# station saw NOTHING -- peak in the P..coda window was 6.4 uV against a pre-event p90
+# of 7.5, i.e. smaller than routine morning background (2026-08-13 14:32 UTC, Penngrove).
+# That is a 6x amplitude extrapolation on a fit with ~2x scatter. Half a magnitude of
+# slack either side of the anchors, then say "unknown".
+CAL_MIN_MAG = 1.5                      # low end only; see tier()
 
 
 def _fit(points=CALIBRATION):
@@ -99,7 +106,7 @@ def predict_uv(mag, hypo_km):
     return 10.0 ** (mag - B * math.log10(hypo_km) + C)
 
 
-def tier(uv, noise_uv=NOISE_UV, hypo_km=None):
+def tier(uv, noise_uv=NOISE_UV, hypo_km=None, mag=None):
     """Coarse visibility class. Thresholds are SNR against the measured floor:
     the confirmed M2.8 sat at 6.6x and was unmistakable; 3x is a confident visual
     pick; 2x is 'maybe, if you squint'."""
@@ -107,6 +114,11 @@ def tier(uv, noise_uv=NOISE_UV, hypo_km=None):
         return "unknown"
     if hypo_km is not None and not (CAL_MIN_KM <= hypo_km <= CAL_MAX_KM):
         return "unknown"          # extrapolation; say so instead of guessing
+    # LOW end only. Extrapolating UP is safe -- an M4 at 45 km is certainly visible
+    # (the M4.2 Cloverdale is in the archive), so calling it "strong" cannot mislead.
+    # Extrapolating DOWN is what promises a detection that never arrives.
+    if mag is not None and mag < CAL_MIN_MAG:
+        return "unknown"
     snr = uv / max(noise_uv, 1e-9)
     if snr >= 6.0:
         return "strong"
@@ -158,7 +170,7 @@ def build(features=None, noise_uv=NOISE_UV):
             "hypo_km": round(hyp, 1),
             "depth_km": round(depth, 1),
             "pred_uv": round(uv, 1) if uv else None,
-            "tier": tier(uv, noise_uv, hyp),
+            "tier": tier(uv, noise_uv, hyp, mag),
             "url": p.get("url"),
         })
     out.sort(key=lambda e: e["arrival"])
