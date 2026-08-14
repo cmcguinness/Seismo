@@ -2,6 +2,63 @@
 
 _Last updated: 2026-08-14 (UTC)_
 
+## 🔧 DESPIKER: the bracket tolerance was stricter than the outlier bar (2026-08-14, LIVE)
+
+Charles spotted an obvious bad-data spike on the drum at ~05:46 UTC. It is real and it
+is in the archive: **2026-08-14T05:46:40.56, one sample, −6,062,080 counts** (−59 mV)
+against a 324,101 baseline. As 24-bit two's complement that is `0xA37800` — **low byte
+zero**, the same one-byte-late SPI read as the other known garbage frames.
+
+It is not in `qc.log` as a spike, a `zero_frame` or a `dropped`. The despiker judged it
+and **kept** it. Reproduced offline against the archived samples:
+
+```
+ref = 324,101   scale (MAD) = 109.7   bar = 8σ = 878   tolerance = TOL·σ = 439
+05:46:40.55     +492    bracket BEFORE  <- 4.5σ, exceeds the 439 tolerance
+05:46:40.56     -6,386,181              <- centre, 55,000σ
+05:46:40.57     -116    bracket AFTER
+```
+
+Run length 1 passes `MAX_RUN`; then the isolation test requires both bracketing samples
+to be quiet, and the preceding sample was the noisiest in the 51-sample window — an
+ordinary 4.5σ noise sample. "Brackets aren't quiet → not isolated → keep." A 55,000σ
+frame survived because its neighbour was 0.5σ too lively.
+
+**Root cause is that `TOL=4.0` was stricter than `NSIGMA=8.0` for no stated reason.**
+A bracket between 4σ and 8σ is not an outlier by the despiker's own definition, yet it
+vetoed rejection. `MIN_SCALE=100` makes it worse on quiet nights — σ pins near the floor
+(109.7 here), tolerance collapses to ~440 counts, and ordinary noise clears it. So the
+failure is biased toward the quietest nights, when a spike is most visible on the drum.
+
+**Fix: `TOL` 4.0 → 8.0**, i.e. a bracket disqualifies a run only if it is *itself* an
+outlier. `MAX_RUN` is untouched and remains what protects real ground motion.
+
+| | TOL=4 (was) | **TOL=6** | **TOL=8 (deployed)** |
+|---|---|---|---|
+| 05:46:40 spike | **MISSED** | CAUGHT | **CAUGHT** |
+| day 223 held | 6.7/h | 7.6/h | 8.7/h |
+| day 224 held | 5.1/h | 6.7/h | 9.0/h |
+| day 226 held | 1.2/h | 1.2/h | 2.2/h |
+| 1–15 Hz floor | unchanged | unchanged | unchanged (9.59→9.52, 3.85→3.82 µV) |
+| 4 confirmed quakes | 0 samples altered | 0 | **0 samples altered** |
+
+8 over 6 because 6 is arbitrary and 8 is the consistency argument; the extra ~2 held
+samples/h is 0.003 % of samples and moves no band metric. Cost: a **second** synthetic
+case now holds one sample — 18 Hz, 400,000 ct, STEP onset — joining the 12 Hz one
+already accepted. Both preserve **100 % of the peak** and both are physically impossible
+onsets at 3.7 mV.
+
+Archive scan, days 223–226 (`>100σ`, width-1, neighbours not outliers): **9 survivors in
+78 h**. Seven predate the v3 deploy on 08-12 and the current code rejects them on replay;
+of the two genuine post-v3 survivors this bracket veto is one, and the other (day 224
+00:55, 13,472 ct) fell **below the 8σ bar** in a loud window — not the same bug.
+
+Deployed to `seismo.local` 07:52 UTC, recorder restarted and healthy (backup
+`station/rdatac.py.bak-tol4`). Regression row added to `analysis/despiker_v2.py`, which
+MISSES at 4.0 and CATCHES at 8.0. ⚠️ **The spike stays in the day-file** — this is a
+forward fix only, nothing rewrites the archive, so 05:46:40 will keep appearing on any
+drum that renders day 226.
+
 ## ✅ DETECTOR FIXED: band-limited trigger + `hf_lf` classifier (2026-08-14, LIVE)
 
 The trash-can run (below) exposed it: the CF was high-passed at 3 Hz and **never

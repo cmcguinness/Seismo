@@ -169,7 +169,12 @@ class RdatacReader:
 NSIGMA = 8.0        # excursion must exceed this many local sigma
 MAX_RUN = 3         # ... for at most this many samples (30 ms; a quake rings longer)
 HALF = 25           # centred window half-width -> 51 samples, 0.25 s latency
-TOL = 4.0           # the samples bracketing a run must sit within this many sigma
+TOL = 8.0           # the samples bracketing a run must sit within this many sigma
+                    # (= NSIGMA on purpose: a bracket only disqualifies a run if it is
+                    # itself an OUTLIER. At 4.0 the two tests disagreed, and a bracket
+                    # in the 4-8 sigma gap -- ordinary noise -- vetoed rejection. That
+                    # kept a 55,000-sigma frame on 2026-08-14 05:46:40 because the
+                    # preceding sample sat at 4.5 sigma. See despiker_v2.py.)
 MIN_SCALE = 100.0   # counts; floors the MAD so a dead-quiet stretch cannot blow up
 
 

@@ -31,7 +31,12 @@ from collections import deque
 NSIGMA = 8.0        # excursion must exceed this many local sigma
 MAX_RUN = 3         # ... for at most this many samples (30 ms; a quake rings longer)
 HALF = 25           # centred window half-width -> 51 samples, 0.25 s latency
-TOL = 4.0           # the samples bracketing a run must sit within this many sigma
+TOL = 8.0           # the samples bracketing a run must sit within this many sigma
+                    # (= NSIGMA on purpose: a bracket only disqualifies a run if it is
+                    # itself an OUTLIER. At 4.0 the two tests disagreed, and a bracket
+                    # in the 4-8 sigma gap -- ordinary noise -- vetoed rejection. That
+                    # kept a 55,000-sigma frame on 2026-08-14 05:46:40 because the
+                    # preceding sample sat at 4.5 sigma.)
 MIN_SCALE = 100.0   # counts; floors the MAD so a dead-quiet stretch cannot blow up
 
 
@@ -186,6 +191,12 @@ def _main():
          [("M2.0 Glen Ellen", "2026-08-12T09:06:37", "2026-08-12T09:07:25"),
           ("M3.2 #1", "2026-08-12T10:28:34", "2026-08-12T10:29:25"),
           ("M3.2 #2", "2026-08-12T10:30:22", "2026-08-12T10:31:10")]),
+        # 2026-08-14: the -6,062,080 count frame that reached the drum. Single sample,
+        # 55,000 sigma, and TOL=4.0 KEPT it because the preceding sample happened to sit
+        # at 4.5 sigma -- ordinary noise, but outside the bracket tolerance. This row is
+        # the regression test for TOL; it MISSES at 4.0 and is CAUGHT at 8.0.
+        ("analysis/data/XX.OAKMT.00.SHZ.D.2026.226.mseed",
+         [("05:46:40 spike", "2026-08-14T05:46:40.56")], []),
     ):
         try:
             s2 = read(path)
