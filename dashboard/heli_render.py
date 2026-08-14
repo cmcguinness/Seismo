@@ -46,6 +46,19 @@ ENV_FRAC = float(os.environ.get("SEISMO_HELI_ENV_FRAC", "0.05"))
                                               # SEISMO_HELI_ENV_FRAC=0.15` to restore
                                               # without a rebuild once the floor is fixed.
 CLIP_ROWS = 3.0                               # excursion clip, +/- rows
+# --- cultural-noise shading -------------------------------------------------------
+# A loud row is not necessarily an earthquake. Columns whose energy is mostly ABOVE
+# 15 Hz can only come from a source metres away -- path attenuation strips that band
+# from any real quake (measured: quakes 0.09-0.98, garage activity 1.95-5.26; see
+# station/stalta.py). Those columns are drawn in a distinct colour so a burst reads as
+# environmental at a glance instead of looking like a detection.
+#
+# ONLY columns that are also LOUD are coloured. A quiet column's ratio is measuring
+# the noise floor, which is itself HF-dominated (the floor sits near 4.5), so
+# colouring on ratio alone would tint the entire quiet drum.
+CULTURAL_HF = float(os.environ.get("SEISMO_HELI_CULTURAL_HF", "1.4"))
+CULTURAL_MIN_ENV = 3.0                        # x the row's own median excursion
+CULTURAL_COLOR = "#0891b2"                    # cyan-600: far from every ROW_COLOR
 ROW_COLORS = ["#a01818", "#186a18", "#1c4fa0", "#111"]   # dark red, dark green, blue, black
 # USGS catalog marks. Muted on purpose: they are an annotation over the data, and must
 # never be mistaken for the trace itself or for a detection this station made.
@@ -78,8 +91,12 @@ def _load(heli_dir, t_start=None, t_end=None):
                 if (t_start is not None and t0 < t_start) or \
                    (t_end is not None and t0 >= t_end):
                     continue
-                out.append({"t0": t0, "mins": d["mins"],
-                            "maxs": d["maxs"], "env": float(d["env"])})
+                # `hf` (per-pixel >15/1-8 Hz ratio) is newer than the oldest
+                # envelopes on disk; those render uncoloured rather than wrongly.
+                hf = d["hf"] if "hf" in d.files else np.full(d["mins"].size, np.nan,
+                                                             dtype=np.float32)
+                out.append({"t0": t0, "mins": d["mins"], "maxs": d["maxs"],
+                            "hf": hf, "env": float(d["env"])})
         except Exception:
             pass
     out.sort(key=lambda r: r["t0"])
@@ -92,7 +109,8 @@ def _blank_row(t0, npix):
     always draws the same number of rows, so a missing interval reads as an empty
     line rather than silently shifting every row below it."""
     nan = np.full(npix, np.nan, dtype=np.float32)
-    return {"t0": t0, "mins": nan, "maxs": nan.copy(), "env": float("nan")}
+    return {"t0": t0, "mins": nan, "maxs": nan.copy(), "hf": nan.copy(),
+            "env": float("nan")}
 
 
 def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
@@ -138,23 +156,32 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
     npix = rows[0]["mins"].size
     xs = MARGIN_L + (np.arange(npix) + 0.5) / npix * PLOT_W
 
-    segs = []
+    segs, colors = [], []
+    n_cultural = 0
     for r_i, r in enumerate(rows):
         base = MARGIN_T + (r_i + 0.5) * row_h
         lo = np.clip(k * r["mins"], -clip, clip)   # up = smaller y (inverted axis)
         hi = np.clip(k * r["maxs"], -clip, clip)
         good = np.isfinite(lo) & np.isfinite(hi)
+        row_color = ROW_COLORS[r_i % len(ROW_COLORS)]
+        # Cultural columns: high-frequency AND loud. `env` is this row's own median
+        # excursion, so the loudness test is relative to the row -- a quiet row does
+        # not get tinted just because the noise floor is HF-dominated.
+        excursion = np.maximum(np.abs(r["mins"]), np.abs(r["maxs"]))
+        ref = r["env"] if np.isfinite(r["env"]) and r["env"] > 0 else np.inf
+        with np.errstate(invalid="ignore"):
+            cultural = (np.nan_to_num(r["hf"], nan=0.0) >= CULTURAL_HF) & \
+                       (np.nan_to_num(excursion, nan=0.0) >= CULTURAL_MIN_ENV * ref)
         for i in np.nonzero(good)[0]:
             segs.append([(xs[i], base - hi[i]), (xs[i], base - lo[i])])
+            colors.append(CULTURAL_COLOR if cultural[i] else row_color)
+        n_cultural += int(cultural[good].sum())
 
     fig = plt.figure(figsize=(IMG_W / 100, IMG_H / 100), dpi=100)
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, IMG_W)
     ax.set_ylim(IMG_H, 0)                          # image coords: y down
     ax.axis("off")
-    colors = [ROW_COLORS[i % len(ROW_COLORS)] for i, r in enumerate(rows)
-              for _ in np.nonzero(np.isfinite(np.clip(k * r["maxs"], -clip, clip))
-                                  & np.isfinite(r["mins"]))[0]]
     ax.add_collection(LineCollection(segs, colors=colors, linewidths=0.6))
 
     for r_i, r in enumerate(rows):                 # per-row HH:MM label (left)
@@ -237,6 +264,16 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
                 x -= 7.4 * len(key) + 32   # word + its caret + gap
             ax.text(x + 6, 30, "▲ USGS catalog, predicted arrival:", ha="right",
                     va="top", fontsize=10, color="#888", zorder=5)
+
+    # --- cultural-noise key: only drawn when something was actually shaded ---
+    # Placed bottom-left, clear of the USGS tier legend along the top edge.
+    if n_cultural:
+        ax.plot([MARGIN_L + 4, MARGIN_L + 20], [IMG_H - 14, IMG_H - 14],
+                color=CULTURAL_COLOR, lw=2.5, solid_capstyle="butt", zorder=5)
+        ax.text(MARGIN_L + 26, IMG_H - 14,
+                "local activity (energy above 15 Hz — footsteps, doors, vehicles; "
+                "too high-frequency to have travelled far)",
+                ha="left", va="center", fontsize=10, color="#666", zorder=5)
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---
     axis_y = MARGIN_T + PLOT_H                 # bottom of the plot area

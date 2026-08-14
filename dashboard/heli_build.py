@@ -113,6 +113,44 @@ def _envelope(vals, times, t0):
     return mins.astype(np.float32), maxs.astype(np.float32)
 
 
+def _band_energies(st):
+    """(E_lo, E_hi) per sample: squared 1-8 Hz and >15 Hz amplitude.
+
+    Filtered ONCE for the whole window, not per interval -- `_write_intervals` loops
+    over intervals, so filtering inside that loop would be O(n^2) on a backfill.
+    `st` arrives already high-passed at HP_HZ (1 Hz), so the low band is 1-8 Hz.
+    """
+    lo = st.copy(); lo.filter("lowpass", freq=8.0, corners=4, zerophase=True)
+    hi = st.copy(); hi.filter("highpass", freq=15.0, corners=4, zerophase=True)
+    return (np.concatenate([t.data.astype(np.float64) for t in lo]) ** 2,
+            np.concatenate([t.data.astype(np.float64) for t in hi]) ** 2)
+
+
+def _band_ratio(elo_s, ehi_s, times, t0):
+    """Per-pixel sqrt(E>15Hz / E[1-8Hz]) for one interval. NaN where no samples.
+
+    The same source-distance discriminant the detector reports as `hf_lf` (see
+    station/stalta.py): path attenuation strips >15 Hz from anything more than a few
+    km away, so a real quake sits near 0.1-1.0 while a source in the garage sits at
+    2-8. Computed per pixel column so the renderer can colour a burst by ORIGIN
+    rather than by size -- a loud row is not necessarily an earthquake, and that is
+    exactly the confusion this is here to remove.
+
+    `elo_s`/`ehi_s` are the per-sample energies for THIS interval's samples.
+    """
+    idx = ((times - t0) / INTERVAL_S * NPIX).astype(int)
+    ok = (idx >= 0) & (idx < NPIX)
+    idx = idx[ok]
+    elo = np.zeros(NPIX); ehi = np.zeros(NPIX); n = np.zeros(NPIX)
+    np.add.at(elo, idx, elo_s[ok])
+    np.add.at(ehi, idx, ehi_s[ok])
+    np.add.at(n, idx, 1.0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r = np.sqrt(ehi / elo)
+    r[(n == 0) | (elo <= 0)] = np.nan
+    return r.astype(np.float32)
+
+
 def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
     """(Re)build interval envelopes covering the last `hours`, then prune."""
     os.makedirs(heli_dir, exist_ok=True)
@@ -189,6 +227,7 @@ def _write_intervals(st, heli_dir, first_t0, last_t0, latest):
     # collect every trace's (timestamp, count) once; bucket per interval below
     all_t = np.concatenate([t.times("timestamp") for t in st])
     all_v = np.concatenate([t.data.astype(np.float64) for t in st])
+    all_elo, all_ehi = _band_energies(st)
     written = 0
     t0 = first_t0
     while t0 <= last_t0:
@@ -212,10 +251,11 @@ def _write_intervals(st, heli_dir, first_t0, last_t0, latest):
             # noise band's on-screen thickness is what we target -- sigma undershoots
             # because a pixel's min/max spans several sigma of spiky noise.
             env = float(np.nanmedian(np.maximum(np.abs(mins), np.abs(maxs))))
+            hf = _band_ratio(all_elo[sel], all_ehi[sel], all_t[sel], t0)
             complete = latest >= t0 + INTERVAL_S  # data runs past the interval end
             tmp = path + ".tmp"
             with open(tmp, "wb") as fh:      # file handle -> savez won't append .npz
-                np.savez(fh, mins=mins, maxs=maxs,
+                np.savez(fh, mins=mins, maxs=maxs, hf=hf,
                          sigma=np.float32(sigma), env=np.float32(env),
                          t0=np.float64(t0), complete=np.bool_(complete),
                          npix=np.int32(NPIX), interval_s=np.int32(INTERVAL_S))
@@ -275,11 +315,18 @@ def _interval_range(first_t0, last_t0):
 
 
 def _is_complete(path):
-    """True if the interval file was built with data covering its full span (so it
-    never needs rebuilding). Missing/legacy files without the flag read False."""
+    """True if the interval file was built with data covering its full span AND with
+    the current set of arrays (so it never needs rebuilding). Missing/legacy files
+    read False.
+
+    The `hf` check makes the live window self-heal when a new array is added: build()
+    only ever considers the last `hours`, so exactly that window is recomputed and
+    nothing older is touched. Intervals behind it keep rendering without the shading
+    (heli_render substitutes NaN), which is the honest outcome -- pre-2026-08-14
+    envelopes genuinely do not carry the band ratio."""
     try:
         with np.load(path) as d:
-            return bool(d["complete"])
+            return bool(d["complete"]) and "hf" in d.files
     except Exception:
         return False
 
