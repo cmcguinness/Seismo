@@ -10,6 +10,7 @@ import glob
 import json
 import math
 import os
+import re
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -307,9 +308,40 @@ setInterval(()=>{document.getElementById('heli').src='/helicorder.png?'+Date.now
 </script>"""
 
 
-def _card(header, inner, body_class="card-body"):
-    return (f'<div class="card shadow-sm mb-4"><div class="card-header">{header}</div>'
+def _card(header, inner, body_class="card-body", card_id=None):
+    hid = f' id="{card_id}"' if card_id else ""
+    return (f'<div class="card shadow-sm mb-4"{hid}><div class="card-header">{header}</div>'
             f'<div class="{body_class}">{inner}</div></div>')
+
+
+def _slug(header):
+    """Anchor id from a section header, so other pages can deep-link to it."""
+    txt = re.sub(r"&[a-z]+;|<[^>]+>", " ", header).lower()
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", txt)).strip("-")
+
+
+# Shown as real HTML under every drum, on the front page and in History. It exists
+# because a first-time viewer asked whether the four colours were four simultaneous
+# data feeds -- which is the single most misleading thing about a helicorder, and no
+# amount of in-image legend was going to fix it (the image is where the confusion
+# comes FROM). Keep it short here; the full walk-through is the /learn section.
+HELI_HOWTO = (
+    '<div class="text-muted small mt-3 mb-0">'
+    '<p class="mb-1"><b>Each row is 15 minutes</b> of ground motion, oldest at the top &mdash; '
+    'read it like lines on a page. Height means how hard the ground moved, so an earthquake '
+    'is a sudden fat burst that tapers away, while ordinary noise is an even fuzz.</p>'
+    '<p class="mb-1"><b>The four colours carry no meaning.</b> They cycle red, green, blue, '
+    'black purely so your eye can follow one row without sliding into the next. This is a '
+    '<i>single</i> sensor recording a <i>single</i> channel &mdash; not four feeds at once.</p>'
+    '<p class="mb-1"><b>Faded stretches are things happening nearby</b> &mdash; footsteps, a '
+    'door, a car. They are identified by pitch: only something within a few metres arrives '
+    'with energy above 15&nbsp;Hz, because distance strips the high frequencies out of a real '
+    'earthquake. The solid core drawn inside a faded burst is the 1&ndash;8&nbsp;Hz part, the '
+    'band a quake would occupy.</p>'
+    '<p class="mb-0"><b>Coloured triangles</b> mark where an earthquake from the USGS '
+    'catalogue <i>should</i> have arrived &mdash; where to look, not a claim that this station '
+    'caught it. <a href="/learn#how-to-read-the-helicorder">Full guide to reading the '
+    'drum&nbsp;&rarr;</a></p></div>')
 
 
 _CHAR_BADGE = {                       # character class -> (bootstrap class, text)
@@ -349,7 +381,8 @@ def home():
                 'The dashed line marks the geophone&rsquo;s 4.5&nbsp;Hz corner &mdash; response '
                 'falls steeply below it, so the rise at the left is instrument, not ground.</div>')
         + _card("Helicorder &middot; last 4 hours (UTC)",
-                f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">')
+                f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">'
+                + HELI_HOWTO)
     )
     return Response(_shell(BRAND, "live", body, HOME_JS), media_type="text/html")
 
@@ -664,7 +697,81 @@ LEARN_SECTIONS = [
      'Small coloured carets mark where quakes in the USGS catalogue <i>should</i> have arrived, so '
      'you can check the record yourself &mdash; a prediction of where to look, not a claim that this '
      'station caught anything. Catalogue entries appear minutes to hours after the event, so the '
-     'newest rows are always unmarked.</p>'),
+     'newest rows are always unmarked. The drum has its own section below &mdash; '
+     '<a href="#how-to-read-the-helicorder">how to read the helicorder</a> &mdash; including '
+     'what the colours do and do not mean.</p>'),
+
+    # Written after a first-time viewer asked whether the drum's four colours were four
+    # simultaneous data feeds. Everything here answers a question somebody actually had.
+    ("How to read the helicorder",
+     '<p class="prose">The drum &mdash; the <i>helicorder</i> &mdash; is the oldest display in '
+     'seismology and the least self-explanatory. It imitates a machine that really existed: a '
+     'paper drum turning under an inked pen, the pen tracing the ground&rsquo;s motion, the drum '
+     'shifting down one line each rotation so a day of shaking fitted on one sheet. Everything '
+     'odd about the layout follows from that.</p>'
+     '<p class="prose"><b>Each row is 15 minutes</b>, and there are 16 of them, so one screen is '
+     'four hours. The oldest row is at the top and time runs left to right along each row, then '
+     'down to the next &mdash; exactly like lines of text. The numbers along the bottom are '
+     'minutes <i>into</i> a row, not clock time; the clock time of each row is the label on its '
+     'left. Everything is <b>UTC</b>, which in California is 7 hours ahead of local time &mdash; '
+     'so a row labelled 09:00 is two in the morning here.</p>'
+     '<p class="prose"><b>The four colours mean nothing at all.</b> This is the question '
+     'everyone asks first, and the honest answer is that red, green, blue and black simply '
+     'repeat every fourth row so your eye can follow one line without sliding into its '
+     'neighbour. There is <i>one</i> sensor here, measuring <i>one</i> thing &mdash; vertical '
+     'ground velocity. They are not four instruments, four stations, or four frequency bands. '
+     'On a busy row the trace is tall enough to overlap the rows above and below, and without '
+     'alternating colours it becomes impossible to tell whose wiggle is whose.</p>'
+     '<p class="prose"><b>Height is how hard the ground moved.</b> A quiet line is a thin fuzzy '
+     'band; a loud one swells into a fat spindle. The scale is set by each window&rsquo;s own '
+     'typical noise, so a quiet night is not drawn smaller than a busy afternoon &mdash; compare '
+     'shapes, not heights, between windows. Anything enormous is clipped to three rows tall '
+     'rather than being allowed to scribble over half the screen.</p>'
+     '<p class="prose"><b>What an earthquake looks like:</b> a sudden onset, a fat burst, then a '
+     'tapering tail lasting tens of seconds &mdash; loud, then gradually not. What ordinary '
+     'noise looks like: even fuzz, roughly the same thickness all the way across. What a door '
+     'slam looks like: a single narrow spike with nothing before or after it. Fat rows through '
+     'the working day and thin rows at 4&nbsp;AM are people, not geology.</p>'
+     '<h6 class="mt-4">Faded stretches: near or far</h6>'
+     '<p class="prose">A loud burst is genuinely ambiguous on a drum &mdash; somebody wheeling a '
+     'bin past the garage and a real earthquake can look identical. So the station separates '
+     'them by <b>pitch</b> rather than by size, and it can, because of a fact about how the '
+     'ground carries vibration: <b>distance filters out the high frequencies.</b> Rock is not a '
+     'perfect transmitter; the fast wiggles die out within a few kilometres while the slow ones '
+     'travel on. A real earthquake, even a close one, arrives with almost all its energy below '
+     '15&nbsp;Hz. Something happening three metres away arrives with its high frequencies '
+     'intact.</p>'
+     '<p class="prose">Measured here, that difference is stark. An M4.1 earthquake 88&nbsp;km '
+     'away put 30 times more energy below 8&nbsp;Hz than above 15. Rolling a wheelie bin past '
+     'the sensor did the exact opposite, by a factor of eight. Nothing in between was '
+     'ambiguous.</p>'
+     '<p class="prose">So any stretch of the trace that is both <b>loud</b> and '
+     '<b>high-pitched</b> is drawn <b>faded</b>: that is the station saying <i>this one came '
+     'from nearby &mdash; a footstep, a door, a car in the driveway</i>. Inside a faded burst '
+     'you will see a <b>solid full-colour core</b>. That is the same moment redrawn using only '
+     'the 1&ndash;8&nbsp;Hz part of the signal &mdash; the band an earthquake would live in. It '
+     'lets you see through the local racket: if the core stays thin, everything that happened '
+     'was near-field noise; if the core swells, something arrived in the seismic band and is '
+     'worth a closer look.</p>'
+     '<p class="prose">Two honest limits. <b>Fading is a positive identification, not an '
+     'exhaustive one</b> &mdash; only unambiguously high-frequency bursts get marked, so a '
+     'quieter or lower-pitched local source stays at full strength. Reading &ldquo;not '
+     'faded&rdquo; as &ldquo;earthquake&rdquo; is exactly the mistake to avoid. And <b>the core '
+     'is not the earthquake</b>: it is whatever motion existed in that band, noise included. '
+     'It narrows the question; it does not answer it.</p>'
+     '<p class="prose">Does the fading hide anything? No &mdash; nothing is removed, and the '
+     'full recording is kept. It costs sensitivity, not data: measured against a real '
+     'earthquake replayed into a recorded burst of local noise, an event hiding inside one is '
+     'about <b>0.8 magnitude units</b> harder to see than the same event on a quiet night. '
+     'During a noisy stretch this is a less sensitive station, not a deaf one.</p>'
+     '<h6 class="mt-4">The triangles</h6>'
+     '<p class="mb-0 prose">Small coloured carets mark where an earthquake from the '
+     '<b>USGS catalogue</b> should have arrived, given its distance and the speed of seismic '
+     'waves through this crust. The label is its magnitude, and the colour is how likely this '
+     'station was to feel it at all &mdash; strong, likely, or marginal. They are a prompt to '
+     'look at a particular second, <b>not</b> a claim that anything was detected: the eye '
+     'decides. Catalogue entries are published minutes to hours after the fact, so the newest '
+     'rows are always unmarked.</p>'),
 
     ("Glossary",
      '<div class="table-responsive"><table class="table table-sm align-middle"><tbody>'
@@ -785,7 +892,9 @@ ABOUT_SECTIONS = [
 
 @app.get("/learn")
 def learn():
-    cards = "".join(_card(h, inner.replace("{place}", PLACE))
+    # Each section gets an id derived from its header so other pages can deep-link
+    # (the drum's "full guide" link points at #how-to-read-the-helicorder).
+    cards = "".join(_card(h, inner.replace("{place}", PLACE), card_id=_slug(h))
                     for h, inner in LEARN_SECTIONS)
     body = (_titleblock("Seismology 101",
                         "what this instrument hears, and the words for it")
@@ -1186,7 +1295,8 @@ def history_page(datetime: str = "", d: str = "", h: str = ""):
                 'drum. The amplitude scale is keyed to each window&rsquo;s own median noise, '
                 'so a quiet night is not drawn smaller than a busy afternoon &mdash; compare '
                 'shapes across windows, not heights. A blank row means no data for that '
-                '15&nbsp;minutes.</p>')
+                '15&nbsp;minutes.</p>'
+                + HELI_HOWTO)
         + _card("Why it starts on 2026-07-25",
                 '<p class="mb-0 small">The station switched to 100&nbsp;sps late on '
                 '2026-07-25, and before that ran at 57/60&nbsp;sps through a different analog '

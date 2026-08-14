@@ -164,6 +164,28 @@ alpha in their own row colour**, underneath the true trace (separate LineCollect
 lower zorder, so a genuine arrival in the same seconds still draws over it at full
 strength). Legend explains it.
 
+### How to read a helicorder — as HTML, not baked into the image (2026-08-14, LIVE)
+
+Charles showed the UI to a friend, who asked whether the four trace colours were four
+simultaneous data feeds. They are not — they cycle every fourth row so the eye can
+follow one line — and no in-image legend was ever going to fix that, because **the image
+is where the confusion comes from**. So the explanation is now real HTML text.
+
+- `HELI_HOWTO`, a four-paragraph block under the drum on **/** and **/history**: rows are
+  15 min oldest-first, the colours carry no meaning, faded = local (with the reason:
+  distance strips >15 Hz), triangles = USGS predicted arrivals.
+- A full section in **/learn**, `#how-to-read-the-helicorder`: where the drum layout
+  comes from (a real paper drum), UTC vs local, what an earthquake / ordinary noise / a
+  door slam each look like, why pitch separates near from far, what the faded halo and
+  the solid core each mean, both honest limits (fading is a positive ID not an
+  exhaustive one; the core is a band, not the quake), and what the fading costs
+  (~0.8 magnitude units, from `analysis/cultural_recovery.py`).
+- `_card()` gained `card_id`, and `learn()` slugs each header, so any section is
+  deep-linkable. The older "Reading the views on the front page" card now links across
+  instead of half-repeating it.
+
+Verified in a browser against a local instance (both pages, plus the anchor jump).
+
 ### Faded halo + full-colour seismic core (2026-08-14, LIVE)
 
 Charles: "I'm looking for a UI where the seismic signal is in full colour, but the
