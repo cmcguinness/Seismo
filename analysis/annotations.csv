@@ -18,3 +18,11 @@ t_start_utc,t_end_utc,label,note
 2026-07-27T05:40:00+00:00,2026-07-27T05:40:01+00:00,A/C blower stop,Charles: blower stopped 22:40 PDT (2nd witnessed stop). Tests whether the compressor-then-blower two-stage repeats with the same ~62 s lag.
 2026-07-27T05:55:00+00:00,2026-07-27T05:55:01+00:00,A/C blower start,Charles: BLOWER kicked on 22:55 PDT (compressor state unstated). Tests whether the ~23 uV start transient is compressor inrush - blower-only should be quieter - and whether a compressor engage adds a second step up.
 2026-07-27T06:04:00+00:00,2026-07-27T06:04:01+00:00,A/C blower stop,"Charles: blower off 23:04 PDT (3rd witnessed stop). Decides whether the 05:54:50 start was blower-only or both: one step = blower only, two-stage ~60s = compressor was running too."
+2026-08-14T03:16:12+00:00,2026-08-14T03:16:20+00:00,footsteps,"trash-can run step 1-2: house door -> garage -> out side door; 12 impulses at 0.57 s = 105 steps/min"
+2026-08-14T03:16:33+00:00,2026-08-14T03:16:35+00:00,door,"side door closing behind operator (impulse, f_cent 24 Hz)"
+2026-08-14T03:16:41+00:00,2026-08-14T03:16:48+00:00,footsteps,"step 3: walking out to the street past the geophone"
+2026-08-14T03:16:52+00:00,2026-08-14T03:17:38+00:00,cans rolling,"step 4: two cans wheeled from street to side of house, past the sensor; peak 292 uV, broadband 5-45 Hz"
+2026-08-14T03:17:38+00:00,2026-08-14T03:18:11+00:00,footsteps,"step 5: walking back out to the street, empty-handed (quiet)"
+2026-08-14T03:18:11+00:00,2026-08-14T03:18:28+00:00,cans rolling,"step 6: third (smallest) can wheeled back; peak 216 uV, shorter and weaker than the pair"
+2026-08-14T03:18:35+00:00,2026-08-14T03:18:52+00:00,door,"step 7: re-enter garage, close and lock side door; 20:18:47 is the largest single impulse of the episode, 280 uV"
+2026-08-14T03:19:08+00:00,2026-08-14T03:19:11+00:00,door,"step 8: house door closed and locked; end of episode"

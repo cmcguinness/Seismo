@@ -1,6 +1,50 @@
 # STATUS — Seismo
 
-_Last updated: 2026-08-12 (UTC)_
+_Last updated: 2026-08-14 (UTC)_
+
+## 🗑️ LABELLED GROUND TRUTH: the trash-can run, 2026-08-13 20:16–20:19 PDT
+
+Charles narrated eight steps; **all eight resolve individually** in the record
+(03:16:10–03:19:11 UTC day 226). `analysis/2026-08-13-trashcans{,-zoom}.png`, rows
+appended to `analysis/annotations.csv`. Peak envelope during the run: **292 µV, 43×
+the 6.4 µV pre-event floor** (1–45 Hz).
+
+| PDT | narrated step | signature | peak µV |
+|---|---|---|---|
+| 20:16:12–20 | 1–2 house door → garage → side door | 12 impulses, 0.57 s apart = **105 steps/min** | 85 |
+| 20:16:33.6 | side door shuts | impulse, f_cent 24 Hz | 104 |
+| 20:16:41–48 | 3 walk to street | pulse train | 121 |
+| 20:16:52–20:17:38 | 4 **two cans wheeled in** | 46 s broadband 5–45 Hz wall | **292** |
+| 20:17:38–20:18:11 | 5 walk back out | near-floor, empty-handed | — |
+| 20:18:11–28 | 6 **third (small) can** | 17 s, same texture, weaker | 216 |
+| 20:18:35–52 | 7 re-enter, close+lock side door | 3 impulses; 20:18:47 is the run's biggest | **280** |
+| 20:19:08.9 | 8 house door closed | impulse, end of episode | 82 |
+
+### The useful result: cultural noise is HIGH-frequency, quakes are LOW
+
+Band RMS (µV), same window lengths:
+
+| source | 1–8 Hz | 8–15 | 15–30 | 30–45 | **HF/LF** |
+|---|---|---|---|---|---|
+| M4.1 San Leandro, 88 km | 89.6 | 17.3 | 5.0 | 3.0 | **0.06** |
+| M2.8 Geysers, 45 km | 25.4 | 19.9 | 15.2 | 19.4 | **0.97** |
+| door slam, 3 m | 3.9 | 35.5 | 14.8 | 6.5 | **4.12** |
+| cans rolling, ~3 m | 4.2 | 9.7 | 23.5 | 23.5 | **7.84** |
+| footsteps | 6.2 | 7.7 | 6.4 | 6.4 | 1.45 |
+
+Path attenuation low-passes a real quake; a source three metres away keeps its high
+frequencies. **A `>15 Hz / 1–8 Hz` ratio separates rolling cans from the M4.1 by 130×**
+and from the M2.8 by 8×. Footsteps (1.45) are the one ambiguous class, and they are
+also the weakest.
+
+### ⛔ And the detector fired eight times on it
+
+`events.log` for this run: peak_ratio **256.7, 182.5, 164.2, 76.3**, 31.7, 12.4, 11.1,
+9.6. The **confirmed M2.8 reached 3.7.** The STA/LTA is amplitude-only, so a man with a
+wheelie bin outranks a real earthquake by ~70×. In the 1–15 Hz band the cans peak at
+59 µV against the M4.1's 503 and the M2.8's 159 — i.e. **just band-limiting the trigger
+to 1–15 Hz already inverts the ranking.** That is the fix to make before touching the
+threshold, and it supersedes "review the STA/LTA threshold" in the backlog.
 
 ## ⛔ TELESEISMS ARE STRUCTURALLY IMPOSSIBLE HERE — settled with evidence (2026-08-13)
 
