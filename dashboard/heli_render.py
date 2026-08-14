@@ -292,9 +292,15 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
     if n_cultural:
         ax.plot([MARGIN_L + 4, MARGIN_L + 20], [IMG_H - 14, IMG_H - 14],
                 color=CULTURAL_COLOR, lw=2.5, solid_capstyle="butt", zorder=5)
+        # The wording has to carry BOTH halves, or the shading misleads: grey is a
+        # positive identification, but its absence is not a negative one. Only bursts
+        # whose energy is unambiguously above 15 Hz get marked, so quieter or
+        # lower-frequency local sources -- and anything the 1.4 cut lands near --
+        # stay unshaded. Reading "not grey" as "earthquake" is the exact confusion
+        # this legend exists to prevent.
         ax.text(MARGIN_L + 26, IMG_H - 14,
-                "local activity (energy above 15 Hz — footsteps, doors, vehicles; "
-                "too high-frequency to have travelled far)",
+                "grey = definitely local (above 15 Hz — footsteps, doors, vehicles); "
+                "unshaded bursts may be local too",
                 ha="left", va="center", fontsize=10, color="#666", zorder=5)
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---
