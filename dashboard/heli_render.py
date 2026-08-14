@@ -58,7 +58,11 @@ CLIP_ROWS = 3.0                               # excursion clip, +/- rows
 # colouring on ratio alone would tint the entire quiet drum.
 CULTURAL_HF = float(os.environ.get("SEISMO_HELI_CULTURAL_HF", "1.4"))
 CULTURAL_MIN_ENV = 3.0                        # x the row's own median excursion
-CULTURAL_COLOR = "#0891b2"                    # cyan-600: far from every ROW_COLOR
+# Grey, and drawn UNDERNEATH the true trace (lower zorder). Cyan was tried first and
+# read as a signal in its own right -- it competed with the waveform instead of
+# annotating it. Grey recedes, and putting it in the lower layer means a genuine
+# seismic arrival overlapping the same seconds still draws over it in its row colour.
+CULTURAL_COLOR = "#b4b4b4"
 ROW_COLORS = ["#a01818", "#186a18", "#1c4fa0", "#111"]   # dark red, dark green, blue, black
 # USGS catalog marks. Muted on purpose: they are an annotation over the data, and must
 # never be mistaken for the trace itself or for a detection this station made.
@@ -156,7 +160,8 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
     npix = rows[0]["mins"].size
     xs = MARGIN_L + (np.arange(npix) + 0.5) / npix * PLOT_W
 
-    segs, colors = [], []
+    segs, colors = [], []          # true signal, drawn on top
+    cult_segs = []                 # local activity, drawn underneath
     n_cultural = 0
     for r_i, r in enumerate(rows):
         base = MARGIN_T + (r_i + 0.5) * row_h
@@ -173,8 +178,12 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
             cultural = (np.nan_to_num(r["hf"], nan=0.0) >= CULTURAL_HF) & \
                        (np.nan_to_num(excursion, nan=0.0) >= CULTURAL_MIN_ENV * ref)
         for i in np.nonzero(good)[0]:
-            segs.append([(xs[i], base - hi[i]), (xs[i], base - lo[i])])
-            colors.append(CULTURAL_COLOR if cultural[i] else row_color)
+            seg = [(xs[i], base - hi[i]), (xs[i], base - lo[i])]
+            if cultural[i]:
+                cult_segs.append(seg)
+            else:
+                segs.append(seg)
+                colors.append(row_color)
         n_cultural += int(cultural[good].sum())
 
     fig = plt.figure(figsize=(IMG_W / 100, IMG_H / 100), dpi=100)
@@ -182,7 +191,10 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
     ax.set_xlim(0, IMG_W)
     ax.set_ylim(IMG_H, 0)                          # image coords: y down
     ax.axis("off")
-    ax.add_collection(LineCollection(segs, colors=colors, linewidths=0.6))
+    if cult_segs:
+        ax.add_collection(LineCollection(cult_segs, colors=CULTURAL_COLOR,
+                                         linewidths=0.6, zorder=1))
+    ax.add_collection(LineCollection(segs, colors=colors, linewidths=0.6, zorder=2))
 
     for r_i, r in enumerate(rows):                 # per-row HH:MM label (left)
         base = MARGIN_T + (r_i + 0.5) * row_h
