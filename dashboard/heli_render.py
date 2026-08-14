@@ -245,8 +245,18 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
             ax.plot([x, x], [y, y - row_h * 0.18], color=color, lw=mlw,
                     solid_capstyle="butt", zorder=5)
             ax.plot([x], [y], marker="^", color=color, markersize=msize, zorder=5)
-            ax.text(x + 4, y, f"M{ev.get('mag')}", ha="left", va="center",
-                    fontsize=9, color=color, zorder=5)
+            # Label goes to the LEFT of the caret. The caret marks the PREDICTED
+            # ARRIVAL, so everything after it is the burst the label would otherwise
+            # be drawn on top of; the seconds before it are quiet by construction.
+            # Flip back to the right only when the caret is too close to the left
+            # edge for the label to fit.
+            lbl = f"M{ev.get('mag')}"
+            if x - 4 - 7.0 * len(lbl) >= MARGIN_L:
+                ax.text(x - 4, y, lbl, ha="right", va="center",
+                        fontsize=9, color=color, zorder=5)
+            else:
+                ax.text(x + 4, y, lbl, ha="left", va="center",
+                        fontsize=9, color=color, zorder=5)
             seen += 1
         if seen:
             # Each tier word is drawn in ITS OWN colour -- the whole point of the
