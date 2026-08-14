@@ -107,9 +107,20 @@ versions are now committed. Deploying the repo copies would have silently revert
 
 Charles: a loud row is ambiguous — a door slam and an earthquake look identical on a
 drum. The same discriminant runs per pixel column in `heli_build` (`hf` array in each
-interval npz) and `heli_render` draws high-frequency-and-loud columns in **grey,
-underneath** the true trace (separate LineCollection at lower zorder, so a genuine
-arrival in the same seconds still draws over it in its row colour). Legend explains it.
+interval npz) and `heli_render` draws high-frequency-and-loud columns **faded to 50 %
+alpha in their own row colour**, underneath the true trace (separate LineCollection at
+lower zorder, so a genuine arrival in the same seconds still draws over it at full
+strength). Legend explains it.
+
+⚠️ **Grey was tried first and replaced 2026-08-14** — Charles: "the grey is distracting."
+Recolouring OVERWROTE the trace, so a shaded burst lost its row colour and broke the
+drum's one reliable visual rule (row colour tells you which row you are reading).
+Fading annotates without taking anything away, and keeps the four-colour row cycle
+intact through a loud minute. `CULTURAL_COLOR` is gone; `CULTURAL_ALPHA = 0.5` replaces
+it, and the legend swatch is now a full-strength/faded PAIR because the thing being
+explained is opacity and a lone faded stub gives the eye nothing to compare against.
+Before/after over the same 4 h (including the trash-can run):
+`analysis/heli_alpha_{before,after}.png`.
 
 Both directions verified on real data: the labelled trash-can run is the most heavily
 shaded interval of the night (161 columns); the **M4.1 is 7.2× its row's median

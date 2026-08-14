@@ -58,11 +58,14 @@ CLIP_ROWS = 3.0                               # excursion clip, +/- rows
 # colouring on ratio alone would tint the entire quiet drum.
 CULTURAL_HF = float(os.environ.get("SEISMO_HELI_CULTURAL_HF", "1.4"))
 CULTURAL_MIN_ENV = 3.0                        # x the row's own median excursion
-# Grey, and drawn UNDERNEATH the true trace (lower zorder). Cyan was tried first and
-# read as a signal in its own right -- it competed with the waveform instead of
-# annotating it. Grey recedes, and putting it in the lower layer means a genuine
-# seismic arrival overlapping the same seconds still draws over it in its row colour.
-CULTURAL_COLOR = "#b4b4b4"
+# FADED, not recoloured (2026-08-14). Cyan was tried first and read as a signal in its
+# own right; grey replaced it and receded, but it still OVERWROTE the trace -- a shaded
+# burst lost its row colour entirely, which Charles found distracting and which breaks
+# the drum's one reliable visual rule (row colour = which row you are reading).
+# Cultural columns now keep their row colour and are drawn at CULTURAL_ALPHA, so the
+# annotation costs the trace nothing but weight. Still on the lower zorder so a genuine
+# arrival overlapping the same seconds draws over it at full strength.
+CULTURAL_ALPHA = 0.5
 ROW_COLORS = ["#a01818", "#186a18", "#1c4fa0", "#111"]   # dark red, dark green, blue, black
 # USGS catalog marks. Muted on purpose: they are an annotation over the data, and must
 # never be mistaken for the trace itself or for a detection this station made.
@@ -160,8 +163,8 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
     npix = rows[0]["mins"].size
     xs = MARGIN_L + (np.arange(npix) + 0.5) / npix * PLOT_W
 
-    segs, colors = [], []          # true signal, drawn on top
-    cult_segs = []                 # local activity, drawn underneath
+    segs, colors = [], []                 # true signal, drawn on top
+    cult_segs, cult_colors = [], []       # local activity: same colour, drawn faded
     n_cultural = 0
     for r_i, r in enumerate(rows):
         base = MARGIN_T + (r_i + 0.5) * row_h
@@ -181,6 +184,7 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
             seg = [(xs[i], base - hi[i]), (xs[i], base - lo[i])]
             if cultural[i]:
                 cult_segs.append(seg)
+                cult_colors.append(row_color)
             else:
                 segs.append(seg)
                 colors.append(row_color)
@@ -192,7 +196,8 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
     ax.set_ylim(IMG_H, 0)                          # image coords: y down
     ax.axis("off")
     if cult_segs:
-        ax.add_collection(LineCollection(cult_segs, colors=CULTURAL_COLOR,
+        ax.add_collection(LineCollection(cult_segs, colors=cult_colors,
+                                         alpha=CULTURAL_ALPHA,
                                          linewidths=0.6, zorder=1))
     ax.add_collection(LineCollection(segs, colors=colors, linewidths=0.6, zorder=2))
 
@@ -290,17 +295,23 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
     # --- cultural-noise key: only drawn when something was actually shaded ---
     # Placed bottom-left, clear of the USGS tier legend along the top edge.
     if n_cultural:
-        ax.plot([MARGIN_L + 4, MARGIN_L + 20], [IMG_H - 14, IMG_H - 14],
-                color=CULTURAL_COLOR, lw=2.5, solid_capstyle="butt", zorder=5)
-        # The wording has to carry BOTH halves, or the shading misleads: grey is a
-        # positive identification, but its absence is not a negative one. Only bursts
-        # whose energy is unambiguously above 15 Hz get marked, so quieter or
+        # Swatch is a PAIR -- full strength then faded, in one row colour -- because
+        # the distinction being explained is opacity, and a single faded stub gives
+        # the eye nothing to compare it against.
+        ax.plot([MARGIN_L + 4, MARGIN_L + 16], [IMG_H - 14, IMG_H - 14],
+                color=ROW_COLORS[0], lw=2.5, solid_capstyle="butt", zorder=5)
+        ax.plot([MARGIN_L + 19, MARGIN_L + 31], [IMG_H - 14, IMG_H - 14],
+                color=ROW_COLORS[0], lw=2.5, alpha=CULTURAL_ALPHA,
+                solid_capstyle="butt", zorder=5)
+        # The wording has to carry BOTH halves, or the fading misleads: faded is a
+        # positive identification, but full strength is not a negative one. Only bursts
+        # whose energy is unambiguously above 15 Hz get faded, so quieter or
         # lower-frequency local sources -- and anything the 1.4 cut lands near --
-        # stay unshaded. Reading "not grey" as "earthquake" is the exact confusion
-        # this legend exists to prevent.
-        ax.text(MARGIN_L + 26, IMG_H - 14,
-                "grey = definitely local (above 15 Hz — footsteps, doors, vehicles); "
-                "unshaded bursts may be local too",
+        # stay at full strength. Reading "not faded" as "earthquake" is the exact
+        # confusion this legend exists to prevent.
+        ax.text(MARGIN_L + 37, IMG_H - 14,
+                "faded = definitely local (above 15 Hz — footsteps, doors, vehicles); "
+                "full-strength bursts may be local too",
                 ha="left", va="center", fontsize=10, color="#666", zorder=5)
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---
