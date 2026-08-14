@@ -2,6 +2,58 @@
 
 _Last updated: 2026-08-14 (UTC)_
 
+## 🎣 A FADED SECTION IS NOT A BLIND SECTION — measured (2026-08-14)
+
+Charles: when a section is faded as local activity, are we blind to any seismic signal
+in those seconds, or can it be fished out? Measured with `analysis/cultural_recovery.py`
+— the real M2.8 Geysers waveform (44.6 km) superposed, scaled, onto the labelled
+trash-can run and onto a quiet control from the same night.
+
+**The fading is cosmetic — nothing is removed from the archive.** The cost is
+sensitivity, and it depends entirely on which band you look in:
+
+| band | quiet control | inside the cans | penalty | M units lost |
+|---|---|---|---|---|
+| **1–8 Hz** | M0.92 | M1.76 | 7.0× | **0.84** |
+| **2–5 Hz** | M1.02 | M1.67 | **4.5×** | **0.65** |
+| 1–15 Hz | M1.14 | M2.13 | 9.9× | 0.99 |
+| 15–30 Hz | M1.33 | M2.33 | 10.0× | 1.00 |
+
+Criterion is SNR 3 on the peak envelope, matching `detection_map.py`. Cultural noise is
+HF-dominated, so **the band a quake lives in is the band the episode damages least** —
+2–5 Hz costs 0.65 magnitude units against 1.00 broadband. During an episode this is a
+less sensitive station, not a deaf one; roughly its own busy-daytime floor.
+
+**The live classifier also survives the episode**, which was not obvious. The cans own
+the amplitude so the quake never gets its own trigger — but it adds energy only to the
+1–8 Hz denominator, so it drags the composite event's `hf_lf` down:
+
+| | peak ratio | `hf_lf` | label |
+|---|---|---|---|
+| cans alone | 307 | 1.95 | cultural |
+| cans + M2.3 | 319 | 1.49 | cultural |
+| **cans + M2.5** | 325 | **1.37** | **QUAKE** |
+| cans + M2.8 | 390 | 1.30 | QUAKE |
+
+**Crossover ~M2.4–2.5 at 45 km**: a buried event that size re-labels the episode hiding
+it. `peak_ratio` is useless here (307 → 390 for a whole M2.8); `hf_lf` is the channel
+that carries the information.
+
+⚠️ **Below the crossover the event stays filed as cultural.** It is in the archive and
+recoverable by hand in 1–8 Hz, but nothing flags it — the real cost of the faded columns
+is lost *attention*, not lost data.
+
+⚠️ **The template window matters more than anything else in this measurement.** Cut
+loose, the template measures the ROOM: hf_lf is 1.22 over the 25 s event, 1.92 over 60 s
+including the ambient tail, and 6.69 over pre-event ambient alone. A 60 s template can
+never fall below the 1.4 cut no matter how large it is scaled — the first version of
+this experiment used one and produced a confident, meaningless "still cultural at M4.3".
+
+**The clean escape is FS7.** NP.1835, 1.64 km away, already used for calibration: real
+ground motion appears at both stations, a wheelie bin appears at one. That is a
+coincidence test, it does not degrade during an episode, and `refstation.py` already
+pulls the data per event.
+
 ## 🔧 DESPIKER: the bracket tolerance was stricter than the outlier bar (2026-08-14, LIVE)
 
 Charles spotted an obvious bad-data spike on the drum at ~05:46 UTC. It is real and it
@@ -111,6 +163,32 @@ interval npz) and `heli_render` draws high-frequency-and-loud columns **faded to
 alpha in their own row colour**, underneath the true trace (separate LineCollection at
 lower zorder, so a genuine arrival in the same seconds still draws over it at full
 strength). Legend explains it.
+
+### Faded halo + full-colour seismic core (2026-08-14, LIVE)
+
+Charles: "I'm looking for a UI where the seismic signal is in full colour, but the
+extent that the environmental exceeds that is painted at a=.5, so you can see the true
+seismic signal THROUGH the environmental noise." Doable, and now shipped — the data was
+already being computed.
+
+`heli_build._band_energies` filters a 1–8 Hz copy of the window to get `E_lo` for the
+`hf` ratio, and now also returns that WAVEFORM. Each interval stores `lo_mins`/`lo_maxs`
+— the same min/max envelope as `mins`/`maxs`, on the same counts scale — so the renderer
+nests one inside the other: on a cultural column it draws the **total excursion faded**
+and the **1–8 Hz core at full colour on top**. No extra filter pass, ~8 KB per interval.
+
+What you see on the trash-can run: a pale halo with a solid dark trace running through
+it, and the core is *thin* — which is the honest picture, since the cans put 4.2 µV into
+1–8 Hz against 23.5 in 15–30. During the M4.1 the core would fill the whole excursion.
+
+⚠️ **The core is not "the earthquake"** — it is the motion in the band a quake would
+occupy, noise included. It is a band decomposition, not a separation.
+
+Non-cultural columns are unchanged (single full-colour trace). Older intervals lack the
+arrays and fall back to fading the whole column; `_is_complete` now requires `lo_mins`,
+so the live 4 h window self-heals exactly as it did for `hf`. Legend swatch is a faded
+thick bar with a solid thin one through it — a side-by-side pair read as two separate
+things rather than one nested in the other. `analysis/heli_core_{after,zoom}.png`.
 
 ⚠️ **Grey was tried first and replaced 2026-08-14** — Charles: "the grey is distracting."
 Recolouring OVERWROTE the trace, so a shaded burst lost its row colour and broke the

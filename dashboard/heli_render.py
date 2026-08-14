@@ -100,10 +100,16 @@ def _load(heli_dir, t_start=None, t_end=None):
                     continue
                 # `hf` (per-pixel >15/1-8 Hz ratio) is newer than the oldest
                 # envelopes on disk; those render uncoloured rather than wrongly.
-                hf = d["hf"] if "hf" in d.files else np.full(d["mins"].size, np.nan,
-                                                             dtype=np.float32)
+                nan = np.full(d["mins"].size, np.nan, dtype=np.float32)
+                hf = d["hf"] if "hf" in d.files else nan
+                # `lo_mins`/`lo_maxs` are the 1-8 Hz core of each column, on the same
+                # counts scale as mins/maxs. Newer still than `hf`; where absent the
+                # renderer falls back to fading the whole column.
+                lo_mins = d["lo_mins"] if "lo_mins" in d.files else nan
+                lo_maxs = d["lo_maxs"] if "lo_maxs" in d.files else nan
                 out.append({"t0": t0, "mins": d["mins"], "maxs": d["maxs"],
-                            "hf": hf, "env": float(d["env"])})
+                            "hf": hf, "lo_mins": lo_mins, "lo_maxs": lo_maxs,
+                            "env": float(d["env"])})
         except Exception:
             pass
     out.sort(key=lambda r: r["t0"])
@@ -117,7 +123,7 @@ def _blank_row(t0, npix):
     line rather than silently shifting every row below it."""
     nan = np.full(npix, np.nan, dtype=np.float32)
     return {"t0": t0, "mins": nan, "maxs": nan.copy(), "hf": nan.copy(),
-            "env": float("nan")}
+            "lo_mins": nan.copy(), "lo_maxs": nan.copy(), "env": float("nan")}
 
 
 def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
@@ -180,11 +186,20 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
         with np.errstate(invalid="ignore"):
             cultural = (np.nan_to_num(r["hf"], nan=0.0) >= CULTURAL_HF) & \
                        (np.nan_to_num(excursion, nan=0.0) >= CULTURAL_MIN_ENV * ref)
+        # The 1-8 Hz CORE of each column, on the same counts scale. On a cultural
+        # column this is the part of the excursion that could be seismic at all: the
+        # faded halo is what the total exceeds it by, which is HF and therefore local.
+        c_lo = np.clip(k * r["lo_mins"], -clip, clip)
+        c_hi = np.clip(k * r["lo_maxs"], -clip, clip)
+        have_core = np.isfinite(c_lo) & np.isfinite(c_hi)
         for i in np.nonzero(good)[0]:
             seg = [(xs[i], base - hi[i]), (xs[i], base - lo[i])]
             if cultural[i]:
                 cult_segs.append(seg)
                 cult_colors.append(row_color)
+                if have_core[i]:               # full-colour core inside the halo
+                    segs.append([(xs[i], base - c_hi[i]), (xs[i], base - c_lo[i])])
+                    colors.append(row_color)
             else:
                 segs.append(seg)
                 colors.append(row_color)
@@ -295,24 +310,26 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
     # --- cultural-noise key: only drawn when something was actually shaded ---
     # Placed bottom-left, clear of the USGS tier legend along the top edge.
     if n_cultural:
-        # Swatch is a PAIR -- full strength then faded, in one row colour -- because
-        # the distinction being explained is opacity, and a single faded stub gives
-        # the eye nothing to compare it against.
-        ax.plot([MARGIN_L + 4, MARGIN_L + 16], [IMG_H - 14, IMG_H - 14],
-                color=ROW_COLORS[0], lw=2.5, solid_capstyle="butt", zorder=5)
-        ax.plot([MARGIN_L + 19, MARGIN_L + 31], [IMG_H - 14, IMG_H - 14],
-                color=ROW_COLORS[0], lw=2.5, alpha=CULTURAL_ALPHA,
+        # Swatch mimics the drawing itself: a faded thick bar (the total excursion)
+        # with a solid thin one through it (the 1-8 Hz core). A side-by-side pair was
+        # tried and read as two separate things rather than one nested inside the other.
+        ax.plot([MARGIN_L + 4, MARGIN_L + 26], [IMG_H - 14, IMG_H - 14],
+                color=ROW_COLORS[0], lw=6.0, alpha=CULTURAL_ALPHA,
                 solid_capstyle="butt", zorder=5)
+        ax.plot([MARGIN_L + 4, MARGIN_L + 26], [IMG_H - 14, IMG_H - 14],
+                color=ROW_COLORS[0], lw=1.8, solid_capstyle="butt", zorder=6)
         # The wording has to carry BOTH halves, or the fading misleads: faded is a
         # positive identification, but full strength is not a negative one. Only bursts
         # whose energy is unambiguously above 15 Hz get faded, so quieter or
         # lower-frequency local sources -- and anything the 1.4 cut lands near --
         # stay at full strength. Reading "not faded" as "earthquake" is the exact
         # confusion this legend exists to prevent.
-        ax.text(MARGIN_L + 37, IMG_H - 14,
-                "faded = definitely local (above 15 Hz — footsteps, doors, vehicles); "
-                "full-strength bursts may be local too",
-                ha="left", va="center", fontsize=10, color="#666", zorder=5)
+        # Wording is length-constrained: the x-axis caption is centred at
+        # MARGIN_L + PLOT_W/2, so anything past ~120 characters runs into it.
+        ax.text(MARGIN_L + 32, IMG_H - 14,
+                "faded = local (>15 Hz); solid core = its 1–8 Hz part, where a quake "
+                "shows. Full-strength bursts may be local too",
+                ha="left", va="center", fontsize=9, color="#666", zorder=5)
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---
     axis_y = MARGIN_T + PLOT_H                 # bottom of the plot area
