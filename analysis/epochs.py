@@ -23,6 +23,7 @@ matters:
     noise      the noise floor: siting, coupling, power, shielding
     timing     sample rate or clock behaviour
     glitch     ADC glitch/despiker statistics only
+    detection  what lands in events.log: trigger band, thresholds, classifier
 
 Times are UTC. Where STATUS records only a date, the time is 00:00 and marked approx --
 treat a comparison that straddles such a boundary as unsafe, not merely suspect.
@@ -56,6 +57,9 @@ BOUNDARIES = [
      "moved to the current garage-floor position"),
     ("2026-08-12T16:55", False, {"glitch"},
      "despiker v3 (local scale, centred window)"),
+    ("2026-08-14T03:40", False, {"detection"},
+     "STA/LTA band-limited to 1-15 Hz + hf_lf classifier; event RATE drops ~80-95%, "
+     "so event counts are NOT comparable across this line (amplitudes unaffected)"),
 ]
 
 

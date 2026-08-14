@@ -2,6 +2,50 @@
 
 _Last updated: 2026-08-14 (UTC)_
 
+## ✅ DETECTOR FIXED: band-limited trigger + `hf_lf` classifier (2026-08-14, LIVE)
+
+The trash-can run (below) exposed it: the CF was high-passed at 3 Hz and **never
+low-passed**, so it integrated to Nyquist — handing the decision to the 15–45 Hz band
+where only cultural noise lives. Two changes, in `stalta.py` (station + server):
+
+1. **4-pole Butterworth low-pass at 15 Hz on the CF.** Marginal M2.8 goes 4.0 → 10.7.
+2. **`hf_lf` on every event** — `sqrt(E>15Hz / E[1-8Hz])` accumulated over the window,
+   from six biquads on the RAW input. Reported, never enforced.
+
+Validated by `analysis/stalta_band.py`, replaying days 223–226 at the **production**
+`SEISMO_HP=3.0` — it reproduces the live `events.log` ratios exactly (loudest cultural
+256.7 in both), which is what makes the rest of the table trustworthy.
+
+| window | kind | ratio (old→new) | `hf_lf` |
+|---|---|---|---|
+| M2.8 Geysers 45 km | quake | 4.0 → **10.7** | 0.98 |
+| M2.0 Glen Ellen 9.7 km | quake | 168 → 415 | 0.74 |
+| M3.2 Geysers ×2 | quake | 71/113 → 296/396 | 0.39 / 0.19 |
+| M4.1 San Leandro 88 km | quake | 1384 → 1953 | **0.09** |
+| footsteps | cultural | 38 → 87 | **3.26** |
+| two cans rolling | cultural | 244 → **307** | 1.95 |
+| third can rolling | cultural | 159 → 18 | 5.26 |
+| doors closing/locking | cultural | 75 → 118 | 1.97 |
+
+**Band-limiting alone does NOT separate** — rolling cans are genuine 1–15 Hz ground
+motion three metres away and still hit 307, above every quake but the two loudest.
+`hf_lf` is what separates: quakes **0.09–0.98**, cultural **1.95–5.26**. A cut at
+**1.4** splits all nine labelled cases and rejects **80–95 %** of daily triggers
+(17.9–37.7/h → 1.4–10.6/h).
+
+⚠️ The margin is only ~2× on n=9, so `CULTURAL_HF_LF` **labels, it does not delete**.
+A mislabelled quake still in the log is recoverable; a deleted one is not. The class
+most likely to be misfiled is a *very close* quake, which keeps its high frequencies —
+the M2.0 at 9.7 km is already the highest-`hf_lf` quake in the set.
+
+Deployed to `seismo.local` 03:40 UTC (backups `stalta.py.bak-nolowpass`,
+`recorder.py.bak-prehflf`). **Event counts are not comparable across this line** —
+`analysis/epochs.py` gains a `detection` aspect for exactly this.
+
+**Also closed:** `station/recorder.py` and `station/rdatac.py` in the repo were STALE —
+the despiker v3 work had been edited in place on the Pi and never synced back. The Pi's
+versions are now committed. Deploying the repo copies would have silently reverted it.
+
 ## 🗑️ LABELLED GROUND TRUTH: the trash-can run, 2026-08-13 20:16–20:19 PDT
 
 Charles narrated eight steps; **all eight resolve individually** in the record

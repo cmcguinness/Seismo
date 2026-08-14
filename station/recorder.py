@@ -52,7 +52,7 @@ import numpy as np
 from simplemseed import MiniseedHeader, MiniseedRecord
 
 from adc_common import DIFF, measure_rate, open_ads
-from stalta import StaLta
+from stalta import CULTURAL_HF_LF, StaLta
 from udp_publisher import Heartbeat, UdpPublisher
 
 STATION = os.environ.get("SEISMO_STATION", "OAKMT")
@@ -155,8 +155,14 @@ def _emit_event(ev: dict) -> None:
     start = end - datetime.timedelta(seconds=ev["duration_s"])
     rec = {"start": start.isoformat(timespec="seconds"),
            "end": end.isoformat(timespec="seconds"), **ev}
+    # hf_lf >= CULTURAL_HF_LF means the energy is >15 Hz, which only happens for a
+    # source metres away -- path attenuation strips that band from any real quake.
+    # Flagged, never suppressed: the log keeps everything, the label is advisory.
+    hl = ev.get("hf_lf")
+    tag = "" if hl is None else ("  CULTURAL" if hl >= CULTURAL_HF_LF else "  seismic")
     print(f"EVENT {start:%H:%M:%S}Z  dur {ev['duration_s']}s  "
-          f"ratio {ev['peak_ratio']}  peak {ev['peak_uv']} uV", flush=True)
+          f"ratio {ev['peak_ratio']}  peak {ev['peak_uv']} uV"
+          f"{'' if hl is None else f'  hf/lf {hl}'}{tag}", flush=True)
     try:
         with open(EVENTS_LOG, "a") as f:
             f.write(json.dumps(rec) + "\n")
@@ -340,8 +346,22 @@ def main() -> None:
                     # Timing is untouched -- the sample slot is real, only its value
                     # is unknown -- so this stays gapless. One held sample per ~100 s
                     # is a far smaller lie than a fabricated impulse.
-                    sample = last_good
-                    _qc("zero_frame", time.time(), {"held": int(last_good)})
+                    # Fill from the DESPIKER's last VALIDATED output, not from the raw
+                    # previous frame. `last_good` tracked raw reads, so a garbage frame
+                    # immediately followed by a zero frame propagated the garbage into a
+                    # SECOND sample -- and the despiker only rejects ISOLATED samples, so
+                    # the resulting width-2 excursion was unrejectable at any threshold.
+                    # Measured 2026-08-12 15:28:13 UTC: -1,328,192 counts twice in a row,
+                    # -> false EVENT peak_ratio 55.4. Four such false events are in
+                    # events.log (08-08, 08-10, 08-12 x2), all carrying the STA/LTA's
+                    # delta-function signature: duration 3.68 s, ratio ~55.
+                    # despiker.prev is by construction a sample that already passed the
+                    # isolation test, so filling from it both stops the propagation AND
+                    # lets the despiker reject the original garbage frame (its lookahead
+                    # is now back at baseline, so d_after == 0).
+                    fill = despiker.prev if despiker.prev is not None else last_good
+                    sample = fill
+                    _qc("zero_frame", time.time(), {"held": int(fill)})
                 else:
                     last_good = sample
                 # Despike BEFORE the detector: an isolated garbage frame read as a
@@ -388,9 +408,11 @@ def main() -> None:
                               f"stalls {anchor.outliers}, "
                               f"resyncs {anchor.resyncs}",
                               flush=True)
-            tail = despiker.flush()               # release the buffered sample
-            if tail is not None:
-                block.append(tail)
+            # flush() returns a LIST now (the despiker buffers `half` samples of
+            # lookahead, not one), so loop rather than append a single value.
+            for tail in despiker.flush():
+                if tail is not None:
+                    block.append(tail)
             if block:                             # flush partial block on stop
                 _q.put((block, utc(anchor.predict(block_n0))))
         else:

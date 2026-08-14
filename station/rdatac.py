@@ -25,6 +25,7 @@ predicts from a running anchor and corrects only a FRACTION of the observed erro
 per block -- a slow first-order loop that tracks NTP without passing jitter
 through. Residual per-block adjustment lands around 1 ms, ~70x better than now.
 """
+from collections import deque
 import time
 
 import pigpio
@@ -165,56 +166,98 @@ class RdatacReader:
             self._cb = None
 
 
+NSIGMA = 8.0        # excursion must exceed this many local sigma
+MAX_RUN = 3         # ... for at most this many samples (30 ms; a quake rings longer)
+HALF = 25           # centred window half-width -> 51 samples, 0.25 s latency
+TOL = 4.0           # the samples bracketing a run must sit within this many sigma
+MIN_SCALE = 100.0   # counts; floors the MAD so a dead-quiet stretch cannot blow up
+
+
 class Despiker:
-    """Drop ISOLATED single-sample excursions -- garbage SPI frames, not ground motion.
+    """Reject brief excursions that are huge relative to the LOCAL noise scale.
 
-    Two glitch classes have been observed in RDATAC, both single samples:
-      all-zero frames (0x000000), caught in RdatacReader.read(), and
-      garbage/misaligned frames -- measured -7,766,016 (-92.6% FS, 0x898000) and
-      +5,925,632 (+70.6% FS) sitting between neighbours at ~22,400 counts. Twice in
-      6 hours. The second class read as a 72 mV "event" and tripped the STA/LTA.
+    Physics behind MAX_RUN: the 4.5 Hz element and the ADS1256's ~25 Hz output
+    bandwidth make a 10-30 ms depart-and-return impossible for ground motion. Real
+    motion rings; a corrupt SPI frame does not.
 
-    The discriminator is ISOLATION, not amplitude. The ADS1256's SINC filter
-    band-limits the output below ~30 Hz, so no physical signal can jump millions of
-    counts for exactly one sample and come straight back. A real earthquake -- even a
-    clipping one -- moves for consecutive samples, so it is kept. That is why this
-    checks the NEIGHBOURS rather than thresholding magnitude: thresholding would
-    silently truncate a genuinely strong local event, which is the one thing this
-    station exists to record.
+    Emits samples with HALF samples of delay. `prev` is the last emitted value, which
+    recorder.py uses to fill zero-frames.
 
-    Costs one sample (16.7 ms) of latency: judging sample n needs n+1.
+    NOTE (2026-08-12): one synthetic case still holds a single sample -- 12 Hz at
+    400,000 counts with a STEP onset -- and preserves 100% of the peak. That is a
+    3.7 mV event, 5x anything this station has recorded, with a physically impossible
+    instantaneous onset. Accepted knowingly.
     """
 
-    def __init__(self, jump: int = 200_000):
-        # jump: counts. Ambient here is ~1,500 counts peak-to-peak, and full scale is
-        # 8.4M, so 200k (~1.9 mV, ~64 um/s of ground velocity) sits far above anything
-        # real at this site while staying far below clipping.
-        self.jump = jump
+    def __init__(self, nsigma=NSIGMA, max_run=MAX_RUN, half=HALF, tol=TOL,
+                 min_scale=MIN_SCALE):
+        self.nsigma = nsigma
+        self.max_run = max_run
+        self.half = half
+        self.tol = tol
+        self.min_scale = min_scale
+        self.win = deque()            # raw samples; the candidate sits at index `half`
         self.prev = None
-        self.pending = None
         self.spikes = 0
 
-    def push(self, value: int):
-        """Feed one raw sample; returns the validated sample to record, or None if
-        still buffering (only on the very first sample)."""
-        if self.pending is None:
-            self.pending = value
+    # -- internals ----------------------------------------------------------------
+    def _scale(self, vals):
+        s = sorted(vals)
+        ref = s[len(s) // 2]
+        mad = sorted(abs(v - ref) for v in vals)[len(vals) // 2]
+        return ref, max(1.4826 * mad, self.min_scale)
+
+    def _judge(self):
+        """Decide the centre sample of a full window. Returns the value to emit."""
+        w = self.win
+        i = self.half
+        ref, scale = self._scale(w)
+        bar = self.nsigma * scale
+        if abs(w[i] - ref) <= bar:
+            return w[i]
+        # Extend over the contiguous run of outliers around the centre.
+        a = i
+        while a - 1 >= 0 and abs(w[a - 1] - ref) > bar:
+            a -= 1
+        b = i
+        while b + 1 < len(w) and abs(w[b + 1] - ref) > bar:
+            b += 1
+        if (b - a + 1) > self.max_run:
+            return w[i]                      # too long to be a glitch -> real motion
+        if a - 1 < 0 or b + 1 >= len(w):
+            return w[i]                      # run touches the window edge -> can't judge
+        lo, hi = w[a - 1], w[b + 1]
+        tolerance = self.tol * scale
+        if abs(lo - ref) > tolerance or abs(hi - ref) > tolerance:
+            return w[i]                      # brackets aren't quiet -> not isolated
+        self.spikes += 1
+        span = (b + 1) - (a - 1)
+        return int(lo + (hi - lo) * (i - (a - 1)) / span)
+
+    # -- streaming API (matches the old Despiker) ---------------------------------
+    def push(self, value):
+        """Feed one raw sample; returns the sample to record, or None while filling."""
+        self.win.append(value)
+        if len(self.win) < 2 * self.half + 1:
             return None
-        judged = self.pending
-        if self.prev is not None:
-            d_before = abs(judged - self.prev)
-            d_after = abs(value - self.prev)
-            if d_before > self.jump and d_after < self.jump:
-                judged = self.prev          # isolated outlier -> hold previous
-                self.spikes += 1
-        self.prev = judged
-        self.pending = value
-        return judged
+        out = self._judge()
+        self.win.popleft()
+        self.prev = out
+        return out
 
     def flush(self):
-        """Release the buffered sample at shutdown."""
-        out, self.pending = self.pending, None
+        """Release the samples still owed at shutdown, unjudged. Returns a LIST.
+
+        Only the ones AFTER the last centre judged: the window holds 2*half+1 samples
+        but everything up to the centre has already been emitted. Returning the whole
+        window duplicates `half`+1 samples into the final block -- which is exactly
+        what the first version of this did.
+        """
+        out = list(self.win)[self.half + 1:] if len(self.win) > self.half else []
+        self.win.clear()
         return out
+
+
 
 
 class ClockAnchor:
