@@ -46,6 +46,29 @@ Deployed to `seismo.local` 03:40 UTC (backups `stalta.py.bak-nolowpass`,
 the despiker v3 work had been edited in place on the Pi and never synced back. The Pi's
 versions are now committed. Deploying the repo copies would have silently reverted it.
 
+### Helicorder now shades local activity (2026-08-14, LIVE)
+
+Charles: a loud row is ambiguous — a door slam and an earthquake look identical on a
+drum. The same discriminant runs per pixel column in `heli_build` (`hf` array in each
+interval npz) and `heli_render` draws high-frequency-and-loud columns in **grey,
+underneath** the true trace (separate LineCollection at lower zorder, so a genuine
+arrival in the same seconds still draws over it in its row colour). Legend explains it.
+
+Both directions verified on real data: the labelled trash-can run is the most heavily
+shaded interval of the night (161 columns); the **M4.1 is 7.2× its row's median
+excursion — loud enough to pass the loudness test — and 0 of its 110 columns shade**,
+because its `hf` is 0.10.
+
+Only columns that are *both* high-frequency *and* loud relative to their own row shade:
+the noise floor is itself HF-dominated (median `hf` 1.7–3.8 on a quiet night), so
+shading on ratio alone would tint the whole drum. `_is_complete` now also requires the
+`hf` array, so the live 4 h window self-heals; older intervals render unshaded, which
+is honest — they genuinely do not carry the ratio.
+
+USGS magnitude labels moved to the **left** of their caret. The caret marks predicted
+arrival, so the label was previously drawn exactly where the burst lands and got
+overwritten; the lead-in is quiet by construction. Flips right near the left edge.
+
 ## 🗑️ LABELLED GROUND TRUTH: the trash-can run, 2026-08-13 20:16–20:19 PDT
 
 Charles narrated eight steps; **all eight resolve individually** in the record
