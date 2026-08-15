@@ -51,10 +51,24 @@ Dockerfile, drift-checked by `deploy.sh status`) rather than forked into `dashbo
 because a second epoch table that silently disagrees with the first is worse than no
 table at all. `activity.py` degrades to "no marks" if the import fails.
 
-⚠️ `dashboard/seismo_dashboard.py` is now **1,391 lines**, past the 1,000-line
-guideline. The chart code went into its own module, but the page/route bodies keep
-accreting there. Worth splitting the LEARN/ABOUT prose blocks into a `content.py`
-before the next page lands.
+### ✅ Prose split out to `dashboard/content.py` (2026-08-15)
+
+`seismo_dashboard.py` had reached **1,391 lines** and roughly a third of it was
+paragraphs. `content.py` (423 lines) now holds `LEARN_SECTIONS`, `ABOUT_SECTIONS`,
+`HELI_HOWTO` and `ACTIVITY_TEXT`; the app module is back to **993**.
+
+Prose changes far more often than routing does, and in one file a typo fix and a
+routing change looked identical in the diff. Text has no imports, no logic and no
+state — the caller still does the one `{place}` substitution.
+
+**Verified as a pure refactor, not asserted:** `/learn` and `/about` render
+**byte-identical** to the pre-split version live on pi5, and `/` and `/activity` are
+identical with timestamps stripped. (`/history` and `/detections` differ only in
+data — the dev box has fewer day-files.) All eight pages return 200.
+
+⚠️ `/learn` slugs each section header into its anchor id, so **editing a header in
+`content.py` changes that section's URL**. `#how-to-read-the-helicorder` is linked from
+under every drum.
 
 ## 🎣 A FADED SECTION IS NOT A BLIND SECTION — measured (2026-08-14)
 
