@@ -53,6 +53,7 @@ do_status() {
   # resets them) and would list every file as changed, burying the real ones.
   say "drift (repo -> pi5; content differences only)"
   rsync -rinc "${RSYNC_EXCLUDES[@]}" dashboard/ "$HOST":seismo-dashboard/ | sed 's/^/  dashboard  /'
+  rsync -inc analysis/epochs.py "$HOST":seismo-dashboard/ | sed 's/^/  dashboard  /'
   rsync -rinc "${RSYNC_EXCLUDES[@]}" server/seismo_server.py server/store.py \
         "$HOST":seismo-server/ | sed 's/^/  server     /'
   rsync -rinc "${RSYNC_EXCLUDES[@]}" server/udp_collector.py server/detector.py \
@@ -66,6 +67,10 @@ do_dashboard() {
   require_clean
   say "sync dashboard/ -> $HOST:~/seismo-dashboard/"
   rsync -rlv "${RSYNC_EXCLUDES[@]}" dashboard/ "$HOST":seismo-dashboard/
+  # epochs.py lives in analysis/ and is the ONE register of configuration changes.
+  # activity.py draws from it, so it has to be in the build context -- copied rather
+  # than duplicated in git, because a forked epoch table is worse than none.
+  rsync -lv analysis/epochs.py "$HOST":seismo-dashboard/
   # Tag by SHA as well as :latest. With ONLY :latest, `dokku git:from-image` sees an
   # unchanged reference, prints "No changes detected, skipping git commit", exits
   # non-zero and deploys NOTHING -- the app keeps running the old image while the

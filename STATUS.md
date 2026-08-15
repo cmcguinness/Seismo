@@ -2,6 +2,60 @@
 
 _Last updated: 2026-08-14 (UTC)_
 
+## 📅 ACTIVITY HEATMAP: day x hour, and it is a portrait of PEOPLE (2026-08-15, LIVE)
+
+Charles: a weekly day-by-hour heatmap of noise levels, to paint a portrait of
+environmental activity. `dashboard/activity.py` + `/activity`, built from the
+helicorder interval files `heli_build` already writes — `env` per 15 min is a robust
+noise level, so the whole grid is a few hundred medians and no miniSEED is decoded
+(scan 0.14 s over 1,267 files, render 0.40 s; cached 10 min).
+
+**LOCAL time, not UTC** — the entire point. Indexed by UTC the morning rush lands in
+the middle of the night.
+
+What it shows, over the four settled days so far: a **4x swing** between 04:00 and
+mid-afternoon, quiet from midnight, lifting at 05:00, loud through the working day,
+falling away after dark. Which is also the operational fact — the same earthquake at
+4 AM competes with four times less noise, and that is why the overnight detection
+threshold is ~M1.4 against the daytime figure.
+
+### ⛔ The first render was a picture of our own hardware, not the neighbourhood
+
+Straight `env` on an absolute µV scale over the last 7 days produced a chart whose
+dominant feature was the **2026-08-12 enclosure/siting change** — everything before it
+uniformly dark, everything after uniformly light, the diurnal pattern squeezed into two
+shades. It looked exactly like "the neighbourhood went silent on Wednesday".
+
+Three fixes, each a smaller lie than the last:
+
+1. **The colour scale is computed from the CURRENT configuration only** (p1–p99 of the
+   post-boundary cells), so today's hours get the full ramp instead of two shades.
+2. **Pre-boundary cells are drawn FLAT GREY, not on the ramp.** Fading them at 45 %
+   was tried first and was worse — a dimmed navy and a mid blue land on the same grey,
+   so half the chart became a mid-tone smear that still invited comparison.
+3. **The boundary itself is drawn as a staircase**, which is what it geometrically is:
+   time runs left-to-right within a row then down, so a change at 08:24 cuts across
+   that row at hour 8.
+
+**The weekday view refuses to draw itself.** Collapsing onto Mon–Sun is the better
+portrait, but with 3 days in the current epoch the cells are single samples and the
+"pattern" is which weekday fell on which side of a hardware change. `/activity` shows
+a countdown card instead (needs 14 days; fills itself in ~26 August).
+
+### 🔗 epochs.py is now imported by the dashboard, and NOT duplicated
+
+`analysis/epochs.py` is the one register of configuration changes, and this is the
+first consumer outside `analysis/`. It is **copied into the build context by
+`deploy.sh`** (`rsync analysis/epochs.py -> seismo-dashboard/`, `COPY` in the
+Dockerfile, drift-checked by `deploy.sh status`) rather than forked into `dashboard/`,
+because a second epoch table that silently disagrees with the first is worse than no
+table at all. `activity.py` degrades to "no marks" if the import fails.
+
+⚠️ `dashboard/seismo_dashboard.py` is now **1,391 lines**, past the 1,000-line
+guideline. The chart code went into its own module, but the page/route bodies keep
+accreting there. Worth splitting the LEARN/ABOUT prose blocks into a `content.py`
+before the next page lands.
+
 ## 🎣 A FADED SECTION IS NOT A BLIND SECTION — measured (2026-08-14)
 
 Charles: when a section is faded as local activity, are we blind to any seismic signal

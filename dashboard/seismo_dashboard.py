@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from fasthtml.common import FastHTML, serve
 from starlette.responses import JSONResponse, Response
 
+import activity
 import heli_build
 import heli_render
 import heli_service
@@ -126,6 +127,7 @@ def _nav(active):
         + link("/", "Live", "live")
         + link("/detections", "Detections", "detections")
         + link("/history", "History", "history")
+        + link("/activity", "Activity", "activity")
         + link("/spectrum", "Spectrum", "spectrum")
         + link("/env", "Environment", "env")
         + link("/learn", "Seismology 101", "learn")
@@ -948,6 +950,82 @@ try:
 except OSError:
     _STATION_JPG = None
 STATIC_CACHE = {"Cache-Control": "public, max-age=86400"}   # static asset — 1 day
+
+
+# --- activity heatmap ---------------------------------------------------------
+
+ACTIVITY_TEXT = (
+    '<p class="mb-2">Every cell is one hour, coloured by how much the ground was moving '
+    '&mdash; the median of that hour&rsquo;s four helicorder intervals. Dark is busy. '
+    'Times are <b>local</b>, not UTC, because this chart is about people: indexed by UTC '
+    'the morning rush would land in the middle of the night.</p>'
+    '<p class="mb-2">Almost everything here is human. The quiet band across the small '
+    'hours is the neighbourhood asleep; it lifts around 05:00, runs loud through the '
+    'working day, and falls away again after dark. Roughly a <b>4&times; swing</b> between '
+    '4&nbsp;AM and mid-afternoon, and none of it is geology. That is also why this station '
+    'detects smaller earthquakes at night &mdash; the same quake has to compete with four '
+    'times less noise.</p>'
+    '<p class="mb-0"><b>Grey cells are a different instrument.</b> The colour scale is '
+    'absolute microvolts, so rebuilding the front end or moving the sensor shifts the whole '
+    'picture &mdash; and would read as the neighbourhood falling silent. Hours recorded '
+    'before the most recent such change are therefore not coloured at all, and the dashed '
+    'staircase marks where it happened.</p>')
+
+
+@app.get("/activity")
+def activity_page():
+    ts = int(time.time() // 600)                 # bucketed to the render TTL
+    days = _card(f"Last {activity.DAYS} days &middot; hour by hour",
+                 f'<img class="plot" src="/activity.png?mode=days&amp;t={ts}" '
+                 'alt="noise level by day and hour">' + ACTIVITY_TEXT)
+    # The weekday portrait needs a fortnight in ONE configuration or it is mostly an
+    # artefact of which weekday fell on which side of a hardware change. Until then,
+    # say so and show the countdown rather than drawing something misleading.
+    g = activity.grid(mode="week")
+    if g and g.get("short"):
+        week = _card("A typical week &middot; not yet",
+                     '<p class="mb-0">Collapsing every hour onto one week is the better '
+                     'portrait &mdash; it averages out one-off events and shows the '
+                     'weekday/weekend difference. It needs '
+                     f'<b>{g["need"]} days</b> of settled configuration and the station '
+                     f'has <b>{g["have"]:.1f}</b> since the last change on '
+                     f'{g["since"]:%-d %B}. This card fills itself in around '
+                     f'<b>{(g["since"] + timedelta(days=g["need"])):%-d %B}</b>, assuming '
+                     'nothing else is rebuilt before then.</p>')
+    else:
+        week = _card("A typical week",
+                     f'<img class="plot" src="/activity.png?mode=week&amp;t={ts}" '
+                     'alt="noise level by weekday and hour">'
+                     '<p class="text-muted small mt-2 mb-0">Every hour since the last '
+                     'configuration change, collapsed onto one week.</p>')
+    body = (_titleblock("Activity", "when the neighbourhood is noisy &mdash; local time")
+            + days + week)
+    return Response(_shell(f"Activity — {BRAND}", "activity", body),
+                    media_type="text/html")
+
+
+@app.get("/activity.png")
+def activity_png(mode: str = "days"):
+    png = _activity_cached("week" if mode == "week" else "days")
+    if not png:
+        return Response(status_code=404)
+    return Response(png, media_type="image/png", headers=NOCACHE)
+
+
+_ACT_CACHE = {}
+
+
+def _activity_cached(mode, ttl=600):
+    """Render at most once per `ttl`. Scanning ~1300 interval files plus the draw is
+    well under a second, but the page holds two of them and the drum service is
+    already the busy thing on this box."""
+    hit = _ACT_CACHE.get(mode)
+    now = time.time()
+    if hit and now - hit[0] < ttl:
+        return hit[1]
+    png = activity.heatmap_png(mode=mode)
+    _ACT_CACHE[mode] = (now, png)
+    return png
 
 
 @app.get("/station.jpg")
