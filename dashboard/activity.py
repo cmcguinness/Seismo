@@ -44,11 +44,24 @@ UV_PER_COUNT = 2.5 * 2 / (GAIN * (2 ** 23 - 1)) * 1e6
 DAYS = int(os.environ.get("SEISMO_ACTIVITY_DAYS", "7"))
 
 IMG_W, IMG_H = 1500, 500
-# Sequential single-hue blue ramp, steps 100->700 (dataviz reference palette). One hue,
-# light to dark: magnitude is one quantity, so it gets one hue -- never a rainbow, which
-# would invent category boundaries in what is a continuous scale.
-RAMP = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7",
-        "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"]
+# SEQUENTIAL ramp: lightness falls monotonically from 0.925 to 0.345 (OKLCH L) across
+# the 13 steps, so magnitude is carried by value alone and the chart still reads in
+# greyscale, in print, and to a colourblind eye. Hue rotates blue -> violet -> magenta
+# -> deep red along the way as a REDUNDANT second cue: the single-hue blue version was
+# correct but muddy, with the whole 5-20 uV midrange landing on near-identical mid-blues
+# (that band is most of the chart, and most of the day).
+#
+# This is NOT a diverging blue/red ramp, which would be wrong here: diverging encodes
+# polarity around a meaningful midpoint and puts its palest step in the MIDDLE, so
+# typical hours would vanish while both the quietest and the busiest shouted. Noise
+# level has no midpoint. The lightness ramp is what makes this sequential; the hue
+# travel is decoration on top of it.
+#
+# The warm end is a deep crimson rather than a bright red on purpose -- pure red is an
+# intrinsically light colour, so reaching it would have broken the lightness monotonicity
+# that does the actual encoding.
+RAMP = ["#d4e9ff", "#bcd9ff", "#a8c8fc", "#98b7f8", "#8fa3f3", "#8e8deb", "#9175de",
+        "#975bc9", "#9f3ea8", "#a0217e", "#960854", "#850030", "#71000d"]
 SURFACE = "#fcfcfb"
 INK, INK_2 = "#0b0b0b", "#52514e"
 PRIOR = "#dcdbd7"      # cells from a superseded configuration: shown, but not scaled
@@ -106,6 +119,20 @@ def _current_epoch_cells(values, got):
     """Cell values from after the last configuration change inside the window."""
     keep = ~_pre_epoch_mask(values, got) & np.isfinite(values)
     return values[keep]
+
+
+def _ink_on(rgba):
+    """Black or white, whichever has more contrast on that fill.
+
+    Was `white if val > sqrt(lo*hi)`, which silently assumed the fill at the scale's
+    geometric mean was dark -- true of the old single-hue blue ramp, not of a ramp whose
+    middle is a mid-violet. Ask the colour, not the value.
+    """
+    def _lum(c):
+        c = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c[:3]]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    l = _lum(rgba)
+    return "#ffffff" if (1.05 / (l + 0.05)) > ((l + 0.05) / 0.05) else INK
 
 
 def _intervals(heli_dir):
@@ -263,7 +290,7 @@ def heatmap_png(heli_dir=HELI, mode="days", days=DAYS, now=None):
         r, h = np.unravel_index(idx, flat.shape)
         val = flat[r, h]
         ax.text(h + 0.5, r + 0.5, f"{val:.0f}", ha="center", va="center", fontsize=8.5,
-                color="#ffffff" if val > (lo * hi) ** 0.5 else INK, zorder=4)
+                color=_ink_on(cmap(norm(val))), zorder=4)
         caption.append(f"{tag} {val:.0f} µV ({labels[r]}, {h:02d}:00)")
 
     # Configuration changes, drawn as the staircase they actually are: time runs left

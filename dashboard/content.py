@@ -48,7 +48,7 @@ HELI_HOWTO = (
 
 ACTIVITY_TEXT = (
     '<p class="mb-2">Every cell is one hour, coloured by how much the ground was moving '
-    '&mdash; the median of that hour&rsquo;s four helicorder intervals. Dark is busy. '
+    '&mdash; the median of that hour&rsquo;s four helicorder intervals. Pale blue is quiet, deep red is busy, and the colour also darkens the whole way, so the picture survives being printed or read by a colourblind eye. '
     'Times are <b>local</b>, not UTC, because this chart is about people: indexed by UTC '
     'the morning rush would land in the middle of the night.</p>'
     '<p class="mb-2">Almost everything here is human. The quiet band across the small '
