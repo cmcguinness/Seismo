@@ -48,20 +48,29 @@ HELI_HOWTO = (
 
 ACTIVITY_TEXT = (
     '<p class="mb-2">Every cell is one hour, coloured by how much the ground was moving '
-    '&mdash; the median of that hour&rsquo;s four helicorder intervals. Pale blue is quiet, deep red is busy, and the colour also darkens the whole way, so the picture survives being printed or read by a colourblind eye. '
+    '&mdash; the median of that hour&rsquo;s four helicorder intervals. Pale blue is '
+    'quiet, deep red is busy, and the colour also darkens the whole way, so the picture '
+    'survives being printed or read by a colourblind eye. '
     'Times are <b>local</b>, not UTC, because this chart is about people: indexed by UTC '
     'the morning rush would land in the middle of the night.</p>'
-    '<p class="mb-2">Almost everything here is human. The quiet band across the small '
+    '<p class="mb-0">Almost everything here is human. The quiet band across the small '
     'hours is the neighbourhood asleep; it lifts around 05:00, runs loud through the '
     'working day, and falls away again after dark. Roughly a <b>4&times; swing</b> between '
     '4&nbsp;AM and mid-afternoon, and none of it is geology. That is also why this station '
     'detects smaller earthquakes at night &mdash; the same quake has to compete with four '
-    'times less noise.</p>'
-    '<p class="mb-0"><b>Grey cells are a different instrument.</b> The colour scale is '
-    'absolute microvolts, so rebuilding the front end or moving the sensor shifts the whole '
-    'picture &mdash; and would read as the neighbourhood falling silent. Hours recorded '
-    'before the most recent such change are therefore not coloured at all, and the dashed '
-    'staircase marks where it happened.</p>')
+    'times less noise.</p>')
+
+
+# Appended only when the window actually CONTAINS a configuration change -- otherwise
+# the page explains grey cells and a dashed staircase that are not on the chart, which
+# is how it read for the nine days after 2026-08-12. `activity.has_prior_cells()` is
+# the switch.
+ACTIVITY_PRIOR_TEXT = (
+    '<p class="mb-0 mt-2"><b>Grey cells are a different instrument.</b> The colour scale '
+    'is absolute microvolts, so rebuilding the front end or moving the sensor shifts the '
+    'whole picture &mdash; and would read as the neighbourhood falling silent. Hours '
+    'recorded before the most recent such change are therefore not coloured at all, and '
+    'the dashed staircase marks where it happened.</p>')
 
 
 LEARN_SECTIONS = [

@@ -577,9 +577,14 @@ STATIC_CACHE = {"Cache-Control": "public, max-age=86400"}   # static asset — 1
 @app.get("/activity")
 def activity_page():
     ts = int(time.time() // 600)                 # bucketed to the render TTL
+    # The grey-cell paragraph is only true when a configuration change actually falls
+    # inside the window; otherwise the page explains marks that are not on the chart.
+    prose = content.ACTIVITY_TEXT
+    if activity.has_prior_cells():
+        prose += content.ACTIVITY_PRIOR_TEXT
     days = _card(f"Last {activity.DAYS} days &middot; hour by hour",
                  f'<img class="plot" src="/activity.png?mode=days&amp;t={ts}" '
-                 'alt="noise level by day and hour">' + content.ACTIVITY_TEXT)
+                 'alt="noise level by day and hour">' + prose)
     # The weekday portrait needs a fortnight in ONE configuration or it is mostly an
     # artefact of which weekday fell on which side of a hardware change. Until then,
     # say so and show the countdown rather than drawing something misleading.

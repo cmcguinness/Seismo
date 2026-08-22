@@ -95,6 +95,21 @@ def _boundaries():
     return sorted(out)
 
 
+def has_prior_cells(days=DAYS, now=None):
+    """True if the day view currently contains cells from a superseded configuration.
+
+    Pure date arithmetic against the boundary register -- deliberately NOT a call to
+    `grid()`, which reads every interval file. The page only needs to know whether to
+    explain the grey cells and the dashed staircase, and both appear exactly when the
+    last configuration change falls inside the displayed date range.
+    """
+    now = dt.datetime.now(TZ) if now is None else now.astimezone(TZ)
+    first = now.date() - dt.timedelta(days=days - 1)
+    start = dt.datetime.combine(first, dt.time(0), tzinfo=TZ).timestamp()
+    last = max([t for t, _ in _boundaries() if t <= now.timestamp()], default=None)
+    return last is not None and last > start
+
+
 def _pre_epoch_mask(values, got):
     """True for cells recorded BEFORE the last configuration change in the window."""
     labels, now = got["labels"], got["now"]
