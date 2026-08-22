@@ -113,6 +113,42 @@ def _envelope(vals, times, t0):
     return mins.astype(np.float32), maxs.astype(np.float32)
 
 
+def _raw_means(st):
+    """{interval_t0: mean raw count} for every interval the stream touches.
+
+    MUST be called on the UNFILTERED stream. Everything downstream is de-meaned and
+    high-passed at 1 Hz, so by the time `_write_intervals` sees the data this number
+    is gone -- the pipeline's first act is to destroy it.
+
+    It is worth keeping because it is the only sub-1 Hz channel this instrument
+    actually has. Measured 2026-08-21 over 8.9 days (`analysis/subhz_probe.png`): the
+    interval mean tracks garage temperature at Spearman 0.93, ~9 uV/C, while every
+    band below 1 Hz sits pinned on the electronics noise floor to within 1.1x --
+    the 4.5 Hz element falls as f^2 below its corner, so there is no ground motion
+    to be had down there, but there IS a thermal drift channel for free.
+    """
+    sums, counts = {}, {}
+    for tr in st:
+        t = tr.times("timestamp")
+        if not len(t):
+            continue
+        v = tr.data.astype(np.float64)
+        # bincount, not a mask per interval: a day-file is ~8.6M samples over ~96
+        # intervals, and the naive loop is ~800M comparisons for a number this cheap.
+        keys = (t // INTERVAL_S).astype(np.int64)
+        base = keys.min()
+        idx = keys - base
+        s_ = np.bincount(idx, weights=v)
+        n_ = np.bincount(idx)
+        for i in np.nonzero(n_)[0]:
+            t0 = float((base + i) * INTERVAL_S)
+            # a trace boundary can split an interval; accumulate rather than letting
+            # the last fragment win
+            sums[t0] = sums.get(t0, 0.0) + s_[i]
+            counts[t0] = counts.get(t0, 0) + n_[i]
+    return {t0: sums[t0] / counts[t0] for t0 in sums if counts[t0]}
+
+
 def _band_energies(st):
     """(E_lo, E_hi, lo_samples): squared 1-8 Hz and >15 Hz amplitude, plus the 1-8 Hz
     WAVEFORM itself.
@@ -210,12 +246,13 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
         st = s if st is None else st + s
     if st is None or not len(st):
         return 0
+    dc = _raw_means(st)               # BEFORE the de-mean below destroys it
     if HP_HZ > 0:                     # knock down tilt/drift before enveloping
         st.detrend("demean")
         st.filter("highpass", freq=HP_HZ, corners=2, zerophase=True)
 
     latest = max(t.stats.endtime.timestamp for t in st)
-    written = _write_intervals(st, heli_dir, min(todo), last_t0, latest)
+    written = _write_intervals(st, heli_dir, min(todo), last_t0, latest, dc=dc)
     # Prune only what predates the current epoch. Everything inside it is kept for
     # /history (~20 KB per interval, ~2 MB/day -- nothing next to 44 MB/day of
     # miniSEED), so the live cycle no longer deletes the window behind it.
@@ -223,13 +260,16 @@ def build(data_dir=DATA, heli_dir=HELI, hours=HOURS):
     return written
 
 
-def _write_intervals(st, heli_dir, first_t0, last_t0, latest):
+def _write_intervals(st, heli_dir, first_t0, last_t0, latest, dc=None):
     """Envelope every 15-min interval in [first_t0, last_t0] from an already
     filtered Stream, writing one npz each. Returns the number written.
 
     Shared by the live `build()` and the one-shot `backfill()` so both produce
     byte-identical files -- a history window must not look different from the
     live drum that scrolled past the same minutes.
+
+    `dc` is {t0: raw interval mean} from `_raw_means`, taken before the caller
+    filtered the stream; NaN when absent.
     """
     # collect every trace's (timestamp, count) once; bucket per interval below
     all_t = np.concatenate([t.times("timestamp") for t in st])
@@ -271,6 +311,7 @@ def _write_intervals(st, heli_dir, first_t0, last_t0, latest):
                 np.savez(fh, mins=mins, maxs=maxs, hf=hf,
                          lo_mins=lo_mins, lo_maxs=lo_maxs,
                          sigma=np.float32(sigma), env=np.float32(env),
+                         dc=np.float32((dc or {}).get(t0, np.nan)),
                          t0=np.float64(t0), complete=np.bool_(complete),
                          npix=np.int32(NPIX), interval_s=np.int32(INTERVAL_S))
             os.replace(tmp, path)
@@ -307,13 +348,14 @@ def backfill(data_dir=DATA, heli_dir=HELI, t_from=None, t_to=None):
         st = _load_day(path, starttime=obspy.UTCDateTime(max(f_start, t_from)))
         if not len(st):
             continue
+        dc = _raw_means(st)           # BEFORE the de-mean below destroys it
         if HP_HZ > 0:
             st.detrend("demean")
             st.filter("highpass", freq=HP_HZ, corners=2, zerophase=True)
         latest = max(t.stats.endtime.timestamp for t in st)
         first = max(f_start, t_from) // INTERVAL_S * INTERVAL_S
         last = (latest if t_to is None else min(latest, t_to)) // INTERVAL_S * INTERVAL_S
-        n = _write_intervals(st, heli_dir, first, last, latest)
+        n = _write_intervals(st, heli_dir, first, last, latest, dc=dc)
         total += n
         print(f"  {os.path.basename(path)}: +{n} interval(s)", flush=True)
     _prune(heli_dir, epoch_start_ts())
@@ -333,14 +375,16 @@ def _is_complete(path):
     the current set of arrays (so it never needs rebuilding). Missing/legacy files
     read False.
 
-    The `hf`/`lo_mins` checks make the live window self-heal when a new array is added:
+    The `hf`/`lo_mins`/`dc` checks make the live window self-heal when a new array is
+    added:
     build() only ever considers the last `hours`, so exactly that window is recomputed
     and nothing older is touched. Intervals behind it keep rendering without the
     shading and without the seismic-band core (heli_render substitutes NaN), which is
     the honest outcome -- pre-2026-08-14 envelopes genuinely do not carry either."""
     try:
         with np.load(path) as d:
-            return bool(d["complete"]) and "hf" in d.files and "lo_mins" in d.files
+            return (bool(d["complete"]) and "hf" in d.files
+                    and "lo_mins" in d.files and "dc" in d.files)
     except Exception:
         return False
 
