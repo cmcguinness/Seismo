@@ -12,7 +12,9 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends tini build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir obspy python-fasthtml
+# requests: dc_watch publishes to ntfy. It arrives as an obspy dep anyway, but
+# something that imports it directly should ask for it directly.
+RUN pip install --no-cache-dir obspy python-fasthtml requests
 
 # Which commit this image was built from. deploy.sh passes it; a manual `docker build`
 # leaves it "unknown". Visible via `docker image inspect` and to the app as
@@ -24,6 +26,7 @@ ENV SEISMO_BUILD_SHA=$GIT_SHA
 
 WORKDIR /app
 COPY seismo_dashboard.py render.py heli_build.py heli_render.py heli_service.py sources.py usgs_events.py /app/
+COPY dc_watch.py /app/
 # epochs.py is the analysis copy, rsync'd in by deploy.sh -- see activity.py.
 COPY activity.py content.py epochs.py /app/
 COPY signatures.json /app/

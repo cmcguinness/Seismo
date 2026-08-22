@@ -24,6 +24,7 @@ import os
 import threading
 import time
 
+import dc_watch
 import heli_build
 import heli_render
 import usgs_events
@@ -34,6 +35,9 @@ POLL_S = float(os.environ.get("SEISMO_HELI_POLL", "20"))   # how often to check 
 # Catalog poll. The USGS summary feed is CDN-cached and refreshes each minute; small
 # events take minutes to hours to be published anyway, so polling faster buys nothing.
 USGS_POLL_S = float(os.environ.get("SEISMO_USGS_POLL", "180"))
+# DC watchdog. Nothing it looks at moves faster than a 15-minute interval, so polling
+# faster than the interval itself only re-reads the same files.
+DC_POLL_S = float(os.environ.get("SEISMO_DC_POLL", "300"))
 
 _png = None
 _png_stamp = None            # _latest_mtime() as of the cached render
@@ -94,6 +98,7 @@ def _worker():
     """Keep the envelope archive current. Does NOT render -- see module docstring."""
     last = -1.0
     last_usgs = 0.0
+    last_dc = 0.0
     while True:
         try:
             m = _latest_mtime()
@@ -111,6 +116,14 @@ def _worker():
                 usgs_events.refresh()
         except Exception as e:
             print(f"heli_service usgs: {e}", flush=True)
+        try:
+            # The watchdog rides this thread for the same reason the catalog does: it
+            # already wakes on a timer, and it must never be able to disturb the build.
+            if time.time() - last_dc >= DC_POLL_S:
+                last_dc = time.time()
+                dc_watch.poll(HELI)
+        except Exception as e:
+            print(f"heli_service dc_watch: {e}", flush=True)
         time.sleep(POLL_S)
 
 
