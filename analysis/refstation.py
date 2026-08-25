@@ -127,6 +127,7 @@ ANCHORS = [
     ("M3.2 Geysers", "2026-08-12T10:28:21"),
     ("M2.0 Glen Ellen", "2026-08-12T09:06:38"),
     ("M4.1 San Leandro", "2026-08-13T15:30:04"),
+    ("M2.4 Geysers", "2026-08-25T00:22:31"),   # same path as the first two: 4.49x
 ]
 
 
