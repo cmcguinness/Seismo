@@ -333,22 +333,58 @@ def main() -> None:
             # timestamp of the first sample emitted into it. Filled (lost) samples are
             # given the slots they would have occupied, so the queue stays aligned.
             ts_q: deque = deque()
-            block_t0 = None
             filled = 0
-            ts_first = None
-            n_first = 0
             rate_est = float(rate)
+            # --- the sample GRID. The archive declares an integer rate, and every reader
+            # that stitches records into one trace assumes it exactly. The crystal runs
+            # ~75-90 ppm fast, so timing blocks from their own first sample -- correct per
+            # record -- let the stitched timeline walk 6.6 s/day (measured 2026-08-25:
+            # -280 ms after 61 min). So: one continuous grid at exactly `rate` from the
+            # first emitted sample, every sample assigned to the next slot, and when the
+            # chip's true time runs more than half a period AHEAD of its slot the sample
+            # is TOSSED (one per ~133 s); more than half a period BEHIND, a held sample
+            # is PADDED in. Timing error is then bounded at +-5 ms, records align
+            # exactly, and a >1 s step (NTP) re-anchors the grid and counts a resync.
+            grid_t0 = None                       # epoch of grid slot 0
+            grid_off = 0.0                       # last sample's true time minus its slot
+            tossed = 0
+            padded = 0
+            # Threshold is 3/4 of a period, not 1/2: a correction moves the offset by a
+            # whole period, so at 1/2 it lands exactly on the opposite threshold and a
+            # few us of timestamp jitter makes it toss/pad/toss in one block (seen
+            # 2026-08-25 20:49:46). At 3/4 it lands at +-1/4 with a 5 ms margin.
+            half_period = 0.75 / rate
+            reader_t0 = None                     # for the crystal-rate estimate
+            reader_n0 = 0
 
             def _push(x: int, ts: float | None) -> None:
                 """Despike, then emit into the block / live ring / detector."""
-                nonlocal n_total, block_t0
+                nonlocal n_total, grid_t0, grid_off, tossed, padded
                 ts_q.append(ts)
                 out = despiker.push(x)
                 if out is None:
                     return                       # still priming the lookahead
                 t_out = ts_q.popleft() if ts_q else None
-                if not block and use_ts:
-                    block_t0 = t_out
+                if use_ts and t_out is not None:
+                    if grid_t0 is None:
+                        grid_t0 = t_out
+                    slot = grid_t0 + n_total / rate
+                    grid_off = t_out - slot
+                    if abs(grid_off) > 1.0:      # clock step: re-anchor, do not slew
+                        anchor.resyncs += 1
+                        grid_t0 = t_out - n_total / rate
+                        grid_off = 0.0
+                    elif grid_off < -half_period:
+                        tossed += 1              # chip ahead of the grid: drop this one
+                        _qc("tossed", t_out, {"off_ms": round(grid_off * 1000, 2)})
+                        return
+                    elif grid_off > half_period:
+                        padded += 1              # chip behind the grid: hold one in first
+                        _qc("padded", t_out, {"off_ms": round(grid_off * 1000, 2)})
+                        fill = despiker.prev if despiker.prev is not None else out
+                        block.append(fill)
+                        live_ring.append(fill)
+                        n_total += 1
                 block.append(out)
                 live_ring.append(out)
                 n_total += 1
@@ -431,17 +467,18 @@ def main() -> None:
                     _qc("spike", time.time(), {"held": int(block[-1]) if block else 0})
                 if len(block) >= block_n:
                     if use_ts:
-                        # Block start = kernel timestamp of its first sample. The header
-                        # declares the integer nominal, so at ~90 ppm crystal error the
-                        # last sample of a 10 s block is <1 ms off -- and the next block
-                        # re-anchors on its own first sample, so nothing accumulates.
-                        t_block = block_t0
-                        if ts_first is None:
-                            ts_first, n_first = t_block, n_total - len(block)
-                        elif t_block - ts_first > 60:
-                            rate_est = (n_total - len(block) - n_first) / (t_block - ts_first)
+                        # Block start = its first slot on the grid, so records abut
+                        # exactly and a stitched day-long trace keeps true time.
+                        t_block = grid_t0 + block_n0 / rate
+                        # rate_est here is the CRYSTAL (conversions per wall-second,
+                        # tossed ones included), i.e. what the grid is correcting.
+                        if reader_t0 is None:
+                            reader_t0, reader_n0 = reader.last_ts, reader.total + reader.dropped_total
+                        elif reader.last_ts - reader_t0 > 60:
+                            rate_est = ((reader.total + reader.dropped_total - reader_n0)
+                                        / (reader.last_ts - reader_t0))
                         lag_ms = (time.time() - reader.last_ts) * 1000.0
-                        err = 0.0
+                        err = grid_off
                     else:
                         # A glitch means the loop stalled, so this boundary's wall-clock
                         # reading is late by the stall (observed +16.7 ms, ~one sample
@@ -461,6 +498,7 @@ def main() -> None:
                             rate_est=round(rate_est, 4),
                             clock_err_ms=round(err * 1000, 2), lag_ms=round(lag_ms, 1),
                             dropped=reader.dropped_total, filled=filled,
+                            tossed=tossed, padded=padded,
                             glitches=reader.glitches,
                             spikes=despiker.spikes, stalls=anchor.outliers,
                             resyncs=anchor.resyncs,
@@ -469,6 +507,7 @@ def main() -> None:
                         print(f"  {nblocks} blocks, clock err {err*1000:+.2f} ms, "
                               f"lag {lag_ms:.1f} ms, rate_est {rate_est:.4f} sps, "
                               f"dropped {reader.dropped_total}, filled {filled}, "
+                              f"tossed {tossed}, padded {padded}, "
                               f"glitches {reader.glitches}, spikes {despiker.spikes}, "
                               f"stalls {anchor.outliers}, "
                               f"resyncs {anchor.resyncs}",
@@ -480,7 +519,7 @@ def main() -> None:
                     block.append(tail)
             if block:                             # flush partial block on stop
                 if use_ts:
-                    _q.put((block, utc(block_t0 if block_t0 is not None else time.time())))
+                    _q.put((block, utc(grid_t0 + block_n0 / rate if grid_t0 is not None else time.time())))
                 else:
                     _q.put((block, utc(anchor.predict(block_n0))))
         else:

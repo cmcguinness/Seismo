@@ -40,6 +40,38 @@ running no longer means the chip is free). Acceptance test for any future change
 `/tmp/drdy_meas.py`-style passive DRDY intervals → the 20 ms bin must read 0 and
 agree with `lost`.
 
+### 🕰️ Then the grid: toss one reading every ~123 s (2026-08-25 20:52 UTC)
+
+Charles: "At some point we have to toss a reading, no?" Yes — and the first C-reader
+version did not. Each block was timed from its own first sample: correct per record,
+but any reader that stitches records into one trace assumes exactly 100 sps, and the
+crystal runs 81 ppm fast. Measured on the day-file: **−280 ms after 61 min, −6.6 s/day**
+of timing walk in a stitched trace.
+
+Now `recorder.py` keeps ONE continuous grid at exactly 100 sps from the first emitted
+sample. Every sample takes the next slot; when the chip's true time runs more than
+¾ period ahead of its slot the sample is **tossed** (`tossed` counter, `qc.log`
+"tossed"); more than ¾ period behind, one held sample is **padded**. A >1 s step
+(NTP) re-anchors and counts a `resync`. Records abut exactly, a stitched day-long
+trace keeps true time, and the timing error is bounded at ±7.5 ms forever. Charles's
+arithmetic: 81 ppm × 100 sps = one surplus sample per 12,300 → every **123 s**; measured
+122.6 s (the first one comes at half that, since the grid starts at zero offset).
+
+⚠️ First cut used ½ period and oscillated: a correction moves the offset by a whole
+period, so from −5.0 it landed at +5.01 and a few µs of jitter produced
+toss/pad/toss inside one block. ¾ period lands at ±2.5 ms with 5 ms of margin.
+
+`rate_est` in health.json is now the CRYSTAL rate (conversions per NTP-second, tossed
+ones included), i.e. the thing the grid corrects — 100.0075–100.0087 so far, wandering
+with temperature. `clock_err_ms` is the grid offset at the block boundary (±5 ms).
+
+**Time reference.** The Pi runs systemd-timesyncd against `2.debian.pool.ntp.org`
+(stratum 2, offset +6.5 ms, jitter 4.9 ms, Pi crystal correction +3.4 ppm). Absolute
+time is therefore good to ~5–10 ms — half a sample — and the RATE against it is good to
+well under 1 ppm on 10-min averages, which is what the 100.008 figure is measured
+against. GPS-PPS (µs) or chrony (~1 ms) would be upgrades; neither changes anything at
+100 sps.
+
 ## 🔍 RECORDER: the 18 ms block gap is 0.2 % of samples lost SILENTLY (2026-08-25)
 
 Follow-up to the sub-Hz comb. Health counters (86,993 blocks since restart):
