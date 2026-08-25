@@ -19,6 +19,7 @@ A DIY Raspberry Pi seismometer — a *sensitivity-first* (not precision-first) i
 - **Seismograph stack:** `will127534/RaspberryPi-seismograph` (and the Seisberry / Erellaz fork) — drives this exact Waveshare board, outputs local web view and/or miniSEED. *Repo currency not yet verified.*
 - **ADS1256 driver:** `ul-gh/PiPyADC` (Python).
 - **GPIO backend:** PiPyADC uses the **pigpio** backend, which works fine on the **Pi 2B**. (The spec's "Pi 5 → only `lgpio`" warning was Pi-5-specific and does **not** apply here.)
+- **Since 2026-08-25 the running station reads the ADC through `station/adsreader/` (C, spidev + GPIO uAPI interrupts) with `SEISMO_READER=c`;** pigpio/PiPyADC remain for the diagnostic tools and the fallback path. Only one process may own the ADS1256 — stop `seismo-recorder` before running any ADC tool.
 - **Sampling rate:** seismology runs at **100–250 sps** (Raspberry Shake = 100 sps). The ADS1256's 30 ksps spec and its known SPI-timing noise above ~2 kHz are irrelevant — this station operates two orders of magnitude below where trouble starts.
 - **Prefer the existing seismograph stack / PiPyADC over rolling a custom ADC read loop.**
 

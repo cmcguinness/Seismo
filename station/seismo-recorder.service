@@ -28,6 +28,12 @@ Environment=SEISMO_DRATE=100
 # to 40 Hz, above the quake band -- digital notch in post if it bothers a spectrum).
 Environment=SEISMO_RDATAC=1
 Environment=SEISMO_RATE=100
+# C reader (station/adsreader): the ADS1256 is owned by a small C process that takes
+# DRDY as a kernel interrupt with hardware timestamps and streams samples over a pipe.
+# Every lost conversion is counted and filled; blocks are timed from the data. The
+# pigpio in-process path (SEISMO_READER=pigpio) lost ~0.2 % of samples silently and
+# put an 18 ms gap after every block -- STATUS.md 2026-08-25 "RECORDER".
+Environment=SEISMO_READER=c
 # UDP publisher -> pi5 collector (rev2-data-plane.md sec 14.10 Phase-1 step 1). Streams
 # each packed record ALONGSIDE the local day-files; fail-open, never touches acquisition.
 Environment=SEISMO_UDP_HOST=192.168.5.30
@@ -38,6 +44,9 @@ Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/charles/seismo/venv/bin/python recorder.py
 # recorder.py traps SIGTERM -> flushes the partial block and releases the ADC
 KillSignal=SIGTERM
+# Let adsreader take SCHED_FIFO and lock its pages (it warns and carries on without).
+LimitRTPRIO=60
+LimitMEMLOCK=64M
 TimeoutStopSec=20
 Restart=always
 RestartSec=5

@@ -60,6 +60,11 @@ BOUNDARIES = [
     ("2026-08-14T03:40", False, {"detection"},
      "STA/LTA band-limited to 1-15 Hz + hf_lf classifier; event RATE drops ~80-95%, "
      "so event counts are NOT comparable across this line (amplitudes unaffected)"),
+    ("2026-08-25T19:46", False, {"timing", "glitch"},
+     "C reader (station/adsreader) owns the ADS1256: DRDY as a kernel interrupt with "
+     "hardware timestamps, lost conversions counted+filled, blocks contiguous. Before "
+     "this line every 10 s block is stretched 0.2% with an 18 ms gap after it (a "
+     "0.1 Hz comb on sub-Hz spectra); amplitudes unaffected"),
 ]
 
 

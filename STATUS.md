@@ -1,6 +1,140 @@
 # STATUS — Seismo
 
-_Last updated: 2026-08-14 (UTC)_
+_Last updated: 2026-08-25 (UTC)_
+
+## ✅ C READER LIVE: the ADS1256 is owned by `station/adsreader` (2026-08-25 19:46 UTC)
+
+Charles: "Let's build the C reader." ~1 hour, as he said it would be.
+
+**What it is.** `station/adsreader/adsreader.c` (~300 lines, libc + kernel headers only)
+owns the chip end to end — SDATAC/RESET, chip-ID check, WREG (buffer off, AIN0−AIN1,
+PGA, DRATE), SELFCAL, SYNC/WAKEUP, RDATAC — over `/dev/spidev0.0` (`SPI_NO_CS`; the
+Waveshare CS is GPIO22, driven by hand and held low for the session) and
+`/dev/gpiochip0`. **DRDY is a kernel interrupt** (GPIO uAPI v2 edge events with
+`EVENT_CLOCK_REALTIME` timestamps and a per-line seqno), not a sampled level. The loop
+is poll → read 3 bytes → write a 16-byte record `{ts_ns, sample, lost, flags}` to
+stdout. It takes SCHED_FIFO 50 + `mlockall` when the unit grants them (`LimitRTPRIO`,
+`LimitMEMLOCK`). `station/creader.py` spawns it, grows the pipe to 1 MB (~17 min of
+buffer), and presents `RdatacReader`'s interface. `recorder.py` with
+`SEISMO_READER=c`: lost conversions are **filled** (held value, `filled` counter,
+`qc.log` "filled") instead of cutting the block; block start = kernel timestamp of
+its first emitted sample (a timestamp queue rides alongside the despiker's lookahead);
+`ClockAnchor` idle. The pigpio path is untouched (`SEISMO_READER=pigpio`).
+
+**Standalone (recorder stopped, 62 s):** 6,171 samples, **1 lost — counted**, 0 flagged,
+100.009 sps from the timestamps. The passive pigpio monitor running alongside reported
+2 misses in the same minute: the sampler drops edges the kernel does not.
+
+**Integrated, first 10 min:** `rate_est 100.0087` (the crystal), lag 0.4–0.9 ms,
+**0 dropped, 0 filled, 0 glitches** — the old path logged 5 drops and 29 glitches in the
+three minutes before the restart. Day-file after the cutover: **one contiguous 600 s
+trace, zero gaps** (before: 185 traces in 30 min, 18.3 ms median gap). Raw DC identical
+(323.9k counts). Noise: event-robust 1–15 Hz RMS 3.51 → 3.40 µV, band ratios 0.9–1.2 in
+a busy afternoon, no persistent new line on a 10-min median — **a quiet-night PSD
+comparison is still owed** before calling the floor unchanged. pi5 collector still
+receiving (archive mtime live). Epoch row added (`timing`, `glitch`).
+
+⚠️ Nothing else may open the ADC while the service runs — `adc_diag.py`, `capture_raw.py`
+etc. must `systemctl stop seismo-recorder` first (that was already true, but pigpiod
+running no longer means the chip is free). Acceptance test for any future change:
+`/tmp/drdy_meas.py`-style passive DRDY intervals → the 20 ms bin must read 0 and
+agree with `lost`.
+
+## 🔍 RECORDER: the 18 ms block gap is 0.2 % of samples lost SILENTLY (2026-08-25)
+
+Follow-up to the sub-Hz comb. Health counters (86,993 blocks since restart):
+`rate_est 99.8173`, `glitches 170,280` (~2 per block, not "once per 100 s"),
+`dropped 28,770`, `stalls 10,885`, `resyncs 1`, `clock_err_ms 0.00` on every log line.
+
+**Passive DRDY measurement** (second pigpio client, falling-edge ticks, 60 s, recorder
+untouched): **5,988 edges/60 s**; 5,975 intervals in a 9.994–10.001 ms core with mean
+**9.99911 ms = 100.009 sps** (~90 ppm fast — the same crystal error the 60 sps epoch
+measured), and **12 intervals of exactly 20.000 ms**. Nothing in between.
+
+So: the ADS1256 converts at 100.009 sps. About **0.2 % of conversions produce no DRDY
+edge that pigpio sees** — when the read is late, the chip's unread-data DRDY pulse
+before the next update is sub-µs, under pigpio's 5 µs sampling — and the reader's
+edge counter therefore cannot count them as `dropped`. The sample is simply gone.
+`ClockAnchor` measured samples-per-wall-second honestly and got 99.82, so **block
+start times are right** (P arrivals still land on prediction) but each 1000-sample
+block is declared at 100 sps over 9.99 s when it really spans 10.018 s: an 18 ms
+stretch inside every block, then an 18 ms gap, hence the comb.
+
+Two compounding bugs in the discipline:
+- `err = 0.0 if glitch_in_block else anchor.update(...)` — with ~2 zero-frames per
+  block the update is skipped essentially always. `rate_est` is frozen at whatever it
+  last saw; the "clock err 0.00" in the log is the skip, not a measurement.
+- Missed conversions are invisible to `dropped`, so the "honest gap" path never fires
+  for them.
+
+**Fix (not done — Charles's call):** `_on_edge` already receives pigpio's `tick`; derive
+the count from the tick delta (`round(Δtick / 10 000 µs) − 1`) instead of the edge
+counter, so every lost conversion is known. Then, rather than cutting the block (would
+fragment to ~5 s), **insert one interpolated sample per lost conversion** and count it
+in a `filled` QC counter — a 1-in-500 interpolated point is a far smaller lie than a
+0.2 % time-stretch plus a comb. With the index honest, `rate_est` converges to
+100.009, blocks become contiguous, and the comb disappears. Also stop skipping
+`anchor.update()` on glitch blocks — the 10 ms `outlier` guard already handles stalls.
+Root cause underneath all of it is that the per-sample Python loop (pigpio socket
+round-trips + despiker + STA/LTA + UDP) is marginal at 100 sps on a Pi 2B.
+
+## 🌊 BODEGA BUOY vs SUB-Hz CHANNEL: the ocean is ~100x below our floor (2026-08-25)
+
+Charles: correlate the sub-Hz channel with NDBC 46013 (Bodega Bay, ~35 km W). The
+secondary microseism sits at TWICE the swell frequency with amplitude ~Hs², so the
+buoy's WVHT/DPD predict where and how loud it should be. Three passes, 14 days
+(08-12 → 08-25), 1,304 fifteen-minute intervals, buoy Hs 0.9–2.2 m, DPD 4–18 s:
+
+1. **Band RMS** (`analysis/buoy_join.py`, on `subhz_reduce.py`'s CSV): the 0.12–0.5 Hz
+   band lives in a **0.557–0.608 µV slot (p5–p95, ±5 %)** for the whole fortnight,
+   through three swell peaks. Spearman vs Hs +0.11, vs APD +0.20, lag scan flat from
+   −6 h to +12 h — a confound's signature (pressure scores the same), not a signal.
+2. **Spectrogram** (`analysis/microseism_specgram.py`): dominated by a **comb of fixed
+   lines at 0.05, 0.1, 0.2, 0.25, 0.5, 1.0 Hz …** bright enough to hide anything. See
+   the trap below.
+3. **Relative spectrogram** (`analysis/microseism_relative.py`, each interval ÷ the
+   night-median PSD, which removes the comb exactly): white noise below 0.5 Hz. Ridge
+   tracker vs 2/DPD rho +0.03; excess at the buoy-predicted frequency vs Hs² rho −0.01.
+
+**Null, and it is the expected null.** HOPS records the summer 0.1–0.3 Hz microseism
+at ~0.34 µm/s (table above). Our 0.58 µV floor at 0.2 Hz, through the element's f²
+roll-off below 4.5 Hz ((0.2/4.5)² × 9 V/(m/s) = 0.018 V/(m/s)), is **~33 µm/s
+equivalent — two orders of magnitude short.** A winter storm reaches maybe 5–10 µm/s;
+still 3–7× under. The microseism is not reachable with this element in any season; it
+needs a broadband or a low-corner sensor, not a better floor.
+
+Plots (gitignored): `analysis/buoy_microseism.png`, `microseism_specgram.png`,
+`microseism_relative.png`. Buoy file cached at `analysis/data/ndbc_46013.txt`
+(realtime2 feed = last 45 days only; the NDBC historical archive has the rest).
+
+### ⚠️ TRAP: the archive's 10 s fragments put a comb on every sub-Hz spectrum
+
+A day-file is **~9,760 traces of 9.99 s with a 28 ms gap between each** (2.8 samples
+at 100 sps; p5–p95 20–38 ms). `merge(fill_value="interpolate")` turns that into a
+periodic 10.02 s structure → spectral lines at 0.0998 Hz and every harmonic (plus 0.05
+Hz), 2–3 dex above the floor. Any sub-Hz PSD, ridge finder or band RMS that does not
+divide out or notch the comb is measuring the recorder, not the ground. Divide by the
+time-median PSD (as `microseism_relative.py` does) or restrict bands to fall between
+lines. Separately: 28 ms lost per 10 s block is a 0.28 % timing slip that the recorder
+is resolving by re-anchoring — worth a look at whether the block length or the
+nominal 100 sps is the thing that is wrong.
+
+## 📏 M2.4 GEYSERS 2026-08-25 00:22 UTC — fifth calibration anchor, 4.49× (2026-08-25)
+
+Detected cleanly (`eventcheck.py` ratio 4.6, P onset on the predicted +9.0 s — a sixth
+confirmation of `onset = dist/5.19 + 0.30`). Plot: `analysis/2026-08-24-geysers-m2.4.png`.
+
+Against NP.1835 in 5–15 Hz: reference RMS 1.02 µm/s, OAKMT 0.23 → **4.49× (peak 4.39×)**.
+Same 45 km path as the M2.8 (3.26×) and M3.2 (3.15×) Geysers anchors, so this is the
+first fixed-path repeat — and it moved by 1.4×. That is the "~2× site scatter" caveat
+made concrete, not an epoch shift: the San Leandro doublet (08-13T16:07, post-move)
+gave 2.99×, so the 08-12 move does not split the anchors before/after.
+
+Five anchors, one epoch: **median 3.26×, implied 8.82 V/(m/s)**. `PROVISIONAL_FACTOR`
+stays 3.20 — the change is inside the noise. Added to `refstation.py` `ANCHORS`.
+
+⚠️ `--all`'s MEAN (3.25×) still includes the rejected 0.88× Glen Ellen row; the median
+is the number to quote.
 
 ## 📅 ACTIVITY HEATMAP: day x hour, and it is a portrait of PEOPLE (2026-08-15, LIVE)
 

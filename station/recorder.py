@@ -69,6 +69,15 @@ DRATE = int(os.environ.get("SEISMO_DRATE", "60"))
 # Declared rate becomes DRATE, so files are NOT mergeable with the 57 sps archive:
 # enabling this starts a new configuration epoch.
 RDATAC = os.environ.get("SEISMO_RDATAC", "0") == "1"
+# SEISMO_READER=c: the ADS1256 is owned by the C reader (station/adsreader) and this
+# process consumes timestamped samples over a pipe -- see creader.py. Every lost
+# conversion is counted and FILLED (held value, logged as "filled" in qc.log) instead
+# of silently stretching the block, and blocks are timed from the kernel's DRDY
+# timestamps rather than from a sample index steered to time.time(). Implies RDATAC.
+# "pigpio" (default) is the in-process RdatacReader path, unchanged.
+READER = os.environ.get("SEISMO_READER", "pigpio")
+if READER == "c":
+    RDATAC = True
 RATE = int(os.environ.get("SEISMO_RATE", str(DRATE) if RDATAC else "57"))
 # ^ FIXED declared miniSEED rate: keeps the archive single-rate (mergeable) across
 #   restarts. Legacy path re-measures to 55-57 so it must declare a constant; the
@@ -245,7 +254,8 @@ def main() -> None:
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
 
-    ads = open_ads(GAIN, DRATE)
+    # The C reader owns the chip outright: nothing in this process may open the ADC.
+    ads = None if READER == "c" else open_ads(GAIN, DRATE)
     wt = None
     reader = None
     publisher = None
@@ -253,7 +263,11 @@ def main() -> None:
     try:
         if RDATAC:
             from rdatac import ClockAnchor, Despiker, RdatacReader
-            reader = RdatacReader(ads, DIFF)
+            if READER == "c":
+                from creader import CReader
+                reader = CReader(GAIN, DRATE)
+            else:
+                reader = RdatacReader(ads, DIFF)
             reader.start()
             fs = float(DRATE)                     # crystal-exact; no need to measure
             # Discard the post-reset garbage BEFORE anchoring the clock or writing
@@ -307,20 +321,65 @@ def main() -> None:
             # rather than a fresh time.time() per block, so the read loop's
             # scheduling latency never lands in a block boundary.
             anchor = ClockAnchor(rate)
+            use_ts = READER == "c"
             n_total = 0
             block_n0 = 0
             last_good = 0
             glitch_in_block = False
             despiker = Despiker()
+            # --- C-reader timebase: blocks are timed from the kernel's DRDY timestamps.
+            # The despiker delays its output by `half` samples, so keep a queue of the
+            # INPUT timestamps and pop one per emitted sample; the block start is the
+            # timestamp of the first sample emitted into it. Filled (lost) samples are
+            # given the slots they would have occupied, so the queue stays aligned.
+            ts_q: deque = deque()
+            block_t0 = None
+            filled = 0
+            ts_first = None
+            n_first = 0
+            rate_est = float(rate)
+
+            def _push(x: int, ts: float | None) -> None:
+                """Despike, then emit into the block / live ring / detector."""
+                nonlocal n_total, block_t0
+                ts_q.append(ts)
+                out = despiker.push(x)
+                if out is None:
+                    return                       # still priming the lookahead
+                t_out = ts_q.popleft() if ts_q else None
+                if not block and use_ts:
+                    block_t0 = t_out
+                block.append(out)
+                live_ring.append(out)
+                n_total += 1
+                try:                             # STA/LTA -- never break acquisition
+                    ev = detector.update(out)
+                    if ev:
+                        _emit_event(ev)
+                except Exception:
+                    pass
+
             while not _stop.is_set():
                 sample, dropped = reader.read()
-                if anchor.t0 is None:
+                if not use_ts and anchor.t0 is None:
                     # Anchor on the FIRST SAMPLE, not before the read loop: the
                     # pre-loop timestamp misses RDATAC entry plus up to one DRDY
                     # period, and that offset shows up as gaps at every early block
                     # boundary while the loop slews it out.
                     anchor.anchor(0, time.time())
-                if dropped:
+                if dropped and use_ts:
+                    # The kernel counted conversions we never read. Their VALUES are
+                    # gone but their SLOTS are known exactly, so hold the despiker's
+                    # last validated output into each slot and log it: one held point
+                    # in ~500 keeps the block contiguous and the timebase honest, where
+                    # cutting the block would fragment the archive (and did: 9,760
+                    # traces/day with an 18 ms gap between each, STATUS 2026-08-25).
+                    fill = despiker.prev if despiker.prev is not None else last_good
+                    for k in range(dropped):
+                        _push(fill, reader.last_ts - (dropped - k) / rate)
+                    filled += dropped
+                    _qc("filled", reader.last_ts, {"n": int(dropped)})
+                elif dropped:
                     # The ADC produced samples we failed to collect; their VALUES are
                     # gone, so advance the index (keeps index->time honest) and cut
                     # the block. The file then shows a real gap instead of silently
@@ -367,43 +426,49 @@ def main() -> None:
                 # Despike BEFORE the detector: an isolated garbage frame read as a
                 # 72 mV event and tripped the STA/LTA (13:53:55 UTC 2026-07-23).
                 spikes_before = despiker.spikes
-                sample = despiker.push(sample)
+                _push(sample, reader.last_ts if use_ts else None)
                 if despiker.spikes != spikes_before:
-                    _qc("spike", time.time(), {"held": int(sample)})
-                if sample is None:
-                    continue                     # first sample only: still buffering
-                block.append(sample)
-                live_ring.append(sample)
-                n_total += 1
-                try:                             # STA/LTA -- never break acquisition
-                    ev = detector.update(sample)
-                    if ev:
-                        _emit_event(ev)
-                except Exception:
-                    pass
+                    _qc("spike", time.time(), {"held": int(block[-1]) if block else 0})
                 if len(block) >= block_n:
-                    # A glitch means the loop stalled, so this boundary's wall-clock
-                    # reading is late by the stall (observed +16.7 ms, ~one sample
-                    # period). Feeding that to the anchor would slew a fake error
-                    # into the NEXT boundary as a small gap, so skip the update and
-                    # coast on the existing prediction for one block.
-                    err = 0.0 if glitch_in_block else anchor.update(n_total, time.time())
-                    glitch_in_block = False
-                    _q.put((block, utc(anchor.predict(block_n0))))
+                    if use_ts:
+                        # Block start = kernel timestamp of its first sample. The header
+                        # declares the integer nominal, so at ~90 ppm crystal error the
+                        # last sample of a 10 s block is <1 ms off -- and the next block
+                        # re-anchors on its own first sample, so nothing accumulates.
+                        t_block = block_t0
+                        if ts_first is None:
+                            ts_first, n_first = t_block, n_total - len(block)
+                        elif t_block - ts_first > 60:
+                            rate_est = (n_total - len(block) - n_first) / (t_block - ts_first)
+                        lag_ms = (time.time() - reader.last_ts) * 1000.0
+                        err = 0.0
+                    else:
+                        # A glitch means the loop stalled, so this boundary's wall-clock
+                        # reading is late by the stall (observed +16.7 ms, ~one sample
+                        # period). Feeding that to the anchor would slew a fake error
+                        # into the NEXT boundary as a small gap, so skip the update and
+                        # coast on the existing prediction for one block.
+                        err = 0.0 if glitch_in_block else anchor.update(n_total, time.time())
+                        glitch_in_block = False
+                        t_block = anchor.predict(block_n0)
+                        rate_est = anchor.rate_est
+                        lag_ms = 0.0
+                    _q.put((block, utc(t_block)))
                     nblocks += 1
                     block = []
                     block_n0 = n_total
-                    _health(mode="rdatac", rate=rate, blocks=nblocks,
-                            rate_est=round(anchor.rate_est, 4),
-                            clock_err_ms=round(err * 1000, 2),
-                            dropped=reader.dropped_total, glitches=reader.glitches,
+                    _health(mode="c" if use_ts else "rdatac", rate=rate, blocks=nblocks,
+                            rate_est=round(rate_est, 4),
+                            clock_err_ms=round(err * 1000, 2), lag_ms=round(lag_ms, 1),
+                            dropped=reader.dropped_total, filled=filled,
+                            glitches=reader.glitches,
                             spikes=despiker.spikes, stalls=anchor.outliers,
                             resyncs=anchor.resyncs,
                             **(publisher.stats if publisher else {}))
                     if nblocks % 6 == 0:          # ~once/min at 10s blocks
                         print(f"  {nblocks} blocks, clock err {err*1000:+.2f} ms, "
-                              f"rate_est {anchor.rate_est:.4f} sps, "
-                              f"dropped {reader.dropped_total}, "
+                              f"lag {lag_ms:.1f} ms, rate_est {rate_est:.4f} sps, "
+                              f"dropped {reader.dropped_total}, filled {filled}, "
                               f"glitches {reader.glitches}, spikes {despiker.spikes}, "
                               f"stalls {anchor.outliers}, "
                               f"resyncs {anchor.resyncs}",
@@ -414,7 +479,10 @@ def main() -> None:
                 if tail is not None:
                     block.append(tail)
             if block:                             # flush partial block on stop
-                _q.put((block, utc(anchor.predict(block_n0))))
+                if use_ts:
+                    _q.put((block, utc(block_t0 if block_t0 is not None else time.time())))
+                else:
+                    _q.put((block, utc(anchor.predict(block_n0))))
         else:
             start = datetime.datetime.now(datetime.timezone.utc)
             while not _stop.is_set():
@@ -447,7 +515,8 @@ def main() -> None:
         if wt is not None:
             _q.put(None)                           # sentinel -> writer drains + exits
             wt.join(timeout=5)
-        ads.stop_close_all()
+        if ads is not None:
+            ads.stop_close_all()
         print(f"\nstopped. wrote to {DATADIR}")
 
 
