@@ -2,6 +2,44 @@
 
 _Last updated: 2026-08-26 (UTC)_
 
+## 🖥️ DASHBOARD, DAY TWO (2026-08-26 14:00–17:30 UTC)
+
+All on both copies (`./deploy.sh public` + `./deploy.sh dashboard`), all pushed.
+
+- **The torn drum, third time, correctly diagnosed at last** (68923c7). Charles hit it on
+  a fresh load — in **Safari**, not Chrome. Server side was clean (nginx byte counts
+  match every render, no restarts, Cloudflare delivers whole files), so the transfer
+  is being cut between Cloudflare and the browser, and Safari paints a PNG
+  progressively as bytes arrive. Fix: **every dynamic image reload is double-buffered**
+  — fetch into an off-screen `Image`, swap the visible one only on `load`, keep the old
+  one on error. Applies to the 60 s drum timer, the 30 min spectrum timer, the bfcache
+  restore, tab-visible, and image-error paths (`BFCACHE_JS`, `window.seismoReload`).
+  A bad transfer now costs staleness, never a broken picture. The two earlier fixes
+  (render lock ece96b8, bfcache reload 9596650) were real but were not this.
+- **About page is copy-aware** (31bfd54): `{serves}` placeholder — public copy says the
+  Pi 5 pushes the charts, outbound only, to a cloud host; LAN copy says it serves the
+  page. Also mentions the C reader.
+- **"What does a real earthquake look like?"** (13160b5 → 42a6f5a). Charles's screenshot
+  of the 2026-07-29 drum (`doc/20260729 Cloverdale M4-2.png`; web crop
+  `dashboard/catches/drum-2026-07-29-cloverdale-m4.2.png`, 61 KB) sits under every drum
+  (Live, History) inside a `<details>` whose summary is now a **full-width button:
+  "Click here to see what a REAL earthquake looks like on this drum"**, and expanded in
+  the Learn helicorder walkthrough. Shown at **50 % width, centred, captioned "a saved
+  image … not live"** so nobody mistakes it for the live drum. Text: three rows each way
+  (the clip is deliberate), ~80 s taper, felt in Santa Rosa as a jolt; the 03:45 blip is
+  the M2.2 aftershock — what a felt-by-nobody quake looks like.
+- **Weekly activity view unlocked** at 15:30 UTC (14.0 days since the 08-12 move).
+  Monday-first is Python's ISO `weekday()`, kept on purpose: Saturday night bleeds into
+  Sunday and the two should be adjacent rows. Exponentially-weighted median for this
+  view is on the BACKLOG (797bf4f), revisit ~November.
+- **Distance to Route 12: 92 m across open ground, and 13 m below the garage** (421 ft vs
+  377 ft, ~8° slope) — from Charles's map. Fixes the traffic-envelope arithmetic (~4 s
+  per pass), makes the open strip the hammer-refraction line, and frames the site as
+  hillside flank vs valley fill for the site-response question. In memory.
+- **Deploy note:** the pi5 `./deploy.sh dashboard` grep for "Application deployed"
+  sometimes reports 0 while the deploy succeeded (its output differs); check
+  `DEPLOYED_SHA` / `dokku apps:report` rather than trusting the count.
+
 ## 🖥️ DASHBOARD EVENING — catches, public trims, a render race (2026-08-26 03:30–06:30 UTC)
 
 All on both copies (`./deploy.sh dashboard` + `./deploy.sh public`), all pushed.
