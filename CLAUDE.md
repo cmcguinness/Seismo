@@ -8,8 +8,9 @@ A DIY Raspberry Pi seismometer — a *sensitivity-first* (not precision-first) i
 
 **Current state (as of 2026-08-26):** the station has been **recording 24/7 since
 2026-07-20**, with 28 catalog-confirmed earthquakes (validated to 89 km) and two
-dashboards. **Read `STATUS.md` first** — newest entries at the top — for what changed
-lately and what is owed. `BACKLOG.md` holds deferred work; `specification.md` is the
+dashboards. **Read `STATUS.md` first** — its *Current system* section is the resume point, then
+recent entries newest-first; everything before 2026-08-20 is verbatim in
+`STATUS-ARCHIVE.md` (indexed at the bottom of STATUS.md). `BACKLOG.md` holds deferred work; `specification.md` is the
 original design with the alternatives already rejected.
 
 ## Where the code runs (three hosts, one repo)
