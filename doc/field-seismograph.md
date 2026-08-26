@@ -20,7 +20,7 @@ the same ADC clock — so the rig needs no Wi-Fi, no NTP and no RTC in the field
 
 | addition | choice | why |
 |---|---|---|
-| **microSD logger** | Adafruit MicroSD breakout+ (#254) on SPI, or the T-Display-S3's own SD pads if the board revision has them | the whole point: press, whack, carry the card home. FAT32, one file per record session |
+| **storage** | **v1: the T-Display-S3's own 16 MB flash** as a LittleFS partition (~12 MB free). Log only a ±0.5 s window per hammer edge (~4 KB/blow; a whole line is ~220 KB), offload over USB serial. **Later, if continuous hours are wanted:** Adafruit MicroSD breakout+ (#254) on SPI (~50 min of raw 1000 sps per 12 MB is the flash's limit) | press, whack, carry it home. No card to lose in the grass; the SD is an upgrade, not a prerequisite. (The T-Display-S3 *Pro* has an SD slot; the plain board does not) |
 | **record button** | 16 mm momentary panel-mount pushbutton (Adafruit 1439–1442 family, any colour in stock) — illuminated, so the LED is the "recording" lamp | one button, two states. Press = new file + LED on; press = close file + LED off |
 | **second ADC channel: hammer switch** | ADS1220 AIN2/AIN3 (it has four inputs); a **piezo disc** (Adafruit #1740) on the strike plate, through a 1 MΩ bleed and 3.3 V clamp diodes | t = 0 for every blow, on the same clock as the geophone. ~1 ms is the pick precision needed; the piezo edge is ~10 µs |
 | **sample rate 1000 sps** | ADS1220 does it; PGA 32 on the geophone channel | a first break 5 m away arrives at ~12 ms. 250 sps cannot pick it; 1000 can |
@@ -57,8 +57,8 @@ Python script is nicer.
 
 | item | link | ~$ |
 |---|---|---|
-| MicroSD breakout+ | https://www.adafruit.com/product/254 | 7.50 |
-| microSD card, 32 GB | any SanDisk/Samsung class-10 from Amazon | 8 |
+| MicroSD breakout+ (*optional, continuous logging only*) | https://www.adafruit.com/product/254 | 7.50 |
+| microSD card, 32 GB (*optional*) | any SanDisk/Samsung class-10 from Amazon | 8 |
 | Piezo disc w/ wires (buy a few) | https://www.adafruit.com/product/1740 | 0.95 ea |
 | 16 mm illuminated momentary pushbutton | https://www.adafruit.com/product/1439 (red; 1440–1442 are the other colours — pick one in stock) | 1.50 |
 | 100 m 22 AWG two-conductor bell wire | Amazon/Home Depot, "22/2 alarm wire 100 m" | 15–20 |
@@ -72,7 +72,7 @@ Already on order (toy BOM): LGT-4.5 geophones, ADS1220, LilyGO T-Display-S3.
 ## Build order
 
 1. Toy breadboard as planned (geophone → ADS1220 → screen).
-2. Add the SD + button; record a minute; read it on the Mac. **This is the milestone.**
+2. Add the button; record a minute to internal flash; read it over USB on the Mac. **This is the milestone.** (SD only if continuous logging is ever wanted.)
 3. Add the piezo on a GPIO; verify one edge per whack in the sidecar.
 4. Spike, cable, plate, hammer — first survey is #0 from STATUS (amplitude vs distance,
    no picking), then the backyard refraction line.
