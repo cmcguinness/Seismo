@@ -154,15 +154,27 @@ def _nav(active):
 BFCACHE_JS = r"""<script>
 (function(){
   var DYN=/\/(helicorder|history|spectrum|activity)\.png/;
-  function bust(im){var s=im.getAttribute('src')||'';if(!DYN.test(s))return;
-    var q=s.indexOf('?')>0?s.slice(s.indexOf('?')+1):'';var b=s.split('?')[0];
+  // Double-buffered reload: fetch into an off-screen Image and swap ONLY when the whole
+  // file has arrived and decoded. Assigning img.src directly makes Chrome paint the PNG
+  // progressively as bytes arrive, so a stalled or aborted transfer leaves a half-drawn
+  // drum on screen (Charles, 2026-08-26, three times). With this, a bad transfer costs
+  // staleness, never a broken picture; the old image stays until a complete one exists.
+  function reload(im){
+    var s=im.getAttribute('src')||''; if(!DYN.test(s)) return;
+    var b=s.split('?')[0]; var q=s.indexOf('?')>0?s.slice(s.indexOf('?')+1):'';
     q=q.split('&').filter(function(kv){return kv&&kv.indexOf('_r=')!==0;}).join('&');
-    im.src=b+'?'+(q?q+'&':'')+'_r='+Date.now();}
-  function fresh(){document.querySelectorAll('img').forEach(bust);}
+    var url=b+'?'+(q?q+'&':'')+'_r='+Date.now();
+    var pre=new Image();
+    pre.onload=function(){ if(pre.naturalWidth>0){ im.src=url; } };
+    pre.onerror=function(){ /* keep the current image; the next tick retries */ };
+    pre.src=url;
+  }
+  window.seismoReload=reload;
+  function fresh(){document.querySelectorAll('img').forEach(reload);}
   window.addEventListener('pageshow',function(e){if(e.persisted)fresh();});
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')fresh();});
   document.querySelectorAll('img').forEach(function(im){
-    im.addEventListener('error',function(){setTimeout(function(){bust(im);},2000);});});
+    im.addEventListener('error',function(){setTimeout(function(){reload(im);},2000);});});
 })();
 </script>"""
 
@@ -337,7 +349,7 @@ async function live(){
   setTimeout(live,300);
 }
 live();
-setInterval(()=>{document.getElementById('heli').src='/helicorder.png?'+Date.now();},60000);
+setInterval(()=>{window.seismoReload(document.getElementById('heli'));},60000);
 </script>"""
 
 
@@ -512,7 +524,7 @@ def sparkline(start: str = ""):
 SPEC_JS = """<script>
 // re-fetch once per 30-min cache window (bucketed param aligns with the server TTL,
 // so it hits the cache rather than forcing a fresh ~30 s render)
-setInterval(()=>{document.getElementById('spec').src='/spectrum.png?'+Math.floor(Date.now()/1800000);},1800000);
+setInterval(()=>{window.seismoReload(document.getElementById('spec'));},1800000);
 </script>"""
 
 
