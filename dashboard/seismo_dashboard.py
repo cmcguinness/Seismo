@@ -680,6 +680,14 @@ def station_photo():
 def spectrum():
     # Memoized with a 30-min TTL (render.spectrum_png_cached): the ~30 s Welch
     # render runs at most once per half hour, so bouncing around never re-triggers it.
+    if _PUBLIC_COPY:
+        # No miniSEED here to Welch: pi5 renders the spectrum and pushes the PNG with
+        # the rest of the feed (seismo-public-sync.sh), so serve that file.
+        try:
+            with open("/data/spectrum.png", "rb") as f:
+                return Response(f.read(), media_type="image/png", headers=SPEC_CACHE)
+        except OSError:
+            return Response("no data", status_code=503)
     png = render.spectrum_png_cached()
     return Response(png, media_type="image/png", headers=SPEC_CACHE) if png \
         else Response("no data", status_code=503)
