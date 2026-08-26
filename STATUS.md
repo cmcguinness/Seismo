@@ -54,6 +54,15 @@ archive log as the public `events.log`. The pi5 detector's log is the canonical
 detections list everywhere now, as rev2 intended. The station's own log still feeds
 its health/QC and stays in `seismo-data/events.log`.
 
+**Alert (2026-08-26 19:43 UTC, 5d01664):** the detector pushes to ntfy (`seismo-alerts`,
+same server/token as dc_watch, from `/etc/seismo/ntfy.env` root:charles 640 via
+`EnvironmentFile` in the unit) when **p_quake ≥ 0.7** — title "Probable earthquake
+p=…", body with time/ratio/peak, click-through to the History drum for that hour;
+**at most one push per 5 min** so an aftershock cluster is one notification.
+`detector.py --test-alert` sends a TEST push (sent once at 19:43 UTC). Near-duplicate
+triggers (same burst re-detected across polls, start shifted 1–2 s; 6,995 pairs in the
+log) are now deduped by ±3 s proximity in the detector and collapsed on the page.
+
 Retrain when: the harvest CSV is refreshed with new confirmed events
 (`harvest_events.py` → `trigger_dataset.py` → `trigger_train.py` → `deploy.sh services`).
 
