@@ -146,8 +146,7 @@ its first emitted sample (a timestamp queue rides alongside the despiker's looka
 three minutes before the restart. Day-file after the cutover: **one contiguous 600 s
 trace, zero gaps** (before: 185 traces in 30 min, 18.3 ms median gap). Raw DC identical
 (323.9k counts). Noise: event-robust 1–15 Hz RMS 3.51 → 3.40 µV, band ratios 0.9–1.2 in
-a busy afternoon, no persistent new line on a 10-min median — **a quiet-night PSD
-comparison is still owed** before calling the floor unchanged. pi5 collector still
+a busy afternoon; the quiet-night comparison is below — **floor unchanged**. pi5 collector still
 receiving (archive mtime live). Epoch row added (`timing`, `glitch`).
 
 ⚠️ Nothing else may open the ADC while the service runs — `adc_diag.py`, `capture_raw.py`
@@ -155,6 +154,40 @@ etc. must `systemctl stop seismo-recorder` first (that was already true, but pig
 running no longer means the chip is free). Acceptance test for any future change:
 `/tmp/drdy_meas.py`-style passive DRDY intervals → the 20 ms bin must read 0 and
 agree with `lost`.
+
+### 🌙 Quiet-night comparison: floor unchanged, one instrumental line halved (2026-08-26 12:10 UTC)
+
+`analysis/night_compare.py 237 238` — 07:00–12:00 UTC (00:00–05:00 PDT), last pigpio
+night vs first C-reader night. Yardstick from two ordinary pigpio nights (236 vs 237):
+bands 0.88–1.01, robust RMS 0.89 → 0.78 µV, a ~23 Hz line wandering ×2.8.
+
+| band | before | after | ratio |
+|---|---|---|---|
+| 1–3 Hz | 0.604 | 0.604 µV | 1.00 |
+| 3–8 | 0.438 | 0.440 | 1.00 |
+| 8–15 | 0.535 | 0.579 | 1.08 |
+| 15–30 | 0.512 | 0.498 | 0.97 |
+| 30–45 | 0.729 | 0.473 | **0.65** |
+
+Robust 1–15 Hz RMS 0.78 → 0.85 µV (×1.09; night-to-night scatter is ×0.88–1.14).
+**The quake band is untouched.** The 1.05 Hz intrinsic line is identical (2.83 µV/√Hz
+both nights). What changed is above 30 Hz: the **41.3 Hz instrumental line lost half
+its amplitude** (0.87 → 0.38 µV/√Hz, power ×0.19) and the **40.0 Hz line (the 60 Hz mains
+alias) doubled** (0.32 → 0.61) — net 30–45 Hz down 35 %. A weak 19.3 Hz feature (×1.6
+over floor, 0.19 µV/√Hz) is within the nightly-wander class. So the pigpio loop's
+timing was a contributor to the 41 Hz line; the mains alias is now sharper because
+the sample grid is exact. Neither matters below 30 Hz.
+
+**⚠️ The sub-Hz comb did NOT go away — the fragment-gap explanation was wrong.** With
+zero gaps in the archive, jday 238 still shows lines at 0.1 / 0.2 / 0.4 Hz (×7 / ×71 /
+×14 over neighbours at 0.0033 Hz resolution), same as 237. Folding the quiet night on
+the UTC 10 s grid shows a real periodic signal, **~0.1 µV peak-to-peak**, locked to the
+block cadence on both nights — a tick from the recorder's 10 s block work (SD flush,
+health.json, UDP burst) coupling into the front end at the 0.05 µV level. It only
+looks large because the sub-Hz per-bin floor is tiny. Irrelevant to anything in band
+(0.1 µV vs a 0.8 µV floor), and the rule for sub-Hz work is unchanged: divide out the
+time-median PSD (`microseism_relative.py`). The 18 ms gaps were real and are gone;
+they were not the comb's cause. Corrected in memory as well.
 
 ### 🕰️ Then the grid: toss one reading every ~123 s (2026-08-25 20:52 UTC)
 
