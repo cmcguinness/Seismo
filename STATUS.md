@@ -213,7 +213,11 @@ into the slab. The minute-aligned edges are the thermostat's 1-min evaluation ti
 
 Consequences: the 41 Hz line is not hardware and never was; its "halving" in the
 night comparison above was a cooler night; the 19.3 Hz feature is the same machine.
-The 20 Hz (19.95–20.00) line is a different thing and still open. Any future 30–45 Hz
+The 20 Hz line is HVAC too: Charles asked if it was 60/3. Not an alias — a 120 Hz
+fold would sit at 100 − 2·f₄₀ and track the mains drift; measured hour by hour it does
+not (r = +0.2). Per minute it is on 19 % of the day, almost only while the compressor
+runs (P = 0.26 vs 0.04) and only 17–20 PDT, at 19.95–20.05 Hz: an evening high
+fan/blower stage at ~1,200 rpm. **No unexplained lines remain except 1.05 Hz.** Any future 30–45 Hz
 comparison must be done with the AC state known (the 41 Hz ratio is the state).
 
 ### 🕰️ Then the grid: toss one reading every ~123 s (2026-08-25 20:52 UTC)
