@@ -133,7 +133,7 @@ def _nav(active):
         '<span class="navbar-toggler-icon"></span></button>'
         '<div class="collapse navbar-collapse" id="nav"><ul class="navbar-nav ms-auto">'
         + link("/", "Live", "live")
-        + link("/detections", "Detections", "detections")
+        + ("" if _PUBLIC_COPY else link("/detections", "Detections", "detections"))
         + link("/history", "History", "history")
         + link("/activity", "Activity", "activity")
         + link("/spectrum", "Spectrum", "spectrum")
@@ -437,6 +437,10 @@ SPARK_JS = """<script>
 
 @app.get("/detections")
 def detections_page():
+    # Not on the public copy: it is a raw trigger log, mostly cultural noise, and it
+    # reads as a diary of when the house is active. Charles's call, 2026-08-26.
+    if _PUBLIC_COPY:
+        return Response("not found", status_code=404)
     all_evs = _recent_events()                       # newest-first, >=MIN_RATIO, 24 h
     recent = all_evs[:5]                              # 5 most recent
     # "Strongest" = highest STA/LTA ratio, NOT peak amplitude. Amplitude ranks a
@@ -547,6 +551,8 @@ def about():
     ) if _STATION_JPG else ""
     cards = photo + "".join(_card(h, inner.replace("{place}", PLACE))
                             for h, inner in content.ABOUT_SECTIONS)
+    if _PUBLIC_COPY:                                  # no detections page to link to
+        cards = cards.replace('(on their <a href="/detections">own page</a>) ', "")
     body = _titleblock("About this station", f"{SID} &middot; {PLACE}") + \
         f'<div class="row"><div class="col-lg-9">{cards}</div></div>'
     return Response(_shell(f"About — {BRAND}", "about", body),
