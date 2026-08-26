@@ -31,6 +31,11 @@ import usgs_events
 
 DATA = os.environ.get("SEISMO_DATA", "/data/data")
 HELI = os.environ.get("SEISMO_HELI", "/data/heli")
+# SEISMO_HELI_BUILD=0: this instance does not own a miniSEED mirror -- it is a public
+# copy fed by rsync from pi5 (the envelope files, events.log, health.json ...) and must
+# only RENDER what pi5 already banked. Building here would need the 1.2 GB archive
+# shipped up for no gain. Render freshness then keys off the envelope files' mtimes.
+BUILD = os.environ.get("SEISMO_HELI_BUILD", "1") == "1"
 POLL_S = float(os.environ.get("SEISMO_HELI_POLL", "20"))   # how often to check mtime
 # Catalog poll. The USGS summary feed is CDN-cached and refreshes each minute; small
 # events take minutes to hours to be published anyway, so polling faster buys nothing.
@@ -47,7 +52,10 @@ _started = False
 
 
 def _latest_mtime():
-    files = glob.glob(os.path.join(DATA, "*.mseed"))
+    if BUILD:
+        files = glob.glob(os.path.join(DATA, "*.mseed"))
+    else:
+        files = glob.glob(os.path.join(HELI, "heli.*.npz"))
     return max((os.path.getmtime(f) for f in files), default=0.0)
 
 
@@ -102,7 +110,7 @@ def _worker():
     while True:
         try:
             m = _latest_mtime()
-            if m != last:
+            if BUILD and m != last:
                 heli_build.build(DATA, HELI)
                 last = m
         except Exception as e:                 # never let the worker die on one cycle

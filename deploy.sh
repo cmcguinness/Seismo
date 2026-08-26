@@ -10,12 +10,16 @@
 #   ./deploy.sh dashboard   sync + docker build + dokku git:from-image  (restarts the app)
 #   ./deploy.sh services    sync + systemctl restart of the three python services
 #   ./deploy.sh all         both
+#   ./deploy.sh public      the PUBLIC copy of the dashboard on apps02 (same image, fed
+#                           by rsync from pi5, SEISMO_HELI_BUILD=0 -- see STATUS.md
+#                           2026-08-25 "PUBLIC DASHBOARD")
 #
 # Deliberately no --delete on any rsync: ~/seismo-collector holds the shared .venv and
 # ~/seismo-dashboard holds a gitignored .sesskey. Deleting remote extras would break both.
 set -euo pipefail
 
 HOST="${SEISMO_PI5_HOST:-pi5}"          # ssh alias; the FQDN is only needed by dokku git
+PUBLIC_HOST="${SEISMO_PUBLIC_HOST:-root@apps02.mcguinness.ai}"   # public Dokku host
 APP="seismo"
 IMAGE="seismo-dash:latest"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -83,6 +87,21 @@ do_dashboard() {
   stamp '~/seismo-dashboard'
 }
 
+do_public() {
+  # Same Dockerfile, same SHA tag, different host. apps02 is aarch64 like pi5, root
+  # runs docker directly (no sudo), and the build context lives in /root.
+  require_clean
+  say "sync dashboard/ -> $PUBLIC_HOST:~/seismo-dashboard/"
+  rsync -rlv "${RSYNC_EXCLUDES[@]}" dashboard/ "$PUBLIC_HOST":seismo-dashboard/
+  rsync -lv analysis/epochs.py "$PUBLIC_HOST":seismo-dashboard/
+  say "build seismo-dash:$SHA on $PUBLIC_HOST"
+  ssh "$PUBLIC_HOST" "cd ~/seismo-dashboard && docker build --build-arg GIT_SHA='$SHA' -t 'seismo-dash:$SHA' -t $IMAGE ."
+  say "dokku git:from-image $APP seismo-dash:$SHA on $PUBLIC_HOST   (restarts the app)"
+  ssh "$PUBLIC_HOST" "dokku git:from-image $APP 'seismo-dash:$SHA'"
+  ssh "$PUBLIC_HOST" "printf '%s\n' '$SHA$DIRTY' '$(date -u +%Y-%m-%dT%H:%M:%SZ)' > ~/seismo-dashboard/DEPLOYED_SHA"
+  say "public dashboard: $(ssh "$PUBLIC_HOST" "dokku url $APP 2>/dev/null" || true)"
+}
+
 do_services() {
   require_clean
   say "sync server/ -> $HOST"
@@ -103,5 +122,6 @@ case "${1:-status}" in
   dashboard) do_dashboard; do_status ;;
   services)  do_services;  do_status ;;
   all)       do_services;  do_dashboard; do_status ;;
-  *) echo "usage: $0 {status|dashboard|services|all}" >&2; exit 2 ;;
+  public)    do_public ;;
+  *) echo "usage: $0 {status|dashboard|services|all|public}" >&2; exit 2 ;;
 esac

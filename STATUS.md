@@ -2,6 +2,37 @@
 
 _Last updated: 2026-08-25 (UTC)_
 
+## 🌐 PUBLIC DASHBOARD LIVE: https://seismo.apps02.mcguinness.ai (2026-08-26 02:20 UTC)
+
+Charles: make the data more useful without hacking exposure. Principle: **the house
+only pushes outward**; nothing on the internet can open a connection to the LAN.
+
+- **Same image, second host.** `./deploy.sh public` rsyncs `dashboard/` + `epochs.py` to
+  `root@apps02`, builds `seismo-dash:<sha>` there (apps02 is aarch64 like pi5), and
+  `dokku git:from-image seismo`. Dokku app `seismo`, storage
+  `/var/lib/dokku/data/storage/seismo:/data`, ports 80/443 → 5000, Let's Encrypt (a
+  public host, so ACME works). Config: `SEISMO_HELI_BUILD=0`, no ntfy vars (dc_watch
+  logs only — no duplicate alarms).
+- **`SEISMO_HELI_BUILD=0`** (`heli_service.py`): the public copy does not own a miniSEED
+  mirror and must only render what pi5 banked; render freshness keys off the envelope
+  files' mtimes instead of the archive's.
+- **Feed from pi5, two cadences.** `~/seismo-public-sync.sh` (cron, every minute,
+  flock): `heli/ env/ events.log health.json dc_watch.json signatures.json` (272 MB once,
+  KBs after). `seismo-public-live.service`: the 30 s live ring every 3 s over one
+  persistent SSH master (~4 KB/s). Both through `~/.ssh/seismo_sync_ed25519`.
+- **The key can only rsync.** On apps02 the user `seismo-sync`'s `authorized_keys` entry
+  is `command="/usr/bin/rrsync /var/lib/dokku/data/storage/seismo",restrict` — it can
+  write files into that directory and do nothing else; pi5 never accepts connections.
+- **Verified in Chrome:** Live (2.6 s behind), History drum, Detections, Activity,
+  Spectrum, Environment, Learn, About all render over HTTPS.
+
+The activity heatmap is **traffic, not the household**: sharp weekday 06–07 onset,
+loudest cells at the 16–18 commute, Saturday quiet until 09–10, Sunday quiet until 11
+then loud all afternoon (wine-country return traffic on 12). Safe to publish.
+
+⚠️ The pi5 dashboard is untouched; apps02 is a second consumer of the same files.
+`./deploy.sh dashboard` and `./deploy.sh public` are separate steps — deploy both.
+
 ## ✅ C READER LIVE: the ADS1256 is owned by `station/adsreader` (2026-08-25 19:46 UTC)
 
 Charles: "Let's build the C reader." ~1 hour, as he said it would be.
