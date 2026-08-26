@@ -14,6 +14,13 @@
 #                           by rsync from pi5, SEISMO_HELI_BUILD=0 -- see STATUS.md
 #                           2026-08-25 "PUBLIC DASHBOARD")
 #
+# Every ssh here is `ssh -n`. Without it ssh inherits the script's stdin and reads it
+# to EOF -- when bash is reading the script from that same stream, the remainder of
+# the file is swallowed and bash dies on whatever half-line it is left holding
+# ("deploy.sh: line 139: unexpected EOF while looking for matching", seen on a
+# `public` deploy 2026-08-26, AFTER the app had already shipped). None of these
+# remote commands want stdin.
+#
 # Deliberately no --delete on any rsync: ~/seismo-collector holds the shared .venv and
 # ~/seismo-dashboard holds a gitignored .sesskey. Deleting remote extras would break both.
 set -euo pipefail
@@ -43,14 +50,14 @@ require_clean() {
 }
 
 stamp() {   # stamp <remote-dir> — record what was deployed, so drift is visible later
-  ssh "$HOST" "printf '%s\n' '$SHA$DIRTY' '$(date -u +%Y-%m-%dT%H:%M:%SZ)' > $1/DEPLOYED_SHA"
+  ssh -n "$HOST" "printf '%s\n' '$SHA$DIRTY' '$(date -u +%Y-%m-%dT%H:%M:%SZ)' > $1/DEPLOYED_SHA"
 }
 
 do_status() {
   say "local HEAD: $SHA$DIRTY"
   for d in seismo-dashboard seismo-server seismo-collector; do
     printf '  %-20s ' "$d"
-    ssh "$HOST" "cat ~/$d/DEPLOYED_SHA 2>/dev/null | tr '\n' ' '" || true
+    ssh -n "$HOST" "cat ~/$d/DEPLOYED_SHA 2>/dev/null | tr '\n' ' '" || true
     echo
   done
   # -c: compare by CHECKSUM, not size+mtime. mtimes drift constantly (a file copy
@@ -65,7 +72,7 @@ do_status() {
   rsync -inc analysis/models/trigger_gbm.joblib "$HOST":seismo-collector/ | sed 's/^/  collector  /'
   echo
   say "dokku image currently deployed"
-  ssh "$HOST" "dokku apps:report $APP 2>/dev/null | grep -i 'deploy source metadata'"
+  ssh -n "$HOST" "dokku apps:report $APP 2>/dev/null | grep -i 'deploy source metadata'"
 }
 
 do_dashboard() {
@@ -82,9 +89,9 @@ do_dashboard() {
   # build reports success (hit 2026-08-12). A per-commit tag always looks new.
   say "build $IMAGE + seismo-dash:$SHA on $HOST"
   # sudo: charles is not in the docker group on pi5.
-  ssh "$HOST" "cd ~/seismo-dashboard && sudo docker build --build-arg GIT_SHA='$SHA' -t 'seismo-dash:$SHA' -t $IMAGE ."
+  ssh -n "$HOST" "cd ~/seismo-dashboard && sudo docker build --build-arg GIT_SHA='$SHA' -t 'seismo-dash:$SHA' -t $IMAGE ."
   say "dokku git:from-image $APP seismo-dash:$SHA   (this restarts the app)"
-  ssh "$HOST" "dokku git:from-image $APP 'seismo-dash:$SHA'"
+  ssh -n "$HOST" "dokku git:from-image $APP 'seismo-dash:$SHA'"
   stamp '~/seismo-dashboard'
 }
 
@@ -96,11 +103,11 @@ do_public() {
   rsync -rlv "${RSYNC_EXCLUDES[@]}" dashboard/ "$PUBLIC_HOST":seismo-dashboard/
   rsync -lv analysis/epochs.py "$PUBLIC_HOST":seismo-dashboard/
   say "build seismo-dash:$SHA on $PUBLIC_HOST"
-  ssh "$PUBLIC_HOST" "cd ~/seismo-dashboard && docker build --build-arg GIT_SHA='$SHA' -t 'seismo-dash:$SHA' -t $IMAGE ."
+  ssh -n "$PUBLIC_HOST" "cd ~/seismo-dashboard && docker build --build-arg GIT_SHA='$SHA' -t 'seismo-dash:$SHA' -t $IMAGE ."
   say "dokku git:from-image $APP seismo-dash:$SHA on $PUBLIC_HOST   (restarts the app)"
-  ssh "$PUBLIC_HOST" "dokku git:from-image $APP 'seismo-dash:$SHA'"
-  ssh "$PUBLIC_HOST" "printf '%s\n' '$SHA$DIRTY' '$(date -u +%Y-%m-%dT%H:%M:%SZ)' > ~/seismo-dashboard/DEPLOYED_SHA"
-  say "public dashboard: $(ssh "$PUBLIC_HOST" "dokku url $APP 2>/dev/null" || true)"
+  ssh -n "$PUBLIC_HOST" "dokku git:from-image $APP 'seismo-dash:$SHA'"
+  ssh -n "$PUBLIC_HOST" "printf '%s\n' '$SHA$DIRTY' '$(date -u +%Y-%m-%dT%H:%M:%SZ)' > ~/seismo-dashboard/DEPLOYED_SHA"
+  say "public dashboard: $(ssh -n "$PUBLIC_HOST" "dokku url $APP 2>/dev/null" || true)"
 }
 
 do_services() {
@@ -114,9 +121,9 @@ do_services() {
   # pushed here -- Charles, 2026-08-26. No training on pi5.
   rsync -lv analysis/models/trigger_gbm.joblib "$HOST":seismo-collector/
   say "restart services"
-  ssh "$HOST" "sudo systemctl restart seismo-server seismo-collector seismo-detector"
+  ssh -n "$HOST" "sudo systemctl restart seismo-server seismo-collector seismo-detector"
   sleep 3
-  ssh "$HOST" "systemctl is-active seismo-server seismo-collector seismo-detector"
+  ssh -n "$HOST" "systemctl is-active seismo-server seismo-collector seismo-detector"
   stamp '~/seismo-server'
   stamp '~/seismo-collector'
 }
