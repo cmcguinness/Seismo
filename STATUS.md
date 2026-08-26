@@ -44,6 +44,16 @@ services` ships the model with the collector files — **training stays on the M
 First scored trigger: 18:59:24 UTC, ratio 11.4, hf_lf 1.03 (the rule says seismic),
 **p_quake 0.001**. That is the whole point.
 
+⚠️ **Found while checking the page:** the dashboard was reading the STATION's trigger
+log (`seismo-rsync.service` still copies `seismo.local:seismo/events.log` into
+`seismo-data/`), not the pi5 detector's — two parallel STA/LTA logs, same thresholds,
+only one scored. Fixed as host state on pi5, no code: `dokku storage:mount seismo
+/home/charles/seismo-archive:/archive`, `SEISMO_EVENTS=/archive/events.log`
+(the `seismo-server` API already used that log); `seismo-public-sync.sh` now ships the
+archive log as the public `events.log`. The pi5 detector's log is the canonical
+detections list everywhere now, as rev2 intended. The station's own log still feeds
+its health/QC and stays in `seismo-data/events.log`.
+
 Retrain when: the harvest CSV is refreshed with new confirmed events
 (`harvest_events.py` → `trigger_dataset.py` → `trigger_train.py` → `deploy.sh services`).
 
