@@ -8,6 +8,11 @@ It is a *toy* in the sense that it makes no scientific claim, not in the sense t
 is fake: the sensor and the front end are the same class of parts as the real station,
 and it will comfortably see a person walking across the room.
 
+> **Field variant.** The same board with a microSD logger, a record button and a hammer-switch
+> input is the survey instrument for the refraction work: see
+> [field-seismograph.md](field-seismograph.md). This document stays the gift; that one is
+> the delta.
+
 ## What the recipient will actually see, and why it must be a geophone
 
 This decides the whole design, and OAKMT's own labelled data settles it. A footstep
