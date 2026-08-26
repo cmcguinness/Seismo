@@ -1,6 +1,6 @@
 # Rev-2 data plane — station ↔ pi5 streaming + the server split
 
-**Status: DESIGN COMPLETE / build not started.** This is the agreed architecture for
+**Status (2026-08-26): BUILT — UDP collector, pi5 detector (now with the trigger classifier), server façade, dashboards on pi5 and apps02 — except SeedLink, which is still on the BACKLOG. The text below is the design as agreed on 2026-07-25.** Original status line: DESIGN COMPLETE / build not started. This is the agreed architecture for
 how seismic data leaves the station and reaches downstream apps in rev-2. It supersedes
 the current rsync-mirror plumbing. Built so far: only the read-side of the server module
 (`server/`, a draft façade — see §12). The **Phase-1 design pass is done** — all §14

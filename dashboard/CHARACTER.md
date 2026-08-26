@@ -52,10 +52,10 @@ it is **not** part of the verdict. Spectral flatness was dropped entirely.
 - **Not an earthquake classifier.** A *very local* quake is also impulsive and
   HF-rich; the backlog already flagged this. `impulsive` means "shaped like a
   thump", not "not a quake".
-- **Not calibrated on a positive example.** The station has recorded no confirmed
-  earthquake yet (Phase 5 is open), so the positive class is entirely
-  uncalibrated — only the cultural class is measured. Thresholds are provisional
-  and should be revisited once a confirmed event exists.
+- **Calibrated since 2026-08-26.** 28 catalog-confirmed events (validated to 89 km) exist
+  and a gradient-boosting trigger classifier trained on them runs in the pi5 detector;
+  its `p_quake` shows beside this column on the Detections page. `character` remains a
+  shape descriptor; `p_quake` is the verdict.
 - **Never a hard drop.** Nothing is filtered out of the table or the log; this is
   a label. The recorder and its trigger are untouched.
 

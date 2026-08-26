@@ -18,9 +18,21 @@ after it become clients of this contract.
   └────────────┘          └──────────────────┘
 ```
 
+## Status (2026-08-26)
+
+The owned data plane is BUILT: the station streams miniSEED records by UDP to
+`udp_collector.py`, which owns `~/seismo-archive/` on pi5; `detector.py` re-runs STA/LTA
+over that archive, dedupes near-duplicate triggers (±3 s), scores each trigger with the
+Mac-trained classifier (`p_quake`, via `trigger_features.py` + `trigger_gbm.joblib`)
+and pushes to ntfy at p ≥ 0.7; this server and the dashboards read the pi5 detector's
+`events.log`, not the station's. The old `seismo-rsync.timer` still mirrors the station's
+`data/`, `events.log`, `health.json` into `~/seismo-data/` for QC and the env node.
+The public dashboard on apps02 is fed outbound from pi5 (see STATUS.md). The rest of this
+file is the original design note and still describes the contract accurately.
+
 ## Why it exists
 
-Today the transport is a **file mirror**: a host-level `seismo-rsync.timer` on the
+At the time of writing the transport was a **file mirror**: a host-level `seismo-rsync.timer` on the
 pi5 pulls `seismo.local:~/seismo/{data,events.log,health.json}` every minute, plus
 a faster pull of the live-ring npz. Every consumer opens those files itself. That
 couples every app to (a) the mirror's directory layout and (b) the fact that data
@@ -39,7 +51,7 @@ touches the mirror; swap the backend there, the contract holds.
 | GET | `/` | this contract, as JSON |
 | GET | `/v1/health` | station acquisition counters (rate, blocks, dropped, glitches, clock_err…) **plus** `mirror_age_s` — so a consumer can tell "station down" from "feed to me stale" |
 | GET | `/v1/live` | rolling 30 s window: `uv` (microvolts, de-meaned), `fs`, `gain`, `pp`, `rms`, `t_end`, `age` |
-| GET | `/v1/events` | detections, newest first. Params: `limit` (default 200), `since` (ISO-8601), `min_ratio`. **Unfiltered by default** — MIN_RATIO/WINDOW_H are display policy and belong to the consumer |
+| GET | `/v1/events` | detections, newest first. Params: `limit` (default 200), `since` (ISO-8601), `min_ratio`. **Unfiltered by default** — MIN_RATIO/WINDOW_H are display policy and belong to the consumer. Since 2026-08-26 rows with `peak_ratio ≥ 10` carry `p_quake` (0–1, the trigger classifier) |
 | GET | `/v1/waveform` | recorded trace over a window. Params: `start`, `end` (ISO-8601, required), `format=json\|mseed`. `mseed` is the canonical currency (feed to ObsPy/Swarm/anything); `json` gives `{seed_id, fs, t0, counts, uv}` for browsers |
 
 All responses send `Access-Control-Allow-Origin: *`. Read-only — no mutating routes.

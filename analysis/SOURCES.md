@@ -218,3 +218,14 @@ it is re-observed.
    implied RPM — that is the identity. If it says "standing line", the peak belongs
    to the instrument, not the source.
 4. Add a row above.
+
+## Heat-pump AC (identified 2026-08-26)
+
+Pure tones at **41.0 / 40.6 / 37.65 Hz** (compressor, two speeds) and **19.3 Hz** (fan),
+nothing below 15 Hz; on ~65 % of minutes on a hot day, 10–30 min cycles overnight,
+on/off edges ~8–10 s after a minute boundary (the thermostat's 1-min tick). The
+**20.0 Hz** line is the same machine's evening high stage. Outdoor unit on the ground
+by the garage, ground-coupled into the slab. These were the "41 Hz / 19.95 Hz
+instrumental lines" — they are not instrumental. Track per minute with the 41 Hz
+line-to-neighbour power ratio. 40.0 Hz is the 60 Hz mains alias; 1.05 Hz remains the
+one unexplained line.

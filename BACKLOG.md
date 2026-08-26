@@ -593,6 +593,16 @@ standard (the APRS-IS / MQTT-broker analog).
 
 ## ML detection (Jetson Orin Nano)
 
+> **UPDATE 2026-08-26 — largely superseded.** Following Yeck et al. 2020 (`doc/`), the
+> station keeps STA/LTA and classifies its *triggers* instead: a gradient-boosting model
+> trained on the Mac from the station's own catalog (28 confirmed events), deployed in
+> the pi5 detector as `p_quake` with an ntfy push at ≥ 0.7 (STATUS 2026-08-26). No GPU
+> involved — scoring a few triggers a minute is milliseconds on the Pi 5. What remains
+> of this item: a CNN on the same windows once there are ~100 positives (next spring),
+> and SeisBench/EQTransformer only if continuous sub-threshold detection is ever wanted;
+> the Jetson would be an inference box for that, not a requirement.
+
+
 A GPU node (`ssh jetson`) is available for deep-learning seismology — a real
 upgrade over the STA/LTA trigger.
 
@@ -792,6 +802,8 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
     ground motion, and the "bipolar, not phase-locked, survives gap-bridging"
     reasoning that convinced me on 07-21 was insufficient — an intervention beats
     observational inference.
+    **RESOLVED 2026-08-26: the heat-pump AC is a measured, identified source** — see
+    `analysis/SOURCES.md` (41/40.6/37.65/19.3/20 Hz tones, weather-driven duty cycle).
     **CONFOUND (Charles's, and it's a good one): HVAC.** The rate is wildly
     non-stationary on its own — last night, no isolator, it fell 128.6/h (00:14) →
     12.0/h (02:00 local), i.e. ~10× within one night, which is what a duty-cycled

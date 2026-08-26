@@ -39,12 +39,14 @@ want() { grep -q "^$1" <<<"$CHANGED"; }
 
 deployed_any=0
 
-if want "server/"; then
+if want "server/" || want "analysis/models/"; then
   log "server/ changed -> syncing and restarting services"
   # cp, not rsync --delete: ~/seismo-collector holds the shared .venv.
   install -m644 server/seismo_server.py server/store.py "$HOME/seismo-server/"
   install -m644 server/udp_collector.py server/detector.py server/stalta.py \
           "$HOME/seismo-collector/"
+  # the trigger classifier: features + the Mac-trained model (analysis/models/)
+  install -m644 server/trigger_features.py analysis/models/trigger_gbm.joblib "$HOME/seismo-collector/"
   sudo systemctl restart seismo-server seismo-collector seismo-detector
   sleep 3
   if ! systemctl is-active --quiet seismo-server; then

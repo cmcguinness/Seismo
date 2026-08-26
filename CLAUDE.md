@@ -6,7 +6,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A DIY Raspberry Pi seismometer — a *sensitivity-first* (not precision-first) instrument to detect local earthquakes, sited in Oakmont / Santa Rosa, Sonoma County, atop the Rodgers Creek / Maacama fault system.
 
-**Current state (important):** Hardware **bring-up is complete** (2026-07-17) — geophone → ADS1256 → Pi chain validated end to end on real hardware. **Read `STATUS.md` first** for exactly where things stand, the board jumper cheat-sheet, config gotchas, and the next step. The code so far lives **on the Pi** (`seismo.local:~/seismo`), not in this repo — this repo still holds only `specification.md`, `pyproject.toml`, and this doc. Also read `specification.md` end-to-end before writing code; it is the source of truth for every decision made so far and the alternatives already rejected (so they aren't re-tread).
+**Current state (as of 2026-08-26):** the station has been **recording 24/7 since
+2026-07-20**, with 28 catalog-confirmed earthquakes (validated to 89 km) and two
+dashboards. **Read `STATUS.md` first** — newest entries at the top — for what changed
+lately and what is owed. `BACKLOG.md` holds deferred work; `specification.md` is the
+original design with the alternatives already rejected.
+
+## Where the code runs (three hosts, one repo)
+
+| host | what | code |
+|---|---|---|
+| `seismo.local` (Pi 2B, garage) | acquisition only: `station/adsreader/` (C) owns the ADS1256 — DRDY as a kernel interrupt, hardware timestamps — and `station/recorder.py` writes miniSEED day-files on an exact 100 sps grid, despikes, runs the inline STA/LTA, streams records by UDP to pi5 | `station/` — deployed by hand (`scp`), units in `station/*.service` |
+| `pi5` (Pi 5, house, LAN only) | the owned data plane: `server/udp_collector.py` builds the archive, `server/detector.py` re-detects over it and **scores each trigger with the classifier** (`p_quake`, ntfy push at ≥ 0.7), `server/seismo_server.py` serves `/v1/*`; the **LAN dashboard** (Dokku app `seismo`, `dashboard/`) | `server/`, `dashboard/` — **auto-deployed**: pi5 pulls `main` every 2 min (`pi5/autodeploy.sh`); `./deploy.sh` is the manual path |
+| `apps02.mcguinness.ai` (public VPS) | the **public dashboard**, https://seismo.mcguinness.ai — same image, fed **outbound-only** by pi5 (rsync every minute + the live ring every 3 s). Nothing at the house is reachable from the internet | `./deploy.sh public` |
+
+The Mac is for analysis (`analysis/`, obspy venv), CAD (`parts/`), and **training the
+trigger classifier** (`analysis/trigger_train.py` → `analysis/models/`, shipped to pi5
+by deploy). Nothing trains on the Pis.
+
+**Rules of the road:**
+- Only one process may own the ADS1256. Stop `seismo-recorder` before any ADC tool.
+- `deploy.sh` refuses a dirty tree; commit first. Dashboard changes need BOTH
+  `./deploy.sh dashboard` and `./deploy.sh public` (autodeploy covers pi5 only).
+- Every hardware/siting/timing change gets a row in `analysis/epochs.py` the same day.
+- The 41 / 40.6 / 37.65 / 19.3 / 20 Hz spectral lines are the house's heat-pump AC, not
+  the electronics; 40.0 Hz is the 60 Hz mains alias. Only 1.05 Hz is unexplained.
 
 ## Hardware the software will target
 
@@ -14,14 +38,19 @@ A DIY Raspberry Pi seismometer — a *sensitivity-first* (not precision-first) i
 - **ADC:** Waveshare High-Precision AD/DA Board — **ADS1256**, 8-channel 24-bit ADC, 40-pin header, SPI. This board sets the noise floor; it's the component sensitivity depends on. A bare "ADS1256 breakout" is a *different* board with a different pinout — do not assume compatibility.
 - **Compute:** Raspberry Pi **2B** (32-bit ARMv7), Bookworm Lite 32-bit, `seismo.local`, USB Wi-Fi dongle. 40-pin GPIO, SPI.
 
-## Software plan (not yet started — from `specification.md` §4)
+## Software notes
 
-- **Seismograph stack:** `will127534/RaspberryPi-seismograph` (and the Seisberry / Erellaz fork) — drives this exact Waveshare board, outputs local web view and/or miniSEED. *Repo currency not yet verified.*
-- **ADS1256 driver:** `ul-gh/PiPyADC` (Python).
-- **GPIO backend:** PiPyADC uses the **pigpio** backend, which works fine on the **Pi 2B**. (The spec's "Pi 5 → only `lgpio`" warning was Pi-5-specific and does **not** apply here.)
-- **Since 2026-08-25 the running station reads the ADC through `station/adsreader/` (C, spidev + GPIO uAPI interrupts) with `SEISMO_READER=c`;** pigpio/PiPyADC remain for the diagnostic tools and the fallback path. Only one process may own the ADS1256 — stop `seismo-recorder` before running any ADC tool.
-- **Sampling rate:** seismology runs at **100–250 sps** (Raspberry Shake = 100 sps). The ADS1256's 30 ksps spec and its known SPI-timing noise above ~2 kHz are irrelevant — this station operates two orders of magnitude below where trouble starts.
-- **Prefer the existing seismograph stack / PiPyADC over rolling a custom ADC read loop.**
+- **Sampling:** 100 sps, PGA 64, one vertical channel (`XX.OAKMT.00.SHZ`; a real FDSN
+  network code is pending with ISC). The ADS1256's crystal runs ~80–90 ppm fast; the
+  recorder tosses one sample every ~2 min to hold an exact 100 sps grid (±7.5 ms).
+- **ADC access:** `station/adsreader/adsreader.c` via spidev + GPIO uAPI (no pigpio in
+  the hot path). `pigpio`/`PiPyADC` remain for the diagnostic tools and the fallback
+  reader (`SEISMO_READER=pigpio`).
+- **Calibration:** ~3.2× quieter than the 28.8 V/(m/s) nameplate (`refstation.py`
+  against USGS NP.1835, 1.6 km away); Vp 5.19 km/s measured from local events.
+- **Detection:** STA/LTA on the station AND on pi5 (the pi5 log is canonical); the
+  gradient-boosting trigger classifier (`server/trigger_features.py` defines the
+  features; retrain with `harvest_events.py` → `trigger_dataset.py` → `trigger_train.py`).
 
 ## Bring-up order (isolates ADC faults from geophone faults — §6)
 
@@ -62,4 +91,4 @@ The 3D-printed enclosure is modeled with **build123d** (not CadQuery/OpenSCAD). 
 - Python **3.13+** (see `pyproject.toml`). A project `.venv` exists (uv-managed) and is auto-activated by direnv.
 - **direnv is configured** (`.envrc`). Run environment-sensitive commands through `direnv exec .` — it sets the `cmcguinness` gh account (`GH_TOKEN`), the commit identity (`charles@mcguinness.us`), `CLAUDE_CONFIG_DIR`, and the venv `PATH`. The Bash tool does not fire the direnv hook on its own.
 - **Git:** repo initialized; pushes to the `cmcguinness` GitHub account (private repo `Seismo`). Run git/gh through `direnv exec .` so the right account (`GH_TOKEN`) and commit identity (`charles@mcguinness.us`) apply — the Bash tool doesn't fire the direnv hook.
-- Much of the Pi software only runs on the target Pi (SPI, pigpio, the ADS1256) and can't be exercised on this macOS dev machine. The **enclosure CAD**, by contrast, is developed here (build123d).
+- `station/` only runs on the target Pi (SPI, the ADS1256); `server/` and `dashboard/` run on pi5/apps02 but import cleanly here; `analysis/` and the CAD run on the Mac. Day-files for analysis are pulled into `analysis/data/` (gitignored) by `eventcheck.py`/`scp`.

@@ -8,6 +8,16 @@ generated from the archive by [`analysis/quake_share.py`](../analysis/quake_shar
 name is `eq_*.png`, which is gitignored (scratch outputs) — so a curated example
 kept here gets a descriptive name and is committed.
 
+## Detection range map
+
+![detection range](detection-range-map.png)
+
+`analysis/detection_map.py`, calibrated from `analysis/event_harvest.csv`. Refreshed
+2026-08-26 from a re-harvest through 08-26: **28 confirmed events, validated to 89 km**
+(the M3.8 San Leandro), site deficit −0.24 dex. Re-run the harvester and then the map
+whenever new catches land; the public **Catches** page (`dashboard/catches/`) carries
+the same render plus per-event share images made with `quake_share.py`.
+
 ## Earthquakes
 
 ### 2026-07-25 — M2.5, 3 km E of St. Helena, CA · **first confirmed event**

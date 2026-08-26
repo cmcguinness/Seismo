@@ -10,7 +10,7 @@ indistinguishable from a hook for this project.
 | repo path | pi5 path | service |
 |---|---|---|
 | `server/seismo_server.py`, `store.py` | `~/seismo-server/` | `seismo-server` |
-| `server/udp_collector.py`, `detector.py`, `stalta.py` | `~/seismo-collector/` | `seismo-collector`, `seismo-detector` |
+| `server/udp_collector.py`, `detector.py`, `stalta.py`, `trigger_features.py` + `analysis/models/trigger_gbm.joblib` | `~/seismo-collector/` | `seismo-collector`, `seismo-detector` |
 | `dashboard/**` | `~/seismo-dashboard/` | Dokku app `seismo`, via `seismo-dash:latest` |
 
 ## Install (once)
@@ -45,5 +45,10 @@ escape hatch if autodeploy is wedged.
   to `/tmp/seismo-build.log`.
 - **No `--delete` on any sync.** `~/seismo-collector` holds the shared `.venv` and
   `~/seismo-dashboard` a gitignored `.sesskey`.
+- **Host state that is NOT in the repo** (2026-08-26): the Dokku app has a second mount
+  `/home/charles/seismo-archive:/archive` and `SEISMO_EVENTS=/archive/events.log` (the
+  dashboard reads the pi5 detector's log); `/etc/seismo/ntfy.env` (root:charles 640)
+  holds the ntfy URL/topic/token for the detector's push; scikit-learn + joblib are
+  installed in `~/seismo-collector/.venv`. Rebuilding pi5 means redoing those three.
 - The image records its commit as `SEISMO_BUILD_SHA` (`docker image inspect`), because
   Dokku's `GIT_REV` is not populated by `from-image` deploys.

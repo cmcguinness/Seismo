@@ -14,7 +14,7 @@ with *new data*, computed **once**. That's what this does.
 ## Pipeline
 
 ```
-mirrored miniSEED (/data/data, rsync'd every 60 s)
+the UDP-collector archive on pi5 (/data/data; the public copy has no miniSEED and only renders envelopes pi5 pushes to it)
         │
         ▼  heli_build.py   (obspy ingest — INGEST half, backend)
    /data/heli/heli.YYYY.JJJ.HHMM.npz     one per 15-min interval
