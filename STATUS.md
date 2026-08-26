@@ -26,7 +26,18 @@ All on both copies (`./deploy.sh dashboard` + `./deploy.sh public`), all pushed.
 - **Thunder sentence** (fe08d12): the S–P and thunder gaps are now stated the same way
   round (5 s/mile vs 0.2 s/mile; a second of gap ≈ 7 km at this station's Vp/Vs).
 
-### 🐛 A half-drawn helicorder = two matplotlib renders at once (ece96b8)
+### 🐛 A half-drawn helicorder — actually a HALF-DOWNLOADED one (9596650, 454662d)
+
+Second occurrence the next morning made the real cause obvious: the image is cut
+mid-row with the header intact — a PNG that stopped decoding partway. Navigating away
+cancels the in-flight image download; "back" restores the page from the browser's
+bfcache with the half-decoded bitmap still in the `<img>`; the drum's 60 s refresh
+timer would eventually replace it. Fix: `BFCACHE_JS` in `_shell` re-requests the
+dynamic renders (helicorder, history, spectrum, activity — never the static catch
+images) on `pageshow` with `persisted`, on a tab becoming visible, and 2 s after an
+image error. The render lock below was a real bug too, just not this one.
+
+### 🐛 (and) two matplotlib renders at once (ece96b8)
 
 Charles hit a drum with rows 04:30–06:00 blank under a "data to 06:06" header; refresh
 fixed it. Not Cloudflare (`/helicorder.png` is `no-store`; "back" shows the browser's
