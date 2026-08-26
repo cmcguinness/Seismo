@@ -15,8 +15,17 @@ import datetime
 import glob
 import io
 import os
+import threading
 
 import numpy as np
+
+# One lock for EVERY matplotlib render in this process (helicorder, history, spectrum,
+# activity). pyplot's figure registry is not thread-safe, and the helicorder refresh
+# runs in a background thread while /history.png renders in request threads: two
+# overlapping renders produced a drum with half its rows missing (2026-08-26 06:06 UTC,
+# seen by Charles; refresh fixed it). The figures below also use the object API
+# (Figure + FigureCanvasAgg) so no pyplot global state is touched at all.
+MPL_LOCK = threading.Lock()
 
 HELI = os.environ.get("SEISMO_HELI", "/data/heli")
 STATION = os.environ.get("SEISMO_STATION", "OAKMT")
@@ -128,6 +137,12 @@ def _blank_row(t0, npix):
 
 def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
                    t_start=None, hours=None):
+    """Thread-safe entry point: see MPL_LOCK."""
+    with MPL_LOCK:
+        return _helicorder_png(heli_dir, station_id, place, t_start, hours)
+
+
+def _helicorder_png(heli_dir, station_id, place, t_start, hours):
     """Drum PNG bytes for a time window, or None if it holds no data at all.
 
     t_start=None  -> the LIVE view: the newest `hours` worth of intervals on disk.
@@ -154,9 +169,8 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
         historical = True
     if not rows:
         return None
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
     from matplotlib.collections import LineCollection
 
     n = len(rows)
@@ -205,7 +219,8 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
                 colors.append(row_color)
         n_cultural += int(cultural[good].sum())
 
-    fig = plt.figure(figsize=(IMG_W / 100, IMG_H / 100), dpi=100)
+    fig = Figure(figsize=(IMG_W / 100, IMG_H / 100), dpi=100)
+    FigureCanvasAgg(fig)
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, IMG_W)
     ax.set_ylim(IMG_H, 0)                          # image coords: y down
@@ -344,7 +359,6 @@ def helicorder_png(heli_dir=HELI, station_id=SID, place=PLACE,
 
     buf = io.BytesIO()
     fig.savefig(buf, format="png")
-    plt.close(fig)
     buf.seek(0)
     return buf.read()
 

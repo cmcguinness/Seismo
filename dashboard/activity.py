@@ -223,13 +223,23 @@ def grid(heli_dir=HELI, mode="days", days=DAYS, now=None):
 
 
 def heatmap_png(heli_dir=HELI, mode="days", days=DAYS, now=None):
+    """Thread-safe entry point: every matplotlib render in this process runs under
+    heli_render.MPL_LOCK (see there)."""
+    import heli_render
+    with heli_render.MPL_LOCK:
+        return _heatmap_png(heli_dir, mode, days, now)
+
+
+def _heatmap_png(heli_dir=HELI, mode="days", days=DAYS, now=None):
     """PNG bytes for the day x hour heatmap, or None if there is nothing to draw."""
     import io
 
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
     from matplotlib.colors import LinearSegmentedColormap, LogNorm
+    import heli_render
 
     got = grid(heli_dir, mode=mode, days=days, now=now)
     if not got or got.get("short"):
@@ -260,7 +270,8 @@ def heatmap_png(heli_dir=HELI, mode="days", days=DAYS, now=None):
     if hi <= lo * 1.5:
         hi = lo * 1.5
 
-    fig = plt.figure(figsize=(IMG_W / 100, IMG_H / 100), dpi=100, facecolor=SURFACE)
+    fig = Figure(figsize=(IMG_W / 100, IMG_H / 100), dpi=100, facecolor=SURFACE)
+    FigureCanvasAgg(fig)
     ax = fig.add_axes([0.085, 0.20, 0.845, 0.75])
     ax.set_facecolor(SURFACE)
     # Cells from BEFORE the last configuration change get a FLAT neutral grey, not a
@@ -358,7 +369,6 @@ def heatmap_png(heli_dir=HELI, mode="days", days=DAYS, now=None):
 
     buf = io.BytesIO()
     fig.savefig(buf, format="png", facecolor=SURFACE)
-    plt.close(fig)
     buf.seek(0)
     return buf.read()
 

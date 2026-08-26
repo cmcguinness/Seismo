@@ -76,6 +76,12 @@ def helicorder_png(hours=8, interval=15):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import heli_render
+    with heli_render.MPL_LOCK:
+        return _dayplot_locked(st, interval, start, plt)
+
+
+def _dayplot_locked(st, interval, start, plt):
     # show_y_UTC_label=False: suppress ObsPy's auto caption ("local time = UTC +
     # HH:MM"), which reflects the *render host's* timezone (irrelevant) — set our own.
     fig = st.plot(type="dayplot", interval=interval,
@@ -91,6 +97,14 @@ def helicorder_png(hours=8, interval=15):
 
 
 def spectrum_png(minutes=60):
+    """Thread-safe entry point: every matplotlib render in this process runs under
+    heli_render.MPL_LOCK (see there)."""
+    import heli_render
+    with heli_render.MPL_LOCK:
+        return _spectrum_png(minutes)
+
+
+def _spectrum_png(minutes=60):
     """Welch ASD (uV/sqrtHz) over the last `minutes`.
 
     The archive is fragmented into hundreds of short segments by sub-second
@@ -103,9 +117,9 @@ def spectrum_png(minutes=60):
     """
     import numpy.ma as ma
     from scipy import signal
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    import heli_render
 
     path = _latest()
     if not path:
@@ -131,7 +145,9 @@ def spectrum_png(minutes=60):
     win_min = x.size / fs / 60
     navg = max(1, int(2 * x.size / nper) - 1)
     tend = tr.stats.endtime
-    fig, ax = plt.subplots(figsize=(14, 7))     # 1400 px at dpi 100; covers the
+    fig = Figure(figsize=(14, 7))                # 1400 px at dpi 100; covers the
+    FigureCanvasAgg(fig)
+    ax = fig.subplots()
     #                                             full-width card without upscaling
     ax.loglog(f[1:], asd[1:], "k", lw=1.0, zorder=5)
     # Floor at 0.05 Hz: below the microseism the 4.5 Hz geophone is ~60 dB down,
@@ -169,7 +185,6 @@ def spectrum_png(minutes=60):
              ha="right", va="bottom", fontsize=7.5, color="#888")
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=100)
-    plt.close(fig)
     buf.seek(0)
     return buf.read()
 
