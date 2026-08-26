@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """seismo_dashboard.py — public seismo dashboard (FastHTML + Bootstrap 5), served on the Dokku host.
 
-Reads the rsync-mirrored miniSEED + events (no ADC, no acquisition here), serves the
+Reads the UDP-streamed miniSEED mirror + events (no ADC, no acquisition here), serves the
 pre-rendered helicorder + cached spectrum, and streams the mirrored live ring. UI is
 Bootstrap 5 (light mode, subtle palette); the route handlers stay thin (build data,
 hand HTML/PNG back) with page markup in module-level template helpers.
@@ -104,10 +104,16 @@ CSS = """<style>
  a{color:var(--accent)}
 </style>"""
 
+# Two copies of this app run from the same image: pi5 on the LAN owns the miniSEED
+# archive (UDP-streamed from the station) and builds the envelopes; the public copy on
+# apps02 (SEISMO_HELI_BUILD=0) renders envelopes pi5 pushes to it every minute.
+_PUBLIC_COPY = os.environ.get("SEISMO_HELI_BUILD", "1") != "1"
 FOOTER = (
     '<footer class="border-top bg-body-tertiary py-3 mt-4"><div class="container text-muted small">'
-    'rendered on the LAN from rsync-mirrored miniSEED &middot; '
-    'built by <a href="https://www.linkedin.com/in/charlesmcguinness/">Charles McGuinness</a>'
+    + ('public copy &middot; data pushed from the station every minute, live trace every 3 s &middot; '
+       if _PUBLIC_COPY else
+       'rendered on the LAN from the station\'s UDP-streamed miniSEED &middot; ')
+    + 'built by <a href="https://www.linkedin.com/in/charlesmcguinness/">Charles McGuinness</a>'
     '</div></footer>'
 )
 
