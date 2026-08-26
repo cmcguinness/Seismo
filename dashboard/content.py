@@ -157,8 +157,10 @@ LEARN_SECTIONS = [
      '<b>counting the seconds between the lightning flash and the thunder</b> and dividing by '
      'five for miles. One event, two signals, different speeds: the gap between their arrivals '
      'grows in proportion to distance, at a rate set only by the <b>difference between the two '
-     'speeds</b>. For light and sound that difference works out to five seconds per mile; for '
-     'P and S waves, about eight kilometres per second of gap. Same law, different numbers.</p>'
+     'speeds</b>. For thunder the gap grows by five seconds for every mile; for P and S waves '
+     'it grows by only a fifth of a second per mile &mdash; a second of gap means roughly seven '
+     'kilometres, using the wave speeds measured at this station &mdash; because seismic waves '
+     'are so much faster than sound. Same law, different numbers.</p>'
      '<p class="mb-0 prose">This is also the honest way to tell a real earthquake from someone '
      'closing a door: a quake shows <b>two arrivals</b> a few seconds apart, then a long tail that '
      'fades slowly (the <i>coda</i>). A door is one thump that stops.</p>'),
