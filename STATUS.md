@@ -33,6 +33,16 @@ then loud all afternoon (wine-country return traffic on 12). Safe to publish.
 ⚠️ The pi5 dashboard is untouched; apps02 is a second consumer of the same files.
 `./deploy.sh dashboard` and `./deploy.sh public` are separate steps — deploy both.
 
+### 🔒 seismo.mcguinness.ai → apps02; the Cloudflare Tunnel into pi5 is gone (2026-08-26 03:21 UTC)
+
+`seismo.mcguinness.ai` used to be a Cloudflare Tunnel (`cloudflared` on pi5, ingress →
+pi5's nginx :80) — a standing path from the internet into the LAN. Charles re-pointed
+the Cloudflare record to `CNAME apps02.mcguinness.ai` (proxied); apps02's cert now
+carries both names; then on pi5 `cloudflared.service` was disabled and tunnel
+`460bf18f…` deleted. **Nothing at home is reachable from the internet any more.** The
+LAN copy stays at http://seismo.pi5.mcguinness.ai; the public one at
+https://seismo.mcguinness.ai (and seismo.apps02.mcguinness.ai).
+
 ## ✅ C READER LIVE: the ADS1256 is owned by `station/adsreader` (2026-08-25 19:46 UTC)
 
 Charles: "Let's build the C reader." ~1 hour, as he said it would be.
