@@ -29,6 +29,9 @@ COPY seismo_dashboard.py render.py heli_build.py heli_render.py heli_service.py 
 COPY dc_watch.py /app/
 # epochs.py is the analysis copy, rsync'd in by deploy.sh -- see activity.py.
 COPY activity.py content.py epochs.py /app/
+# The Catches page: its prose module and the static share images + detection map.
+COPY catches.py /app/
+COPY catches/ /app/catches/
 COPY signatures.json /app/
 COPY station.jpg /app/
 
