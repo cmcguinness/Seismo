@@ -147,26 +147,11 @@ CATCHES = [
     ),
 ]
 
-NOT_CAUGHT = [
-    dict(
-        img="2026-07-25-wyoming-m3.3-not-detected.png",
-        head="M3.3 &middot; Little America, Wyoming &middot; 2026-07-25 &middot; <span class=\"text-muted\">not detected</span>",
-        sub="~1,140 km E",
-        facts=[
-            "The other edge of the envelope. At the predicted regional arrival times the trace "
-            "is at 1&times; its own noise; the two bright bursts on the image are local &mdash; "
-            "broadband to 25&nbsp;Hz, which nothing 1,140&nbsp;km away can deliver.",
-            "Together with an M3.4 at 348&nbsp;km (Toms Place, 2026-07-30) that was also looked "
-            "for and not seen, this is what puts the far edge on the map above.",
-        ],
-    ),
-]
 
 
 # Newest first. The image names start with the event date, so the filename IS the sort
 # key -- add a catch anywhere in the list above and it lands in the right place.
 CATCHES.sort(key=lambda c: c["img"], reverse=True)
-NOT_CAUGHT.sort(key=lambda c: c["img"], reverse=True)
 
 
 def image_path(name):

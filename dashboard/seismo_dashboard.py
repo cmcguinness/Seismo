@@ -566,7 +566,6 @@ def catches_page():
                   '<img src="/catches/detection-range-map.png" class="plot" '
                   'alt="Detection range by magnitude">' + catches.MAP_TEXT)
     cards += "".join(_card(c["head"], catches.catch_html(c)) for c in catches.CATCHES)
-    cards += "".join(_card(c["head"], catches.catch_html(c)) for c in catches.NOT_CAUGHT)
     body = _titleblock("Catches", f"earthquakes {SID} has recorded, confirmed by the USGS catalog") + \
         f'<div class="row"><div class="col-lg-9">{catches.INTRO}{cards}</div></div>'
     return Response(_shell(f"Catches — {BRAND}", "catches", body), media_type="text/html")
