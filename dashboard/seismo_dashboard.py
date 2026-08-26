@@ -145,6 +145,28 @@ def _nav(active):
     )
 
 
+# Rendered images reload when a page comes back from the browser's back/forward cache
+# or a hidden tab. Navigating away cancels an in-flight image download, and "back"
+# restores the page WITH the half-decoded PNG still in the <img> (PNGs decode top-down,
+# so the drum shows its first rows and blank below -- Charles, 2026-08-26, twice). The
+# 60 s refresh timer would eventually fix it; this fixes it on the spot. Only the
+# dynamic renders are touched; static catch images and the photo are left alone.
+BFCACHE_JS = """<script>
+(function(){
+  var DYN=/\/(helicorder|history|spectrum|activity)\.png/;
+  function bust(im){var s=im.getAttribute('src')||'';if(!DYN.test(s))return;
+    var q=s.indexOf('?')>0?s.slice(s.indexOf('?')+1):'';var b=s.split('?')[0];
+    q=q.split('&').filter(function(kv){return kv&&kv.indexOf('_r=')!==0;}).join('&');
+    im.src=b+'?'+(q?q+'&':'')+'_r='+Date.now();}
+  function fresh(){document.querySelectorAll('img').forEach(bust);}
+  window.addEventListener('pageshow',function(e){if(e.persisted)fresh();});
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')fresh();});
+  document.querySelectorAll('img').forEach(function(im){
+    im.addEventListener('error',function(){setTimeout(function(){bust(im);},2000);});});
+})();
+</script>"""
+
+
 def _shell(title, active, body, script=""):
     return (
         '<!doctype html><html lang="en" data-bs-theme="light"><head><meta charset="utf-8">'
@@ -152,7 +174,7 @@ def _shell(title, active, body, script=""):
         f'<title>{title}</title>{BOOT}{CSS}</head><body>'
         + _nav(active)
         + '<main class="container py-4">' + body + '</main>'
-        + FOOTER + script + '</body></html>'
+        + FOOTER + script + BFCACHE_JS + '</body></html>'
     )
 
 
