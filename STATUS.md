@@ -34,9 +34,18 @@ triggers less, from the station's own catalog.
   04–07 UTC (08-13 11:43/13:04/13:23/14:24, 08-19 09:23, 08-23 08:04) with hf_lf 0.5–0.7
   — possibly sub-catalog Geysers events, i.e. mislabelled negatives.
 
-**Stage 2 (not done):** `server/detector.py` computes the same features 25 s after each
-trigger with ratio ≥ 10, adds `p_quake` to events.log, Detections page shows it beside
-`hf_lf`. The rule stays. Charles: train here, push the model to pi5 only when built.
+**Stage 2 — DEPLOYED 2026-08-26 18:58 UTC** (2bf614c). `server/trigger_features.py` is
+the single definition of the feature vector (training imports it; parity-checked).
+`server/detector.py` holds a new trigger until its +25 s window exists, scores it
+(ratio ≥ 10 only), writes `p_quake` into events.log; the Detections page (LAN copy —
+the public one has no detections page) shows it as a badge beside `character`. The
+`hf_lf` rule stays. scikit-learn + joblib installed in pi5's collector venv; `deploy.sh
+services` ships the model with the collector files — **training stays on the Mac**.
+First scored trigger: 18:59:24 UTC, ratio 11.4, hf_lf 1.03 (the rule says seismic),
+**p_quake 0.001**. That is the whole point.
+
+Retrain when: the harvest CSV is refreshed with new confirmed events
+(`harvest_events.py` → `trigger_dataset.py` → `trigger_train.py` → `deploy.sh services`).
 
 ## 🖥️ DASHBOARD, DAY TWO (2026-08-26 14:00–17:30 UTC)
 
