@@ -151,7 +151,7 @@ def _nav(active):
 # so the drum shows its first rows and blank below -- Charles, 2026-08-26, twice). The
 # 60 s refresh timer would eventually fix it; this fixes it on the spot. Only the
 # dynamic renders are touched; static catch images and the photo are left alone.
-BFCACHE_JS = """<script>
+BFCACHE_JS = r"""<script>
 (function(){
   var DYN=/\/(helicorder|history|spectrum|activity)\.png/;
   function bust(im){var s=im.getAttribute('src')||'';if(!DYN.test(s))return;
