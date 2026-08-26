@@ -32,6 +32,7 @@ from pathlib import Path
 import numpy as np
 import simplemseed
 from stalta import StaLta
+from trigger_features import TriggerScorer, PRE, POST
 
 ARCHIVE = Path(os.environ.get("SEISMO_ARCHIVE", str(Path.home() / "seismo-archive")))
 GAIN = int(os.environ.get("SEISMO_GAIN", "64"))
@@ -45,6 +46,9 @@ STA = os.environ.get("SEISMO_STATION", "OAKMT")
 LOC = os.environ.get("SEISMO_LOCATION", "00")
 CHAN = os.environ.get("SEISMO_CHANNEL", "SHZ")
 EVENTS = ARCHIVE / "events.log"
+# Stage-1 trigger classifier (STATUS 2026-08-26): trained on the Mac, shipped here by
+# deploy.sh. Absent file -> events go out without p_quake, nothing else changes.
+MODEL = Path(os.environ.get("SEISMO_TRIGGER_MODEL", str(Path(__file__).parent / "trigger_gbm.joblib")))
 UV = 2.5 * 2 / (GAIN * (2 ** 23 - 1)) * 1e6      # counts -> uV, matches recorder
 
 
@@ -106,8 +110,32 @@ def _emitted_keys() -> set:
     return keys
 
 
+def _window(recs, t0, t1, fs):
+    """Raw counts for [t0, t1) stitched from sorted records, or None if incomplete."""
+    out, expect = [], None
+    for te, r in recs:
+        s = np.asarray(r.decompress(), dtype=np.int32)
+        t_end = te + len(s) / fs
+        if t_end <= t0 or te >= t1:
+            continue
+        a = max(0, int(round((t0 - te) * fs))); b = min(len(s), int(round((t1 - te) * fs)))
+        out.append(s[a:b])
+    if not out:
+        return None
+    x = np.concatenate(out)
+    need = int((t1 - t0) * fs)
+    return x if len(x) >= need * 0.95 else None
+
+
 def realtime(params) -> None:
     print(f"detector realtime: poll {POLL_S}s window {WINDOW_S}s -> {EVENTS}", flush=True)
+    scorer = None
+    if MODEL.exists():
+        try:
+            scorer = TriggerScorer(MODEL)
+            print(f"trigger model {MODEL.name}: {scorer.meta}, floor ratio {scorer.min_ratio:g}", flush=True)
+        except Exception as exc:
+            print("trigger model NOT loaded:", exc, flush=True)
     emitted = _emitted_keys()
     while True:
         try:
@@ -118,11 +146,25 @@ def realtime(params) -> None:
                 recs = [(t, r) for t, r in _read_sorted(path) if t >= cutoff]
                 for ev in detect(recs, FS, params):
                     if ev["start"] not in emitted:
+                        t_start = datetime.datetime.fromisoformat(ev["start"]).timestamp()
+                        # Hold the event until its scoring window exists (POST s after
+                        # start); the next poll picks it up. Latency is uncritical here.
+                        if scorer is not None and now.timestamp() < t_start + POST + 2:
+                            continue
+                        if scorer is not None:
+                            try:
+                                w = _window(recs, t_start - PRE, t_start + POST, FS)
+                                p = scorer.score(ev, w, FS) if w is not None else None
+                                if p is not None:
+                                    ev["p_quake"] = round(p, 3)
+                            except Exception as exc:
+                                print("score error:", exc, flush=True)
                         emitted.add(ev["start"])
                         with open(EVENTS, "a") as f:
                             f.write(json.dumps(ev) + "\n")
                         print(f"EVENT {ev['start']} dur {ev['duration_s']}s "
-                              f"ratio {ev['peak_ratio']} peak {ev['peak_uv']}uV", flush=True)
+                              f"ratio {ev['peak_ratio']} peak {ev['peak_uv']}uV"
+                              f"{'  p_quake ' + str(ev['p_quake']) if 'p_quake' in ev else ''}", flush=True)
         except Exception as exc:
             print("detect error:", exc, flush=True)
         time.sleep(POLL_S)

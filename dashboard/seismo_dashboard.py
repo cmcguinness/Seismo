@@ -417,7 +417,10 @@ _DET_HEAD = (
     # red onset marker sits ~1/3 in, NOT centred -- the label must not say "+/-".
     f'<th>waveform <span class="fw-normal text-muted">'
     f'{render.SPARK_PRE + render.SPARK_POST:g}&nbsp;s</span></th>'
-    '<th>character <span class="fw-normal text-muted">shape only</span></th></tr></thead>')
+    '<th>character <span class="fw-normal text-muted">shape only</span></th>'
+    # p_quake: the Stage-1 trigger classifier (analysis/trigger_train.py), scored on pi5
+    # by the detector for triggers with peak_ratio >= its floor. Advisory, not a gate.
+    '<th>p(quake) <span class="fw-normal text-muted">model</span></th></tr></thead>')
 
 
 def _det_row(e):
@@ -428,12 +431,21 @@ def _det_row(e):
     return (f'<tr><td>{s.replace("+00:00","")}</td><td>{e.get("duration_s","")}s</td>'
             f'<td>{e.get("peak_ratio","")}</td><td>{e.get("peak_uv","")} µV</td>'
             f'<td class="spark-cell" data-spark="{s}">{render.event_sparkline(s)}</td>'
-            f'<td data-char="{s}">{_char_badge(render.event_character(s))}</td></tr>')
+            f'<td data-char="{s}">{_char_badge(render.event_character(s))}</td>'
+            f'<td>{_pq_badge(e.get("p_quake"))}</td></tr>')
+
+
+def _pq_badge(p):
+    if p in (None, ""):
+        return '<span class="text-muted">&ndash;</span>'
+    p = float(p)
+    cls = "text-bg-danger" if p >= 0.7 else "text-bg-warning" if p >= 0.4 else "text-bg-light"
+    return f'<span class="badge {cls}">{p:.2f}</span>'
 
 
 def _det_table(events, empty_msg):
     rows = ("".join(_det_row(e) for e in events) if events
-            else f'<tr><td colspan="6" class="text-muted">{empty_msg}</td></tr>')
+            else f'<tr><td colspan="7" class="text-muted">{empty_msg}</td></tr>')
     return ('<table class="table table-sm table-striped mb-0 align-middle">'
             f'{_DET_HEAD}<tbody>{rows}</tbody></table>')
 

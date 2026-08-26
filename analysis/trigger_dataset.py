@@ -42,11 +42,8 @@ from scipy import signal, stats
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
-UV = 2.5 * 2 / (64 * (2 ** 23 - 1)) * 1e6
 STA_LAT, STA_LON = 38.451817, -122.621049
 VP, T0_INT = 5.19, 0.30
-PRE, POST = 5.0, 25.0              # window around the trigger start, seconds
-BANDS = [(1, 3), (3, 8), (8, 15), (15, 30), (30, 45)]
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -91,48 +88,11 @@ def load_triggers(path):
     return out
 
 
-def features(x, fs, t_trig_idx):
-    """Feature dict for one window (raw counts -> uV inside)."""
-    x = x.astype(np.float64) * UV
-    x = x - np.median(x)
-    sos = signal.butter(4, [1, 45], btype="bandpass", fs=fs, output="sos")
-    xb = signal.sosfiltfilt(sos, x)
-    f, p = signal.welch(xb, fs=fs, nperseg=min(len(xb), int(4 * fs)), average="median")
-    tot = np.trapezoid(p[(f >= 1) & (f < 45)], f[(f >= 1) & (f < 45)]) + 1e-30
-    out = {}
-    for lo, hi in BANDS:
-        s = (f >= lo) & (f < hi)
-        out[f"frac_{lo}_{hi}"] = float(np.trapezoid(p[s], f[s]) / tot)
-    lf = np.trapezoid(p[(f >= 1) & (f < 8)], f[(f >= 1) & (f < 8)]) + 1e-30
-    hf = np.trapezoid(p[(f >= 15) & (f < 45)], f[(f >= 15) & (f < 45)])
-    out["hf_lf_win"] = float(np.sqrt(hf / lf))
-    s = (f >= 1) & (f < 30)
-    out["centroid_hz"] = float(np.sum(f[s] * p[s]) / (np.sum(p[s]) + 1e-30))
-    out["dom_hz"] = float(f[s][np.argmax(p[s])])
-    # envelope in the 1-15 Hz band, where a quake lives
-    sos2 = signal.butter(4, [1, 15], btype="bandpass", fs=fs, output="sos")
-    xq = signal.sosfiltfilt(sos2, x)
-    env = np.abs(signal.hilbert(xq))
-    env = np.convolve(env, np.ones(int(0.3 * fs)) / int(0.3 * fs), "same")
-    pre = env[: max(1, t_trig_idx - int(0.5 * fs))]
-    noise = float(np.median(pre)) if pre.size else float(np.median(env))
-    ipk = int(np.argmax(env))
-    pk = float(env[ipk])
-    out["noise_uv"] = noise
-    out["peak_env_uv"] = pk
-    out["snr_env"] = pk / (noise + 1e-9)
-    out["rise_s"] = max(0.0, (ipk - t_trig_idx) / fs)
-    above = env > pk / math.e
-    j = ipk
-    while j < len(env) and above[j]:
-        j += 1
-    out["decay_s"] = (j - ipk) / fs
-    out["dur3_s"] = float(np.sum(env > 3 * noise) / fs)
-    out["kurtosis"] = float(stats.kurtosis(xq))
-    out["peak_pos_s"] = ipk / fs
-    out["rms_uv"] = float(np.sqrt(np.mean(xq ** 2)))
-    return out
-
+# The feature vector is defined ONCE, in server/trigger_features.py, so pi5 scores exactly
+# what the Mac trained on.
+import sys
+sys.path.insert(0, os.path.join(HERE, '..', 'server'))
+from trigger_features import features, PRE, POST, BANDS, UV  # noqa: E402
 
 def main():
     ap = argparse.ArgumentParser()

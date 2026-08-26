@@ -61,7 +61,8 @@ do_status() {
   rsync -rinc "${RSYNC_EXCLUDES[@]}" server/seismo_server.py server/store.py \
         "$HOST":seismo-server/ | sed 's/^/  server     /'
   rsync -rinc "${RSYNC_EXCLUDES[@]}" server/udp_collector.py server/detector.py \
-        server/stalta.py "$HOST":seismo-collector/ | sed 's/^/  collector  /'
+        server/stalta.py server/trigger_features.py "$HOST":seismo-collector/ | sed 's/^/  collector  /'
+  rsync -inc analysis/models/trigger_gbm.joblib "$HOST":seismo-collector/ | sed 's/^/  collector  /'
   echo
   say "dokku image currently deployed"
   ssh "$HOST" "dokku apps:report $APP 2>/dev/null | grep -i 'deploy source metadata'"
@@ -108,7 +109,10 @@ do_services() {
   rsync -rlv "${RSYNC_EXCLUDES[@]}" server/seismo_server.py server/store.py \
         "$HOST":seismo-server/
   rsync -rlv "${RSYNC_EXCLUDES[@]}" server/udp_collector.py server/detector.py \
-        server/stalta.py "$HOST":seismo-collector/
+        server/stalta.py server/trigger_features.py "$HOST":seismo-collector/
+  # The trigger classifier is TRAINED on the Mac (analysis/trigger_train.py) and only
+  # pushed here -- Charles, 2026-08-26. No training on pi5.
+  rsync -lv analysis/models/trigger_gbm.joblib "$HOST":seismo-collector/
   say "restart services"
   ssh "$HOST" "sudo systemctl restart seismo-server seismo-collector seismo-detector"
   sleep 3
