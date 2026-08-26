@@ -182,8 +182,8 @@ bands 0.88–1.01, robust RMS 0.89 → 0.78 µV, a ~23 Hz line wandering ×2.8.
 
 Robust 1–15 Hz RMS 0.78 → 0.85 µV (×1.09; night-to-night scatter is ×0.88–1.14).
 **The quake band is untouched.** The 1.05 Hz intrinsic line is identical (2.83 µV/√Hz
-both nights). What changed is above 30 Hz: the **41.3 Hz instrumental line lost half
-its amplitude** (0.87 → 0.38 µV/√Hz, power ×0.19) and the **40.0 Hz line (the 60 Hz mains
+both nights). What changed is above 30 Hz — and this turned out to be the HOUSE, not the station
+(see the next entry): the **41.3 Hz line lost half its amplitude** (0.87 → 0.38 µV/√Hz, power ×0.19) and the **40.0 Hz line (the 60 Hz mains
 alias) doubled** (0.32 → 0.61) — net 30–45 Hz down 35 %. A weak 19.3 Hz feature (×1.6
 over floor, 0.19 µV/√Hz) is within the nightly-wander class. So the pigpio loop's
 timing was a contributor to the 41 Hz line; the mains alias is now sharper because
@@ -199,6 +199,22 @@ looks large because the sub-Hz per-bin floor is tiny. Irrelevant to anything in 
 (0.1 µV vs a 0.8 µV floor), and the rule for sub-Hz work is unchanged: divide out the
 time-median PSD (`microseism_relative.py`). The 18 ms gaps were real and are gone;
 they were not the comb's cause. Corrected in memory as well.
+
+### 🏠 The 41 Hz "instrumental" line is the heat-pump AC compressor (2026-08-26 14:40 UTC)
+
+Charles asked about a noise burst 08:31–09:18 UTC with edges on minute boundaries.
+Pure tones at **41.0 / 40.6 / 37.65 Hz and 19.3 Hz**, nothing below 15 Hz, plateaus that
+change at minute+~8 s (08:31:08 on, 09:07:12 step, 09:18:10 off, 09:22:58 on). The same
+hour on ten nights shows 10–30 min runs with 10–15 min gaps every night; tracking the
+41 Hz line-to-neighbour power ratio per minute over a full day: **on ~65 % of all
+minutes, every hour, 100 % at 21–22 PDT**. A compressor on a hot August day. Charles: gas
+water heater, **heat-pump AC** — outdoor unit on the ground by the garage, ground-coupled
+into the slab. The minute-aligned edges are the thermostat's 1-min evaluation tick.
+
+Consequences: the 41 Hz line is not hardware and never was; its "halving" in the
+night comparison above was a cooler night; the 19.3 Hz feature is the same machine.
+The 20 Hz (19.95–20.00) line is a different thing and still open. Any future 30–45 Hz
+comparison must be done with the AC state known (the 41 Hz ratio is the state).
 
 ### 🕰️ Then the grid: toss one reading every ~123 s (2026-08-25 20:52 UTC)
 
