@@ -2,6 +2,29 @@
 
 _Last updated: 2026-08-25 (UTC)_
 
+## 🎣 CATCHES PAGE + DETECTION MAP REFRESHED (2026-08-26 04:10 UTC)
+
+Charles: a page highlighting the interesting earthquakes we've caught, with the
+detection map. **/catches** on both copies. Content module `dashboard/catches.py`
+(content.py style), static images in `dashboard/catches/` (quake_share.py renders,
+shrunk to ~150 KB each with Pillow), two thin routes in the app.
+
+Seven catches: M4.2 Cloverdale (07-29), M3.8 San Leandro (08-13, 88 km — USGS revised
+it down from the M4.1 first reported; the page says so), M2.5 St Helena (07-25, the
+first), M3.2 / M2.8 / M2.5 / M2.4 Geysers, plus the Wyoming M3.3 non-detection as the
+other edge. Each: image with spectrogram, catalog line, three or four facts.
+
+**The map was stale.** `detection_map.py` calibrates from `event_harvest.csv`, which
+stopped on 07-30 (7 confirmed events, validated to 46 km). Re-harvested 07-25 → 08-26
+against the local day-files (1,316 catalog events; the 08-02→06 fault gap is simply
+absent): **28 confirmed events, validated range 89 km** (the San Leandro), site deficit
+−0.24 dex (1.8×), corner penalty still the n=1 M4.2 number. `reports/detection-range-map.png`
+and the page copy are the new render. Re-run both whenever the harvest is refreshed.
+
+⚠️ `seismo_dashboard.py` is at **1,028 lines** — over the 1,000 guideline. The next
+page should come with a split (routes for images/live-data into their own module is
+the natural cut). Charles's call when.
+
 ## 🌐 PUBLIC DASHBOARD LIVE: https://seismo.apps02.mcguinness.ai (2026-08-26 02:20 UTC)
 
 Charles: make the data more useful without hacking exposure. Principle: **the house
