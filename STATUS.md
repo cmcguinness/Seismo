@@ -2,6 +2,42 @@
 
 _Last updated: 2026-08-26 (UTC)_
 
+## 🧠 TRIGGER CLASSIFIER, STAGE 1 — trained on the Mac, not yet on pi5 (2026-08-26 19:00 UTC)
+
+After Yeck et al. 2020 (`doc/yeck2020.pdf`: NEIC keeps STA/LTA and bolts small
+classifiers onto its PICKS; the win was 25 % fewer false associations, not more
+detections). Same shape as this station's STA/LTA → `hf_lf` rule, so: learn to believe
+triggers less, from the station's own catalog.
+
+- `analysis/trigger_dataset.py`: every pi5-detector trigger since 07-25 as a feature row
+  (window −5…+25 s, 1–45 Hz: band-energy fractions, hf/lf, centroid, dominant Hz,
+  envelope rise/decay/duration, kurtosis + the detector's own fields). Label 1 if within
+  [−3, +40] s of a CONFIRMED catalog arrival (detection_map criteria), ambiguous
+  (±180 s of any `seen` event) dropped. **20,947 rows: 31 quake, 20,916 cultural.**
+- `analysis/trigger_train.py`: HistGradientBoosting, class-weighted, **grouped CV**
+  (positives by catalog event, negatives by day). Amplitude-absolute features excluded
+  (they straddle the 08-07 rebuild); the **07-31→08-03 fault window excluded** — its 180 s
+  millivolt triggers were the model's favourite "quakes" until they were.
+- **On everything: hopeless** (PR-AUC 0.06) — 20k near-threshold blips with M1.3–1.8
+  Geysers events hiding in them. **On the displayed range it works:**
+
+| slice | rule `hf_lf<1.4` | model (grouped CV, out-of-fold) |
+|---|---|---|
+| ratio ≥ 20 (2,795 trig, 14 quake) | precision **2.4 %**, recall 100 % (7 TP / 283 FP) | PR-AUC 0.84; p≥0.5 → **75 % / 86 %**; p≥0.7 → 85 % / 79 % |
+| ratio ≥ 10 (6,976 trig, 19 quake) | — | PR-AUC 0.65; p≥0.5 → 50 % / 68 % |
+
+  Top features: 1–3 Hz and 3–8 Hz energy fractions (the same physics as `hf_lf`, in
+  two bands), then kurtosis and 8–15 Hz. **`analysis/models/trigger_gbm.joblib`** (133 KB;
+  trained on ratio ≥ 10, scores nothing below it). 14–19 positives: treat the numbers
+  as "about right", not as decimals. Stage 3 (CNN) waits for ~100 positives.
+- By-product worth a look: the highest-p "cultural" triggers are quiet-night bursts at
+  04–07 UTC (08-13 11:43/13:04/13:23/14:24, 08-19 09:23, 08-23 08:04) with hf_lf 0.5–0.7
+  — possibly sub-catalog Geysers events, i.e. mislabelled negatives.
+
+**Stage 2 (not done):** `server/detector.py` computes the same features 25 s after each
+trigger with ratio ≥ 10, adds `p_quake` to events.log, Detections page shows it beside
+`hf_lf`. The rule stays. Charles: train here, push the model to pi5 only when built.
+
 ## 🖥️ DASHBOARD, DAY TWO (2026-08-26 14:00–17:30 UTC)
 
 All on both copies (`./deploy.sh public` + `./deploy.sh dashboard`), all pushed.
