@@ -329,7 +329,18 @@ LEARN_SECTIONS = [
      'station was to feel it at all &mdash; strong, likely, or marginal. They are a prompt to '
      'look at a particular second, <b>not</b> a claim that anything was detected: the eye '
      'decides. Catalogue entries are published minutes to hours after the fact, so the newest '
-     'rows are always unmarked.</p>'),
+     'rows are always unmarked.</p>'
+     '<p class="prose"><b>What a real one looks like.</b> The M4.2 Cloverdale earthquake of 29 July, '
+     '45&nbsp;km away, on this drum:</p>'
+     '<img src="/catches/drum-2026-07-29-cloverdale-m4.2.png" class="plot" loading="lazy" '
+     'alt="Helicorder drum showing the M4.2 Cloverdale earthquake of 2026-07-29 at 02:40 UTC">'
+     '<p class="prose mt-2">Nothing like the little bursts. At 02:40 UTC the trace swings three rows '
+     'up and three down &mdash; the drum clips there on purpose, so a big event reads as a big event '
+     'without wrecking its neighbours &mdash; and takes about 80 seconds to die away, tapering the '
+     'whole time. Everything else in those four hours is the ordinary fuzz of a summer night. '
+     'People in Santa Rosa felt this one as a single jolt. The small blip on the 03:45 row, about '
+     '3&frac12; minutes in, is a M2.2 aftershock from the same spot: what a quake nobody feels '
+     'looks like, a burst that still starts sharp and tapers, a hundred times smaller.</p>'),
 
     ("Glossary",
      '<div class="table-responsive"><table class="table table-sm align-middle"><tbody>'
