@@ -15,7 +15,8 @@ line and makes "what does the site SAY" one file you can read end to end.
 Conventions:
   - HTML entities, not literal unicode punctuation (&mdash;, &nbsp;, &rsquo;) -- these
     strings go straight into the page.
-  - "{place}" is substituted with SEISMO_PLACE by the caller.
+  - "{place}" is substituted with SEISMO_PLACE by the caller; "{serves}" (About only)
+    with a clause that depends on which copy of the site this is.
   - Sections are (header, inner_html) pairs; /learn slugs the header into an anchor id,
     so EDITING A HEADER CHANGES ITS URL. #how-to-read-the-helicorder is linked from
     under every drum.
@@ -440,8 +441,9 @@ ABOUT_SECTIONS = [
      '(a coil-and-magnet <i>velocity</i> sensor), ~28.8&nbsp;V per m/s, 385&nbsp;&#8486; coil.</li>'
      '<li><b>Digitizer:</b> Waveshare High-Precision <b>ADS1256</b> &mdash; 24-bit ADC, read '
      'differentially at gain&nbsp;64, 100&nbsp;samples/sec.</li>'
-     '<li><b>Computers:</b> a Raspberry&nbsp;Pi&nbsp;2B does acquisition (owns the ADC); a '
-     'Raspberry&nbsp;Pi&nbsp;5 renders these charts and serves this page.</li>'
+     '<li><b>Computers:</b> a Raspberry&nbsp;Pi&nbsp;2B does acquisition (owns the ADC, through a '
+     'small C reader); a Raspberry&nbsp;Pi&nbsp;5 on the home network keeps the archive and '
+     'builds these charts{serves}</li>'
      '<li><b>Front end:</b> differential bias network into the ADC (shunt damping to come).</li></ul>'),
     ("How to read the charts",
      '<p class="prose"><b>Live waveform</b> &mdash; the ground moving <i>right now</i>, in microvolts '

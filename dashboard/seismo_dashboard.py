@@ -583,7 +583,10 @@ def about():
         '&mdash; geophone, ADS1256 digitizer and Raspberry&nbsp;Pi, before the printed '
         'enclosures. It now lives in two cases on the garage floor.</p>',
     ) if _STATION_JPG else ""
-    cards = photo + "".join(_card(h, inner.replace("{place}", PLACE))
+    serves = (" and pushes them, outbound only, to this public copy on a cloud host "
+              "every minute &mdash; nothing at the house is reachable from the internet."
+              if _PUBLIC_COPY else " and serves this page on the home network.")
+    cards = photo + "".join(_card(h, inner.replace("{place}", PLACE).replace("{serves}", serves))
                             for h, inner in content.ABOUT_SECTIONS)
     if _PUBLIC_COPY:                                  # no detections page to link to
         cards = cards.replace('(on their <a href="/detections">own page</a>) ', "")
