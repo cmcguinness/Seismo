@@ -99,15 +99,27 @@ def _dayfile(dt_utc) -> str:
     return f"{NET}.{STA}.{LOC}.{CHAN}.D.{dt_utc.year}.{dt_utc.timetuple().tm_yday:03d}.mseed"
 
 
-def _emitted_keys() -> set:
-    keys = set()
+# Re-detecting the last WINDOW_S every poll re-primes the LTA at the window edge, so
+# the SAME burst can come back with a start 1-2 s different and a slightly different
+# ratio (19:03:45 / 19:03:46, 2026-08-26 -- one event, two rows). Dedupe by proximity,
+# not by exact start string.
+DEDUPE_S = 3.0
+
+
+def _emitted_keys() -> list:
+    """Start times (epoch s) already written, for proximity dedupe."""
+    keys = []
     if EVENTS.exists():
         for line in EVENTS.read_text().splitlines():
             try:
-                keys.add(json.loads(line)["start"])
+                keys.append(datetime.datetime.fromisoformat(json.loads(line)["start"]).timestamp())
             except Exception:
                 pass
     return keys
+
+
+def _seen_near(keys: list, t: float) -> bool:
+    return any(abs(k - t) <= DEDUPE_S for k in keys[-500:])
 
 
 def _window(recs, t0, t1, fs):
@@ -145,8 +157,8 @@ def realtime(params) -> None:
                 cutoff = (now - datetime.timedelta(seconds=WINDOW_S)).timestamp()
                 recs = [(t, r) for t, r in _read_sorted(path) if t >= cutoff]
                 for ev in detect(recs, FS, params):
-                    if ev["start"] not in emitted:
-                        t_start = datetime.datetime.fromisoformat(ev["start"]).timestamp()
+                    t_start = datetime.datetime.fromisoformat(ev["start"]).timestamp()
+                    if not _seen_near(emitted, t_start):
                         # Hold the event until its scoring window exists (POST s after
                         # start); the next poll picks it up. Latency is uncritical here.
                         if scorer is not None and now.timestamp() < t_start + POST + 2:
@@ -159,7 +171,7 @@ def realtime(params) -> None:
                                     ev["p_quake"] = round(p, 3)
                             except Exception as exc:
                                 print("score error:", exc, flush=True)
-                        emitted.add(ev["start"])
+                        emitted.append(t_start)
                         with open(EVENTS, "a") as f:
                             f.write(json.dumps(ev) + "\n")
                         print(f"EVENT {ev['start']} dur {ev['duration_s']}s "

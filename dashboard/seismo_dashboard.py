@@ -73,7 +73,26 @@ def _recent_events(max_rows=2000):
         if t >= cutoff:
             out.append(e)
     out.sort(key=lambda e: e.get("start", ""), reverse=True)   # newest first
-    return out[:max_rows]
+    # Collapse near-duplicates (starts within 3 s: the same burst re-detected across
+    # two polls with a shifted start) -- keep the stronger row. The detector now
+    # dedupes at the source too; this also cleans the rows logged before it did.
+    kept = []
+    for e in out:
+        try:
+            t = datetime.fromisoformat(e["start"]).timestamp()
+        except Exception:
+            kept.append(e); continue
+        for k in kept:
+            try:
+                if abs(datetime.fromisoformat(k["start"]).timestamp() - t) <= 3.0:
+                    if float(e.get("peak_ratio", 0) or 0) > float(k.get("peak_ratio", 0) or 0):
+                        k.update(e)
+                    break
+            except Exception:
+                continue
+        else:
+            kept.append(e)
+    return kept[:max_rows]
 
 
 # --- shared chrome -----------------------------------------------------------
