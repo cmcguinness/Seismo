@@ -41,10 +41,23 @@ HELI_HOWTO = (
     'with energy above 15&nbsp;Hz, because distance strips the high frequencies out of a real '
     'earthquake. The solid core drawn inside a faded burst is the 1&ndash;8&nbsp;Hz part, the '
     'band a quake would occupy.</p>'
-    '<p class="mb-0"><b>Coloured triangles</b> mark where an earthquake from the USGS '
+    '<p class="mb-1"><b>Coloured triangles</b> mark where an earthquake from the USGS '
     'catalogue <i>should</i> have arrived &mdash; where to look, not a claim that this station '
     'caught it. <a href="/learn#how-to-read-the-helicorder">Full guide to reading the '
-    'drum&nbsp;&rarr;</a></p></div>')
+    'drum&nbsp;&rarr;</a></p>'
+    '<details class="mt-2"><summary style="cursor:pointer"><b>What does a real earthquake look '
+    'like on this drum?</b> &mdash; the M4.2 Cloverdale quake of 29 July, 45&nbsp;km away</summary>'
+    '<img src="/catches/drum-2026-07-29-cloverdale-m4.2.png" class="plot mt-2" loading="lazy" '
+    'alt="Helicorder drum showing the M4.2 Cloverdale earthquake of 2026-07-29 at 02:40 UTC">'
+    '<p class="mb-1 mt-2">Nothing like the little bursts. At 02:40 UTC the trace swings <b>three '
+    'rows up and three rows down</b> &mdash; the drum clips there on purpose, so a big event '
+    'reads as a big event without wrecking its neighbours &mdash; and takes about <b>80 seconds</b> to '
+    'die away, tapering the whole time. Everything else on these four hours is the ordinary '
+    'fuzz of a summer night: cars on the highway, the air conditioner, a door. People in '
+    'Santa Rosa felt this one as a single jolt.</p>'
+    '<p class="mb-0">The small blip on the 03:45 row, about 3&frac12; minutes in, is a <b>M2.2 '
+    'aftershock</b> from the same spot &mdash; what a quake nobody feels looks like: a burst that '
+    'still starts sharp and tapers, just a hundred times smaller.</p></details></div>')
 
 
 ACTIVITY_TEXT = (
