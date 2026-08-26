@@ -1,6 +1,58 @@
 # STATUS — Seismo
 
-_Last updated: 2026-08-25 (UTC)_
+_Last updated: 2026-08-26 (UTC)_
+
+## 🖥️ DASHBOARD EVENING — catches, public trims, a render race (2026-08-26 03:30–06:30 UTC)
+
+All on both copies (`./deploy.sh dashboard` + `./deploy.sh public`), all pushed.
+
+- **Catches page** (`/catches`, commit 24d8429 → 2e81646): newest first. Seven confirmed
+  events with quake_share images + spectrograms + facts, the refreshed detection map on
+  top (28 confirmed events, validated to 89 km — see the entry below). The Wyoming
+  non-detection was added and then dropped (08cbb5f): the map already carries the far
+  edge. Content in `dashboard/catches.py`, images in `dashboard/catches/`.
+- **Public copy has no Detections page** (2eb89f5): nav link gone, `/detections` 404s,
+  the About paragraph loses its link. It is a raw trigger log, mostly cultural. pi5
+  keeps it. The switch is `_PUBLIC_COPY` (= `SEISMO_HELI_BUILD=0`), same flag as the
+  footer.
+- **Seismology 101 → "Keep learning"** (2656db3, 35cdbf8, a610d64): three USGS pages on
+  the Rodgers Creek fault first (traced through Santa Rosa 2016; the new lidar map;
+  the Hayward–Rodgers Creek connection), then eight general explainers (USGS science
+  of earthquakes, magnitude vs intensity, IRIS animations, Berkeley Seismo Lab, the
+  Hayward fact sheet, USGS latest-quakes map, Putting Down Roots, ShakeAlert). All
+  `target=_blank`. usgs.gov 403s curl but serves browsers — verify those with a
+  browser-style fetch, not curl. Wikipedia's Rodgers Creek page just redirects to
+  Hayward; Press Democrat / SF Chronicle explainers are paywalled — both skipped.
+- **Thunder sentence** (fe08d12): the S–P and thunder gaps are now stated the same way
+  round (5 s/mile vs 0.2 s/mile; a second of gap ≈ 7 km at this station's Vp/Vs).
+
+### 🐛 A half-drawn helicorder = two matplotlib renders at once (ece96b8)
+
+Charles hit a drum with rows 04:30–06:00 blank under a "data to 06:06" header; refresh
+fixed it. Not Cloudflare (`/helicorder.png` is `no-store`; "back" shows the browser's
+bfcache copy of the page as first loaded). The drum is drawn by heli_service's
+background thread while `/history.png`, `/spectrum.png`, `/activity.png` draw in request
+threads, all via `plt.figure()` — pyplot's figure registry is not thread-safe, and
+heli_service's lock guarded only the cache. Fix: `heli_render.MPL_LOCK` around every
+render in the process (helicorder, history, spectrum, activity — the latter two via
+thread-safe wrapper functions so an exception can never strand the lock), and the
+figures moved to `Figure` + `FigureCanvasAgg` (no pyplot state; the obspy dayplot keeps
+pyplot under the lock). Verified locally: six concurrent drum renders, byte-identical.
+
+### 🔧 Public `/spectrum.png` was 503 since launch (4e727eb)
+
+It Welches the miniSEED, which the public copy does not have. pi5's minute sync now
+curls its own `/spectrum.png` (30-min server cache, O(1)) into `seismo-data/spectrum.png`
+and ships it; the public route serves that file when `_PUBLIC_COPY`. All four rendered
+images now 200 on both hosts.
+
+### ⚠️ Deploy gotchas learned tonight
+- `deploy.sh`'s rsync has no `--delete` (on purpose), so a static file removed from git
+  lingers in the hosts' build contexts — delete it there by hand.
+- Dokku skips `git:from-image` when the image TAG is unchanged, even if the image was
+  rebuilt: a same-SHA redeploy is a no-op. Retag (`seismo-dash:<sha>-r2`) to force it.
+- Cloudflare caches static PNGs for the `max-age` (1 day); a removed image keeps
+  answering at the edge until it expires or is purged.
 
 ## 🎣 CATCHES PAGE + DETECTION MAP REFRESHED (2026-08-26 04:10 UTC)
 
