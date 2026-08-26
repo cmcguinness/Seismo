@@ -735,6 +735,31 @@ D-series 24 mm bore + 2×M3 @ 19 mm). Shunt **damping resistor lives inside the
 geophone case**, across the coil. Shield (pin 1) bonded to ground **only at the Pi
 end**. Connectors arriving ~2026-07-28.
 
+## Activity weekly view — exponentially-weighted median (2026-08-26)
+
+The weekly (weekday × hour) heatmap pools every interval since the last
+noise/amplitude boundary in `epochs.py` — an expanding window. It sharpens forever
+(2 samples/cell today, ~50 by the new year) but cannot show drift: a wet-winter Sunday
+and a wine-harvest Sunday land in one cell.
+
+**Do this, not a rolling window or an EMA.** An EMA is a mean in disguise: one
+trash-can night enters with weight α and fades over weeks instead of being ignored,
+which throws away the median's outlier immunity — the property that makes the chart
+honest. A rolling window keeps the median but has a hard edge: a loud week drops out on
+one particular day and the portrait jumps.
+
+- Each interval in a cell gets weight `0.5 ** (age_days / HALF_LIFE_DAYS)`; the cell
+  shows the **weighted median**. Smooth, edge-free forgetting + outlier immunity, one
+  knob. Half-life ~28 days follows the seasons without being twitchy.
+- The `epochs.py` boundary stays as a hard floor under the weighting.
+- Effective sample count (sum of weights) replaces the raw count for the
+  "not enough data yet" card and the per-cell confidence.
+- ~20 lines in `dashboard/activity.py` (`grid()` already buckets every interval; hold
+  `(value, weight)` pairs). `SEISMO_ACTIVITY_HALF_LIFE_DAYS` env knob, default 28.
+
+**When:** not before there are a couple of months in the pot — with two samples per
+cell any weighting is the median of two numbers. Revisit ~November 2026.
+
 ## Helicorder v2 (precomputed-envelope drum) — follow-ups
 
 The dashboard drum is now precomputed: `heli_build.py` reduces each 15-min interval
