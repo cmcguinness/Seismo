@@ -163,6 +163,12 @@ NOT_CAUGHT = [
 ]
 
 
+# Newest first. The image names start with the event date, so the filename IS the sort
+# key -- add a catch anywhere in the list above and it lands in the right place.
+CATCHES.sort(key=lambda c: c["img"], reverse=True)
+NOT_CAUGHT.sort(key=lambda c: c["img"], reverse=True)
+
+
 def image_path(name):
     """Static image under dashboard/catches/, or None if the name is not one of ours."""
     if not name or "/" in name or not name.endswith(".png"):
