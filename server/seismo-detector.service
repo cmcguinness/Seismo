@@ -17,6 +17,11 @@ Environment=SEISMO_RATE=100
 Environment=SEISMO_DETECT_POLL_S=60
 Environment=SEISMO_DETECT_WINDOW_S=600
 Environment=PYTHONUNBUFFERED=1
+# Probable-earthquake push (p_quake >= SEISMO_ALERT_P) to ntfy. The URL/topic/token live
+# in /etc/seismo/ntfy.env (root:charles 640), not here.
+Environment=SEISMO_ALERT_P=0.7
+Environment=SEISMO_ALERT_HOLD_S=300
+EnvironmentFile=-/etc/seismo/ntfy.env
 ExecStart=/home/charles/seismo-collector/.venv/bin/python detector.py
 Restart=always
 RestartSec=5

@@ -49,6 +49,46 @@ EVENTS = ARCHIVE / "events.log"
 # Stage-1 trigger classifier (STATUS 2026-08-26): trained on the Mac, shipped here by
 # deploy.sh. Absent file -> events go out without p_quake, nothing else changes.
 MODEL = Path(os.environ.get("SEISMO_TRIGGER_MODEL", str(Path(__file__).parent / "trigger_gbm.joblib")))
+# ntfy push when the classifier is confident (Charles, 2026-08-26): p_quake >= ALERT_P.
+# Same server/topic/token as dc_watch, from /etc/seismo/ntfy.env via the unit file.
+# One push per ALERT_HOLD_S at most: an aftershock cluster is one notification, not ten.
+ALERT_P = float(os.environ.get("SEISMO_ALERT_P", "0.7"))
+ALERT_HOLD_S = float(os.environ.get("SEISMO_ALERT_HOLD_S", "300"))
+NTFY_URL = os.environ.get("SEISMO_NTFY_URL"); NTFY_TOPIC = os.environ.get("SEISMO_NTFY_TOPIC")
+NTFY_TOKEN = os.environ.get("SEISMO_NTFY_TOKEN")
+PUBLIC_URL = os.environ.get("SEISMO_PUBLIC_URL", "https://seismo.mcguinness.ai")
+_last_alert = [0.0]
+
+
+def alert(ev, test=False) -> bool:
+    """Push a probable-earthquake notification. Logs regardless; sends only if ntfy is
+    configured and the hold-off has passed. Returns True if a push was attempted."""
+    st = ev["start"].replace("+00:00", "")
+    when = datetime.datetime.fromisoformat(ev["start"])
+    hist = f"{PUBLIC_URL}/history?datetime={when:%Y%m%d%H}"
+    title = ("TEST: " if test else "") + f"Probable earthquake  p={ev.get('p_quake', 0):.2f}"
+    body = (f"{st} UTC  ·  STA/LTA {ev.get('peak_ratio')}  ·  peak {ev.get('peak_uv')} µV  ·  "
+            f"{ev.get('duration_s')} s\nDrum: {hist}\nCatalog: https://earthquake.usgs.gov/earthquakes/map/")
+    print(f"ALERT {title} -- {body.splitlines()[0]}", flush=True)
+    if not (NTFY_URL and NTFY_TOPIC):
+        return False
+    now = time.time()
+    if not test and now - _last_alert[0] < ALERT_HOLD_S:
+        print("ALERT held (within hold-off)", flush=True)
+        return False
+    try:
+        import requests
+        headers = {"Title": title, "Priority": "high", "Tags": "earthquake" if not test else "test_tube",
+                   "Click": hist}
+        if NTFY_TOKEN:
+            headers["Authorization"] = f"Bearer {NTFY_TOKEN}"
+        requests.post(f"{NTFY_URL.rstrip('/')}/{NTFY_TOPIC}", data=body.encode("utf-8"),
+                      headers=headers, timeout=10)
+        _last_alert[0] = now
+        return True
+    except Exception as exc:
+        print("ALERT ntfy failed:", exc, flush=True)
+        return False
 UV = 2.5 * 2 / (GAIN * (2 ** 23 - 1)) * 1e6      # counts -> uV, matches recorder
 
 
@@ -174,6 +214,8 @@ def realtime(params) -> None:
                         emitted.append(t_start)
                         with open(EVENTS, "a") as f:
                             f.write(json.dumps(ev) + "\n")
+                        if ev.get("p_quake", 0) >= ALERT_P:
+                            alert(ev)
                         print(f"EVENT {ev['start']} dur {ev['duration_s']}s "
                               f"ratio {ev['peak_ratio']} peak {ev['peak_uv']}uV"
                               f"{'  p_quake ' + str(ev['p_quake']) if 'p_quake' in ev else ''}", flush=True)
@@ -186,12 +228,18 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--file")
     p.add_argument("--day", help="archive day-file as YYYY.DDD")
+    p.add_argument("--test-alert", action="store_true", help="send one TEST push to ntfy and exit")
     p.add_argument("--trig", type=float, default=4.0)
     p.add_argument("--detrig", type=float, default=1.5)
     p.add_argument("--sta", type=float, default=1.0)
     p.add_argument("--lta", type=float, default=30.0)
     p.add_argument("--hp", type=float, default=3.0)
     a = p.parse_args()
+    if a.test_alert:
+        ok = alert({"start": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                    "p_quake": 0.99, "peak_ratio": 62.0, "peak_uv": 84.0, "duration_s": 15.0}, test=True)
+        print("test alert sent" if ok else "test alert NOT sent (ntfy not configured?)")
+        raise SystemExit(0)
     params = {"trig": a.trig, "detrig": a.detrig, "sta": a.sta, "lta": a.lta, "hp": a.hp}
     if a.file or a.day:
         path = Path(a.file) if a.file else ARCHIVE / f"{NET}.{STA}.{LOC}.{CHAN}.D.{a.day}.mseed"
