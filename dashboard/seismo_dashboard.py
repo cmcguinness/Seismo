@@ -102,26 +102,186 @@ BOOT = (
     'rel="stylesheet" crossorigin="anonymous">'
     '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" '
     'crossorigin="anonymous" defer></script>'
+    # Three faces, three jobs: Inter for the chrome, Source Serif for the long
+    # explanatory passages (this site is more reading than dashboard), IBM Plex Mono
+    # for every number so columns line up (tabular figures).
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
+    'family=Inter:wght@400;500;600&'
+    'family=IBM+Plex+Mono:wght@400;500&'
+    'family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">'
 )
 
+# Theme is resolved before first paint so a dark-mode reader never gets a white flash.
+# Stored choice wins; with none stored we follow the OS and keep following it live.
+THEME_BOOT_JS = """<script>
+(function(){
+  var K='seismo-theme';
+  function sys(){return matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+  function apply(t){document.documentElement.setAttribute('data-bs-theme',t);}
+  var st=null; try{st=localStorage.getItem(K);}catch(e){}
+  apply(st==='light'||st==='dark'?st:sys());
+  try{
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){
+      var v=null; try{v=localStorage.getItem(K);}catch(e){}
+      if(v!=='light'&&v!=='dark'){apply(sys());
+        window.dispatchEvent(new CustomEvent('seismo:theme'));}
+    });
+  }catch(e){}
+  window.seismoToggleTheme=function(){
+    var t=document.documentElement.getAttribute('data-bs-theme')==='dark'?'light':'dark';
+    apply(t); try{localStorage.setItem(K,t);}catch(e){}
+    window.dispatchEvent(new CustomEvent('seismo:theme'));
+  };
+})();
+</script>"""
+
+# Sun in dark mode ("switch to light"), moon in light mode. CSS picks which is shown.
+THEME_BUTTON = (
+    '<button class="themebtn" type="button" onclick="seismoToggleTheme()" '
+    'aria-label="Toggle light or dark theme" title="Toggle light / dark">'
+    '<svg class="ico-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" '
+    'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+    '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
+    '<svg class="ico-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" '
+    'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+    '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4'
+    'M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+    '</button>'
+)
+
+# One token set, two themes. Every colour on the site comes from here; nothing below
+# hard-codes a hex. The canvas drawings (live trace, spectrum) read the --plot-* tokens
+# at draw time, so they follow the theme too -- see HOME_JS.
 CSS = """<style>
- :root{--accent:#2f6f6b}
- body{background:#f6f7f9}
- .navbar-brand{font-weight:600;color:var(--accent)}
- .page-title{color:var(--accent);font-weight:600}
- .card-header{background:#fff;font-weight:600;color:#39484a;border-bottom:1px solid #eef0f2}
- .card{border-color:#e6e8eb}
- .plot{width:100%;height:auto;display:block;border:1px solid #e6e8eb;border-radius:.25rem}
- #c{width:100%;height:220px;display:block;background:#fff;border:1px solid #e6e8eb;border-radius:.25rem}
- #s{width:100%;height:230px;display:block;background:#fff;border:1px solid #e6e8eb;border-radius:.25rem}
- #hud{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#6c757d;margin-top:.5rem}
+ :root{
+   --ui-font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+   --prose-font:'Source Serif 4',Georgia,'Times New Roman',serif;
+   --mono-font:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+
+   --surface:#f7f7f5;            /* page */
+   --surface-2:#ffffff;          /* cards */
+   --surface-3:#f0f0ed;          /* nav, footer, inset wells */
+   --border:#e3e4e0;
+   --border-strong:#cfd1cc;
+   --text:#1d2422;
+   --muted:#6a726f;
+   --accent:#2f6f6b;
+   --accent-ink:#245a56;         /* accent text on a light ground */
+   --accent-soft:#e7f1f0;
+   --accent-soft-border:#cfe3e1;
+   --warn:#c0392b;
+   --plate:#ffffff;              /* the paper the rendered plots are printed on */
+
+   --plot-axis:#c8cbc7;
+   --plot-grid:#e8eae7;
+   --plot-grid-faint:#f3f4f2;
+   --plot-label:#6a726f;
+   --plot-trace:#2f6f6b;
+   --plot-mark:#c0392b;
+ }
+ [data-bs-theme="dark"]{
+   --surface:#14181a;
+   --surface-2:#1b2023;
+   --surface-3:#191e21;
+   --border:#2a3135;
+   --border-strong:#3a4348;
+   --text:#dfe4e2;
+   --muted:#98a29f;
+   --accent:#61bfb5;
+   --accent-ink:#7fd0c7;
+   --accent-soft:#1d3634;
+   --accent-soft-border:#2c4d4a;
+   --warn:#e2705f;
+   --plate:#f2f1ed;              /* plots stay on paper; see the note on .plot */
+
+   --plot-axis:#3d464a;
+   --plot-grid:#252c30;
+   --plot-grid-faint:#1e2427;
+   --plot-label:#98a29f;
+   --plot-trace:#61bfb5;
+   --plot-mark:#e2705f;
+ }
+
+ /* Hand the tokens to Bootstrap so its own components (cards, navbar, tables,
+    buttons, tooltips, form controls) follow without per-component overrides. */
+ [data-bs-theme]{
+   --bs-body-bg:var(--surface); --bs-body-color:var(--text);
+   --bs-body-font-family:var(--ui-font);
+   --bs-emphasis-color:var(--text); --bs-secondary-color:var(--muted);
+   --bs-border-color:var(--border); --bs-border-color-translucent:var(--border);
+   --bs-tertiary-bg:var(--surface-3); --bs-secondary-bg:var(--surface-3);
+   --bs-primary:var(--accent); --bs-primary-rgb:47,111,107;
+   --bs-link-color:var(--accent-ink); --bs-link-hover-color:var(--accent);
+   --bs-heading-color:var(--text);
+   --bs-code-color:var(--accent-ink);
+ }
+ body{background:var(--surface);color:var(--text)}
+ .text-muted,.text-body-secondary{color:var(--muted)!important}
+
+ /* Type ------------------------------------------------------------------- */
+ h1,h2,h3,h4,h5,.card-header,.navbar-brand{letter-spacing:-.011em}
+ .navbar-brand{font-weight:600;color:var(--accent-ink)}
+ .page-title{color:var(--accent-ink);font-weight:600}
+ .card-header{background:var(--surface-2);font-weight:600;color:var(--text);
+   border-bottom:1px solid var(--border)}
+ .card{background:var(--surface-2);border-color:var(--border);border-radius:.5rem}
+ /* Long-form explanation gets a reading face and a reading measure. 68ch is the
+    point past which the eye starts losing the next line's start. */
+ main p,main li,main dd{font-family:var(--prose-font);font-size:1.0625rem;
+   line-height:1.65;max-width:68ch}
+ main .card-header p,main td p,main th p,figcaption p{max-width:none}
+ /* Pages that are mostly reading (Seismology 101, About) narrow the whole main
+    column to the measure, so the title and the card edges track the text instead of
+    trailing off into empty container to their right. */
+ main.page-narrow{max-width:46rem}
+ /* Nav links: Bootstrap's default navbar ink is too faint against a dark ground. */
+ .navbar .nav-link{color:var(--muted)}
+ .navbar .nav-link:hover,.navbar .nav-link:focus{color:var(--accent)}
+ .navbar .nav-link.active{color:var(--text);font-weight:500}
+ main small,.small,.form-text,figcaption{font-family:var(--ui-font)}
+ /* Numbers are mono and tabular everywhere, so columns and readouts line up. */
+ code,kbd,samp,pre,.mono,#hud,td.num,th.num,.tnum{font-family:var(--mono-font);
+   font-variant-numeric:tabular-nums}
+ table{font-variant-numeric:tabular-nums}
+ a{color:var(--accent-ink)}
+ a:hover{color:var(--accent)}
+
+ /* Plots ------------------------------------------------------------------- */
+ /* The drum, spectrum and activity images are rendered server-side by matplotlib on
+    a white ground and cannot follow a client-side toggle. Rather than invert or dim
+    them (which would misstate the data), they sit on a deliberate paper plate -- the
+    drum recorder idiom -- with the frame carrying the theme instead of the ink.
+    Threading a theme= param through render.py/heli_render.py/activity.py is the
+    proper fix and is the next step, not this one. */
+ .plot{width:100%;height:auto;display:block;background:var(--plate);
+   border:1px solid var(--border-strong);border-radius:.375rem}
+ #c,#s{width:100%;display:block;background:var(--surface-2);
+   border:1px solid var(--border);border-radius:.375rem}
+ #c{height:220px} #s{height:230px}
+ #hud{font-size:12px;line-height:1.4;color:var(--muted);margin-top:.5rem}
  td.spark-cell{width:196px}
- svg.spark{display:block;width:180px;height:40px;background:#eaf0f4;border:1px solid #c7d4de;border-radius:3px}
+ svg.spark{display:block;width:180px;height:40px;background:var(--surface-3);
+   border:1px solid var(--border);border-radius:3px}
+ /* the sparkline SVG is inline in the page, so it takes its ink from the tokens */
+ .spark-base{stroke:var(--plot-axis)} .spark-onset{stroke:var(--plot-mark)}
+ .spark-fill{fill:var(--plot-trace)}
+
+ /* Bits ------------------------------------------------------------------- */
  .srcpill{border-radius:999px;padding:.3em .85em;font-size:.78rem;font-weight:500;
-   background:#e7f1f0;color:#2f6f6b;border:1px solid #cfe3e1;cursor:help}
- .srcpill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+   background:var(--accent-soft);color:var(--accent-ink);
+   border:1px solid var(--accent-soft-border);cursor:help}
+ .srcpill.active{background:var(--accent);color:var(--surface-2);border-color:var(--accent)}
  .tooltip-inner{max-width:360px;text-align:left;line-height:1.45}
- a{color:var(--accent)}
+ .themebtn{display:inline-flex;align-items:center;justify-content:center;
+   width:2rem;height:2rem;margin-left:.75rem;padding:0;border-radius:999px;
+   background:transparent;border:1px solid var(--border-strong);color:var(--muted);
+   cursor:pointer;flex:0 0 auto}
+ .themebtn:hover{color:var(--accent);border-color:var(--accent)}
+ .themebtn .ico-sun{display:none}
+ [data-bs-theme="dark"] .themebtn .ico-sun{display:block}
+ [data-bs-theme="dark"] .themebtn .ico-moon{display:none}
 </style>"""
 
 # Two copies of this app run from the same image: pi5 on the LAN owns the miniSEED
@@ -160,7 +320,7 @@ def _nav(active):
         + link("/catches", "Catches", "catches")
         + link("/learn", "Seismology 101", "learn")
         + link("/about", "About this station", "about")
-        + '</ul></div></div></nav>'
+        + '</ul></div>' + THEME_BUTTON + '</div></nav>'
     )
 
 
@@ -198,13 +358,13 @@ BFCACHE_JS = r"""<script>
 </script>"""
 
 
-def _shell(title, active, body, script=""):
+def _shell(title, active, body, script="", narrow=False):
     return (
-        '<!doctype html><html lang="en" data-bs-theme="light"><head><meta charset="utf-8">'
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f'<title>{title}</title>{BOOT}{CSS}</head><body>'
+        f'<title>{title}</title>{THEME_BOOT_JS}{BOOT}{CSS}</head><body>'
         + _nav(active)
-        + '<main class="container py-4">' + body + '</main>'
+        + f'<main class="container py-4{" page-narrow" if narrow else ""}">' + body + '</main>'
         + FOOTER + script + BFCACHE_JS + '</body></html>'
     )
 
@@ -217,6 +377,18 @@ def _titleblock(title, subtitle):
 # --- home --------------------------------------------------------------------
 
 HOME_JS = """<script>
+// The two canvases are drawn by hand, so they read the theme's --plot-* tokens at
+// draw time instead of carrying their own colours. Toggling re-reads them; the live
+// loop repaints within 3 s, and the spectrum is repainted on the spot.
+const P={};
+function pal(){
+  const cs=getComputedStyle(document.documentElement);
+  for(const k of ['axis','grid','grid-faint','label','trace','mark'])
+    P[k]=cs.getPropertyValue('--plot-'+k).trim();
+}
+pal();
+let _lastSpec=null;
+addEventListener('seismo:theme',function(){pal();if(_lastSpec)spectrum(_lastSpec);});
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),hud=document.getElementById('hud');
 const AX=18;                                  // bottom strip reserved for the time axis
 function fit(){cv.width=cv.clientWidth;cv.height=cv.clientHeight;}
@@ -227,15 +399,15 @@ function hms(t){return new Date(t*1000).toISOString().slice(11,19);}
 // with the trace instead of sitting at fixed pixels.
 function axis(t0,t1,W,H){
   const plotH=H-AX;
-  ctx.strokeStyle='#dee2e6';ctx.lineWidth=1;
+  ctx.strokeStyle=P.axis;ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(0,plotH+.5);ctx.lineTo(W,plotH+.5);ctx.stroke();
-  ctx.fillStyle='#6c757d';ctx.font='10px ui-monospace,Menlo,monospace';ctx.textAlign='center';
+  ctx.fillStyle=P.label;ctx.font='10px "IBM Plex Mono",ui-monospace,Menlo,monospace';ctx.textAlign='center';
   for(let t=Math.ceil(t0);t<=t1;t++){
     const x=Math.round((t-t0)/(t1-t0)*W)+.5,ten=t%10===0;
     ctx.beginPath();ctx.moveTo(x,plotH);ctx.lineTo(x,plotH+(ten?6:3));ctx.stroke();
     if(ten){
-      ctx.strokeStyle='#f1f3f5';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,plotH);ctx.stroke();
-      ctx.strokeStyle='#dee2e6';
+      ctx.strokeStyle=P.grid;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,plotH);ctx.stroke();
+      ctx.strokeStyle=P.axis;
       if(x>22&&x<W-22)ctx.fillText(hms(t),x,H-4);
     }
   }
@@ -247,8 +419,9 @@ function fitS(){if(sv){sv.width=sv.clientWidth;sv.height=sv.clientHeight;}}
 addEventListener('resize',fitS);fitS();
 function spectrum(sp){
   if(!sx)return;
+  _lastSpec=sp;
   const W=sv.width,H=sv.height;sx.clearRect(0,0,W,H);
-  if(!sp||!sp.f||sp.f.length<3){sx.fillStyle='#6c757d';sx.font='11px ui-monospace,Menlo,monospace';
+  if(!sp||!sp.f||sp.f.length<3){sx.fillStyle=P.label;sx.font='11px "IBM Plex Mono",ui-monospace,Menlo,monospace';
     sx.fillText('spectrum unavailable',ML,H/2);return;}
   const f=sp.f,a=sp.asd;
   const lx=v=>Math.log10(v), pw=W-ML-MR, ph=H-MB-MT;
@@ -256,13 +429,13 @@ function spectrum(sp){
   let amin=Infinity,amax=-Infinity;for(const v of a){if(v>0){amin=Math.min(amin,v);amax=Math.max(amax,v);}}
   const y0=Math.floor(lx(amin)),y1=Math.ceil(lx(amax));   // whole decades
   const X=v=>ML+(lx(v)-x0)/(x1-x0)*pw, Y=v=>MT+(y1-lx(v))/(y1-y0)*ph;
-  sx.font='10px ui-monospace,Menlo,monospace';
+  sx.font='10px "IBM Plex Mono",ui-monospace,Menlo,monospace';
   // y decades
   sx.textAlign='right';
   for(let d=y0;d<=y1;d++){
     const y=Y(Math.pow(10,d));
-    sx.strokeStyle='#f1f3f5';sx.beginPath();sx.moveTo(ML,y+.5);sx.lineTo(W-MR,y+.5);sx.stroke();
-    sx.fillStyle='#6c757d';sx.fillText('1e'+d,ML-4,y+3);
+    sx.strokeStyle=P.grid;sx.beginPath();sx.moveTo(ML,y+.5);sx.lineTo(W-MR,y+.5);sx.stroke();
+    sx.fillStyle=P.label;sx.fillText('1e'+d,ML-4,y+3);
   }
   // x decade + minor ticks
   sx.textAlign='center';
@@ -271,22 +444,22 @@ function spectrum(sp){
     for(let m=1;m<10;m++){
       const v=m*Math.pow(10,d);if(lx(v)<x0||lx(v)>x1)continue;
       const x=X(v);
-      sx.strokeStyle=m===1?'#e9ecef':'#f8f9fa';
+      sx.strokeStyle=m===1?P.grid:P['grid-faint'];
       sx.beginPath();sx.moveTo(x+.5,MT);sx.lineTo(x+.5,MT+ph);sx.stroke();
-      if(m===1||m===2||m===5){sx.fillStyle='#6c757d';
+      if(m===1||m===2||m===5){sx.fillStyle=P.label;
         sx.fillText(v<1?v.toString():v.toFixed(0),x,H-6);}
     }
   }
   // 4.5 Hz geophone corner
   if(4.5>=f[0]&&4.5<=f[f.length-1]){
-    const x=X(4.5);sx.strokeStyle='#dc322f';sx.setLineDash([3,3]);sx.beginPath();
+    const x=X(4.5);sx.strokeStyle=P.mark;sx.setLineDash([3,3]);sx.beginPath();
     sx.moveTo(x+.5,MT);sx.lineTo(x+.5,MT+ph);sx.stroke();sx.setLineDash([]);
-    sx.fillStyle='#dc322f';sx.textAlign='left';sx.fillText('4.5 Hz',x+3,MT+10);
+    sx.fillStyle=P.mark;sx.textAlign='left';sx.fillText('4.5 Hz',x+3,MT+10);
   }
-  sx.strokeStyle='#2f6f6b';sx.lineWidth=1.25;sx.beginPath();
+  sx.strokeStyle=P.trace;sx.lineWidth=1.25;sx.beginPath();
   for(let i=0;i<f.length;i++){const x=X(f[i]),y=Y(Math.max(a[i],1e-12));i?sx.lineTo(x,y):sx.moveTo(x,y);}
   sx.stroke();
-  sx.strokeStyle='#dee2e6';sx.lineWidth=1;sx.strokeRect(ML+.5,MT+.5,pw,ph);
+  sx.strokeStyle=P.axis;sx.lineWidth=1;sx.strokeRect(ML+.5,MT+.5,pw,ph);
 }
 // Source badges: which characterised signature (if any) the live ring matches.
 // SOFT LABEL -- informational only, never gates anything. Provisional signatures
@@ -353,7 +526,7 @@ async function live(){
       const plotH=haveT?H-AX:H;
       if(haveT)axis(t0,t1,W,H);
       let amp=20;for(const v of d)amp=Math.max(amp,Math.abs(v));amp*=1.1;
-      ctx.strokeStyle='#2f6f6b';ctx.lineWidth=1;ctx.beginPath();
+      ctx.strokeStyle=P.trace;ctx.lineWidth=1;ctx.beginPath();
       for(let i=0;i<n;i++){const x=i/(n-1)*W,y=plotH/2-d[i]/amp*(plotH/2*0.9);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
       ctx.stroke();
       spectrum(r.spec);
@@ -386,8 +559,8 @@ def _slug(header):
 
 _CHAR_BADGE = {                       # character class -> (bootstrap class, text)
     "cultural": ("text-bg-warning", "impulsive"),
-    "weak": ("text-bg-light border", "near-threshold"),
-    "plain": ("text-bg-light border", "sustained"),
+    "weak": ("bg-body-tertiary text-body-secondary border", "near-threshold"),
+    "plain": ("bg-body-tertiary text-body-secondary border", "sustained"),
 }
 
 
@@ -396,7 +569,7 @@ def _char_badge(ch):
     lives in render._build_character. Empty when the window isn't scored yet."""
     if not ch:
         return '<span class="text-muted">&mdash;</span>'
-    cls, text = _CHAR_BADGE.get(ch.get("cls", ""), ("text-bg-light border", "?"))
+    cls, text = _CHAR_BADGE.get(ch.get("cls", ""), ("bg-body-tertiary text-body-secondary border", "?"))
     hf = "n/a" if ch.get("hf") is None else f'{ch["hf"]:.2f}'
     tip = (f'envelope kurtosis {ch.get("kurt")} &middot; {ch.get("dur")} s above 25% of '
            f'peak &middot; peak/median {ch.get("snr")} &middot; HF fraction {hf} '
@@ -458,7 +631,7 @@ def _pq_badge(p):
     if p in (None, ""):
         return '<span class="text-muted">&ndash;</span>'
     p = float(p)
-    cls = "text-bg-danger" if p >= 0.7 else "text-bg-warning" if p >= 0.4 else "text-bg-light"
+    cls = "text-bg-danger" if p >= 0.7 else "text-bg-warning" if p >= 0.4 else "bg-body-tertiary text-body-secondary border"
     return f'<span class="badge {cls}">{p:.2f}</span>'
 
 
@@ -596,11 +769,11 @@ def learn():
                     for h, inner in content.LEARN_SECTIONS)
     body = (_titleblock("Seismology 101",
                         "what this instrument hears, and the words for it")
-            + '<div class="row"><div class="col-lg-9">'
+            + '<div class="row"><div class="col-12">'
             + '<p class="text-muted">No background assumed. If a term on the other pages '
               'looks like jargon, it is in the glossary at the bottom.</p>'
             + cards + '</div></div>')
-    return Response(_shell(f"Seismology 101 — {BRAND}", "learn", body),
+    return Response(_shell(f"Seismology 101 — {BRAND}", "learn", body, narrow=True),
                     media_type="text/html")
 
 
@@ -622,8 +795,8 @@ def about():
     if _PUBLIC_COPY:                                  # no detections page to link to
         cards = cards.replace('(on their <a href="/detections">own page</a>) ', "")
     body = _titleblock("About this station", f"{SID} &middot; {PLACE}") + \
-        f'<div class="row"><div class="col-lg-9">{cards}</div></div>'
-    return Response(_shell(f"About — {BRAND}", "about", body),
+        f'<div class="row"><div class="col-12">{cards}</div></div>'
+    return Response(_shell(f"About — {BRAND}", "about", body, narrow=True),
                     media_type="text/html")
 
 
@@ -815,7 +988,7 @@ def _env_tile(label, span_id, value, unit, sub=""):
     val = "&mdash;" if value is None else value
     sub = f'<div class="text-muted small mt-1">{sub}</div>' if sub else ""
     return (
-        '<div class="col-6 col-lg-3"><div class="border rounded p-3 h-100 bg-white">'
+        '<div class="col-6 col-lg-3"><div class="border rounded p-3 h-100 bg-body-tertiary">'
         f'<div class="text-muted small text-uppercase">{label}</div>'
         f'<div class="fs-3 lh-1 mt-2"><span id="{span_id}">{val}</span> '
         f'<span class="fs-6 text-muted">{unit}</span></div>{sub}</div></div>')

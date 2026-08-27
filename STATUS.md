@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-08-26 (UTC)_
+_Last updated: 2026-08-27 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -61,6 +61,33 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 ---
 
 # Recent entries (newest first)
+
+## 🎨 DASHBOARD VISUAL REFRESH — tokens, type, light/dark (2026-08-27)
+
+The dashboard read as stock Bootstrap because it *was* stock Bootstrap: one accent hex
+over the defaults. Replaced the whole look, no layout changes.
+
+- **Design tokens.** One `:root` set (surface / surface-2 / surface-3, border,
+  text, muted, accent, accent-ink, accent-soft, warn, plate, and six `--plot-*`) with a
+  `[data-bs-theme="dark"]` override. The tokens are handed to Bootstrap's own
+  `--bs-*` variables, so cards, navbar, tables, badges and tooltips follow without
+  per-component CSS. No file hard-codes a colour any more.
+- **Light / dark toggle**, top right of the navbar. First visit follows the OS and keeps
+  following it live; clicking pins a choice in `localStorage`. The theme is resolved by an
+  inline script in `<head>` so a dark-mode reader never sees a white flash.
+- **Type.** Inter for the chrome, **Source Serif 4** for the long explanatory prose,
+  IBM Plex Mono (tabular figures) for every number. Prose capped at 68 ch; Seismology 101
+  and About now render as documents in a 46 rem column (`_shell(..., narrow=True)`)
+  instead of an 1140 px card holding a 68 ch paragraph.
+- **Canvases follow the theme.** The live trace and the live spectrum read the `--plot-*`
+  tokens at draw time (`pal()` in `HOME_JS`) and repaint on a `seismo:theme` event; the
+  detection sparkline SVG in `render.py` now takes its ink from CSS classes.
+
+**Known gap:** the server-rendered PNGs (drum, spectrum, activity) are matplotlib on
+white and cannot follow a client-side toggle, so in dark mode they sit on a deliberate
+paper plate — the drum-recorder idiom — with the frame carrying the theme. Threading a
+`theme=` param through `render.py` / `heli_render.py` / `activity.py` (and the
+`heli_service` pre-render cache) is the proper fix; deferred.
 
 ## 🧠 TRIGGER CLASSIFIER, STAGE 1 — trained on the Mac, not yet on pi5 (2026-08-26 19:00 UTC)
 
