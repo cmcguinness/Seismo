@@ -30,6 +30,9 @@ NETWORK = os.environ.get("SEISMO_NETWORK", "XX")
 PLACE = os.environ.get("SEISMO_PLACE", "Oakmont, Santa Rosa, CA")
 EVENTS = os.environ.get("SEISMO_EVENTS", "/data/events.log")
 SID = f"{NETWORK}.{STATION}.00.SHZ"
+# "Oakmont, Santa Rosa, CA" -> "Oakmont, CA"
+_pl = [x.strip() for x in PLACE.split(",")]
+_SHORT_PLACE = f"{_pl[0]}, {_pl[-1]}" if len(_pl) > 2 else PLACE
 # Environmental node (CLUE -> pi4env -> mirrored here). Directory of daily CSVs
 # `env-YYYY-MM-DD.csv` (schema utc,clue_mono_s,temp_C,press_hPa,humid_pct,ax,ay,az).
 ENV_DIR = os.environ.get("SEISMO_ENV_DIR", "/data/env")
@@ -102,15 +105,18 @@ BOOT = (
     'rel="stylesheet" crossorigin="anonymous">'
     '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" '
     'crossorigin="anonymous" defer></script>'
-    # Three faces, three jobs: Inter for the chrome, Source Serif for the long
-    # explanatory passages (this site is more reading than dashboard), IBM Plex Mono
-    # for every number so columns line up (tabular figures).
+    # Barlow was drawn from Californian public signage, which is the right accent for
+    # a station on a Californian fault; Newsreader carries the long explanatory passages
+    # (this site is more reading than dashboard); DM Mono reads like a lab display and
+    # sets every number, with tabular figures so columns line up.
     '<link rel="preconnect" href="https://fonts.googleapis.com">'
     '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
     '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
-    'family=Inter:wght@400;500;600&'
-    'family=IBM+Plex+Mono:wght@400;500&'
-    'family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">'
+    'family=Barlow:wght@400;500;600&'
+    'family=Barlow+Semi+Condensed:wght@500;600&'
+    'family=DM+Mono:wght@300;400;500&'
+    'family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400'
+    '&display=swap">'
 )
 
 # Theme is resolved before first paint so a dark-mode reader never gets a white flash.
@@ -151,178 +157,379 @@ THEME_BUTTON = (
     '</button>'
 )
 
-# One token set, two themes. Every colour on the site comes from here; nothing below
-# hard-codes a hex. The canvas drawings (live trace, spectrum) read the --plot-* tokens
-# at draw time, so they follow the theme too -- see HOME_JS.
-CSS = """<style>
+CSS = r'''<style>
+ /* ---------------------------------------------------------------------------
+    Copper on slate. The palette is the instrument: a copper coil (the accent, and
+    the ink every trace is drawn in) against blue-grey rock (the ground). Two
+    themes, one identity -- the copper darkens for a light ground, nothing else
+    changes role. Every colour on the site is a token here; nothing hard-codes one.
+    --------------------------------------------------------------------------- */
  :root{
-   --ui-font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
-   --prose-font:'Source Serif 4',Georgia,'Times New Roman',serif;
-   --mono-font:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+   --ui:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+   --cond:'Barlow Semi Condensed','Barlow',system-ui,sans-serif;
+   --prose:'Newsreader',Georgia,'Times New Roman',serif;
+   --mono:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 
-   --surface:#f7f7f5;            /* page */
-   --surface-2:#ffffff;          /* cards */
-   --surface-3:#f0f0ed;          /* nav, footer, inset wells */
-   --border:#e3e4e0;
-   --border-strong:#cfd1cc;
-   --text:#1d2422;
-   --muted:#6a726f;
-   --accent:#2f6f6b;
-   --accent-ink:#245a56;         /* accent text on a light ground */
-   --accent-soft:#e7f1f0;
-   --accent-soft-border:#cfe3e1;
-   --warn:#c0392b;
-   --plate:#ffffff;              /* the paper the rendered plots are printed on */
+   --ground:#eef0f1;      /* the page */
+   --panel:#ffffff;       /* the few surfaces that still need to lift */
+   --rail:#e3e6e8;        /* the fixed instrument rail */
+   --rule:#cfd5d8;        /* structural hairlines */
+   --rule-soft:#e0e4e6;   /* hairlines inside a block */
+   --ink:#131a1e;
+   --ink-dim:#5a666d;
+   --copper:#9a5a21;
+   --copper-lit:#b96f2c;
+   --rose:#ab3d31;
+   --plate:#ffffff;       /* the paper the server-rendered plots print on */
+   --lamp:#2c7a5b;
 
-   --plot-axis:#c8cbc7;
-   --plot-grid:#e8eae7;
-   --plot-grid-faint:#f3f4f2;
-   --plot-label:#6a726f;
-   --plot-trace:#2f6f6b;
-   --plot-mark:#c0392b;
+   --plot-axis:#b9c1c5; --plot-grid:#dfe4e6; --plot-grid-faint:#e9eced;
+   --plot-label:#5a666d; --plot-trace:#9a5a21; --plot-mark:#ab3d31;
  }
  [data-bs-theme="dark"]{
-   --surface:#14181a;
-   --surface-2:#1b2023;
-   --surface-3:#191e21;
-   --border:#2a3135;
-   --border-strong:#3a4348;
-   --text:#dfe4e2;
-   --muted:#98a29f;
-   --accent:#61bfb5;
-   --accent-ink:#7fd0c7;
-   --accent-soft:#1d3634;
-   --accent-soft-border:#2c4d4a;
-   --warn:#e2705f;
-   --plate:#f2f1ed;              /* plots stay on paper; see the note on .plot */
+   --ground:#101519;
+   --panel:#161c21;
+   --rail:#0b0f12;
+   --rule:#232b31;
+   --rule-soft:#1a2126;
+   --ink:#dfe5e8;
+   --ink-dim:#7e8c93;
+   --copper:#e09b4a;
+   --copper-lit:#f0b268;
+   --rose:#d2695e;
+   --plate:#efedE8;
+   --lamp:#4fbf8f;
 
-   --plot-axis:#3d464a;
-   --plot-grid:#252c30;
-   --plot-grid-faint:#1e2427;
-   --plot-label:#98a29f;
-   --plot-trace:#61bfb5;
-   --plot-mark:#e2705f;
+   --plot-axis:#333d44; --plot-grid:#1e262b; --plot-grid-faint:#171e22;
+   --plot-label:#7e8c93; --plot-trace:#e09b4a; --plot-mark:#d2695e;
  }
 
- /* Hand the tokens to Bootstrap so its own components (cards, navbar, tables,
-    buttons, tooltips, form controls) follow without per-component overrides. */
+ /* Bootstrap stays for tooltips, collapse and table mechanics; the look is ours. */
  [data-bs-theme]{
-   --bs-body-bg:var(--surface); --bs-body-color:var(--text);
-   --bs-body-font-family:var(--ui-font);
-   --bs-emphasis-color:var(--text); --bs-secondary-color:var(--muted);
-   --bs-border-color:var(--border); --bs-border-color-translucent:var(--border);
-   --bs-tertiary-bg:var(--surface-3); --bs-secondary-bg:var(--surface-3);
-   --bs-primary:var(--accent); --bs-primary-rgb:47,111,107;
-   --bs-link-color:var(--accent-ink); --bs-link-hover-color:var(--accent);
-   --bs-heading-color:var(--text);
-   --bs-code-color:var(--accent-ink);
+   --bs-body-bg:var(--ground); --bs-body-color:var(--ink);
+   --bs-body-font-family:var(--ui); --bs-body-font-size:1rem;
+   --bs-emphasis-color:var(--ink); --bs-secondary-color:var(--ink-dim);
+   --bs-border-color:var(--rule); --bs-border-color-translucent:var(--rule);
+   --bs-tertiary-bg:var(--rail); --bs-secondary-bg:var(--rail);
+   --bs-primary:var(--copper); --bs-heading-color:var(--ink);
+   --bs-link-color:var(--copper); --bs-link-hover-color:var(--copper-lit);
+   --bs-code-color:var(--copper);
+   --bs-table-color:var(--ink); --bs-table-bg:transparent;
+   --bs-table-border-color:var(--rule-soft);
+   --bs-table-striped-bg:transparent; --bs-table-striped-color:var(--ink);
+   --bs-border-radius:2px; --bs-border-radius-sm:2px; --bs-border-radius-lg:2px;
  }
- body{background:var(--surface);color:var(--text)}
- .text-muted,.text-body-secondary{color:var(--muted)!important}
+ *{-webkit-font-smoothing:antialiased}
+ body{background:var(--ground);color:var(--ink);font-family:var(--ui)}
+ a{color:var(--copper);text-underline-offset:.18em;text-decoration-thickness:.06em}
+ a:hover{color:var(--copper-lit)}
+ :focus-visible{outline:2px solid var(--copper);outline-offset:2px}
+ .text-muted,.text-body-secondary{color:var(--ink-dim)!important}
 
- /* Type ------------------------------------------------------------------- */
- h1,h2,h3,h4,h5,.card-header,.navbar-brand{letter-spacing:-.011em}
- .navbar-brand{font-weight:600;color:var(--accent-ink)}
- .page-title{color:var(--accent-ink);font-weight:600}
- .card-header{background:var(--surface-2);font-weight:600;color:var(--text);
-   border-bottom:1px solid var(--border)}
- .card{background:var(--surface-2);border-color:var(--border);border-radius:.5rem}
- /* Long-form explanation gets a reading face and a reading measure. 68ch is the
-    point past which the eye starts losing the next line's start. */
- main p,main li,main dd{font-family:var(--prose-font);font-size:1.0625rem;
-   line-height:1.65;max-width:68ch}
- main .card-header p,main td p,main th p,figcaption p{max-width:none}
- /* Pages that are mostly reading (Seismology 101, About) narrow the whole main
-    column to the measure, so the title and the card edges track the text instead of
-    trailing off into empty container to their right. */
- main.page-narrow{max-width:46rem}
- /* Nav links: Bootstrap's default navbar ink is too faint against a dark ground. */
- .navbar .nav-link{color:var(--muted)}
- .navbar .nav-link:hover,.navbar .nav-link:focus{color:var(--accent)}
- .navbar .nav-link.active{color:var(--text);font-weight:500}
- main small,.small,.form-text,figcaption{font-family:var(--ui-font)}
- /* Numbers are mono and tabular everywhere, so columns and readouts line up. */
- code,kbd,samp,pre,.mono,#hud,td.num,th.num,.tnum{font-family:var(--mono-font);
+ /* --- frame ---------------------------------------------------------------- */
+ .frame{display:grid;grid-template-columns:17rem minmax(0,1fr);min-height:100vh}
+ .rail{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+   background:var(--rail);border-right:1px solid var(--rule);
+   display:flex;flex-direction:column;padding:1.75rem 1.5rem 1.25rem}
+ .stage{padding:3.25rem 3.5rem 4rem;max-width:64rem}
+ .stage-narrow{max-width:46rem}
+
+ /* --- rail: identity ------------------------------------------------------- */
+ .r-net{font-family:var(--mono);font-size:.68rem;font-weight:400;letter-spacing:.16em;
+   text-transform:uppercase;color:var(--ink-dim)}
+ .r-code{font-family:var(--cond);font-weight:600;font-size:2.3rem;line-height:.95;
+   letter-spacing:-.01em;color:var(--ink);margin:.35rem 0 .3rem}
+ .r-chan{font-family:var(--mono);font-size:.7rem;line-height:1.5;color:var(--ink-dim)}
+
+ /* --- rail: vitals (the signature -- live on every page) ------------------- */
+ .rail::-webkit-scrollbar{width:0}
+ .rail{scrollbar-width:none}
+ .vitals{margin-top:1.35rem;padding-top:1rem;border-top:1px solid var(--rule)}
+ .v-state{display:flex;align-items:center;gap:.5rem;font-family:var(--mono);
+   font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+ .lamp{width:7px;height:7px;border-radius:50%;background:var(--ink-dim);flex:0 0 auto}
+ .vitals.on .lamp{background:var(--lamp);box-shadow:0 0 0 0 var(--lamp);
+   animation:beat 3s ease-out infinite}
+ .vitals.stale .lamp{background:var(--rose)}
+ @keyframes beat{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--lamp) 55%,transparent)}
+   70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+ @media (prefers-reduced-motion:reduce){.vitals.on .lamp{animation:none}}
+ .v-age{margin-left:auto;font-variant-numeric:tabular-nums}
+ .v-read{display:flex;align-items:baseline;gap:.4rem;margin:.55rem 0 .1rem}
+ .v-num{font-family:var(--mono);font-weight:300;font-size:2.1rem;line-height:1;
+   letter-spacing:-.02em;color:var(--copper);font-variant-numeric:tabular-nums}
+ .v-unit{font-family:var(--mono);font-size:.72rem;color:var(--ink-dim)}
+ .v-what{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;
+   text-transform:uppercase;color:var(--ink-dim)}
+ #v-spark{display:block;width:100%;height:34px;margin:.7rem 0 .2rem}
+ .v-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.15rem .5rem;margin:.4rem 0 0}
+ .v-grid dt{font-family:var(--mono);font-size:.6rem;letter-spacing:.09em;
+   color:var(--ink-dim);font-weight:400}
+ .v-grid dd{font-family:var(--mono);font-size:.82rem;margin:0;color:var(--ink);
    font-variant-numeric:tabular-nums}
- table{font-variant-numeric:tabular-nums}
- a{color:var(--accent-ink)}
- a:hover{color:var(--accent)}
 
- /* Plots ------------------------------------------------------------------- */
- /* The drum, spectrum and activity images are rendered server-side by matplotlib on
-    a white ground and cannot follow a client-side toggle. Rather than invert or dim
-    them (which would misstate the data), they sit on a deliberate paper plate -- the
-    drum recorder idiom -- with the frame carrying the theme instead of the ink.
-    Threading a theme= param through render.py/heli_render.py/activity.py is the
-    proper fix and is the next step, not this one. */
- .plot{width:100%;height:auto;display:block;background:var(--plate);
-   border:1px solid var(--border-strong);border-radius:.375rem}
- #c,#s{width:100%;display:block;background:var(--surface-2);
-   border:1px solid var(--border);border-radius:.375rem}
- #c{height:220px} #s{height:230px}
- #hud{font-size:12px;line-height:1.4;color:var(--muted);margin-top:.5rem}
- td.spark-cell{width:196px}
- svg.spark{display:block;width:180px;height:40px;background:var(--surface-3);
-   border:1px solid var(--border);border-radius:3px}
- /* the sparkline SVG is inline in the page, so it takes its ink from the tokens */
- .spark-base{stroke:var(--plot-axis)} .spark-onset{stroke:var(--plot-mark)}
- .spark-fill{fill:var(--plot-trace)}
-
- /* Bits ------------------------------------------------------------------- */
- .srcpill{border-radius:999px;padding:.3em .85em;font-size:.78rem;font-weight:500;
-   background:var(--accent-soft);color:var(--accent-ink);
-   border:1px solid var(--accent-soft-border);cursor:help}
- .srcpill.active{background:var(--accent);color:var(--surface-2);border-color:var(--accent)}
- .tooltip-inner{max-width:360px;text-align:left;line-height:1.45}
+ /* --- rail: nav, grouped by how far back you are looking ------------------- */
+ .r-nav{margin-top:1.35rem;padding-top:1rem;border-top:1px solid var(--rule);flex:1 1 auto}
+ .r-group{font-family:var(--mono);font-size:.6rem;letter-spacing:.15em;
+   text-transform:uppercase;color:var(--ink-dim);margin:.85rem 0 .25rem}
+ .r-group:first-child{margin-top:0}
+ .r-nav-a{display:block;font-family:var(--cond);font-size:1.02rem;font-weight:500;
+   line-height:1.45;color:var(--ink-dim);text-decoration:none;
+   padding-left:.7rem;border-left:2px solid transparent}
+ .r-nav-a:hover{color:var(--ink);border-left-color:var(--rule)}
+ .r-nav-a.on{color:var(--ink);border-left-color:var(--copper)}
+ .r-foot{padding-top:.9rem;border-top:1px solid var(--rule);margin-top:1rem;
+   display:flex;align-items:center;gap:.6rem;
+   font-family:var(--mono);font-size:.62rem;line-height:1.5;color:var(--ink-dim)}
  .themebtn{display:inline-flex;align-items:center;justify-content:center;
-   width:2rem;height:2rem;margin-left:.75rem;padding:0;border-radius:999px;
-   background:transparent;border:1px solid var(--border-strong);color:var(--muted);
-   cursor:pointer;flex:0 0 auto}
- .themebtn:hover{color:var(--accent);border-color:var(--accent)}
+   width:1.9rem;height:1.9rem;flex:0 0 auto;padding:0;border-radius:2px;
+   background:transparent;border:1px solid var(--rule);color:var(--ink-dim);cursor:pointer}
+ .themebtn:hover{color:var(--copper);border-color:var(--copper)}
  .themebtn .ico-sun{display:none}
  [data-bs-theme="dark"] .themebtn .ico-sun{display:block}
  [data-bs-theme="dark"] .themebtn .ico-moon{display:none}
-</style>"""
+
+ /* --- page head ------------------------------------------------------------ */
+ .pagehead{margin-bottom:2.75rem}
+ .pagehead h1{font-family:var(--cond);font-weight:600;font-size:2.55rem;line-height:1.02;
+   letter-spacing:-.015em;color:var(--ink);margin:0 0 .45rem}
+ .pagehead .lede{font-family:var(--ui);font-size:1rem;color:var(--ink-dim);
+   max-width:62ch;margin:0}
+
+ /* --- panels: a rule and a copper tick, not a box -------------------------- */
+ .panel{margin:0 0 3.25rem}
+ .panel-head{display:flex;align-items:baseline;gap:.55rem;
+   border-top:1px solid var(--rule);padding-top:.6rem;margin-bottom:1.15rem}
+ .panel-head::before{content:"";flex:0 0 auto;width:6px;height:6px;
+   background:var(--copper);transform:translateY(-1px)}
+ .panel-title{font-family:var(--cond);font-weight:600;font-size:1.12rem;
+   letter-spacing:.005em;color:var(--ink);flex:1 1 auto}
+ .panel-title .fw-normal{font-family:var(--ui);font-weight:400;font-size:.88rem;
+   color:var(--ink-dim)}
+
+ /* --- hero: the ground, right now ------------------------------------------ */
+ .hero{margin:0 0 3.25rem}
+ .hero-read{display:flex;align-items:baseline;gap:.55rem;flex-wrap:wrap;
+   margin-bottom:.85rem}
+ .hero-num{font-family:var(--mono);font-weight:300;font-size:4.2rem;line-height:.92;
+   letter-spacing:-.035em;color:var(--copper);font-variant-numeric:tabular-nums}
+ .hero-unit{font-family:var(--mono);font-size:.95rem;color:var(--ink-dim)}
+ .hero-what{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;
+   text-transform:uppercase;color:var(--ink-dim);margin-left:.2rem}
+ .hero-src{margin-left:auto;align-self:center}
+ #c{display:block;width:100%;height:270px;
+   border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+ #s{display:block;width:100%;height:250px}
+ #hud{font-family:var(--mono);font-size:.72rem;line-height:1.5;color:var(--ink-dim);
+   margin-top:.6rem;font-variant-numeric:tabular-nums}
+
+ /* --- prose ---------------------------------------------------------------- */
+ .stage p,.stage li,.stage dd{font-family:var(--prose);font-size:1.075rem;
+   line-height:1.62;max-width:66ch}
+ .stage .panel-head p,.stage td p,.stage th p,.stage .small,.stage small,
+ .stage .form-text,.stage figcaption{font-family:var(--ui);max-width:none}
+ .stage .small,.stage small{font-size:.85rem;line-height:1.55;color:var(--ink-dim);
+   max-width:78ch}
+ .stage h2,.stage h3,.stage h4,.stage h5{font-family:var(--cond);font-weight:600;
+   letter-spacing:.005em}
+ .stage strong,.stage b{font-weight:600}
+ code,kbd,samp,pre,.mono,.tnum{font-family:var(--mono);font-variant-numeric:tabular-nums}
+ code{font-size:.88em}
+ table{font-family:var(--ui);font-variant-numeric:tabular-nums;font-size:.92rem}
+ thead th{font-family:var(--mono);font-size:.65rem;font-weight:400;letter-spacing:.1em;
+   text-transform:uppercase;color:var(--ink-dim);border-bottom-color:var(--rule)!important}
+ .badge{font-family:var(--mono);font-weight:400;letter-spacing:.04em;border-radius:2px}
+
+ /* --- server-rendered plots ------------------------------------------------ */
+ /* The drum, spectrum and activity images are matplotlib on white and cannot follow
+    a client-side toggle. Inverting or dimming them would misstate the data, so they
+    print on paper and the frame carries the theme -- which is what a drum recorder
+    does anyway. A theme= param through the renderers is the real fix. */
+ .plot{display:block;width:100%;height:auto;background:var(--plate);
+   border:1px solid var(--rule);border-radius:2px}
+ td.spark-cell{width:196px}
+ svg.spark{display:block;width:180px;height:40px;background:transparent;
+   border:1px solid var(--rule-soft);border-radius:2px}
+ .spark-base{stroke:var(--plot-axis)} .spark-onset{stroke:var(--plot-mark)}
+ .spark-fill{fill:var(--plot-trace)}
+
+ /* --- bits ----------------------------------------------------------------- */
+ .srcpill{display:inline-block;font-family:var(--mono);font-size:.68rem;
+   letter-spacing:.06em;padding:.28em .7em;border-radius:2px;cursor:help;
+   background:transparent;color:var(--ink-dim);border:1px solid var(--rule)}
+ .srcpill.active{color:var(--copper);border-color:var(--copper)}
+ .tooltip-inner{max-width:360px;text-align:left;line-height:1.45;font-family:var(--ui)}
+ .btn-primary{--bs-btn-bg:var(--copper);--bs-btn-border-color:var(--copper);
+   --bs-btn-hover-bg:var(--copper-lit);--bs-btn-hover-border-color:var(--copper-lit);
+   --bs-btn-color:var(--ground);--bs-btn-hover-color:var(--ground)}
+ .form-control,.form-select{background-color:transparent;border-color:var(--rule);
+   color:var(--ink);font-family:var(--mono);font-size:.9rem}
+ .form-control:focus,.form-select:focus{background-color:transparent;color:var(--ink);
+   border-color:var(--copper);box-shadow:none}
+ .stagefoot{margin-top:3.5rem;padding-top:1rem;border-top:1px solid var(--rule);
+   font-family:var(--mono);font-size:.68rem;line-height:1.7;color:var(--ink-dim);
+   max-width:66ch}
+ .stagefoot a{color:var(--ink-dim);text-decoration:underline}
+
+ /* --- narrow --------------------------------------------------------------- */
+ @media (max-width:62rem){
+   .frame{grid-template-columns:1fr}
+   .rail{position:static;height:auto;flex-direction:row;flex-wrap:wrap;
+     align-items:flex-start;gap:1.5rem 2rem;border-right:0;
+     border-bottom:1px solid var(--rule);padding:1.25rem 1.5rem}
+   .r-id{flex:0 0 auto}
+   .r-code{font-size:1.9rem}
+   .vitals{margin-top:0;padding-top:0;border-top:0;flex:1 1 14rem;min-width:12rem}
+   .r-nav{margin-top:0;padding-top:0;border-top:0;flex:1 1 100%;
+     display:flex;flex-wrap:wrap;gap:.15rem 1.5rem;align-items:baseline}
+   .r-group{margin:0;flex:0 0 100%}
+   .r-group:not(:first-child){margin-top:.5rem}
+   .r-nav-a{padding-left:0;border-left:0;border-bottom:2px solid transparent}
+   .r-nav-a.on{border-left:0;border-bottom-color:var(--copper)}
+   .r-foot{margin-top:0;padding-top:0;border-top:0;flex:0 0 auto}
+   .stage{padding:2rem 1.5rem 3rem}
+   .hero-num{font-size:3rem}
+   .pagehead h1{font-size:2rem}
+ }
+</style>'''
 
 # Two copies of this app run from the same image: pi5 on the LAN owns the miniSEED
 # archive (UDP-streamed from the station) and builds the envelopes; the public copy on
 # apps02 (SEISMO_HELI_BUILD=0) renders envelopes pi5 pushes to it every minute.
 _PUBLIC_COPY = os.environ.get("SEISMO_HELI_BUILD", "1") != "1"
-FOOTER = (
-    '<footer class="border-top bg-body-tertiary py-3 mt-4"><div class="container text-muted small">'
-    + ('public copy &middot; data pushed from the station every minute, live trace every 3 s &middot; '
-       if _PUBLIC_COPY else
-       'rendered on the LAN from the station\'s UDP-streamed miniSEED &middot; ')
-    + 'built by <a href="https://www.linkedin.com/in/charlesmcguinness/">Charles McGuinness</a>'
-    '</div></footer>'
+
+# The rail's vitals run on every page, which is the point: the station does not stop
+# while you read the glossary. The Live page polls /live-data far faster than 3 s to
+# keep its trace smooth, so it announces each payload on `seismo:live` and this loop
+# stands down while those keep arriving -- one fetch cadence per page, never two.
+VITALS_JS = r"""<script>
+(function(){
+  const el=id=>document.getElementById(id);
+  // The Live page drops the rail's big reading (its hero shows it), so every write
+  // here has to tolerate a missing element rather than throwing past the sparkline.
+  const put=(id,v)=>{const e=el(id);if(e)e.textContent=v;};
+  const box=el('vitals'),spark=el('v-spark');
+  if(!box)return;
+  let fed=0;
+  function tokens(){const cs=getComputedStyle(document.documentElement);
+    return {trace:cs.getPropertyValue('--plot-trace').trim(),
+            axis:cs.getPropertyValue('--plot-axis').trim()};}
+  function drawSpark(d){
+    if(!spark)return;
+    const dpr=devicePixelRatio||1,W=spark.clientWidth,H=spark.clientHeight;
+    spark.width=W*dpr;spark.height=H*dpr;
+    const g=spark.getContext('2d');g.scale(dpr,dpr);g.clearRect(0,0,W,H);
+    const t=tokens();
+    if(!d||d.length<2){g.strokeStyle=t.axis;g.lineWidth=1;
+      g.beginPath();g.moveTo(0,H/2);g.lineTo(W,H/2);g.stroke();return;}
+    // one column of pixels per min/max pair: 3000 samples into ~250 px
+    const n=d.length,cols=Math.max(1,Math.floor(W));
+    let amp=1;for(const v of d)amp=Math.max(amp,Math.abs(v));
+    g.strokeStyle=t.trace;g.beginPath();
+    for(let c=0;c<cols;c++){
+      const a=Math.floor(c*n/cols),b=Math.max(a+1,Math.floor((c+1)*n/cols));
+      let lo=Infinity,hi=-Infinity;
+      for(let i=a;i<b;i++){if(d[i]<lo)lo=d[i];if(d[i]>hi)hi=d[i];}
+      const y=v=>H-2-(v/amp*.5+.5)*(H-4);
+      g.moveTo(c+.5,y(lo));g.lineTo(c+.5,y(hi));
+    }
+    g.stroke();
+  }
+  function show(r){
+    const ok=r&&r.uv&&r.uv.length>1;
+    box.classList.toggle('on',!!ok&&(r.age==null||r.age<30));
+    box.classList.toggle('stale',!!ok&&r.age!=null&&r.age>=30);
+    if(!ok){put('v-state','no feed');put('v-age','');put('v-rms','––');
+      drawSpark(null);return;}
+    put('v-state',(r.age!=null&&r.age>=30)?'stale':'recording');
+    put('v-age',(r.age==null)?'':(r.age.toFixed(1)+' s behind'));
+    const v=(r.rms_band==null)?r.rms:r.rms_band;
+    put('v-rms',(v==null)?'––':v.toFixed(2));
+    put('v-fs',(r.fs==null)?'–':r.fs.toFixed(1));
+    put('v-gain',(r.gain==null)?'–':r.gain);
+    put('v-pp',(r.pp==null)?'–':r.pp.toFixed(0));
+    drawSpark(r.uv);
+  }
+  addEventListener('seismo:live',e=>{fed=Date.now();show(e.detail);});
+  addEventListener('seismo:theme',()=>{if(window._vLast)drawSpark(window._vLast.uv);});
+  addEventListener('resize',()=>{if(window._vLast)drawSpark(window._vLast.uv);});
+  const _show=show;show=r=>{window._vLast=r;_show(r);};
+  async function poll(){
+    if(Date.now()-fed<8000){setTimeout(poll,3000);return;}   // the page is feeding us
+    try{show(await (await fetch('/live-data')).json());}catch(e){show(null);}
+    setTimeout(poll,3000);
+  }
+  poll();
+})();
+</script>"""
+
+STAGE_FOOT = (
+    '<div class="stagefoot">'
+    'Independent station, not for scientific use. Times are UTC. '
+    'Built by <a href="https://www.linkedin.com/in/charlesmcguinness/">Charles McGuinness</a>.'
+    '</div>'
 )
 
 
-def _nav(active):
-    def link(href, label, key):
-        cls = "nav-link active" if key == active else "nav-link"
-        aria = ' aria-current="page"' if key == active else ""
-        return f'<li class="nav-item"><a class="{cls}"{aria} href="{href}">{label}</a></li>'
-    return (
-        '<nav class="navbar navbar-expand-sm bg-body-tertiary border-bottom">'
-        '<div class="container">'
-        f'<a class="navbar-brand" href="/">{BRAND}</a>'
-        '<button class="navbar-toggler" type="button" data-bs-toggle="collapse" '
-        'data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Toggle navigation">'
-        '<span class="navbar-toggler-icon"></span></button>'
-        '<div class="collapse navbar-collapse" id="nav"><ul class="navbar-nav ms-auto">'
-        + link("/", "Live", "live")
-        + ("" if _PUBLIC_COPY else link("/detections", "Detections", "detections"))
-        + link("/history", "History", "history")
-        + link("/activity", "Activity", "activity")
-        + link("/spectrum", "Spectrum", "spectrum")
-        + link("/env", "Environment", "env")
-        + link("/catches", "Catches", "catches")
-        + link("/learn", "Seismology 101", "learn")
-        + link("/about", "About this station", "about")
-        + '</ul></div>' + THEME_BUTTON + '</div></nav>'
-    )
+def _rail(active):
+    """The fixed instrument rail: who this station is, what it is reading right now,
+    and where to go. Present on every page -- the vitals keep running while you read
+    the glossary, because the station does too.
 
+    The nav is grouped by how far back you are looking, which is the only thing that
+    actually separates these pages from one another."""
+    def link(href, label, key):
+        on = " on" if key == active else ""
+        aria = ' aria-current="page"' if key == active else ""
+        return f'<a class="r-nav-a{on}"{aria} href="{href}">{label}</a>'
+
+    groups = [
+        ("Now", [("/", "Live", "live")]),
+        ("Recent", ([] if _PUBLIC_COPY else [("/detections", "Detections", "detections")])
+                   + [("/history", "History", "history"),
+                      ("/activity", "Activity", "activity")]),
+        ("The record", [("/catches", "Catches", "catches")]),
+        ("The instrument", [("/spectrum", "Spectrum", "spectrum"),
+                            ("/env", "Environment", "env"),
+                            ("/about", "About this station", "about")]),
+        ("Background", [("/learn", "Seismology 101", "learn")]),
+    ]
+    nav = "".join(f'<div class="r-group">{g}</div>' + "".join(link(*i) for i in items)
+                  for g, items in groups)
+
+    provenance = ("public copy &middot; pushed from the station"
+                  if _PUBLIC_COPY else "on the LAN &middot; from the archive")
+
+    # On Live the hero shows this reading four times larger a few inches away, so the
+    # rail drops it there and keeps the lamp, the sparkline and the settings.
+    reading = ("" if active == "live" else
+               '<div class="v-read"><span class="v-num" id="v-rms">&ndash;&ndash;</span>'
+               '<span class="v-unit">µV</span></div>'
+               '<div class="v-what">ground motion &middot; 1&ndash;15&nbsp;Hz rms</div>')
+
+    return (
+        '<aside class="rail">'
+        f'<div class="r-id"><div class="r-net">{NETWORK} &middot; {_SHORT_PLACE}</div>'
+        f'<div class="r-code">{STATION}</div>'
+        '<div class="r-chan">00.SHZ &middot; vertical 4.5&nbsp;Hz<br>'
+        '100&nbsp;sps &middot; geophone + ADS1256</div></div>'
+
+        '<div class="vitals" id="vitals">'
+        '<div class="v-state"><span class="lamp"></span>'
+        '<span id="v-state">connecting</span><span class="v-age" id="v-age"></span></div>'
+        + reading +
+        '<canvas id="v-spark" aria-hidden="true"></canvas>'
+        '<dl class="v-grid">'
+        '<div><dt>SPS</dt><dd id="v-fs">&ndash;</dd></div>'
+        '<div><dt>GAIN</dt><dd id="v-gain">&ndash;</dd></div>'
+        '<div><dt>PP µV</dt><dd id="v-pp">&ndash;</dd></div>'
+        '</dl></div>'
+
+        f'<nav class="r-nav">{nav}</nav>'
+
+        f'<div class="r-foot">{THEME_BUTTON}<span>{provenance}</span></div>'
+        '</aside>'
+    )
 
 # Rendered images reload when a page comes back from the browser's back/forward cache
 # or a hidden tab. Navigating away cancels an in-flight image download, and "back"
@@ -363,15 +570,16 @@ def _shell(title, active, body, script="", narrow=False):
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         f'<title>{title}</title>{THEME_BOOT_JS}{BOOT}{CSS}</head><body>'
-        + _nav(active)
-        + f'<main class="container py-4{" page-narrow" if narrow else ""}">' + body + '</main>'
-        + FOOTER + script + BFCACHE_JS + '</body></html>'
+        + '<div class="frame">' + _rail(active)
+        + f'<main class="stage{" stage-narrow" if narrow else ""}">'
+        + body + STAGE_FOOT + '</main></div>'
+        + script + VITALS_JS + BFCACHE_JS + '</body></html>'
     )
 
 
 def _titleblock(title, subtitle):
-    return (f'<div class="mb-4"><h1 class="h3 page-title mb-1">{title}</h1>'
-            f'<div class="text-muted">{subtitle}</div></div>')
+    return (f'<header class="pagehead"><h1>{title}</h1>'
+            f'<p class="lede">{subtitle}</p></header>')
 
 
 # --- home --------------------------------------------------------------------
@@ -389,9 +597,11 @@ function pal(){
 pal();
 let _lastSpec=null;
 addEventListener('seismo:theme',function(){pal();if(_lastSpec)spectrum(_lastSpec);});
+const heroNum=document.getElementById('hero-num');
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),hud=document.getElementById('hud');
 const AX=18;                                  // bottom strip reserved for the time axis
-function fit(){cv.width=cv.clientWidth;cv.height=cv.clientHeight;}
+function fit(){const d=devicePixelRatio||1;
+  cv.width=cv.clientWidth*d;cv.height=cv.clientHeight*d;ctx.setTransform(d,0,0,d,0,0);}
 addEventListener('resize',fit);fit();
 function hms(t){return new Date(t*1000).toISOString().slice(11,19);}
 // Time axis: 1 s minor ticks, labelled + gridded every 10 s. Tick positions come
@@ -415,12 +625,13 @@ function axis(t0,t1,W,H){
 // Live spectrum: log-log ASD from the same 30 s ring. ML/MB = axis margins.
 const sv=document.getElementById('s'),sx=sv?sv.getContext('2d'):null;
 const ML=46,MB=20,MT=6,MR=8;
-function fitS(){if(sv){sv.width=sv.clientWidth;sv.height=sv.clientHeight;}}
+function fitS(){if(!sv)return;const d=devicePixelRatio||1;
+  sv.width=sv.clientWidth*d;sv.height=sv.clientHeight*d;sx.setTransform(d,0,0,d,0,0);}
 addEventListener('resize',fitS);fitS();
 function spectrum(sp){
   if(!sx)return;
   _lastSpec=sp;
-  const W=sv.width,H=sv.height;sx.clearRect(0,0,W,H);
+  const W=sv.clientWidth,H=sv.clientHeight;sx.clearRect(0,0,W,H);
   if(!sp||!sp.f||sp.f.length<3){sx.fillStyle=P.label;sx.font='11px "IBM Plex Mono",ui-monospace,Menlo,monospace';
     sx.fillText('spectrum unavailable',ML,H/2);return;}
   const f=sp.f,a=sp.asd;
@@ -459,7 +670,9 @@ function spectrum(sp){
   sx.strokeStyle=P.trace;sx.lineWidth=1.25;sx.beginPath();
   for(let i=0;i<f.length;i++){const x=X(f[i]),y=Y(Math.max(a[i],1e-12));i?sx.lineTo(x,y):sx.moveTo(x,y);}
   sx.stroke();
-  sx.strokeStyle=P.axis;sx.lineWidth=1;sx.strokeRect(ML+.5,MT+.5,pw,ph);
+  // axis lines only -- the trace above this one is not in a box either
+  sx.strokeStyle=P.axis;sx.lineWidth=1;sx.beginPath();
+  sx.moveTo(ML+.5,MT);sx.lineTo(ML+.5,MT+ph+.5);sx.lineTo(ML+pw,MT+ph+.5);sx.stroke();
 }
 // Source badges: which characterised signature (if any) the live ring matches.
 // SOFT LABEL -- informational only, never gates anything. Provisional signatures
@@ -519,7 +732,7 @@ function sources(list){
 async function live(){
   try{
     const r=await (await fetch('/live-data')).json();
-    const d=r.uv||[],n=d.length,W=cv.width,H=cv.height;
+    const d=r.uv||[],n=d.length,W=cv.clientWidth,H=cv.clientHeight;
     ctx.clearRect(0,0,W,H);
     if(n>1){
       const fs=r.fs||0,t1=r.t_end,haveT=!!t1&&fs>0,t0=haveT?t1-(n-1)/fs:0;
@@ -531,13 +744,17 @@ async function live(){
       ctx.stroke();
       spectrum(r.spec);
       sources(r.sources);
+      dispatchEvent(new CustomEvent('seismo:live',{detail:r}));
       const band=(r.rms_band==null)?'':`  rms(1–15 Hz) ${r.rms_band.toFixed(2)} µV`;
       hud.textContent=`gain ${r.gain}  fs ${fs.toFixed(1)} sps  pp ${(r.pp||0).toFixed(0)} µV`
         +`  rms ${(r.rms||0).toFixed(2)} µV`+band
         +(haveT?`  ends ${hms(t1)} UTC (${(r.age||0).toFixed(1)} s behind)`:'');
       
-    } else { hud.textContent='live feed unavailable'; sources(null); }
-  }catch(e){hud.textContent='live feed unavailable';}
+      const big=(r.rms_band==null)?r.rms:r.rms_band;
+      heroNum.textContent=(big==null)?'––':big.toFixed(2);
+    } else { hud.textContent='live feed unavailable'; sources(null);
+      heroNum.textContent='––'; }
+  }catch(e){hud.textContent='live feed unavailable'; heroNum.textContent='––';}
   setTimeout(live,300);
 }
 live();
@@ -545,10 +762,14 @@ setInterval(()=>{window.seismoReload(document.getElementById('heli'));},60000);
 </script>"""
 
 
-def _card(header, inner, body_class="card-body", card_id=None):
+def _card(header, inner, body_class="", card_id=None):
+    """A section, not a box: a hairline, a copper tick and a title. Kept under the old
+    name because every page builds itself out of it."""
     hid = f' id="{card_id}"' if card_id else ""
-    return (f'<div class="card shadow-sm mb-4"{hid}><div class="card-header">{header}</div>'
-            f'<div class="{body_class}">{inner}</div></div>')
+    cls = f' class="{body_class}"' if body_class else ""
+    return (f'<section class="panel"{hid}>'
+            f'<div class="panel-head"><h2 class="panel-title">{header}</h2></div>'
+            f'<div{cls}>{inner}</div></section>')
 
 
 def _slug(header):
@@ -581,11 +802,16 @@ def _char_badge(ch):
 def home():
     ts = int(time.time())
     body = (
-        _titleblock(SID, f'DIY geophone seismometer &middot; {PLACE} &middot; vertical '
-                         '4.5&nbsp;Hz &middot; independent station (not for scientific use)')
-        + _card('Live &middot; last 30&nbsp;s (UTC)<span id="srcbadges" '
-                'class="float-end"></span>',
-                '<canvas id="c"></canvas><div id="hud">connecting…</div>')
+        # No title block: the trace introduces the station better than a heading does.
+        '<section class="hero">'
+        '<div class="hero-read">'
+        '<span class="hero-num" id="hero-num">&ndash;&ndash;</span>'
+        '<span class="hero-unit">µV</span>'
+        '<span class="hero-what">ground motion &middot; 1&ndash;15&nbsp;Hz rms '
+        '&middot; last 30&nbsp;s</span>'
+        '<span class="hero-src" id="srcbadges"></span></div>'
+        '<canvas id="c"></canvas><div id="hud">connecting…</div>'
+        '</section>'
         + _card("Live spectrum &middot; same 30&nbsp;s window "
                 '<span class="fw-normal text-muted">&middot; ASD µV/&radic;Hz, log&ndash;log</span>',
                 '<canvas id="s"></canvas>'

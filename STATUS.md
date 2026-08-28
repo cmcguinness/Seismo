@@ -62,32 +62,42 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
-## 🎨 DASHBOARD VISUAL REFRESH — tokens, type, light/dark (2026-08-27)
+## 🎨 DASHBOARD REDESIGN — the rack panel (2026-08-27)
 
 The dashboard read as stock Bootstrap because it *was* stock Bootstrap: one accent hex
-over the defaults. Replaced the whole look, no layout changes.
+over the defaults. A first pass swapped tokens and typefaces and still looked templated —
+the card grid and the navbar are what date it, not the palette. So the structure went too.
 
-- **Design tokens.** One `:root` set (surface / surface-2 / surface-3, border,
-  text, muted, accent, accent-ink, accent-soft, warn, plate, and six `--plot-*`) with a
-  `[data-bs-theme="dark"]` override. The tokens are handed to Bootstrap's own
-  `--bs-*` variables, so cards, navbar, tables, badges and tooltips follow without
-  per-component CSS. No file hard-codes a colour any more.
-- **Light / dark toggle**, top right of the navbar. First visit follows the OS and keeps
-  following it live; clicking pins a choice in `localStorage`. The theme is resolved by an
-  inline script in `<head>` so a dark-mode reader never sees a white flash.
-- **Type.** Inter for the chrome, **Source Serif 4** for the long explanatory prose,
-  IBM Plex Mono (tabular figures) for every number. Prose capped at 68 ch; Seismology 101
-  and About now render as documents in a 46 rem column (`_shell(..., narrow=True)`)
-  instead of an 1140 px card holding a 68 ch paragraph.
-- **Canvases follow the theme.** The live trace and the live spectrum read the `--plot-*`
-  tokens at draw time (`pal()` in `HOME_JS`) and repaint on a `seismo:theme` event; the
-  detection sparkline SVG in `render.py` now takes its ink from CSS classes.
+**The page is now an instrument front panel, not a document site.**
 
-**Known gap:** the server-rendered PNGs (drum, spectrum, activity) are matplotlib on
-white and cannot follow a client-side toggle, so in dark mode they sit on a deliberate
-paper plate — the drum-recorder idiom — with the frame carrying the theme. Threading a
-`theme=` param through `render.py` / `heli_render.py` / `activity.py` (and the
-`heli_service` pre-render cache) is the proper fix; deferred.
+- **A fixed left rail replaces the navbar.** It carries the station identity (OAKMT set
+  in Barlow Semi Condensed) and, on *every* page, live vitals: a status lamp, seconds
+  behind, the 1–15 Hz rms reading, a 30 s sparkline, sps / gain / pp. The station does not
+  stop while you read the glossary, and now the site does not pretend it does. Nav is
+  grouped by how far back you are looking — Now / Recent / The record / The instrument /
+  Background — which is the only thing that really separates these pages.
+- **No cards.** `_card()` still exists (every page is built from it) but emits a section:
+  a hairline, a copper tick, a title. Panels are separated by space and rules, not boxes.
+- **The Live page opens with the instrument.** No title block: an oversized reading, then
+  the trace edge to edge with no frame. The rail drops its own copy of that number there.
+- **Palette: copper on blue-slate** — the coil and the rock — in both themes, with the
+  light/dark toggle (OS-following until clicked) kept in the rail.
+- **Type:** Barlow (drawn from Californian public signage, for a Californian fault
+  station), Newsreader for the long prose at a 66 ch measure, DM Mono with tabular
+  figures for every number.
+- **Both canvases are now DPR-aware** — they were drawn at CSS pixels, so every live
+  trace was soft on a retina screen. Also: CSS `text-transform:uppercase` turns the micro
+  sign into a capital Mu, so "pp µV" was rendering as "PP MV" in the rail. Labels that
+  contain units are no longer transformed.
+
+**Known gap, unchanged:** the server-rendered PNGs (drum, spectrum, activity) are
+matplotlib on white and cannot follow a client-side toggle, so in dark mode they print on
+a paper plate and the frame carries the theme. Threading a `theme=` param through
+`render.py` / `heli_render.py` / `activity.py` (and the `heli_service` pre-render cache)
+is the real fix; deferred.
+
+`dashboard/seismo_dashboard.py` is now ~1500 lines — past the 1000-line mark, worth
+splitting the page handlers from the chrome before it grows again.
 
 ## 🧠 TRIGGER CLASSIFIER, STAGE 1 — trained on the Mac, not yet on pi5 (2026-08-26 19:00 UTC)
 
