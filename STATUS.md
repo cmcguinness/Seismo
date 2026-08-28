@@ -62,6 +62,45 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## ♿ CONTRAST GATED AGAINST WCAG + THE DRUM'S FIRST PAINT (2026-08-28)
+
+Charles: dark-mode prose was washed out. Measured from his screenshot: `#7e8c93` on
+`#111419` = **5.4:1** — passes AA, fails AAA, and the text in question was four
+paragraphs of drum instructions marked up as a *caption* (`text-muted small`).
+
+Rather than nudge a hex, the palette is now **gated**: `dashboard/contrast_check.py`
+parses the token blocks straight out of `seismo_dashboard.py` (no second copy to drift)
+and asserts a ratio for every pair that actually meets on screen, in both themes:
+
+| target | applies to |
+|---|---|
+| **7:1** (AAA) | anything paragraph-length — body, captions, rail labels |
+| **4.5:1** (AA) | links, axis numbers, badge fills, button labels |
+| **3:1** (1.4.11) | the live trace, canvas axes, the status lamp |
+
+Run it before changing a colour. It exits non-zero on any failure.
+
+Eight pairs failed on the first run; all fixed by moving tokens, not by relaxing targets:
+`--ink-dim` → `#414a50` / `#9aa7ae` (was 5.2 / 5.3, now 7.9 / 7.5), light `--copper` →
+`#8a4f1c`, light `--copper-lit` → `#6d3c12` (hover must get *darker* on a light ground —
+it was getting lighter), `--plot-axis` → 3:1 in both themes (it was 1.6, i.e. invisible).
+A live DOM audit over the rendered pages then caught what tokens can't: Bootstrap's
+`.text-success` / `.text-danger` in the Seismology 101 tables are ~4:1 on both grounds —
+below even AA — and its `.text-bg-danger` badge is 4.0:1. Both replaced with `--yes` /
+`--no` / `.badge-hot` from the gated palette. The rendered pages now show **zero**
+failures at the AAA threshold in dark and one link at 5.7:1 in light (links are held to
+the AA 4.5 target, deliberately).
+
+**The half-painted drum, actually fixed.** `BFCACHE_JS` has always swapped in a fully
+decoded image on refresh and on bfcache restore, but the *first* load was a plain
+`<img src>` — and PNGs decode top-down, so a transfer cut off by a container swap or a
+dropped packet left the first rows drawn and blank paper below until the 60 s timer came
+round. The drum and the History drum now ship as `data-src` with no `src`, so the same
+atomic double-buffered swap protects the first paint; a truncated transfer takes the
+error path and retries after 3 s instead of painting half a record. While unloaded the
+element holds 16:9 of empty space rather than plate-white, so it reads as *not here yet*
+rather than as a drum with no data on it.
+
 ## 🎨 DASHBOARD REDESIGN — the rack panel (2026-08-27)
 
 The dashboard read as stock Bootstrap because it *was* stock Bootstrap: one accent hex

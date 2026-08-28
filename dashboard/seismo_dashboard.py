@@ -159,6 +159,10 @@ THEME_BUTTON = (
 
 CSS = r'''<style>
  /* ---------------------------------------------------------------------------
+    Every pair that meets on screen is gated by contrast_check.py against WCAG 2.1:
+    AAA (7:1) for anything paragraph-length, AA (4.5:1) for links and axis labels,
+    3:1 for the trace, the axes and the lamp. Run it before changing a colour here.
+
     Copper on slate. The palette is the instrument: a copper coil (the accent, and
     the ink every trace is drawn in) against blue-grey rock (the ground). Two
     themes, one identity -- the copper darkens for a light ground, nothing else
@@ -176,15 +180,17 @@ CSS = r'''<style>
    --rule:#cfd5d8;        /* structural hairlines */
    --rule-soft:#e0e4e6;   /* hairlines inside a block */
    --ink:#131a1e;
-   --ink-dim:#5a666d;
-   --copper:#9a5a21;
-   --copper-lit:#b96f2c;
+   --ink-dim:#414a50;
+   --copper:#8a4f1c;
+   --copper-lit:#6d3c12;  /* hover: darker on a light ground */
    --rose:#ab3d31;
    --plate:#ffffff;       /* the paper the server-rendered plots print on */
    --lamp:#2c7a5b;
+   --yes:#1c5540;         /* inline verdicts in prose -- held to the body target */
+   --no:#8e2b21;
 
-   --plot-axis:#b9c1c5; --plot-grid:#dfe4e6; --plot-grid-faint:#e9eced;
-   --plot-label:#5a666d; --plot-trace:#9a5a21; --plot-mark:#ab3d31;
+   --plot-axis:#7e888e; --plot-grid:#dfe4e6; --plot-grid-faint:#e9eced;
+   --plot-label:#414a50; --plot-trace:#8a4f1c; --plot-mark:#ab3d31;
  }
  [data-bs-theme="dark"]{
    --ground:#101519;
@@ -193,15 +199,17 @@ CSS = r'''<style>
    --rule:#232b31;
    --rule-soft:#1a2126;
    --ink:#dfe5e8;
-   --ink-dim:#7e8c93;
+   --ink-dim:#9aa7ae;
    --copper:#e09b4a;
    --copper-lit:#f0b268;
    --rose:#d2695e;
    --plate:#efedE8;
    --lamp:#4fbf8f;
+   --yes:#7fc9a4;
+   --no:#e89a90;
 
-   --plot-axis:#333d44; --plot-grid:#1e262b; --plot-grid-faint:#171e22;
-   --plot-label:#7e8c93; --plot-trace:#e09b4a; --plot-mark:#d2695e;
+   --plot-axis:#5e686e; --plot-grid:#1e262b; --plot-grid-faint:#171e22;
+   --plot-label:#9aa7ae; --plot-trace:#e09b4a; --plot-mark:#d2695e;
  }
 
  /* Bootstrap stays for tooltips, collapse and table mechanics; the look is ours. */
@@ -339,6 +347,11 @@ CSS = r'''<style>
  thead th{font-family:var(--mono);font-size:.65rem;font-weight:400;letter-spacing:.1em;
    text-transform:uppercase;color:var(--ink-dim);border-bottom-color:var(--rule)!important}
  .badge{font-family:var(--mono);font-weight:400;letter-spacing:.04em;border-radius:2px}
+ /* Bootstrap's .text-success/.text-danger are ~4:1 on both grounds, below even AA */
+ .text-yes{color:var(--yes)!important} .text-no{color:var(--no)!important}
+ .badge-hot{background:var(--rose);color:var(--ground)}
+ .badge-warn{background:var(--copper);color:var(--ground)}
+ .badge-quiet{background:transparent;color:var(--ink-dim);border:1px solid var(--rule)}
 
  /* --- server-rendered plots ------------------------------------------------ */
  /* The drum, spectrum and activity images are matplotlib on white and cannot follow
@@ -347,6 +360,9 @@ CSS = r'''<style>
     does anyway. A theme= param through the renderers is the real fix. */
  .plot{display:block;width:100%;height:auto;background:var(--plate);
    border:1px solid var(--rule);border-radius:2px}
+ /* Until the whole PNG has arrived the element is empty, not blank paper: the drum's
+    own aspect ratio holds the space so the page does not jump when it lands. */
+ .plot[data-loading]{background:transparent;aspect-ratio:16/9}
  td.spark-cell{width:196px}
  svg.spark{display:block;width:180px;height:40px;background:transparent;
    border:1px solid var(--rule-soft);border-radius:2px}
@@ -540,22 +556,27 @@ def _rail(active):
 BFCACHE_JS = r"""<script>
 (function(){
   var DYN=/\/(helicorder|history|spectrum|activity)\.png/;
+  // A rendered image starts with data-src and no src; the loader below is what ever
+  // puts a src on it, so nothing half-decoded is ever on screen.
+  function srcOf(im){return im.getAttribute('src')||im.getAttribute('data-src')||'';}
   // Double-buffered reload: fetch into an off-screen Image and swap ONLY when the whole
   // file has arrived and decoded. Assigning img.src directly makes Chrome paint the PNG
   // progressively as bytes arrive, so a stalled or aborted transfer leaves a half-drawn
   // drum on screen (Charles, 2026-08-26, three times). With this, a bad transfer costs
   // staleness, never a broken picture; the old image stays until a complete one exists.
   function reload(im){
-    var s=im.getAttribute('src')||''; if(!DYN.test(s)) return;
+    var s=srcOf(im); if(!DYN.test(s)) return;
     var b=s.split('?')[0]; var q=s.indexOf('?')>0?s.slice(s.indexOf('?')+1):'';
     q=q.split('&').filter(function(kv){return kv&&kv.indexOf('_r=')!==0;}).join('&');
     var url=b+'?'+(q?q+'&':'')+'_r='+Date.now();
     var pre=new Image();
-    pre.onload=function(){ if(pre.naturalWidth>0){ im.src=url; } };
-    pre.onerror=function(){ /* keep the current image; the next tick retries */ };
+    pre.onload=function(){ if(pre.naturalWidth>0){ im.src=url; im.removeAttribute('data-loading'); } };
+    pre.onerror=function(){ setTimeout(function(){reload(im);},3000); };
     pre.src=url;
   }
   window.seismoReload=reload;
+  document.querySelectorAll('img[data-src]').forEach(function(im){
+    im.setAttribute('data-loading','');reload(im);});
   function fresh(){document.querySelectorAll('img').forEach(reload);}
   window.addEventListener('pageshow',function(e){if(e.persisted)fresh();});
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')fresh();});
@@ -778,10 +799,10 @@ def _slug(header):
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", txt)).strip("-")
 
 
-_CHAR_BADGE = {                       # character class -> (bootstrap class, text)
-    "cultural": ("text-bg-warning", "impulsive"),
-    "weak": ("bg-body-tertiary text-body-secondary border", "near-threshold"),
-    "plain": ("bg-body-tertiary text-body-secondary border", "sustained"),
+_CHAR_BADGE = {                       # character class -> (badge class, text)
+    "cultural": ("badge-warn", "impulsive"),
+    "weak": ("badge-quiet", "near-threshold"),
+    "plain": ("badge-quiet", "sustained"),
 }
 
 
@@ -790,7 +811,7 @@ def _char_badge(ch):
     lives in render._build_character. Empty when the window isn't scored yet."""
     if not ch:
         return '<span class="text-muted">&mdash;</span>'
-    cls, text = _CHAR_BADGE.get(ch.get("cls", ""), ("bg-body-tertiary text-body-secondary border", "?"))
+    cls, text = _CHAR_BADGE.get(ch.get("cls", ""), ("badge-quiet", "?"))
     hf = "n/a" if ch.get("hf") is None else f'{ch["hf"]:.2f}'
     tip = (f'envelope kurtosis {ch.get("kurt")} &middot; {ch.get("dur")} s above 25% of '
            f'peak &middot; peak/median {ch.get("snr")} &middot; HF fraction {hf} '
@@ -820,7 +841,8 @@ def home():
                 'The dashed line marks the geophone&rsquo;s 4.5&nbsp;Hz corner &mdash; response '
                 'falls steeply below it, so the rise at the left is instrument, not ground.</div>')
         + _card("Helicorder &middot; last 4 hours (UTC)",
-                f'<img id="heli" class="plot" src="/helicorder.png?{ts}" alt="helicorder">'
+                f'<img id="heli" class="plot" data-src="/helicorder.png?{ts}" '
+                f'alt="helicorder">'
                 + content.HELI_HOWTO)
     )
     return Response(_shell(BRAND, "live", body, HOME_JS), media_type="text/html")
@@ -857,7 +879,7 @@ def _pq_badge(p):
     if p in (None, ""):
         return '<span class="text-muted">&ndash;</span>'
     p = float(p)
-    cls = "text-bg-danger" if p >= 0.7 else "text-bg-warning" if p >= 0.4 else "bg-body-tertiary text-body-secondary border"
+    cls = "badge-hot" if p >= 0.7 else "badge-warn" if p >= 0.4 else "badge-quiet"
     return f'<span class="badge {cls}">{p:.2f}</span>'
 
 
@@ -1484,9 +1506,9 @@ def history_page(datetime: str = "", d: str = "", h: str = ""):
                     'to 100&nbsp;sps')
         + _card("Choose a window", picker + '<hr class="my-3">' + controls)
         + _card(f"Drum &middot; {dt0:%Y-%m-%d %H:%M} UTC +{HIST_H:g} h",
-                f'<img src="/history.png?datetime={cur}" class="img-fluid" '
+                f'<img class="plot" data-src="/history.png?datetime={cur}" '
                 f'alt="helicorder drum for {dt0:%Y-%m-%d %H:%M} UTC">'
-                '<p class="text-muted small mb-0 mt-2">Same 1&nbsp;Hz high-pass as the live '
+                '<p class="small mb-0 mt-2">Same 1&nbsp;Hz high-pass as the live '
                 'drum. The amplitude scale is keyed to each window&rsquo;s own median noise, '
                 'so a quiet night is not drawn smaller than a busy afternoon &mdash; compare '
                 'shapes across windows, not heights. A blank row means no data for that '
