@@ -129,9 +129,16 @@ def circle(lat0, lon0, km, n=361):
 def calibrate():
     """Derive the deficit, the corner penalty and the noise floors from the archive."""
     rows = [r for r in csv.DictReader(open(CSV)) if r["epoch"] == "100sps"]
+    if rows and "sustain_s" not in rows[0]:
+        raise SystemExit("event_harvest.csv predates sustain_s -- re-run harvest_events.py")
+    # sustain: peak SNR is carried by a single sample, so without this the calibration
+    # set will admit a lone cultural bang. It very nearly admitted one at 348 km -- the
+    # Toms Place M3.4, our only far-field NON-detection, whose 1.35 s spike would have
+    # made it the furthest "confirmed" event and quadrupled the validated range off one
+    # door slam. Every genuine catch holds 3.4-7.9 s.
     conf = [r for r in rows
             if float(r["snr"]) >= 3 and -1.2 < float(r["resid_log10"]) < 0.4
-            and float(r["lo_hi"]) >= 1]
+            and float(r["lo_hi"]) >= 1 and float(r["sustain_s"]) >= 2.0]
     if not conf:
         raise SystemExit("no confirmed events in the harvest CSV -- re-run harvest_events.py")
 

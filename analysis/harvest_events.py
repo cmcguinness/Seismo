@@ -12,6 +12,7 @@ Produces one row per catalogued event that our archive covers, with:
     pre-event noise window, and the excess ratio of each
   - snr, and `seen` (did the excess clear a threshold)
   - `triggered` — did the STA/LTA actually fire near the predicted arrival
+  - `tp_s` / `ts_s` — the predicted P and S arrivals the windows were cut at
   - the low/high band-excess ratio, which is the distance proxy we want to tune
 
 EPOCH MATTERS. This station changed sample rate and front end repeatedly (see
@@ -92,6 +93,52 @@ def back_azimuth(lat, lon):
     return (math.degrees(math.atan2(x, y)) + 360) % 360
 
 
+def epi_km(lat, lon):
+    dlat = (lat - STA_LAT) * 111.32
+    dlon = (lon - STA_LON) * 111.32 * math.cos(math.radians((lat + STA_LAT) / 2))
+    return math.hypot(dlat, dlon)
+
+
+# Travel times. A single crustal velocity is right for the local field and wrong past it:
+# beyond ~150 km the first arrival is Pn refracted along the Moho at ~8 km/s, not the
+# direct wave. At 318 km (the M4.8 off Petrolia, 2026-08-29) dist/5.19 puts P at +61 s
+# when iasp91 puts it at +46 s, so the old window opened 15 s AFTER the wave arrived and
+# could miss the P coda entirely. S matters as much: it was computed and never used, and
+# a fixed 32 s window from P drops the S/Lg peak once S-P grows past it -- 35 s at 318 km.
+_TT_CACHE: dict = {}
+_TAUP = None
+
+
+def arrivals_s(epi, depth, hypo):
+    """(P, S) seconds after origin. iasp91 where it can, straight-line VP/VS where it
+    cannot -- taup has no useful ray at a few km, which is exactly where the constant
+    velocity is right anyway."""
+    global _TAUP
+    key = (round(epi, 1), round(max(depth, 0.0), 1))
+    if key in _TT_CACHE:
+        return _TT_CACHE[key]
+    out = None
+    if epi >= 15.0:
+        try:
+            if _TAUP is None:
+                from obspy.taup import TauPyModel
+                _TAUP = TauPyModel(model="iasp91")
+            deg = epi / 111.195
+            first = lambda ph: min(
+                (a.time for a in _TAUP.get_travel_times(
+                    source_depth_in_km=max(depth, 0.0), distance_in_degree=deg,
+                    phase_list=ph)), default=None)
+            tp, ts = first(["p", "P", "Pn", "Pg"]), first(["s", "S", "Sn", "Sg"])
+            if tp and ts and ts > tp:
+                out = (tp, ts)
+        except Exception:
+            out = None
+    if out is None:
+        out = (hypo / VP, hypo / VS)
+    _TT_CACHE[key] = out
+    return out
+
+
 def hypo_km(lat, lon, depth):
     dlat = (lat - STA_LAT) * 111.32
     dlon = (lon - STA_LON) * 111.32 * math.cos(math.radians((lat + STA_LAT) / 2))
@@ -107,30 +154,57 @@ def fetch(start, end, radius, minmag):
         return json.load(r)["features"]
 
 
-def band_rms(tr, lo, hi, uvpc):
+def _banded(tr, lo, hi, uvpc):
+    """Filtered trace as microvolts. Filter the WHOLE slice, then mask -- filtering a
+    short sub-window instead would put filter transients where the arrival is."""
     w = tr.copy()
     if w.stats.npts < 64:
-        return float("nan")
+        return None
     w.detrend("demean")
     nyq = w.stats.sampling_rate / 2
     w.filter("bandpass", freqmin=lo, freqmax=min(hi, nyq * 0.98),
              corners=4, zerophase=True)
-    x = np.asarray(w.data, float) * uvpc
+    return np.asarray(w.data, float) * uvpc
+
+
+def band_rms(tr, lo, hi, uvpc, mask=None):
+    x = _banded(tr, lo, hi, uvpc)
+    if x is None:
+        return float("nan")
+    if mask is not None:
+        x = x[mask]
+        if x.size < 64:
+            return float("nan")
     return float(np.sqrt(np.mean(x * x)))
 
 
-def band_peak(tr, lo, hi, uvpc, smooth_s=1.0):
-    """Peak of the smoothed |signal| envelope in a band -- the detection number."""
-    w = tr.copy()
-    if w.stats.npts < 64:
+def band_sustain(tr, lo, hi, uvpc, floor, smooth_s=1.0, mask=None):
+    """Seconds inside the mask where the smoothed envelope holds above `floor`. A real
+    arrival is a train; a door slamming is one sample of enormous amplitude. Peak alone
+    cannot tell them apart, which is how a lone 8.8x spike at +101 s nearly promoted the
+    Toms Place M3.4 -- our only far-field NON-detection -- into a 348 km detection."""
+    x = _banded(tr, lo, hi, uvpc)
+    if x is None:
         return float("nan")
-    w.detrend("demean")
-    nyq = w.stats.sampling_rate / 2
-    w.filter("bandpass", freqmin=lo, freqmax=min(hi, nyq * 0.98),
-             corners=4, zerophase=True)
-    x = np.abs(np.asarray(w.data, float) * uvpc)
-    n = max(1, int(smooth_s * w.stats.sampling_rate))
-    return float(np.convolve(x, np.ones(n) / n, mode="same").max())
+    n = max(1, int(smooth_s * tr.stats.sampling_rate))
+    e = np.convolve(np.abs(x), np.ones(n) / n, mode="same")
+    if mask is not None:
+        e = e[mask]
+    return float((e > floor).sum() / tr.stats.sampling_rate)
+
+
+def band_peak(tr, lo, hi, uvpc, smooth_s=1.0, mask=None):
+    """Peak of the smoothed |signal| envelope in a band -- the detection number."""
+    x = _banded(tr, lo, hi, uvpc)
+    if x is None:
+        return float("nan")
+    n = max(1, int(smooth_s * tr.stats.sampling_rate))
+    e = np.convolve(np.abs(x), np.ones(n) / n, mode="same")
+    if mask is not None:
+        e = e[mask]
+        if e.size < 64:
+            return float("nan")
+    return float(e.max())
 
 
 def load_archive(data_dir):
@@ -181,6 +255,12 @@ def main():
     ap.add_argument("--events", default=os.path.join(os.path.dirname(__file__), "events.log"),
                     help="events.log for the `triggered` column (optional)")
     ap.add_argument("--gain", type=int, default=64)
+    # Peak SNR alone is carried by a single sample. Requiring the envelope to HOLD
+    # above half its peak for a couple of seconds is what separates an arrival from a
+    # door: measured over the confirmed catches, sustain runs 3.4-7.9 s, while the
+    # cultural spike that briefly promoted the Toms Place M3.4 held for 1.35 s.
+    ap.add_argument("--sustain-seen", type=float, default=2.0,
+                    help="seconds the envelope must hold above half its peak to count as seen")
     ap.add_argument("--snr-seen", type=float, default=5.0,
                     help="peak 1-15 Hz excess counted as 'seen'. Default 5.0 is the "
                          "MEASURED 99th percentile of the null -- 3.0 was the 95th, "
@@ -217,20 +297,24 @@ def main():
         if path is None:
             continue
         dist = hypo_km(c[1], c[0], c[2])
-        tp, ts = dist / VP, dist / VS
-        # Windows: noise well before origin, signal from just before P through the coda.
-        # 30 s of signal covers P+S+coda out to ~300 km without running into the next event.
+        tp, ts = arrivals_s(epi_km(c[1], c[0]), float(c[2] or 0.0), dist)
+        # Windows: noise well before origin; signal measured in TWO tight boxes, one on
+        # P and one on S, not one box spanning both. Spanning both was tried (2026-08-29)
+        # and it inflates `seen` at distance for the wrong reason: at 348 km the box is
+        # 70 s long, and one unrelated 8.8x cultural spike inside it is enough to carry
+        # the peak. Keeping ~40 s of total exposure at every distance keeps the
+        # false-positive rate flat while still putting the boxes where the waves are.
         try:
             # Read ONLY the window. Caching whole day-files and .copy()ing per event
             # cost ~2 s each -- 14 minutes of CPU for 367 events, because every copy
             # duplicates a 26 MB trace to use 2 minutes of it. Same lesson as
             # heli_build: decode the span you need, not the file it lives in.
-            st = obspy.read(path, starttime=o - 95, endtime=o + tp + 35)
+            st = obspy.read(path, starttime=o - 95, endtime=o + ts + 27)
             if not len(st):
                 continue
             st.merge(method=1, fill_value="interpolate")
             pre = st.slice(o - 90, o - 15)
-            sig = st.slice(o + tp - 2, o + tp + 30)
+            sig = st.slice(o + tp - 2, o + ts + 22)
         except Exception as e:
             print(f"  skip {o}: {e}", flush=True)
             continue
@@ -238,18 +322,27 @@ def main():
             continue
         covered += 1
         fs = float(sig[0].stats.sampling_rate)
+        # P box [tp-2, tp+12] and S box [ts-4, ts+22], as offsets into `sig`. They merge
+        # into one box when S-P is small, which is every local event.
+        rel = (np.arange(sig[0].stats.npts) / fs) + (sig[0].stats.starttime - o)
+        sigmask = (((rel >= tp - 2) & (rel <= tp + 12)) |
+                   ((rel >= ts - 4) & (rel <= ts + 22)))
+        if sigmask.sum() < 512:
+            continue
         m = {}
         for name, lo, hi in BANDS:
             n = band_rms(pre[0], lo, hi, uvpc)
-            s = band_rms(sig[0], lo, hi, uvpc)
+            s = band_rms(sig[0], lo, hi, uvpc, sigmask)
             m[f"pre_{name}"], m[f"sig_{name}"] = n, s
             m[f"r_{name}"] = s / n if n and np.isfinite(n) and n > 0 else float("nan")
         # 1-15 Hz combined excess = the "did we see it" number
         pre15 = band_rms(pre[0], 1.0, 15.0, uvpc)
-        sig15 = band_rms(sig[0], 1.0, 15.0, uvpc)
+        sig15 = band_rms(sig[0], 1.0, 15.0, uvpc, sigmask)
         # PEAK-based SNR is the detection number. RMS over the whole 32 s signal
         # window dilutes a ~10 s burst by ~2x and made an M1.2 at 18 km score 1.33.
-        peak15 = band_peak(sig[0], 1.0, 15.0, uvpc, smooth_s=1.0)
+        peak15 = band_peak(sig[0], 1.0, 15.0, uvpc, smooth_s=1.0, mask=sigmask)
+        # How long the envelope holds above half the peak: a train, or one bang?
+        sustain = band_sustain(sig[0], 1.0, 15.0, uvpc, 0.5 * peak15, mask=sigmask)
         snr = peak15 / pre15 if pre15 > 0 else float("nan")
         snr_rms = sig15 / pre15 if pre15 > 0 else float("nan")
         lohi = (m["r_lo"] / m["r_hi"]
@@ -261,9 +354,12 @@ def main():
         resid = (math.log10(peak15 / pred) if pred > 0 and peak15 > 0 else float("nan"))
         iso = o.strftime("%Y-%m-%dT%H:%M:%SZ")
         ep, _ = epoch_of(iso)
-        # did the STA/LTA fire within the signal window?
-        lo_t, hi_t = (o + tp - 3).timestamp, (o + tp + 30).timestamp
-        triggered = any(lo_t <= t <= hi_t for t in trigs)
+        # did the STA/LTA fire within the signal window? A regional event may trigger on
+        # P or on the much larger S/Lg, so the window has to span both -- which does make
+        # `triggered` a looser claim at distance than it is locally.
+        triggered = any((o + tp - 3).timestamp <= t <= (o + tp + 12).timestamp
+                        or (o + ts - 4).timestamp <= t <= (o + ts + 22).timestamp
+                        for t in trigs)
         rows.append({
             "origin": iso, "mag": round(float(p["mag"]), 2),
             "place": p.get("place", ""), "dist_km": round(dist, 1),
@@ -272,6 +368,8 @@ def main():
             "snr": round(snr, 2), "snr_rms": round(snr_rms, 2),
             "peak_1_15": round(peak15, 3),
             "az_deg": round(az, 1), "az": COMPASS[int((az + 11.25) % 360 // 22.5)],
+            "tp_s": round(tp, 2), "ts_s": round(ts, 2),
+            "sustain_s": round(sustain, 2),
             # `likely` = all three legs agree. SNR alone missed the 2026-07-27 21:35
             # M2.35 (busy afternoon background); the residual alone accepts marginal
             # events where "observed" is just noise that happens to sit a plausible
@@ -281,7 +379,8 @@ def main():
                           and np.isfinite(resid) and -1.2 < resid < 0.4
                           and np.isfinite(lohi) and lohi >= 1.0),
             "pred_uv": round(pred, 3),
-            "resid_log10": round(resid, 3) if np.isfinite(resid) else "", "seen": int(snr >= args.snr_seen),
+            "resid_log10": round(resid, 3) if np.isfinite(resid) else "",
+            "seen": int(snr >= args.snr_seen and sustain >= args.sustain_seen),
             "triggered": int(triggered),
             **{k: round(v, 3) for k, v in m.items() if np.isfinite(v)},
             "lo_hi": round(lohi, 3) if np.isfinite(lohi) else "",

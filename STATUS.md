@@ -64,6 +64,60 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## 🕐 HARVEST: REAL TRAVEL TIMES, AND A NULL TEST THAT NEARLY DIED (2026-08-29)
+
+`harvest_events.py` cut its measurement window at `dist / 5.19 km/s`. That velocity was
+fitted to 18–90 km paths through shallow crust; past ~150 km the first arrival is **Pn**
+refracted along the Moho at ~8 km/s. At 318 km the old estimate put P at **+61 s** when
+iasp91 puts it at **+45.7 s** — the window opened 15 s *after* the wave arrived. `ts` was
+computed and never used, so once S−P grew past the fixed 32 s box the S/Lg peak fell out
+of the window entirely.
+
+- `arrivals_s()` now returns (P, S) from **iasp91 via obspy.taup**, cached, falling back
+  to the straight-line VP/VS below 15 km where taup has no useful ray and the constant
+  velocity is right anyway. Both are written out as `tp_s` / `ts_s`.
+- The signal is measured in **two tight boxes** — `[tP−2, tP+12]` and `[tS−4, tS+22]` —
+  not one box spanning both. They merge into one box locally. Exposure stays ~40 s at
+  every distance, so the false-positive rate does not grow with range.
+
+**Why two boxes and not one long one.** One spanning box was tried first, and `seen` rose
+65 → 88. That looked like a win and was not: at 348 km the box is 70 s long, and one
+unrelated cultural spike inside it carries the peak. It promoted the **Toms Place M3.4 —
+the only far-field NON-detection we own, the red X on the map** — to a 348 km detection,
+which would have quadrupled the published validated range off a door slam. Waveform check
+(`+100.9 s`, **8.8× the floor**, 6.8 s of a 71 s window above 3×, no onset at the
+predicted P, nothing sustained at S): cultural.
+
+**`sustain_s`, and the sharpest discriminator in the harvest.** Peak SNR is carried by a
+single sample, so `seen` now also requires the 1 s envelope to hold above **half its peak
+for ≥ 2.0 s** (`--sustain-seen`). Measured:
+
+| event | dist | sustain |
+|---|---|---|
+| Toms Place M3.4 (cultural spike) | 348 km | **1.35 s** |
+| Santa Rosa M1.8 | 9.8 km | 3.41 s |
+| Petrolia M4.8 | 319 km | 4.82 s |
+| St Helena M2.5 | 20 km | 4.90 s |
+| San Leandro M3.8 | 88 km | 7.08 s |
+| Cloverdale M4.2 | 46 km | 7.94 s |
+
+Clean separation, and it is now also a guard on `calibrate()`'s confirmed set in
+`detection_map.py` — that filter never used `seen`, so the guard had to be added in both
+places or the map would have taken the spike anyway.
+
+**Net effect on the published numbers: none.** Still **32 confirmed events, furthest
+88.7 km**, site deficit −0.244 dex, rings within 1 km of the previous run. `seen` across
+the harvest went 65 → 48 as the far-field spike detections dropped out; `triggered` 433 →
+445 as correctly-placed boxes caught real triggers the old window missed. Petrolia is
+untouched (peak 19.2 µV, resid −1.216, still excluded from the fit, still drawn).
+
+**Noted, not changed:** `REF_PEAK_UV = 126.0` is the anchor for every residual, but the
+current pipeline measures that same M2.5 St Helena at **47.8 µV** — the constant predates
+the 1 s-smoothed-envelope definition. The rings are unaffected (an anchor offset cancels
+between `predict_uv` and the fitted `resid_med`), but it does mean part of the advertised
+"1.8× quieter than textbook" is measurement definition rather than site. Re-anchoring
+would move every residual on the page and wants doing deliberately.
+
 ## 🌊 M4.8 OFF PETROLIA AT 319 km — RECORDED, AND THE MAP REBUILT (2026-08-29)
 
 USGS **M4.8, 85 km W of Petrolia, 2026-08-29 02:41:11.61 UTC, 40.450/-125.272, 10 km** —
