@@ -37,6 +37,13 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 
 STA_LAT, STA_LON = 38.451817, -122.621049
+# Station elevation above mean sea level. Catalogue depths are referenced to sea
+# level, so a station 119 m up is that much further from the hypocentre than
+# hypot(horizontal, depth) assumes -- ~23 ms of P travel time for a 9.4 km event,
+# small but systematic and free to remove. 119 m is the GPS MSL fix taken at the
+# house (2026-08-29, eph 4.6 m); the geophone is in the garage a few metres away,
+# and a 5 m error here moves a 10 km hypocentral distance by 0.05 %.
+STA_ELEV_M = 119.0
 # km/s. Vp measured at this station from five confirmed events, 18.4-45.7 km:
 # onset = dist/5.19 + 0.30 s, residuals <=0.3 s (2026-07-29, STATUS.md). The old 6.0
 # placed the window ~1.4 s early at 45 km.
@@ -140,9 +147,12 @@ def arrivals_s(epi, depth, hypo):
 
 
 def hypo_km(lat, lon, depth):
+    """Hypocentral distance in km. The vertical leg is depth BELOW sea level plus the
+    station's height ABOVE it."""
     dlat = (lat - STA_LAT) * 111.32
     dlon = (lon - STA_LON) * 111.32 * math.cos(math.radians((lat + STA_LAT) / 2))
-    return math.hypot(math.hypot(dlat, dlon), depth or 0.0)
+    vert = (depth or 0.0) + STA_ELEV_M / 1000.0
+    return math.hypot(math.hypot(dlat, dlon), vert)
 
 
 def fetch(start, end, radius, minmag):

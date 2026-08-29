@@ -140,7 +140,7 @@ CATCHES = [
             "2.8 km ESE &mdash; all but underneath the station",
         facts=[
             "The <b>closest catch</b>. 2.8&nbsp;km on the map, but 9.4&nbsp;km down, so the "
-            "real distance is 9.8&nbsp;km and almost all of it is depth &mdash; this one arrived "
+            "real distance is 9.9&nbsp;km and almost all of it is depth &mdash; this one arrived "
             "from below. Nothing catalogued had come within 8.4&nbsp;km of the station before "
             "that night.",
             "Peak <b>191&nbsp;&micro;V</b>, signal-to-noise ~67&times;, detector ratio 585 &mdash; "

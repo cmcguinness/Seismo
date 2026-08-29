@@ -33,6 +33,9 @@ FEED = os.environ.get(
     "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson")
 STA_LAT = float(os.environ.get("SEISMO_STA_LAT", "38.451817"))
 STA_LON = float(os.environ.get("SEISMO_STA_LON", "-122.621049"))
+# Height above sea level; catalogue depths are referenced to sea level, so this adds
+# to the vertical leg rather than cancelling. GPS MSL at the house, 2026-08-29.
+STA_ELEV_M = float(os.environ.get("SEISMO_STA_ELEV_M", "119.0"))
 RADIUS_KM = float(os.environ.get("SEISMO_USGS_RADIUS_KM", "300"))
 MIN_MAG = float(os.environ.get("SEISMO_USGS_MIN_MAG", "1.0"))
 NOISE_UV = float(os.environ.get("SEISMO_NOISE_UV", "3.0"))   # fallback only; see floor_at()
@@ -227,7 +230,8 @@ def hypo_km(lat, lon, depth_km):
     dlon = (lon - STA_LON) * 111.32 * math.cos(math.radians((lat + STA_LAT) / 2))
     epi = math.hypot(dlat, dlon)
     az = (math.degrees(math.atan2(dlon, dlat)) + 360) % 360
-    return math.hypot(epi, depth_km or 0.0), epi, az
+    vert = (depth_km or 0.0) + STA_ELEV_M / 1000.0
+    return math.hypot(epi, vert), epi, az
 
 
 def fetch(url=FEED, timeout=20):

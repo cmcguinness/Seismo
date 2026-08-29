@@ -30,6 +30,7 @@ from helicorder import LOCAL_DATA, pull
 
 # Station location — Oakmont, Santa Rosa (measured at the sensor site).
 STA_LAT, STA_LON = 38.451817, -122.621049
+STA_ELEV_M = 119.0   # above MSL; catalogue depths are from MSL, so it adds
 # Local crustal P/S velocities (km/s). Vp is MEASURED at this station, not assumed:
 # five confirmed events over 18.4-45.7 km give onset = dist/5.19 + 0.30 s with <=0.3 s
 # residuals (2026-07-29, STATUS.md). Vp=6.0 predicted arrivals ~1.4 s early at 45 km.
@@ -68,7 +69,7 @@ def main() -> None:
 
     origin = UTCDateTime(args.origin) - args.offset_hours * 3600.0     # -> UTC
     epi = haversine_km(args.stalat, args.stalon, args.lat, args.lon)
-    hypo = math.hypot(epi, args.depth)
+    hypo = math.hypot(epi, args.depth + STA_ELEV_M / 1000.0)
     # +T0_INTERCEPT on P: the measured relation is onset = dist/5.19 + 0.30 s (see the
     # VP comment above), and dropping the intercept drew every P marker 0.30 s EARLY,
     # which made real arrivals look systematically late on every plot (2026-08-12).

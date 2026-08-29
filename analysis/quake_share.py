@@ -35,6 +35,7 @@ import specgram   # project-standard spectrogram (fixed colour scale, window, ba
 
 # --- station + model defaults (override via CLI) -----------------------------
 STA_LAT, STA_LON = 38.451817, -122.621049    # Oakmont, Santa Rosa (measured at the sensor)
+STA_ELEV_M = 119.0                           # above MSL; catalogue depths are from MSL
 STA_LABEL = "Charles McGuinness - Personal Seismometer, Santa Rosa, CA"
 VP, VS = 6.0, 3.46                            # crustal velocities, km/s (Vp/Vs≈1.73)
 SP_TO_KM = VP * VS / (VP - VS)               # S–P seconds -> distance km (≈8.2)
@@ -182,7 +183,8 @@ def main():
         epi = haversine_km(args.sta_lat, args.sta_lon, args.event_lat, args.event_lon)
     hypo = None
     if epi is not None:
-        hypo = math.hypot(epi, args.depth_km) if args.depth_km else epi
+        vert = (args.depth_km or 0.0) + STA_ELEV_M / 1000.0
+        hypo = math.hypot(epi, vert)
 
     # phase picks: ONLY what was explicitly measured off the trace. Deliberately no
     # predicting arrivals from the catalog distance -- a graphic that predicts P/S from

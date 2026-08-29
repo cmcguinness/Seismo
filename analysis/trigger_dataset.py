@@ -61,7 +61,11 @@ def load_catalog():
         if r["epoch"] != "100sps":
             continue
         t = UTCDateTime(r["origin"]).timestamp
-        hypo = math.hypot(float(r["dist_km"]), float(r["depth_km"]))
+        # dist_km from the harvest is ALREADY hypocentral (harvest_events.hypo_km),
+        # so the old hypot(dist_km, depth_km) here counted depth twice -- 9.79 km
+        # became 13.57 km for the 2026-08-29 M1.8, putting its predicted arrival
+        # 0.73 s late and mislabelling the window it trained on.
+        hypo = float(r["dist_km"])
         arr = t + hypo / VP + T0_INT
         rec = dict(arr=arr, mag=float(r["mag"]), dist=float(r["dist_km"]), place=r["place"], origin=r["origin"])
         ok = (float(r["snr"]) >= 3 and -1.2 < float(r["resid_log10"]) < 0.4 and float(r["lo_hi"]) >= 1)

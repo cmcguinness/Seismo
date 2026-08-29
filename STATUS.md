@@ -64,6 +64,46 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## 📐 STATION ELEVATION IN hypo_km, AND A DOUBLE-COUNTED DEPTH (2026-08-29)
+
+The GPS box gave us a measured station elevation, and it exposed that every hypocentral
+distance in the project put the station at sea level. Catalogue depths are referenced to
+**mean sea level**, so a station 119 m *above* it is that much further from the
+hypocentre — the two add, they do not cancel. `hypot(horizontal, depth)` was short by the
+station height on every event.
+
+`STA_ELEV_M = 119.0` (GPS MSL at the house, 2026-08-29, eph 4.6 m; the geophone is in the
+garage a few metres off, and 5 m of error moves a 10 km hypocentral distance by 0.05 %)
+now enters the vertical leg in all five places that computed one:
+
+| file | was |
+|---|---|
+| `analysis/harvest_events.py` | `hypo_km()` — the harvest, and therefore the map |
+| `dashboard/usgs_events.py` | `hypo_km()` — the live predicted-arrival markers on the drum |
+| `analysis/quake_share.py` | the catch images' distance/S-expected line |
+| `analysis/eventcheck.py` | the manual event checker |
+| `analysis/trigger_dataset.py` | see below |
+
+**Effect is real but small, and confined to close events**, which is where the vertical
+leg is a meaningful fraction of the total: the 2026-08-29 M1.8 goes 9.79 → 9.91 km
+(~23 ms of P travel time), St Helena 19.9 → 20.0 km. Petrolia at 318.6 km, San Leandro at
+88.0 and Cloverdale at 45.8 are unmoved to the printed precision. Harvest `seen` stays 48
+with **zero flips**; the map still reads 32 confirmed, site deficit −0.244 dex, furthest
+88.7 → 88.8 km. Nothing published changes except the M1.8's "9.8 km" becoming 9.9.
+
+**The bug it turned up.** `trigger_dataset.py` computed
+`hypo = hypot(dist_km, depth_km)` — but `dist_km` out of the harvest is **already
+hypocentral**, so depth was counted twice. For the M1.8 that turned 9.79 km into
+13.57 km and put its predicted P arrival **0.73 s late**, mislabelling the window the
+classifier trained on. Worst for deep, close events; negligible for distant shallow ones,
+which is why it survived. Now just `hypo = float(r["dist_km"])`.
+
+That matters more than the elevation fix: it is the labelling path for the trigger
+classifier's training set. **The current model was trained through this bug** — it should
+be retrained before the next confirmed-count milestone, and the very-local blind spot
+seen on the M1.8's aftershock (p = 0.13) is exactly the regime the double-count distorted
+most.
+
 ## 🕐 HARVEST: REAL TRAVEL TIMES, AND A NULL TEST THAT NEARLY DIED (2026-08-29)
 
 `harvest_events.py` cut its measurement window at `dist / 5.19 km/s`. That velocity was
