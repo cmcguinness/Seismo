@@ -64,9 +64,13 @@ CATCHES = [
         head="M4.2 &middot; Cloverdale &middot; 2026-07-29",
         sub="02:40:06 UTC &middot; 38.777&deg;N 122.936&deg;W &middot; depth 5.9 km &middot; 46 km NW, on the Maacama fault",
         facts=[
-            "The biggest event yet. Peak <b>1,406 &micro;V</b> in 1&ndash;15&nbsp;Hz against a "
-            "~1.5&nbsp;&micro;V floor, an ~80&nbsp;s coda, and a detector ratio of 8,535 &mdash; the "
-            "previous record was 645.",
+            "<b>The biggest signal this station has recorded</b> &mdash; though no longer "
+            "the biggest earthquake. Peak <b>1,406&nbsp;&micro;V</b> in 1&ndash;15&nbsp;Hz "
+            "against a ~1.5&nbsp;&micro;V floor, an ~80&nbsp;s coda, and a detector ratio of "
+            "8,535, where the previous record was 645. The M4.8 off Petrolia above is the larger "
+            "quake &mdash; 0.6 magnitude units, about four times the amplitude at the "
+            "source &mdash; and it arrived here at 52&nbsp;&micro;V, <b>27 times "
+            "smaller</b>, because it happened 319&nbsp;km away instead of 46.",
             "Not remotely clipped: the whole event used ~3.5&nbsp;% of the digitizer&rsquo;s range.",
             "First arrival at <b>+9.06&nbsp;s</b>. That was 1.4&nbsp;s later than the textbook "
             "P-velocity predicted, and with four other events the same day it pinned the "
@@ -81,10 +85,14 @@ CATCHES = [
         head="M3.8 &middot; San Leandro &middot; 2026-08-13",
         sub="15:30:04 UTC &middot; 37.755&deg;N 122.150&deg;W &middot; depth 5.5 km &middot; 88 km SSE, on the Hayward fault (first reported as M4.1)",
         facts=[
-            "The <b>furthest confirmed catch</b>, nearly twice the previous record. Peak "
-            "503&nbsp;&micro;V at +30&nbsp;s, with the energy arriving as a long train of S and "
-            "surface waves rather than a sharp onset &mdash; what 88&nbsp;km of crust does to a "
-            "signal.",
+            "Still the <b>furthest catch inside the calibrated range</b> &mdash; 88&nbsp;km, "
+            "nearly twice the previous record, and the event the map&rsquo;s dashed circle is "
+            "drawn from. The M4.8 off Petrolia above was recorded nearly four times further "
+            "out, but it reads so far below the textbook amplitude that it is deliberately "
+            "left out of the fit, so this is where measurement still ends and inference "
+            "begins. Peak 503&nbsp;&micro;V at +30&nbsp;s, the energy arriving as a long train "
+            "of S and surface waves rather than a sharp onset &mdash; what 88&nbsp;km of crust "
+            "does to a signal.",
             "The Hayward and Rodgers Creek faults are one connected system; this is the "
             "neighbour to the south announcing itself.",
             "A second event of M2.8 followed 37 minutes later and was recorded too. Both were "
