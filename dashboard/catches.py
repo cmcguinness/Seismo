@@ -31,7 +31,9 @@ INTRO = (
     "spectrogram below it: an earthquake arrives as a burst that <em>starts</em> at low "
     "frequency and stays there, because the ground filters out the high frequencies on "
     "the way; a local disturbance is broadband and impulsive. That difference is how the "
-    "detector tells them apart.</p>"
+    "detector tells them apart &mdash; though the Santa&nbsp;Rosa M1.8 below is the "
+    "exception that proves it, because at 2.8&nbsp;km there is no path to do the "
+    "filtering.</p>"
 )
 
 MAP_TEXT = (
@@ -82,6 +84,35 @@ CATCHES = [
             "A second event of M2.8 followed 37 minutes later and was recorded too. Both were "
             "used to calibrate this station against a USGS strong-motion instrument 1.6&nbsp;km "
             "away.",
+        ],
+    ),
+    dict(
+        img="2026-08-29-m1.8-santa-rosa.png",
+        head="M1.8 &middot; Santa Rosa &middot; 2026-08-29",
+        sub="00:42:16.67 UTC &middot; 38.429&deg;N 122.633&deg;W &middot; depth 9.4 km &middot; "
+            "2.8 km ESE &mdash; all but underneath the station",
+        facts=[
+            "The <b>closest catch by a wide margin</b>. 2.8&nbsp;km on the map, but 9.4&nbsp;km "
+            "down, so the real distance is 9.8&nbsp;km and almost all of it is depth &mdash; this "
+            "one arrived from below. The nearest catalogued event anywhere in the station&rsquo;s "
+            "record before it was 8.5&nbsp;km away.",
+            "Peak <b>191&nbsp;&micro;V</b>, signal-to-noise ~67&times;, detector ratio 585 &mdash; "
+            "from an <em>M1.8</em>. The M2.5 at 18&nbsp;km managed 117&nbsp;&micro;V and the M4.2 "
+            "at 46&nbsp;km 1,406&nbsp;&micro;V: at this range distance matters far more than "
+            "magnitude.",
+            "<b>The high frequencies survived.</b> Every other catch here arrives low-frequency "
+            "because kilometres of rock strip the highs out on the way. There is no such path "
+            "here, and the spectrogram shows energy right up to ~24&nbsp;Hz at onset. This is the "
+            "event that shows the rule is about the path, not about earthquakes.",
+            "First motion <b>+1.47&nbsp;s</b> after origin &mdash; ~0.4&nbsp;s earlier than the "
+            "station&rsquo;s 5.19&nbsp;km/s crustal velocity predicts. That figure was fitted to "
+            "18&ndash;90&nbsp;km paths through shallow crust; this ray went almost straight up "
+            "from 9.4&nbsp;km, through deeper and faster rock.",
+            "It <b>should have sent a push notification and did not</b>. Re-scored afterwards the "
+            "trigger classifier gives it <b>p&nbsp;=&nbsp;0.988</b>, comfortably past the 0.7 "
+            "alert threshold &mdash; but the detector released the trigger before the last "
+            "seconds of its scoring window had arrived from the station, so it was never scored "
+            "and the alert never fired. Found and fixed the same day.",
         ],
     ),
     dict(

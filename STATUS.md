@@ -97,8 +97,16 @@ burst re-detected a poll later *does* get scored (07:10:19 unscored / 07:10:24 s
 - the incomplete-window skip now **logs** (`score skipped <start>: window incomplete`).
   An unscored trigger cannot raise an alert, so the reason has to be in the journal.
 
-**Open:** add this event to `dashboard/catches.py` — it is the closest and largest catch
-and the obvious hero image for that page.
+**On the Catches page** (2026-08-29): `catches/2026-08-29-m1.8-santa-rosa.png`, rendered
+with `quake_share.py --usgs-near --spectrogram --expect-s`. It sorts to the top (CATCHES
+self-sorts newest-first by filename). Its entry also required a qualifier in the page
+INTRO: the page tells readers a quake "starts at low frequency and stays there", and at
+2.8 km that is simply not true — there is no path to strip the highs, and the spectrogram
+runs to ~24 Hz at onset. The rule is about distance, not about earthquakes.
+
+**Still open:** `detection-range-map.png` and its caption still say "28 confirmed events".
+This is the 29th. Refreshing it means re-running `harvest_events.py` then
+`detection_map.py`; the text and the image have to move together.
 
 ## ♿ CONTRAST GATED AGAINST WCAG + THE DRUM'S FIRST PAINT (2026-08-28)
 
