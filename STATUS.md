@@ -20,8 +20,10 @@ all counted. Noise floor 1–15 Hz ~0.8 µV RMS on a quiet night, ~3.5 µV after
 
 **Calibration.** Reads ~3.2× quieter than the 28.8 V/(m/s) nameplate (five anchors vs
 USGS NP.1835 1.6 km away, median 3.26×, fixed-path scatter ~1.4×). Vp 5.19 km/s
-measured. 28 catalog-confirmed events, validated range 89 km (M3.8 San Leandro);
-biggest M4.2 Cloverdale (07-29). Detection map: `reports/detection-range-map.png`.
+measured. 32 catalog-confirmed events, validated range 89 km (M3.8 San Leandro);
+biggest M4.2 Cloverdale (07-29); furthest recorded (but not fitted) the M4.8 off
+Petrolia at 319 km (08-29). Closest: the M1.8 at 2.8 km (08-29). Detection map:
+`dashboard/catches/detection-range-map.png`.
 
 **Spectral lines, all identified but one:** 41.0/40.6/37.65 Hz + 19.3 Hz + 20.0 Hz are the
 heat-pump AC (weather-driven duty cycle, minute-tick edges); 40.0 Hz is the 60 Hz mains
@@ -61,6 +63,56 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 ---
 
 # Recent entries (newest first)
+
+## 🌊 M4.8 OFF PETROLIA AT 319 km — RECORDED, AND THE MAP REBUILT (2026-08-29)
+
+USGS **M4.8, 85 km W of Petrolia, 2026-08-29 02:41:11.61 UTC, 40.450/-125.272, 10 km** —
+**318.6 km NW**, offshore of the Mendocino triple junction. Recorded, alerted, and now on
+the Catches page. This is **3.6× the previous furthest catch** (88.7 km, San Leandro).
+
+**Identified by the clock, not by amplitude.** iasp91 puts Pn at 02:41:56.7 and the
+detector triggered at **02:41:57.0**; Sn at 02:42:32.1 and the envelope peaked at
+**02:42:31.7**. Two independent arrivals inside half a second each, and a USGS catalogue
+query returns **exactly one** event within 700 km in a nine-minute window. Peak 52 µV,
+SNR ~27, energy above 2× the floor from +45 s to +356 s. `hf_lf` **0.40** (and 0.25 on
+the follow-on) against 1.2–3.3 for every other trigger that evening; all the energy sits
+below ~7 Hz, hugging the geophone's own 4.5 Hz corner. **It alerted**: p_quake 0.991,
+ntfy push 91 s after P; the follow-on at 0.838 was correctly eaten by the 5-minute
+hold-off. The alerting path works — the M1.8's silence really was the window race.
+
+**Why it was never in the harvest:** `harvest_events.py` defaults to `--radius 300` and
+this is at 318.6 km. Re-harvested at **`--radius 400`**, 2026-07-19 → 08-30, with the
+current `events.log` pulled from pi5 (the local copy was from 07-27): **1883 windows**,
+up from 1316.
+
+**Recalibrated:** `detection_map.py` now reads **32 confirmed events** (was 28),
+furthest **88.7 km**, site deficit −0.244 dex (1.8× quieter than textbook), corner
+penalty 0.313 dex/M above M3, floor 3.0× noise.
+
+**Petrolia is drawn on the map but NOT fitted**, as a green diamond beside the red X of
+the Toms Place null. `calibrate()` rejects residuals below −1.2 dex as probable
+mis-associations and this one reads **−1.216** — 16× below textbook, because at 319 km
+what survives is low-frequency Lg, the band a 4.5 Hz geophone is built to reject.
+Admitting it would also make it the n=1 anchor for the corner penalty in place of the
+M4.2, reshaping every ring from one far-field point. The model already predicts it
+anyway: M4.8 median reach 559 km, so 319 km is comfortably inside.
+
+**A bug the regeneration exposed.** The map's null-test verdict was a *hardcoded
+sentence* — "sits OUTSIDE even the best case" — never checked against the numbers. Under
+the new calibration the M3.4's best case is 444 km and the event is at 348 km, i.e.
+*inside* it, so the map had gone false on the public page. `null_verdict()` now computes
+the wording from where the event actually lands: outside best case / between median and
+best / inside median, each with the right conclusion. The honest reading today is that
+the miss says the best-case ring is an upper bound, not that the model called it.
+
+**Also corrected:** the M1.8 entry claimed the nearest previous catalogued event was
+8.5 km. The harvest's `dist_km` is **hypocentral**, so that was not comparable to the
+M1.8's 2.8 km epicentral. By epicentral distance the nearest before that night was
+8.4 km (M1.31, Kenwood). And the M1.8 had an aftershock the station also caught — M1.38
+at 04:13:48 UTC, same spot, predicted P 04:13:49.7 vs trigger 04:13:50.0, peak
+43.6 µV — which the classifier scored only **0.13**. A very local quake is broadband and
+impulsive, which is what cultural noise looks like; with 19 training positives that are
+mostly further out, close events are the model's blind spot. Worth more positives.
 
 ## 🚨 M1.8 AT 2.8 km — RECORDED PERFECTLY, ALERT LOST TO A RACE (2026-08-29)
 

@@ -41,10 +41,16 @@ MAP_TEXT = (
     "predicted reach by magnitude, inverted from the same amplitude model the harvester "
     "uses and corrected by what the confirmed catches actually measured. Three rings per "
     "magnitude: the inner is a noisy afternoon, the outer a quiet night. Dots are the "
-    "confirmed catches &mdash; 28 of them, out to 89&nbsp;km; the dashed line is the furthest "
-    "one; the X is an M3.4 at 348&nbsp;km that was looked for and not seen, the one hard "
-    "constraint on the far field. Corrected for what the catches measured, the station "
-    "reads about 1.8&times; quieter than the textbook California attenuation predicts.</p>"
+    "confirmed catches &mdash; 32 of them, out to 89&nbsp;km, and the dashed line is the "
+    "furthest. Corrected for what those measured, the station reads about 1.8&times; quieter "
+    "than the textbook California attenuation predicts.</p>"
+    "<p>Two events sit outside that circle and are the only hard constraints on the far "
+    "field. The X is an M3.4 at 348&nbsp;km that was looked for and not seen: it falls "
+    "outside the median ring but inside the best-case one, so the miss says the best case is "
+    "an upper bound rather than a promise. The diamond is the M4.8 off Petrolia at "
+    "319&nbsp;km that <em>was</em> recorded (below) &mdash; identified by arrival time rather "
+    "than amplitude, and deliberately left out of the fit, because it reads 16&times; below "
+    "textbook and letting one far-field point in would reshape every ring on the map.</p>"
     "<p>Everything past the dashed line is extrapolation. Beyond ~150&nbsp;km what survives "
     "is low-frequency Lg energy, exactly where this geophone is deaf, so the outer rings "
     "are upper bounds. The map is regenerated whenever the catalog comparison is "
@@ -87,15 +93,48 @@ CATCHES = [
         ],
     ),
     dict(
+        img="2026-08-29-m4.8-petrolia.png",
+        head="M4.8 &middot; off Petrolia &middot; 2026-08-29",
+        sub="02:41:11.61 UTC &middot; 40.450&deg;N 125.272&deg;W &middot; depth 10 km &middot; "
+            "319 km NW, offshore of the Mendocino triple junction",
+        facts=[
+            "The <b>furthest catch by a factor of 3.6</b> &mdash; 319&nbsp;km against a previous "
+            "record of 89&nbsp;km. Peak 52&nbsp;&micro;V, signal-to-noise ~27&times;, and energy "
+            "above twice the noise floor for <b>five minutes</b>.",
+            "<b>Identified by the clock, not by amplitude.</b> Pn was due at 02:41:56.7 "
+            "(iasp91, 319&nbsp;km, 10&nbsp;km deep) and the detector triggered at "
+            "<b>02:41:57.0</b>; Sn was due at 02:42:32.1 and the envelope peaked at "
+            "<b>02:42:31.7</b>. Two independent arrivals, each inside half a second. It is also "
+            "the only catalogued event within 700&nbsp;km in a nine-minute window.",
+            "<b>This is what 319&nbsp;km does to a signal.</b> In the spectrogram every bit of "
+            "the energy sits below ~7&nbsp;Hz, hugging the geophone&rsquo;s own 4.5&nbsp;Hz "
+            "corner &mdash; the crust has stripped everything above it out on the way. Its "
+            "high/low band ratio is 0.40, where every other trigger that evening ran 1.2 to "
+            "3.3. Set it beside the M1.8 below, which arrived from 2.8&nbsp;km with energy "
+            "still present at 24&nbsp;Hz: same instrument, same night, opposite ends of the "
+            "same rule.",
+            "<b>The station said so at the time.</b> The trigger classifier scored it "
+            "p&nbsp;=&nbsp;0.991 and pushed a notification 91&nbsp;s after the P arrival; the "
+            "follow-on trigger 32&nbsp;s later scored 0.838 and was correctly swallowed by the "
+            "five-minute hold-off, so one earthquake produced one alert.",
+            "It is drawn on the range map above as a diamond but is <b>not part of the "
+            "calibration</b>. It reads 16&times; below the textbook amplitude &mdash; past the "
+            "cut the fit uses to throw out probable mis-associations &mdash; because what "
+            "survives this far out is low-frequency Lg, the band a 4.5&nbsp;Hz geophone is "
+            "built to reject. Fitting it would make one far-field point the anchor for every "
+            "ring on the map.",
+        ],
+    ),
+    dict(
         img="2026-08-29-m1.8-santa-rosa.png",
         head="M1.8 &middot; Santa Rosa &middot; 2026-08-29",
         sub="00:42:16.67 UTC &middot; 38.429&deg;N 122.633&deg;W &middot; depth 9.4 km &middot; "
             "2.8 km ESE &mdash; all but underneath the station",
         facts=[
-            "The <b>closest catch by a wide margin</b>. 2.8&nbsp;km on the map, but 9.4&nbsp;km "
-            "down, so the real distance is 9.8&nbsp;km and almost all of it is depth &mdash; this "
-            "one arrived from below. The nearest catalogued event anywhere in the station&rsquo;s "
-            "record before it was 8.5&nbsp;km away.",
+            "The <b>closest catch</b>. 2.8&nbsp;km on the map, but 9.4&nbsp;km down, so the "
+            "real distance is 9.8&nbsp;km and almost all of it is depth &mdash; this one arrived "
+            "from below. Nothing catalogued had come within 8.4&nbsp;km of the station before "
+            "that night.",
             "Peak <b>191&nbsp;&micro;V</b>, signal-to-noise ~67&times;, detector ratio 585 &mdash; "
             "from an <em>M1.8</em>. The M2.5 at 18&nbsp;km managed 117&nbsp;&micro;V and the M4.2 "
             "at 46&nbsp;km 1,406&nbsp;&micro;V: at this range distance matters far more than "
@@ -108,6 +147,13 @@ CATCHES = [
             "station&rsquo;s 5.19&nbsp;km/s crustal velocity predicts. That figure was fitted to "
             "18&ndash;90&nbsp;km paths through shallow crust; this ray went almost straight up "
             "from 9.4&nbsp;km, through deeper and faster rock.",
+            "It had an <b>aftershock, and that one was recorded too</b>: M1.38 at "
+            "04:13:48&nbsp;UTC, 3&frac12; hours later and from the same 2.9&nbsp;km spot. "
+            "Predicted P at 04:13:49.7, trigger at 04:13:50.0, peak 43.6&nbsp;&micro;V. The "
+            "classifier gave it only p&nbsp;=&nbsp;0.13, though &mdash; a very local quake is "
+            "broadband and impulsive, which is exactly what cultural noise looks like, and the "
+            "model was trained on 19 positives that are mostly further away. Close events are "
+            "its blind spot.",
             "It <b>should have sent a push notification and did not</b>. Re-scored afterwards the "
             "trigger classifier gives it <b>p&nbsp;=&nbsp;0.988</b>, comfortably past the 0.7 "
             "alert threshold &mdash; but the detector released the trigger before the last "

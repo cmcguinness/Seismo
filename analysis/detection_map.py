@@ -69,6 +69,22 @@ CSV = Path(__file__).parent / "event_harvest.csv"
 NULL_TEST = dict(lat=37.501, lon=-118.842, mag=3.4, dist=347.7,
                  label="M3.4 Toms Place\n348 km — NOT seen")
 
+# The positive counterpart to the null test: an event well outside the validated
+# circle that we DID record and can prove. 2026-08-29 02:41:11Z, M4.84, 85 km W of
+# Petrolia, 318.6 km NW. Pn arrived within 0.3 s of iasp91 and Sn within 0.4 s, its
+# hf_lf was 0.40 against 1.2-3.3 for every other trigger that evening, the classifier
+# gave p=0.991, and it is the only catalogued event within 700 km in a nine-minute
+# window -- so the identification does not rest on amplitude at all.
+#
+# It is deliberately NOT in the calibration set. calibrate() rejects residuals below
+# -1.2 dex as probable mis-associations and this one reads -1.22: 16x below the
+# textbook amplitude, because at 319 km what is left is low-frequency Lg and that is
+# exactly the band a 4.5 Hz geophone throws away. Letting it in would also make it the
+# n=1 anchor for the corner penalty in place of the M4.2, reshaping every ring on this
+# map from a single far-field point. It is drawn, not fitted.
+FAR_CONFIRMED = dict(lat=40.450, lon=-125.272, mag=4.84, dist=318.6,
+                     label="M4.8 Petrolia\n319 km — recorded")
+
 CITIES = [
     ("San Francisco", 37.775, -122.419), ("Sacramento", 38.582, -121.494),
     ("San Jose", 37.339, -121.895), ("Fresno", 36.748, -119.772),
@@ -223,10 +239,28 @@ def main():
         print(f"  {m:>4.1f} {rn:>9.0f} {rm:>9.0f} {rq:>9.0f}")
 
     nb = band(NULL_TEST["mag"])
+    fb = band(FAR_CONFIRMED["mag"])
     r_null = nb[1]
+
+    def null_verdict(d, b):
+        """What the miss actually tells us, given where it lands among the rings."""
+        if d > b[2]:
+            return ("outside even the best case, so the non-detection is exactly what the "
+                    "model predicts")
+        if d > b[1]:
+            return ("outside the median ring but inside the best case, so the miss says the "
+                    "best-case ring is an upper bound rather than a promise")
+        return ("inside the median ring: the model expected to see it and we did not, which "
+                "is a mark against the model, not against the event")
+
+    nv = null_verdict(NULL_TEST["dist"], nb)
+    print(f"  far check: M{FAR_CONFIRMED['mag']:.1f} at {FAR_CONFIRMED['dist']:.0f} km. "
+          f"Model reach {fb[0]:.0f}/{fb[1]:.0f}/{fb[2]:.0f} km -> "
+          f"{'inside' if FAR_CONFIRMED['dist'] <= fb[1] else 'outside'} the median ring; "
+          f"recorded.")
     print(f"\n  null test: M{NULL_TEST['mag']} at {NULL_TEST['dist']:.0f} km. Model reach "
           f"{nb[0]:.0f}/{nb[1]:.0f}/{nb[2]:.0f} km (worst/median/best) -> the event sits "
-          f"OUTSIDE even the best case, so the non-detection is what the model predicts.")
+          f"{nv}.")
 
     # ---- figure: regional panel + an inset for the local field, because the
     # M1.5-M2.5 rings are a few tens of km and vanish at continental scale.
@@ -282,6 +316,14 @@ def main():
                         fontsize=9.5, fontweight="bold", color="#8b0000", zorder=11,
                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#d7191c", lw=1.2))
 
+        if show_null:
+            ax.scatter([FAR_CONFIRMED["lon"]], [FAR_CONFIRMED["lat"]], s=300, marker="D",
+                       facecolor="#19b35a", edgecolor="white", lw=1.8, zorder=11)
+            ax.annotate(FAR_CONFIRMED["label"], (FAR_CONFIRMED["lon"], FAR_CONFIRMED["lat"]),
+                        textcoords="offset points", xytext=(18, 12), ha="left",
+                        fontsize=9.5, fontweight="bold", color="#0b6b3a", zorder=11,
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#19b35a", lw=1.2))
+
         # validated core: inside it is measured, outside is inference
         x, y = circle(STA_LAT, STA_LON, cal["reach"])
         ax.plot(x, y, color="#111", lw=2.2, ls=(0, (5, 2)), zorder=7)
@@ -336,6 +378,8 @@ def main():
                label=f"confirmed detections ({cal['n_conf']})"),
         Line2D([], [], marker="X", ls="", ms=12, mfc="#d7191c", mec="white",
                label="tested and NOT detected"),
+        Line2D([], [], marker="D", ls="", ms=10, mfc="#19b35a", mec="white",
+               label="recorded beyond the validated range"),
         Line2D([], [], color="#111", lw=2.2, ls=(0, (5, 2)), label="validated range"),
         Line2D([], [], marker="o", ls="", ms=5, mfc="#c7ccd1", mec="none",
                label="M≥3 seismicity, 2011–2026 (USGS)"),
@@ -352,8 +396,12 @@ def main():
         f"best case (quiet night, loud event). Floor = {cal['k']:.1f}× the pre-event 1–15 Hz "
         f"noise, the weakest we have confirmed.\n"
         f"✓ Consistency check: the M{NULL_TEST['mag']:g} at {NULL_TEST['dist']:.0f} km "
-        f"(2026-07-30) falls outside even its best-case {nb[2]:.0f} km ring, and we saw nothing — "
-        f"the model called that miss correctly.\n"
+        f"(2026-07-30) was looked for and not seen. It sits {nv}.\n"
+        f"✓ And the other way: the M{FAR_CONFIRMED['mag']:.1f} at "
+        f"{FAR_CONFIRMED['dist']:.0f} km (2026-08-29) sits inside its median "
+        f"{fb[1]:.0f} km ring and WAS recorded — identified on arrival times, not "
+        f"amplitude. It reads 16× below textbook, past the −1.2 dex cut this "
+        f"calibration uses, so it is drawn here but not fitted.\n"
         f"⚠ Only the dashed {cal['reach']:.0f} km circle is measured; beyond it every ring is "
         f"extrapolation and untested. Past ~150 km the surviving energy is low-frequency Lg — the "
         f"band the 4.5 Hz geophone rejects — so the M4/M5 rings are upper bounds, not promises."

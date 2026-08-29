@@ -52,7 +52,7 @@ it is **not** part of the verdict. Spectral flatness was dropped entirely.
 - **Not an earthquake classifier.** A *very local* quake is also impulsive and
   HF-rich; the backlog already flagged this. `impulsive` means "shaped like a
   thump", not "not a quake".
-- **Calibrated since 2026-08-26.** 28 catalog-confirmed events (validated to 89 km) exist
+- **Calibrated since 2026-08-26.** 32 catalog-confirmed events (validated to 89 km) exist
   and a gradient-boosting trigger classifier trained on them runs in the pi5 detector;
   its `p_quake` shows beside this column on the Detections page. `character` remains a
   shape descriptor; `p_quake` is the verdict.
