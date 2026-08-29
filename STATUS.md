@@ -62,6 +62,44 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## 🚨 M1.8 AT 2.8 km — RECORDED PERFECTLY, ALERT LOST TO A RACE (2026-08-29)
+
+USGS **M1.8, 7 km ESE of Santa Rosa, 2026-08-29 00:42:16 UTC, 38.429/-122.633, 9.4 km
+deep** — 2.75 km epicentral, **9.79 km hypocentral**, the closest event the station has
+recorded (previous nearest catch: 2 km... check before claiming a record on Catches).
+
+**The record is the best yet.** Trigger 00:42:18, dur 13.16 s, **STA/LTA 585**, peak
+**196.7 µV** — both the maximum across the last 3000 triggers (~2 days); next-biggest
+ratio in that window is 106. At the measured Vp 5.19 km/s, P is predicted at
+**00:42:17.89**; first energy above 4x the pre-event noise arrives at **00:42:18.14**,
+0.25 s late. Predicted S-P 1.38 s; envelope peaks 00:42:20.67, 2.5 s after onset.
+1-15 Hz peak 106 µV over a 2.10 µV floor (SNR ~50). Energy concentrated 3-6 Hz
+(**4550x** above background there, vs 91x at 15-25 Hz and 17x above 25 Hz), dominant
+5.9 Hz, hf_lf 0.70. Textbook local quake shape.
+
+**And it did not push.** The event went out with **no `p_quake`**, so no ntfy alert —
+Charles heard about it from USGS. Re-scored offline against the same model, window and
+feature code: **p_quake 0.988**, comfortably over the 0.7 alert threshold. The classifier
+was never the problem; it never ran.
+
+**Root cause (fixed).** `detector.realtime()` released a trigger as soon as
+`now >= t_start + POST + 2` (PRE 5 s, POST 25 s, poll 60 s), but the archive arrives from
+the station in ~10 s blocks with a few seconds of lag. This one was polled at 00:42:50
+needing data through 00:42:43 that had not landed; `_window()` fell under its 95%
+completeness bar, returned `None`, and the `w is not None` guard skipped scoring
+**silently** — no log line, so nothing ever said why. Timing luck, not size:
+**77 of 1120 triggers with ratio >= 10 (7%)** had been dropped this way, and the same
+burst re-detected a poll later *does* get scored (07:10:19 unscored / 07:10:24 scored).
+
+- hold raised to `POST + SCORE_HOLD_S` (`SEISMO_SCORE_HOLD_S`, default **15 s**), past
+  the block cadence plus lag; alert latency goes from ~27 s to ~40 s after onset, which
+  is nothing against the 60 s poll
+- the incomplete-window skip now **logs** (`score skipped <start>: window incomplete`).
+  An unscored trigger cannot raise an alert, so the reason has to be in the journal.
+
+**Open:** add this event to `dashboard/catches.py` — it is the closest and largest catch
+and the obvious hero image for that page.
+
 ## ♿ CONTRAST GATED AGAINST WCAG + THE DRUM'S FIRST PAINT (2026-08-28)
 
 Charles: dark-mode prose was washed out. Measured from his screenshot: `#7e8c93` on

@@ -52,6 +52,15 @@ MODEL = Path(os.environ.get("SEISMO_TRIGGER_MODEL", str(Path(__file__).parent / 
 # ntfy push when the classifier is confident (Charles, 2026-08-26): p_quake >= ALERT_P.
 # Same server/topic/token as dc_watch, from /etc/seismo/ntfy.env via the unit file.
 # One push per ALERT_HOLD_S at most: an aftershock cluster is one notification, not ten.
+# How long to wait past the end of a trigger's scoring window before scoring it.
+# The archive arrives from the station in ~10 s blocks with a few seconds of lag, so
+# a hold of 2 s meant the last few seconds of the window often had not landed yet,
+# _window() came up short of its 95% completeness bar and returned None, and the
+# trigger was written out with no p_quake -- silently, so nothing said why. That is
+# how the M1.8 of 2026-08-29 00:42:18 UTC (2.8 km away, STA/LTA 585, the largest in
+# the archive) went out with no score and never raised an ntfy push: 7% of triggers
+# with ratio >= 10 were being dropped this way, on poll timing alone, not on size.
+SCORE_HOLD_S = float(os.environ.get("SEISMO_SCORE_HOLD_S", "15"))
 ALERT_P = float(os.environ.get("SEISMO_ALERT_P", "0.7"))
 ALERT_HOLD_S = float(os.environ.get("SEISMO_ALERT_HOLD_S", "300"))
 NTFY_URL = os.environ.get("SEISMO_NTFY_URL"); NTFY_TOPIC = os.environ.get("SEISMO_NTFY_TOPIC")
@@ -199,13 +208,19 @@ def realtime(params) -> None:
                 for ev in detect(recs, FS, params):
                     t_start = datetime.datetime.fromisoformat(ev["start"]).timestamp()
                     if not _seen_near(emitted, t_start):
-                        # Hold the event until its scoring window exists (POST s after
-                        # start); the next poll picks it up. Latency is uncritical here.
-                        if scorer is not None and now.timestamp() < t_start + POST + 2:
+                        # Hold the event until its scoring window has actually arrived
+                        # (POST s after start, plus the mirror's block cadence and lag);
+                        # the next poll picks it up. Latency is uncritical here.
+                        if scorer is not None and now.timestamp() < t_start + POST + SCORE_HOLD_S:
                             continue
                         if scorer is not None:
                             try:
                                 w = _window(recs, t_start - PRE, t_start + POST, FS)
+                                if w is None:
+                                    # Never silent: an unscored trigger cannot raise an
+                                    # alert, so the reason has to be in the log.
+                                    print(f"score skipped {ev['start']}: window incomplete "
+                                          f"(ratio {ev['peak_ratio']})", flush=True)
                                 p = scorer.score(ev, w, FS) if w is not None else None
                                 if p is not None:
                                     ev["p_quake"] = round(p, 3)
