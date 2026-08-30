@@ -1,3 +1,33 @@
+## Channel code is SHZ and should be EHZ
+
+The ISC provisional registration for OAKM1 says **EHZ**. The code says **SHZ**
+(`SEISMO_CHANNEL` default in `station/recorder.py`, `server/store.py`,
+`server/detector.py`). The registration is right and the data is wrong.
+
+Per the [FDSN source identifier spec](https://docs.fdsn.org/projects/source-identifiers/en/v1.0/channel-codes.html),
+the band code is set by sample rate and corner period:
+
+| code | band | sample rate | corner period |
+|---|---|---|---|
+| **E** | Extremely Short Period | **80–249 Hz** | < 10 s |
+| S | Short Period | 10–79 Hz | < 10 s |
+
+At **100 sps** with a 4.5 Hz corner (0.22 s period) the correct band code is **E**, so
+`EHZ`. `SHZ` was correct at 57/60 sps and should have changed at the 2026-07-25 cutover
+to 100 sps; it did not. Every miniSEED file written since then carries a band code that
+contradicts its own sample rate, which any FDSN consumer will flag.
+
+**Not changed unilaterally — this is a SEED identity change to a live 24/7 archive.**
+It touches the recorder, the collector, the detector, the dashboards and every existing
+day-file name, needs an `analysis/epochs.py` row, and wants doing at the same time as the
+`XX -> SS` network cutover so the archive has one identity break rather than two. The
+code is env-driven (`SEISMO_CHANNEL`), so the change itself is config, not code.
+
+Open question worth deciding: whether to relabel the existing archive or leave the
+pre-cutover files as `SHZ` and treat it as an epoch boundary. Leaving them is more honest
+about what was actually written, and the epochs table already exists to describe exactly
+this kind of break.
+
 ## Alerts need a local shaking-severity indication
 
 Charles, 2026-08-30: *"if you're going to send me an alert, I need some sort of shaking

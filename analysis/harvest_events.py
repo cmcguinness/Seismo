@@ -43,7 +43,12 @@ STA_LAT, STA_LON = 38.451817, -122.621049
 # small but systematic and free to remove. 119 m is the GPS MSL fix taken at the
 # house (2026-08-29, eph 4.6 m); the geophone is in the garage a few metres away,
 # and a 5 m error here moves a 10 km hypocentral distance by 0.05 %.
-STA_ELEV_M = 119.0
+# 128.3 m: USGS 3DEP at the registered coordinates (128.28), which is also what the
+# ISC provisional registration carries. NOT the 119 m the GPS reported on 2026-08-29 --
+# that was measured at the house window with epv 7.1 m, GNSS vertical is the weak axis
+# (no satellites below the horizon), and gpsd's own altHAE/altMSL/geoidSep did not
+# reconcile. The DEM is better sourced here; do not "improve" this with a GPS fix.
+STA_ELEV_M = 128.3
 # km/s. Vp measured at this station from five confirmed events, 18.4-45.7 km:
 # onset = dist/5.19 + 0.30 s, residuals <=0.3 s (2026-07-29, STATUS.md). The old 6.0
 # placed the window ~1.4 s early at 45 km.

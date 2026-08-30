@@ -35,7 +35,7 @@ import specgram   # project-standard spectrogram (fixed colour scale, window, ba
 
 # --- station + model defaults (override via CLI) -----------------------------
 STA_LAT, STA_LON = 38.451817, -122.621049    # Oakmont, Santa Rosa (measured at the sensor)
-STA_ELEV_M = 119.0                           # above MSL; catalogue depths are from MSL
+STA_ELEV_M = 128.3                           # above MSL; catalogue depths are from MSL
 STA_LABEL = "Charles McGuinness - Personal Seismometer, Santa Rosa, CA"
 VP, VS = 6.0, 3.46                            # crustal velocities, km/s (Vp/Vs≈1.73)
 SP_TO_KM = VP * VS / (VP - VS)               # S–P seconds -> distance km (≈8.2)
