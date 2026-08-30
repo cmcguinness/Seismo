@@ -99,6 +99,16 @@ one day is partial in the harvest. Accepted rather than merged.
 `SS.OAKM1.00.EHZ.D.2026.242.mseed` within a minute; the detector restarted on `d041663`
 and is emitting scored events; `/v1/live` serves; both dashboards render `OAKM1` / `00.EHZ`.
 
+**apps02 carried an undocumented override.** The public dashboard kept saying `OAKMT`
+after everything else had switched, because its dokku app had explicit
+`SEISMO_NETWORK=XX` / `SEISMO_STATION=OAKMT` config set at some point and never written
+down — so the code defaults never applied there. `SEISMO_CHANNEL` was *not* set, which is
+why the same page rendered `00.EHZ` beside `OAKMT` and gave the game away. Now set
+explicitly on apps02 (`dokku config:set seismo SEISMO_NETWORK=SS SEISMO_STATION=OAKM1
+SEISMO_CHANNEL=EHZ SEISMO_LOCATION=00`). **`deploy.sh public` does not touch dokku config**,
+so any future identity change has to set it there by hand as well; pi5's dokku app has no
+identity config at all and takes the code defaults.
+
 **Still outstanding:** the ISC IR confirmation. Nothing depends on it — we are already
 publishing under the identity Charles told James we would use.
 
