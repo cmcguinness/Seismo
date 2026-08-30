@@ -1,3 +1,16 @@
+## The station's timing floor is the wireless bridge, not the clock
+
+Since 2026-08-30 the station syncs to the LAN GPS-PPS stratum-1 and holds sub-µs offset at
+any instant, but its **root delay is 7.0 ms** (ping: avg 7.2, min 5.4, max 9.9, mdev 1.6).
+The station's `eth0` feeds the wireless bridge installed to keep a Wi-Fi radio off the ADC
+supply, so the path is Wi-Fi no matter what the interface is called, and chrony's error
+bound at the station is ±3.5 ms rather than the host's sub-µs.
+
+Only worth fixing if absolute timing ever needs to beat a millisecond. At 100 sps one
+sample is 10 ms, so today's ±3 ms is under half a sample and nothing on the site is limited
+by it. The fix is real copper from the house to the garage — a cabling job, not a config
+change, and it must not reintroduce a radio next to the front end.
+
 ## Channel code is SHZ and should be EHZ
 
 The ISC provisional registration for OAKM1 says **EHZ**. The code says **SHZ**

@@ -64,6 +64,44 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## ⏱️ GPS CLOCK HOST IN SERVICE; THE STATION IS OFF POOL NTP (2026-08-30 16:20 UTC)
+
+`pi3chrono` moved to its final position: antenna sited, **Ethernet only** (Wi-Fi radio
+disabled — `nmcli radio wifi off` plus autoconnect off, so a clock server has one path and
+one address). Serving the LAN via `allow 192.168.4.0/22`.
+
+| | before | after |
+|---|---|---|
+| **station** (`seismo.local`) offset vs GPS | **+3.0 ms** | **746 ns** |
+| clock host vs GPS | — | 50 ns, skew 0.022 ppm |
+
+The station moved from `systemd-timesyncd` against the Debian pool — which had stretched
+to a **34-minute poll**, leaving the Pi running free on an uncorrected crystal between
+updates — to chrony against `pi3chrono.local` by name (mDNS; it is a DHCP lease), `prefer`,
+`minpoll 4 maxpoll 6`. Pool entries stay as a fallback so the station degrades to stratum 2+
+rather than to nothing if the clock host dies. **chrony slewed, it did not step** (3 ms is
+far under `makestep`'s 1 s), and the recorder logged **dropped 0 / glitches 0 / resyncs 0**
+across the switch. Epoch row added: `timing`, absolute timestamps only — rate and
+amplitudes unaffected.
+
+**But the station's accuracy is now limited by its network path, not by the clock.** Its
+root delay to the clock host is **7.0 ms** and ping confirms it: RTT avg 7.2 ms, min 5.4,
+max 9.9, mdev 1.6. That is not wired Ethernet — the station's `eth0` feeds the *wireless
+bridge* installed on 2026-07-20 to keep a Wi-Fi radio away from the ADC
+([[wifi-tx-corrupts-acquisition]]), so the path traverses Wi-Fi whatever the interface is
+called. chrony's own error bound on the station is **±3.5 ms**, not the sub-µs the host
+achieves.
+
+So the earlier prediction of "tens of µs at the station over Ethernet" was wrong: that
+would need real copper to the garage. What was actually bought is a much better-controlled
+*offset* (3.0 ms → sub-µs at any instant) and a 16–64 s poll instead of 34 minutes, with an
+uncertainty floor of a few ms set by the bridge. At 100 sps one sample is 10 ms, so ±3 ms
+is under half a sample and this is comfortably good enough — it is simply not the
+microsecond regime.
+
+Also serving the Mac (`/etc/ntp.conf` -> `server pi3chrono.local`; sntp reports
++3.8 ms ± 4.6 ms over Wi-Fi). `chronyc clients` shows both.
+
 ## 🪪 SEED IDENTITY CUTOVER: XX.OAKMT.00.SHZ -> SS.OAKM1.00.EHZ (2026-08-30 15:39 UTC)
 
 Decoupled from the ISC wait, which was never a blocker. James (ISC DCO) answered on

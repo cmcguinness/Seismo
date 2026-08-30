@@ -76,6 +76,18 @@ BOUNDARIES = [
     ("2026-08-30T15:37", False, {"identity"},
      "XX.OAKMT.00.SHZ -> SS.OAKM1.00.EHZ (FDSN single-station code; band code E is "
      "correct at 100 sps). Metadata only; waveforms unchanged"),
+    # The station's absolute time reference changed. Before: systemd-timesyncd against
+    # the Debian pool, which had stretched to a 34-minute poll -- so between updates the
+    # Pi ran free on an uncorrected crystal, and it measured +3.0 ms against GPS truth.
+    # After: chrony against pi3chrono.local, a GPS/PPS-disciplined stratum-1 on the same
+    # wired LAN, polling every 16-64 s. chrony SLEWED (offset 3 ms, far under makestep's
+    # 1 s), so there is no discontinuity in the sample grid -- the recorder logged
+    # dropped 0 / glitches 0 / resyncs 0 across the switch. RATE is unaffected; this
+    # improves the accuracy of absolute timestamps, it does not change the waveforms.
+    ("2026-08-30T16:20", False, {"timing"},
+     "station time reference: pool NTP (timesyncd, 34 min poll, +3.0 ms vs GPS) -> "
+     "chrony against the LAN GPS-PPS stratum-1. Absolute timing improves; amplitudes "
+     "and sample rate unaffected"),
 ]
 
 
