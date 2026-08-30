@@ -65,6 +65,17 @@ BOUNDARIES = [
      "hardware timestamps, lost conversions counted+filled, blocks contiguous. Before "
      "this line every 10 s block is stretched 0.2% with an 18 ms gap after it (a "
      "0.1 Hz comb on sub-Hz spectra); amplitudes unaffected"),
+    # SEED identity only -- no hardware, siting or acquisition change. The band code was
+    # the actual bug: FDSN sets it by sample rate, E is 80-249 sps and S is 10-79, so SHZ
+    # stopped being correct at the 2026-07-25 move to 100 sps and nobody noticed until the
+    # ISC registration (which says EHZ) was compared with the code. Network XX -> SS is
+    # the FDSN single-station code, which needs no assignment. Day-files before this
+    # instant are XX.OAKMT.00.SHZ and after it SS.OAKM1.00.EHZ; readers match on the DAY,
+    # not the SEED id. Waveforms are unaffected -- do NOT treat this as an amplitude,
+    # noise or timing boundary.
+    ("2026-08-30T15:37", False, {"identity"},
+     "XX.OAKMT.00.SHZ -> SS.OAKM1.00.EHZ (FDSN single-station code; band code E is "
+     "correct at 100 sps). Metadata only; waveforms unchanged"),
 ]
 
 

@@ -118,14 +118,16 @@ def sync_dayfiles(days):
     today = datetime.date.today()
     want = [(today - datetime.timedelta(days=d)).strftime("%Y.%j")
             for d in range(days + 1)]
-    missing = [w for w in want if not (DATA / f"XX.OAKMT.00.SHZ.D.{w}.mseed").exists()]
+    # Match on the DAY, not the SEED id: the archive carries both identities across
+    # the 2026-08-30 XX.OAKMT.00.SHZ -> SS.OAKM1.00.EHZ cutover, and hardcoding either
+    # one silently stops syncing.
+    missing = [w for w in want if not list(DATA.glob(f"*.D.{w}.mseed"))]
     if not missing:
         return 0
     DATA.mkdir(exist_ok=True)
     got = 0
     for w in missing:
-        name = f"XX.OAKMT.00.SHZ.D.{w}.mseed"
-        r = sh(["scp", "-q", f"{PI5}:seismo-archive/{name}", str(DATA / name)])
+        r = sh(f"scp -q '{PI5}:seismo-archive/*.D.{w}.mseed' {DATA}/")
         if r.returncode == 0:
             got += 1
     return got

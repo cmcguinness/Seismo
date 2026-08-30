@@ -29,10 +29,10 @@ from pathlib import Path
 import numpy as np
 
 # --- SEED identity (must match station/recorder.py) --------------------------
-STATION = os.environ.get("SEISMO_STATION", "OAKMT")
-NETWORK = os.environ.get("SEISMO_NETWORK", "XX")
+STATION = os.environ.get("SEISMO_STATION", "OAKM1")
+NETWORK = os.environ.get("SEISMO_NETWORK", "SS")
 LOCATION = os.environ.get("SEISMO_LOCATION", "00")
-CHANNEL = os.environ.get("SEISMO_CHANNEL", "SHZ")
+CHANNEL = os.environ.get("SEISMO_CHANNEL", "EHZ")
 
 # --- mirror layout (what the pi5 rsync timers land) --------------------------
 DATA_DIR = Path(os.environ.get("SEISMO_DATA", "/data/data"))          # *.mseed day-files

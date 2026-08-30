@@ -28,10 +28,10 @@ import numpy as np
 MPL_LOCK = threading.Lock()
 
 HELI = os.environ.get("SEISMO_HELI", "/data/heli")
-STATION = os.environ.get("SEISMO_STATION", "OAKMT")
-NETWORK = os.environ.get("SEISMO_NETWORK", "XX")
+STATION = os.environ.get("SEISMO_STATION", "OAKM1")
+NETWORK = os.environ.get("SEISMO_NETWORK", "SS")
 LOCATION = os.environ.get("SEISMO_LOCATION", "00")
-CHANNEL = os.environ.get("SEISMO_CHANNEL", "SHZ")
+CHANNEL = os.environ.get("SEISMO_CHANNEL", "EHZ")
 PLACE = os.environ.get("SEISMO_PLACE", "Oakmont, Santa Rosa, CA")
 SID = f"{NETWORK}.{STATION}.{LOCATION}.{CHANNEL}"
 

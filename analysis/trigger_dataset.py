@@ -118,7 +118,11 @@ def main():
 
     rows, n_pos, n_amb = [], 0, 0
     for (y, j), evs in sorted(by_day.items()):
-        path = os.path.join(DATA, f"XX.OAKMT.00.SHZ.D.{y}.{j:03d}.mseed")
+        # Match the day, not the SEED id -- the archive spans the XX.OAKMT.00.SHZ ->
+        # SS.OAKM1.00.EHZ cutover of 2026-08-30.
+        hits = sorted(glob.glob(os.path.join(DATA, f"*.D.{y}.{j:03d}.mseed")),
+                      key=os.path.getsize, reverse=True)
+        path = hits[0] if hits else os.path.join(DATA, f"none.D.{y}.{j:03d}.mseed")
         if not os.path.exists(path):
             continue
         st = obspy.read(path)

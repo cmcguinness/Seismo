@@ -12,8 +12,12 @@ User=charles
 Group=charles
 WorkingDirectory=/home/charles/seismo/station
 # Station config (defaults match recorder.py; here so the deployment is self-documenting)
-Environment=SEISMO_NETWORK=XX
-Environment=SEISMO_STATION=OAKMT
+Environment=SEISMO_NETWORK=SS
+Environment=SEISMO_STATION=OAKM1
+# EHZ, not SHZ: FDSN sets the band code by sample rate -- E is 80-249 sps, S is
+# 10-79 -- so SHZ stopped being correct at the 100 sps cutover (2026-07-25).
+Environment=SEISMO_CHANNEL=EHZ
+Environment=SEISMO_LOCATION=00
 Environment=SEISMO_GAIN=64
 Environment=SEISMO_DRATE=100
 # RDATAC: free-running continuous read -- the ADC samples on its own crystal at

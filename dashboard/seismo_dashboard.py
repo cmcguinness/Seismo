@@ -25,11 +25,13 @@ import heli_render
 import heli_service
 import render
 
-STATION = os.environ.get("SEISMO_STATION", "OAKMT")
-NETWORK = os.environ.get("SEISMO_NETWORK", "XX")
+STATION = os.environ.get("SEISMO_STATION", "OAKM1")
+NETWORK = os.environ.get("SEISMO_NETWORK", "SS")
 PLACE = os.environ.get("SEISMO_PLACE", "Oakmont, Santa Rosa, CA")
 EVENTS = os.environ.get("SEISMO_EVENTS", "/data/events.log")
-SID = f"{NETWORK}.{STATION}.00.SHZ"
+CHANNEL = os.environ.get("SEISMO_CHANNEL", "EHZ")
+LOCATION = os.environ.get("SEISMO_LOCATION", "00")
+SID = f"{NETWORK}.{STATION}.{LOCATION}.{CHANNEL}"
 # "Oakmont, Santa Rosa, CA" -> "Oakmont, CA"
 _pl = [x.strip() for x in PLACE.split(",")]
 _SHORT_PLACE = f"{_pl[0]}, {_pl[-1]}" if len(_pl) > 2 else PLACE
@@ -527,7 +529,7 @@ def _rail(active):
         '<aside class="rail">'
         f'<div class="r-id"><div class="r-net">{NETWORK} &middot; {_SHORT_PLACE}</div>'
         f'<div class="r-code">{STATION}</div>'
-        '<div class="r-chan">00.SHZ &middot; vertical 4.5&nbsp;Hz<br>'
+        f'<div class="r-chan">{LOCATION}.{CHANNEL} &middot; vertical 4.5&nbsp;Hz<br>'
         '100&nbsp;sps &middot; geophone + ADS1256</div></div>'
 
         '<div class="vitals" id="vitals">'

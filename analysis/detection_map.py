@@ -58,7 +58,7 @@ from harvest_events import STA_LAT, STA_LON, ml_atten, predict_uv, REF_MAG, REF_
 
 # Figure labels follow the station code so the map does not keep saying OAKMT
 # after the XX.OAKMT -> SS.OAKM1 cutover.
-STATION = os.environ.get("SEISMO_STATION", "OAKMT")
+STATION = os.environ.get("SEISMO_STATION", "OAKM1")
 
 GEO = Path(__file__).parent / "geo"
 CSV = Path(__file__).parent / "event_harvest.csv"

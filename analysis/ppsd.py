@@ -166,7 +166,7 @@ def main():
     if not files:
         sys.exit(f"no day-files in {args.data} (use --rsync)")
 
-    station = os.environ.get("SEISMO_STATION", "OAKMT")
+    station = os.environ.get("SEISMO_STATION", "OAKM1")
     state = os.path.join(args.out, f"ppsd_{station}_{args.epoch}.npz")
     seen_path = os.path.join(args.out, f"ppsd_seen_{args.epoch}.txt")
     seen = set()

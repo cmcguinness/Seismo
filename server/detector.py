@@ -41,10 +41,10 @@ POLL_S = int(os.environ.get("SEISMO_DETECT_POLL_S", "60"))
 WINDOW_S = int(os.environ.get("SEISMO_DETECT_WINDOW_S", "600"))
 # SEED identity -- env-driven so the XX.OAKMT -> SS.OAKM1 cutover is a config
 # change, not a code change. Must match station/recorder.py and server/store.py.
-NET = os.environ.get("SEISMO_NETWORK", "XX")
-STA = os.environ.get("SEISMO_STATION", "OAKMT")
+NET = os.environ.get("SEISMO_NETWORK", "SS")
+STA = os.environ.get("SEISMO_STATION", "OAKM1")
 LOC = os.environ.get("SEISMO_LOCATION", "00")
-CHAN = os.environ.get("SEISMO_CHANNEL", "SHZ")
+CHAN = os.environ.get("SEISMO_CHANNEL", "EHZ")
 EVENTS = ARCHIVE / "events.log"
 # Stage-1 trigger classifier (STATUS 2026-08-26): trained on the Mac, shipped here by
 # deploy.sh. Absent file -> events go out without p_quake, nothing else changes.
