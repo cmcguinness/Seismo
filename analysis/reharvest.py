@@ -30,6 +30,7 @@ they do not, the run reports and stops, leaving the candidate CSV for inspection
 """
 import argparse
 import csv
+import fcntl
 import datetime
 import os
 import re
@@ -58,6 +59,25 @@ GATES = dict(
     deficit_dex=0.15,         # the site deficit is a property of the site
     seen_flip_frac=0.15,
 )
+
+
+LOCK_PATH = Path(tempfile.gettempdir()) / "seismo-reharvest.lock"
+
+
+def take_lock():
+    """Refuse to run twice at once. A run takes ~4 minutes and ends in a commit, a push
+    and a deploy; two of them interleaving means one publishes on top of the other's
+    half-written CSV. It happened during bring-up (2026-08-29) when a hand-run raced the
+    scheduled one, and only luck kept the repo consistent. The handle is returned and
+    deliberately never closed -- the flock lives as long as the process."""
+    f = open(LOCK_PATH, "w")
+    try:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        sys.exit(f"another reharvest holds {LOCK_PATH}; exiting")
+    f.write(f"{os.getpid()}\n")
+    f.flush()
+    return f
 
 
 def sh(cmd, **kw):
@@ -198,6 +218,8 @@ def main():
     ap.add_argument("--radius", type=float, default=400.0)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+
+    _lock = take_lock()          # held for the life of the process
 
     if not CSV_LIVE.exists():
         sys.exit("no committed event_harvest.csv to compare against")

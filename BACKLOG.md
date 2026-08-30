@@ -1,3 +1,44 @@
+## Alerts need a local shaking-severity indication
+
+Charles, 2026-08-30: *"if you're going to send me an alert, I need some sort of shaking
+severity indication."* The use case is being away from home — in San Francisco, in a car,
+not feeling it — and wanting to know from the push alone: **was this felt at the house,
+and was it hard enough to do damage?** Magnitude is not the question; local intensity is.
+
+Today the alert carries STA/LTA, peak µV and duration. STA/LTA is a detector statistic,
+and µV is an instrument unit — neither tells you whether a picture fell off a wall.
+
+**The instrument is well suited to this.** A geophone measures *velocity* directly, and
+peak ground velocity is exactly what the standard PGV→MMI intensity relations take
+(Wald et al. 1999 and successors, which is the machinery behind USGS ShakeMap and the
+intensity scale "Did You Feel It?" reports against). So the path is short:
+
+    peak counts -> µV -> m/s (station sensitivity) -> PGV -> MMI -> a plain-English phrase
+
+The calibration already exists: `refstation.py` puts the station at ~3.2× quieter than
+the 28.8 V/(m/s) nameplate, measured against USGS NP.1835 1.6 km away.
+
+**The honest caveats, which the alert text has to carry:**
+
+- **Vertical only.** MMI relations are built on peak *horizontal* velocity; vertical PGV
+  typically runs somewhat lower. Either apply a documented factor or state that it is a
+  vertical-component estimate and therefore a floor.
+- **The 4.5 Hz corner is the real limit.** Response falls steeply below it, and the
+  long-period energy that does damage in a large earthquake is exactly what this element
+  rejects. So the estimate is decent for small local events and will **under-report the
+  big ones** — the opposite of the failure you want in a damage indicator. Say so in the
+  push, and consider capping the claim rather than printing a reassuring low number for
+  an event that was actually severe.
+- Intensity is a *site* measure. It describes the garage slab, not the whole property,
+  and certainly not San Francisco.
+
+**Suggested shape:** keep it qualitative and bounded, e.g. `"MMI ~III — felt indoors,
+no damage expected"`, with the numeric PGV alongside for anyone who wants it, and an
+explicit `"vertical-component estimate, under-reports large events"` line. A wrong
+reassurance is worse than no number, so the wording matters as much as the arithmetic.
+
+Depends on nothing; the calibration and the peak are both already in the event record.
+
 ## Re-harvest / catalogue revision
 
 - `analysis/reharvest.py` runs weekly (launchd, Sundays 09:15) and auto-publishes behind
