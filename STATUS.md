@@ -64,6 +64,55 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## 🧠 CLASSIFIER RETRAINED — the very-local blind spot is closed (2026-08-30)
+
+Four confirmed local events in 48 hours exposed it, and the depth double-count in
+`trigger_dataset.py` (fixed in `bdf7137`) explained it: counting depth twice does most
+damage where depth is a large fraction of the distance, so the close events — the only
+counter-examples that could teach the model that a nearby quake is broadband — were
+labelled at the wrong time and effectively poisoned.
+
+**The evidence, before the retrain.** The M2.1 at The Geysers (43 km) and the M1.5 at
+Larkfield (16 km) are near-identical triggers — STA/LTA 77 vs 82, peak 19.9 vs 21.7 µV —
+and the old model scored them **0.994 vs 0.181**. Not magnitude, not SNR, not trigger
+strength: the model had learned *"low hf_lf means earthquake"*, which is really *"far
+away means earthquake"*, because every training positive that survived was at range.
+
+**Retrain:** refreshed `events.pi5.log` from pi5, rebuilt the features on the corrected
+labels, and refit. Positives **31 → 58** in the dataset, **19 → 33** in the deployable
+`peak_ratio >= 10` slice. Also stamped the `trained` date instead of the hardcoded
+`"2026-08-26"` literal — that string is what the detector prints at startup, so a stale
+one makes a fresh model look like the old one in the log.
+
+| event | dist | OLD p | NEW p |
+|---|---|---|---|
+| M1.8 Santa Rosa | 9.9 km | 0.988 | **0.996** |
+| M1.4 aftershock | 9.0 km | **0.130** | **0.937** |
+| M1.5 Larkfield | 15.7 km | **0.181** | **0.986** |
+| M2.1 Geysers | 43.2 km | 0.994 | **0.991** |
+
+Both events it got badly wrong now clear the 0.7 alert threshold, and the distant one did
+not regress. The M1.8 was never scored at all in production (the window race, fixed in
+`a12fe36`).
+
+**A metric got worse and the model got better — read the numbers carefully.** PR-AUC on
+the `ratio >= 20` slice fell **0.91 → 0.769**. That is not a regression: the old figure was
+measured on a training set whose hard local positives were mislabelled or absent. Adding
+genuinely difficult true positives lowers a measured PR-AUC while making the classifier
+correct on exactly the cases that matter. The event-level table above is the real test,
+and it is unambiguous. Do not "restore" the old number by dropping local events.
+
+**Two data-quality items noted, not fixed:**
+
+- The M2.1 Geysers carries `label=0` in the feature set — it is a confirmed catalogue
+  event, but it postdates the last harvest run, so it is training as a *negative*. The
+  model scores it 0.991 anyway, so it is not fooled, but with 33 positives a mislabelled
+  one is not free. The weekly re-harvest will absorb it.
+- A 2026-08-12T06:15:46 trigger with **peak 110,187 µV** (110 mV) and `ratio 1.4 M` sits in
+  the training data as cultural. That is a front-end artifact, not ground motion.
+  `EXCLUDE` in `trigger_train.py` only covers the 07-31 → 08-03 fault window; this one is
+  outside it and should be cut too.
+
 ## 🔁 WEEKLY RE-HARVEST, AUTO-PUBLISHING BEHIND GATES (2026-08-29)
 
 Charles: "we need a workflow system that re-harvests events a week or so after the

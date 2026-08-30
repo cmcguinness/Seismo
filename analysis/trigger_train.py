@@ -13,6 +13,7 @@ analysis/models/trigger_gbm.joblib with its feature list, for the pi5 detector.
     python analysis/trigger_train.py
 """
 import csv
+import datetime
 import os
 
 import joblib
@@ -140,7 +141,11 @@ def main():
         print(f"  {FEATURES[i]:14s} {imp.importances_mean[i]:+.3f}")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     joblib.dump({"model": final, "features": FEATURES, "min_ratio": MIN_RATIO_TRAIN,
-                 "n_train": int(len(ys)), "n_pos": int(ys.sum()), "trained": "2026-08-26",
+                 "n_train": int(len(ys)), "n_pos": int(ys.sum()),
+                 # Stamped, not hardcoded: this string is what the pi5 detector
+                 # prints at startup, so a stale literal makes a fresh model look
+                 # like the old one in the log.
+                 "trained": datetime.date.today().isoformat(),
                  "note": "Stage-1 trigger classifier; p_quake advisory, threshold 0.5 suggested"}, OUT)
     print(f"\nsaved {OUT}")
 
