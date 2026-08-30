@@ -150,6 +150,45 @@ identity config at all and takes the code defaults.
 **Still outstanding:** the ISC IR confirmation. Nothing depends on it — we are already
 publishing under the identity Charles told James we would use.
 
+## 🏷️ LABEL GUARD + A FROZEN HOLDOUT (2026-08-30, later)
+
+Two things, both cheap now and expensive later.
+
+**The `sustain >= 2.0` guard now applies to the LABEL.** It was added to
+`detection_map.calibrate()` and to the harvest's `seen` this morning but never to
+`trigger_dataset.py`, which is where it matters most — that is the training label. One
+positive dropped, exactly the right one: the **Toms Place M3.4 at 348 km**, whose 8.8×
+spike lasts 1.35 s where every genuine catch holds 3.4–7.9 s. Two trigger rows.
+
+Removing a single mislabelled positive out of 33 measurably improved the model:
+
+| | before | after |
+|---|---|---|
+| PR-AUC, ratio ≥ 10 | 0.637 | **0.694** |
+| PR-AUC, ratio ≥ 20 | 0.769 | **0.868** |
+| Toms Place spike | 0.894 | **0.005** |
+| confirmed positives below the 0.7 alert threshold | 0/33 | **0/33** |
+
+The four local events all went *up* (M1.8 0.998, M1.4 0.951, M1.5 0.987, M2.1 0.998). So
+the label was doing real damage, and this is a better before/after than the morning's
+retrain because only the label set changed — same features, same data, same
+hyperparameters.
+
+**A held-out set is now frozen: `HOLDOUT_AFTER = "2026-08-31"` in `trigger_train.py`.**
+Everything after that date is reserved — never fitted, only scored. It excludes nothing
+today, which is the point: it costs nothing to start and cannot be arranged retroactively.
+Every model so far has seen every row in the archive, so no evaluation to date is
+out-of-sample in the strict sense — the grouped CV is honest about leakage between folds
+but not about how many times these rows have informed a choice of feature, threshold or
+filter. **Move the date forward only by deliberately promoting the holdout into training
+and choosing a new one; never to make a number look better.**
+
+This is the first concrete step toward the rigorous train/test set. Still open for that:
+positives are defined by a filter rather than by recorded provenance, and the ~28,000
+negatives certainly contain real earthquakes below catalogue completeness (the harvest's
+own `smallest SEEN` is M0.2) — irreducible label noise on the majority class without a
+second station, and a ceiling on measured precision that is not the model's fault.
+
 ## 🧠 CLASSIFIER RETRAINED — the very-local blind spot is closed (2026-08-30)
 
 Four confirmed local events in 48 hours exposed it, and the depth double-count in
@@ -199,7 +238,7 @@ genuinely difficult true positives lowers a measured PR-AUC while making the cla
 correct on exactly the cases that matter. The event-level table above is the real test,
 and it is unambiguous. Do not "restore" the old number by dropping local events.
 
-**A mislabelled positive is in the training set.** `trigger_dataset.py`'s positive filter
+**FIXED, same day — see the entry below.** ~~A mislabelled positive is in the training set.~~ `trigger_dataset.py`'s positive filter
 is `snr >= 3 and -1.2 < resid < 0.4 and lo_hi >= 1` — it never got the `sustain >= 2.0`
 guard that was added to `detection_map.calibrate()` and to the harvest's `seen`. So the
 Toms Place M3.4 at 348 km, which waveform inspection showed to be a **1.35 s cultural

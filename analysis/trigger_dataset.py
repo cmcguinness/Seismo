@@ -68,7 +68,14 @@ def load_catalog():
         hypo = float(r["dist_km"])
         arr = t + hypo / VP + T0_INT
         rec = dict(arr=arr, mag=float(r["mag"]), dist=float(r["dist_km"]), place=r["place"], origin=r["origin"])
-        ok = (float(r["snr"]) >= 3 and -1.2 < float(r["resid_log10"]) < 0.4 and float(r["lo_hi"]) >= 1)
+        # sustain: the same guard detection_map.calibrate() and the harvest's `seen` use,
+        # and it belongs here most of all -- this is the LABEL. Peak SNR is carried by a
+        # single sample, so without it a lone cultural bang becomes a training positive.
+        # The Toms Place M3.4 at 348 km did exactly that: one 8.8x spike lasting 1.35 s,
+        # labelled 1, and the 2026-08-30 model learned to score it 0.894. Every genuine
+        # catch holds 3.4-7.9 s.
+        ok = (float(r["snr"]) >= 3 and -1.2 < float(r["resid_log10"]) < 0.4
+              and float(r["lo_hi"]) >= 1 and float(r.get("sustain_s") or 0) >= 2.0)
         if ok:
             conf.append(rec)
         if ok or r["seen"] == "1":

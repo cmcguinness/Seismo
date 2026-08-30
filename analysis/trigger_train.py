@@ -46,6 +46,16 @@ MIN_RATIO_EVAL = 20.0      # the Detections page's display floor -- the slice th
 # The detector scores only triggers at/above this floor; others get no p_quake.
 MIN_RATIO_TRAIN = 10.0
 
+# HELD-OUT SET, frozen 2026-08-30. Every model to date has seen every row in the archive,
+# so no evaluation here can claim to be out-of-sample in the strict sense -- the grouped CV
+# is honest about leakage between folds but not about the many times these same rows have
+# informed a choice of feature, threshold or filter. From this date forward, triggers are
+# reserved: never fitted, only scored. It costs nothing today (there is no data after it
+# yet) and it is the one thing that cannot be arranged retroactively -- you cannot un-see
+# data. Move this date forward ONLY by deliberately promoting the holdout into training and
+# choosing a new one; never to make a number look better.
+HOLDOUT_AFTER = "2026-08-31"
+
 
 def load():
     rows = [r for r in csv.DictReader(open(CSV))
@@ -70,6 +80,15 @@ def main():
     print(f"\nRULE hf_lf<{CULTURAL_HF_LF} (on {has.sum()} triggers with hf_lf): "
           f"precision {tp/(tp+fp+1e-9):.3f}  recall {tp/(tp+fn+1e-9):.3f}  "
           f"({tp} TP, {fp} FP, {fn} FN)")
+
+    # Reserve the holdout: fitted on nothing after HOLDOUT_AFTER.
+    held = np.array([r["start"][:10] > HOLDOUT_AFTER for r in rows])
+    if held.any():
+        print(f"\nHELD OUT (never fitted): {held.sum()} triggers after {HOLDOUT_AFTER}, "
+              f"{int(y[held].sum())} of them quake")
+        X, y, groups, rows = X[~held], y[~held], groups[~held], [r for r, h in zip(rows, held) if not h]
+    else:
+        print(f"\nholdout after {HOLDOUT_AFTER}: empty so far (it starts accruing tomorrow)")
 
     # --- grouped CV ------------------------------------------------------------------
     w = np.where(y == 1, (y == 0).sum() / max(1, (y == 1).sum()), 1.0)
