@@ -18,6 +18,7 @@ Phase-1 steps 1-2, running ALONGSIDE the existing rsync mirror (nothing retired)
 
 Best-effort ingest: a malformed datagram or a failed backfill is logged, never fatal.
 """
+import csv
 import datetime
 import json
 import os
@@ -42,6 +43,41 @@ STATION_HOST = os.environ.get("SEISMO_STATION_HOST", "seismo.local")
 STATION_DATA = os.environ.get("SEISMO_STATION_DATA", "seismo/data")   # rel. to station home
 BACKFILL_S = int(os.environ.get("SEISMO_BACKFILL_S", "3600"))         # hourly reconcile
 STATION_HEALTH = ARCHIVE / "station_health.json"
+# station_health.json is a SNAPSHOT -- overwritten every heartbeat, so the instrument's own
+# history was being discarded a second at a time. That is the one stream here that cannot
+# be reconstructed: rate_est is the crystal rate and wanders with temperature (there is a
+# matching env series to correlate against), clock_err_ms records how good the timestamp
+# on any given event actually was, and the counters say whether the station was healthy
+# when it recorded something. Without a history you cannot answer "was the instrument
+# sound when event X arrived?" for any past event -- which is exactly the provenance a
+# defensible dataset needs. One row a minute is ~1440/day, well under 200 KB.
+HEALTH_DIR = Path(os.environ.get("SEISMO_HEALTH_DIR", str(ARCHIVE / "health")))
+HEALTH_EVERY_S = int(os.environ.get("SEISMO_HEALTH_EVERY_S", "60"))
+HEALTH_COLS = ["t", "hb_seq", "mode", "rate", "blocks", "rate_est", "clock_err_ms",
+               "lag_ms", "dropped", "filled", "tossed", "padded", "glitches", "spikes",
+               "stalls", "resyncs", "udp_sent", "udp_dropped", "hi_seq"]
+_health_last = [0.0]
+
+
+def _append_health(hb: dict) -> None:
+    """Append one heartbeat to a daily CSV, mirroring how the env series is kept."""
+    now = time.time()
+    if now - _health_last[0] < HEALTH_EVERY_S:
+        return
+    _health_last[0] = now
+    try:
+        HEALTH_DIR.mkdir(parents=True, exist_ok=True)
+        day = (hb.get("t") or "")[:10] or datetime.datetime.now(
+            datetime.timezone.utc).strftime("%Y-%m-%d")
+        f = HEALTH_DIR / f"health-{day}.csv"
+        new = not f.exists()
+        with open(f, "a", newline="") as fh:
+            w = csv.writer(fh)
+            if new:
+                w.writerow(HEALTH_COLS)
+            w.writerow([hb.get(c, "") for c in HEALTH_COLS])
+    except Exception as exc:
+        print(f"  health append failed (ignored): {exc}", flush=True)
 
 _lock = threading.Lock()
 _seen: dict = {}    # day-file name -> set of record start-time ISO strings
@@ -109,6 +145,7 @@ def _heartbeat_listener() -> None:
             os.replace(tmp, STATION_HEALTH)
         except Exception:
             pass
+        _append_health(hb)
         if n % 60 == 0:
             print(f"  heartbeat #{n} hi_seq={hb.get('hi_seq')} rate={hb.get('rate')} "
                   f"udp_sent={hb.get('udp_sent')}", flush=True)
