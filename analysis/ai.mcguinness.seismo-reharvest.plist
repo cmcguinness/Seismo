@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>ai.mcguinness.seismo-reharvest</string>
+  <!-- Sundays 09:15. launchd runs a missed calendar job on the next wake, so the
+       Mac being asleep at the scheduled time delays the run rather than skipping it. -->
+  <key>StartCalendarInterval</key>
+  <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>15</integer></dict>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Volumes/DataT2/Projects/Seismo/analysis/.venv/bin/python</string>
+    <string>/Volumes/DataT2/Projects/Seismo/analysis/reharvest.py</string>
+    <string>--days</string><string>30</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Volumes/DataT2/Projects/Seismo</string>
+  <key>StandardOutPath</key><string>/Users/charles/Library/Logs/seismo-reharvest.log</string>
+  <key>StandardErrorPath</key><string>/Users/charles/Library/Logs/seismo-reharvest.log</string>
+  <key>RunAtLoad</key><false/>
+  <key>ProcessType</key><string>Background</string>
+</dict>
+</plist>

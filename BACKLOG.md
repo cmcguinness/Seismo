@@ -1,3 +1,17 @@
+## Re-harvest / catalogue revision
+
+- `analysis/reharvest.py` runs weekly (launchd, Sundays 09:15) and auto-publishes behind
+  sanity gates. Watch the first few real runs: if the gates block on something legitimate,
+  the thresholds in `GATES` are the dial, not the check.
+- It does **not** retrain the trigger classifier. That is deliberate — the model was
+  trained through the `trigger_dataset.py` depth double-count, and the first retrain after
+  that fix should be looked at by a human before it ships.
+- The M2.3 near Graton (2026-08-30 00:45:32Z, `nc75427012`) was NOT detected. Its
+  automatic solution is weak (`nst 5`, `gap 217°`, depth −0.71 km against a boundary).
+  The weekly re-harvest will pick up the reviewed location automatically; if it moves
+  materially and the event still reads as a non-detection at ~20 km, that is a genuine
+  result worth chasing rather than a bad location.
+
 # BACKLOG — Seismo
 
 Deferred work, not blocking. The current station records 24/7, is

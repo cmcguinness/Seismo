@@ -64,6 +64,46 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## 🔁 WEEKLY RE-HARVEST, AUTO-PUBLISHING BEHIND GATES (2026-08-29)
+
+Charles: "we need a workflow system that re-harvests events a week or so after the
+event." Right instinct — USGS publishes small events as `automatic` within minutes and a
+human reviews them days later, and everything here is computed from those parameters.
+The M2.3 near Graton (2026-08-30, `nst 5`, `gap 217°`, depth pinned at −0.71 km) is the
+case in point.
+
+**`analysis/reharvest.py`**, weekly under launchd
+(`ai.mcguinness.seismo-reharvest.plist`, Sundays 09:15; launchd runs a missed calendar
+job on the next wake, so a sleeping Mac delays rather than skips).
+
+**It runs on the Mac, not pi5**, though pi5 has obspy/numpy/sklearn and the archive
+locally. Publishing needs GitHub write access and root on apps02; pi5 has neither by
+deliberate design (`git push --dry-run` from `~/seismo-src` fails — read-only deploy key,
+and its apps02 key is rsync-restricted). That posture is worth more than the convenience.
+
+**Auto-publish, per Charles's explicit choice**, so the judgement a human would apply
+lives in gates instead. Nothing publishes if, versus what is committed: rows fall >10%,
+confirmed events fall >25% or double, the validated range moves more than 1.5×, the site
+deficit moves >0.15 dex, or >15% of `seen` rows flip. On a block it keeps the candidate
+at `analysis/reharvest-rejected.csv` and sends a high-priority ntfy instead.
+
+**The gate is tested against the case that motivated it.** Injecting the 2026-08-29 Toms
+Place spike (the 1.35 s cultural bang at 348 km) into a candidate CSV drives reach
+88.8 → 348.2 km, and the gate blocks with *"validated range moved 88.8 -> 348.2 km
+(3.92x)"*. That near-miss was caught by eye; now it is caught by code.
+
+**First dry run found real churn in 30 days:** 8+ events revised (one depth 2.4 → 6.0 km,
+several magnitudes), 5 events added late, and one **withdrawn** from the catalogue
+entirely (M0.77 near Cobb, 2026-08-19). Calibration held at 32 confirmed / 88.8 km /
+−0.244 dex, so it would have published.
+
+Sends ntfy on publish, on a gate block, and on failure; silent when nothing moved.
+`--dry-run` does everything except commit/push/deploy. Takes ~4 min.
+
+**Not covered:** it does not retrain the classifier. `trigger_dataset.py`'s
+double-counted depth means the deployed model was trained on mislabelled windows, and
+that retrain wants a human looking at the result — see the entry below.
+
 ## 📐 STATION ELEVATION IN hypo_km, AND A DOUBLE-COUNTED DEPTH (2026-08-29)
 
 The GPS box gave us a measured station elevation, and it exposed that every hypocentral
