@@ -1,3 +1,40 @@
+## Write-up: applying Yeck et al. (2020) at hobby scale — long-term
+
+Charles, 2026-08-30, framing it as a medical-style **case report** rather than novel
+research: not state-of-the-art, but "how applicable was the original work to a different
+and modest scenario". He has an MS CS in AI, so the ML methodology section is his to write
+authoritatively. Venue that fits: SRL's *Electronic Seismologist* column, which exists for
+practitioner notes.
+
+**Waiting on data, deliberately.** 33 positives is thin, and the headline before/after
+rests on a handful of events. Revisit around ~100 positives; the weekly re-harvest is
+accumulating them without anyone doing anything.
+
+**What the transferable findings actually are** (the ML lessons are stronger than the
+seismology):
+
+- Yeck's *framework* survives the scale drop — STA/LTA triggers into a learned
+  discriminator works at tens of positives. His *architecture* does not: learning filters
+  from raw waveform is what 1.3 M arrivals buys, and engineered features are the substitute.
+- Hardware churn is normal for a hobby station and never happens at NEIC, hence
+  amplitude-relative features only and a formal epoch table so a fit never straddles a
+  rebuild.
+- Grouped CV is mandatory at small N because positives arrive in clusters (mainshock +
+  aftershock, Geysers sequences); ungrouped folds let an aftershock vouch for its own
+  mainshock. At 1.3 M samples that leakage is diluted to nothing.
+- Single vertical component removes the cross-channel amplitude ratio that makes P/S
+  discrimination work at NEIC. A real ceiling set by the instrument, not the model.
+
+**Do NOT repeat the "distance confound" story.** It was asserted from two events and
+tested false: rho(p_quake, distance) = +0.15, p = 0.42, on all 33 positives. The real
+failure mode was weak/spiky/short triggers — a small-sample boundary problem. STATUS
+carries the correction.
+
+**Honest gaps to close before writing anything:** the PR-AUC 0.91 -> 0.769 comparison is
+across *different datasets* and is not a valid before/after — both models need evaluating
+on the same held-out set. Hyperparameters are unsearched (correct at n=33, but say so).
+No calibration analysis of p_quake against the 0.7 alert threshold.
+
 ## The station's timing floor is the wireless bridge, not the clock
 
 Since 2026-08-30 the station syncs to the LAN GPS-PPS stratum-1 and holds sub-µs offset at

@@ -158,11 +158,22 @@ damage where depth is a large fraction of the distance, so the close events — 
 counter-examples that could teach the model that a nearby quake is broadband — were
 labelled at the wrong time and effectively poisoned.
 
-**The evidence, before the retrain.** The M2.1 at The Geysers (43 km) and the M1.5 at
-Larkfield (16 km) are near-identical triggers — STA/LTA 77 vs 82, peak 19.9 vs 21.7 µV —
-and the old model scored them **0.994 vs 0.181**. Not magnitude, not SNR, not trigger
-strength: the model had learned *"low hf_lf means earthquake"*, which is really *"far
-away means earthquake"*, because every training positive that survived was at range.
+**⚠️ CORRECTED 2026-08-30 — the mechanism below was wrong.** The original claim here was
+that the model had learned *"far away means earthquake"*. Tested properly against all 33
+positives it does not hold: Spearman rho(p_quake, distance) is **+0.147 (p = 0.42)** for
+the old model and **+0.144 (p = 0.43)** for the new one — no distance relationship in
+either. The old model's five sub-threshold positives had a **median distance of 38 km**,
+mid-range, not local. What actually separated them was that they were **weak, spiky and
+short**: median snr_env 6.3 against 13.3 for all positives, kurtosis 8.1 against 3.7,
+duration 10.8 s against 15.2 s, peak_ratio 23 against 33. That is an ordinary small-sample
+failure — 19 positives left too few examples near the decision boundary — not a spatial
+confound. The two-event comparison below is real but was generalised from n=2 and should
+not be repeated as a finding.
+
+**What prompted the retrain.** The M2.1 at The Geysers (43 km) and the M1.5 at Larkfield
+(16 km) are near-identical triggers — STA/LTA 77 vs 82, peak 19.9 vs 21.7 µV — and the old
+model scored them **0.994 vs 0.181**. That contrast is genuine; the explanation offered for
+it was not.
 
 **Retrain:** refreshed `events.pi5.log` from pi5, rebuilt the features on the corrected
 labels, and refit. Positives **31 → 58** in the dataset, **19 → 33** in the deployable
@@ -188,7 +199,15 @@ genuinely difficult true positives lowers a measured PR-AUC while making the cla
 correct on exactly the cases that matter. The event-level table above is the real test,
 and it is unambiguous. Do not "restore" the old number by dropping local events.
 
-**Two data-quality items noted, not fixed:**
+**A mislabelled positive is in the training set.** `trigger_dataset.py`'s positive filter
+is `snr >= 3 and -1.2 < resid < 0.4 and lo_hi >= 1` — it never got the `sustain >= 2.0`
+guard that was added to `detection_map.calibrate()` and to the harvest's `seen`. So the
+Toms Place M3.4 at 348 km, which waveform inspection showed to be a **1.35 s cultural
+spike**, is labelled `1` and the retrained model duly scores it **0.894** (the old model
+said 0.003, which was arguably correct). The guard belongs in all three places. Not fixed
+yet — it means another retrain, and that wants deciding rather than doing reflexively.
+
+**Two further data-quality items noted, not fixed:**
 
 - The M2.1 Geysers carries `label=0` in the feature set — it is a confirmed catalogue
   event, but it postdates the last harvest run, so it is training as a *negative*. The
