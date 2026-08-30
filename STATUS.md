@@ -64,6 +64,44 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## 🪪 SEED IDENTITY CUTOVER: XX.OAKMT.00.SHZ -> SS.OAKM1.00.EHZ (2026-08-30 15:39 UTC)
+
+Decoupled from the ISC wait, which was never a blocker. James (ISC DCO) answered on
+2026-08-05 that the ISC is happy to use FDSN-coded stations and there was no reason not to
+have both; Charles replied the same day; the IR confirmation has not come in 25 days. But
+**`SS` needs no assignment** — it is the FDSN code any single-station operator may use — so
+nothing here ever depended on them. The IR entry is a directory record, not a permission.
+
+**The band code was a real bug, not a rename.** FDSN sets it by sample rate: **E is
+80–249 sps, S is 10–79**. `SHZ` was correct at 57/60 sps and stopped being correct at the
+2026-07-25 move to 100 sps, so every file since carried a band code contradicting its own
+sample rate. Charles had `EHZ` right on the ISC form; only the code was wrong, and it took
+comparing the two to notice.
+
+**Two hardcodes that would have broken silently:**
+
+- `seismo_dashboard.py` built `SID` as `f"{NETWORK}.{STATION}.00.SHZ"` and the rail printed
+  a literal `00.SHZ` — both would have kept saying SHZ while the data said EHZ.
+- `reharvest.py` synced day-files by the literal `XX.OAKMT.00.SHZ.D.{day}.mseed` and
+  `trigger_dataset.py` read them the same way, so the weekly job would have quietly stopped
+  pulling new files and harvested a frozen archive **with no error**. Both now match on the
+  **day**, not the SEED id.
+
+**The archive keeps both identities on purpose.** Pre-cutover files stay `XX.OAKMT.00.SHZ`
+because that is what was written; `epochs.py` carries an **`identity`** boundary — not
+amplitude/noise/timing, since waveforms are byte-identical across the line. Do not let a
+future comparison treat this as a data discontinuity. `udp_collector` names files from the
+**record header**, so it followed the station on its own and the archive was never at risk.
+Day 242 holds two part-files, one per identity; `load_archive` prefers the larger, so that
+one day is partial in the harvest. Accepted rather than merged.
+
+**Verified end to end:** station logs `recording SS.OAKM1.00.EHZ`; the collector filed
+`SS.OAKM1.00.EHZ.D.2026.242.mseed` within a minute; the detector restarted on `d041663`
+and is emitting scored events; `/v1/live` serves; both dashboards render `OAKM1` / `00.EHZ`.
+
+**Still outstanding:** the ISC IR confirmation. Nothing depends on it — we are already
+publishing under the identity Charles told James we would use.
+
 ## 🧠 CLASSIFIER RETRAINED — the very-local blind spot is closed (2026-08-30)
 
 Four confirmed local events in 48 hours exposed it, and the depth double-count in
