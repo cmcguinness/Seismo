@@ -78,9 +78,14 @@ def ntfy(title, body, priority="default", tags=""):
         return
     try:
         import urllib.request
+        # ntfy.mcguinness.ai sits behind Cloudflare, whose browser-integrity check
+        # 403s the literal User-Agent "Python-urllib/x.y" with `error code: 1010`.
+        # curl and python-requests pass, urllib does not -- so say who we are. This
+        # cost an evening once; do not remove the header.
         req = urllib.request.Request(
             f"{url}/{topic}", data=body.encode(),
             headers={"Title": title, "Priority": priority, "Tags": tags,
+                     "User-Agent": "seismo-reharvest/1.0",
                      **({"Authorization": f"Bearer {token}"} if token else {})})
         urllib.request.urlopen(req, timeout=15).read()
     except Exception as exc:
@@ -196,6 +201,15 @@ def main():
 
     if not CSV_LIVE.exists():
         sys.exit("no committed event_harvest.csv to compare against")
+
+    # Preflight. A scheduled run gets launchd's minimal PATH, and both direnv and git
+    # are under /opt/homebrew here -- without them the run dies in the publish stage
+    # after four minutes of harvesting, which is the worst place to find out.
+    missing = [b for b in ("direnv", "git", "scp") if not shutil.which(b)]
+    if missing:
+        ntfy("reharvest MISCONFIGURED", f"not on PATH: {', '.join(missing)}\n"
+             f"PATH={os.environ.get('PATH','')}", priority="high", tags="rotating_light")
+        sys.exit(f"not on PATH: {missing} (PATH={os.environ.get('PATH','')})")
 
     r = sh(["git", "status", "--porcelain"])
     if r.stdout.strip() and not args.dry_run:

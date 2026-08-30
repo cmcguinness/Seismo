@@ -13,6 +13,11 @@
     <string>/Volumes/DataT2/Projects/Seismo/analysis/reharvest.py</string>
     <string>--days</string><string>30</string>
   </array>
+  <!-- launchd hands an agent a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin). Both
+       direnv and git live in /opt/homebrew/bin here, so without this every git
+       operation fails and the job alerts instead of publishing, forever. -->
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
   <key>WorkingDirectory</key><string>/Volumes/DataT2/Projects/Seismo</string>
   <key>StandardOutPath</key><string>/Users/charles/Library/Logs/seismo-reharvest.log</string>
   <key>StandardErrorPath</key><string>/Users/charles/Library/Logs/seismo-reharvest.log</string>

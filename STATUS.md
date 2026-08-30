@@ -100,6 +100,23 @@ entirely (M0.77 near Cobb, 2026-08-19). Calibration held at 32 confirmed / 88.8 
 Sends ntfy on publish, on a gate block, and on failure; silent when nothing moved.
 `--dry-run` does everything except commit/push/deploy. Takes ~4 min.
 
+**Two bugs the first *scheduled* run exposed** — both invisible to a hand-run:
+
+- **launchd hands an agent a minimal PATH** (`/usr/bin:/bin:/usr/sbin:/sbin`), and both
+  `direnv` and `git` are under `/opt/homebrew/bin` on this Mac. Every git operation would
+  have failed and the job would have alerted instead of publishing, every Sunday, forever.
+  The plist now sets PATH explicitly, and the script preflights `direnv`/`git`/`scp`
+  before spending four minutes harvesting.
+- **ntfy.mcguinness.ai is behind Cloudflare**, whose browser-integrity check 403s the
+  literal User-Agent `Python-urllib/x.y` with `error code: 1010`. `curl` and
+  `python-requests` pass; `urllib` does not. So the notifications — the entire point of a
+  job that runs unattended — were silently failing. Fixed by sending a real User-Agent.
+  **`server/detector.py` is unaffected**: it uses `requests`, which Cloudflare allows, so
+  the earthquake alerts have been getting through all along (including Petrolia's).
+
+The dirty-tree guard also fired correctly on that run, refusing to publish over
+uncommitted edits.
+
 **Not covered:** it does not retrain the classifier. `trigger_dataset.py`'s
 double-counted depth means the deployed model was trained on mislabelled windows, and
 that retrain wants a human looking at the result — see the entry below.
