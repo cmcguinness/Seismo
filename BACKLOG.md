@@ -21,8 +21,15 @@ spanning 0.39-0.70, and sensitivity varying 4.4x between the Geysers path and Sa
 Leandro. The scatter is site response between two stations 1.64 km apart, so more events
 on the same paths will not help.
 
-**Recipe and analysis are ready** — `analysis/ringdown_fit.py`, self-tested against
-synthetic transients (recovers f0 and zeta to 3 decimals at 1 uV noise). Bench side:
+**Analysis already existed** — `analysis/ringdown.py`, written and validated long before
+this conversation, with a better estimator than the one I started to duplicate: it fits
+alpha and w_d and takes zeta = alpha/w0 with no need to know f0 in advance, it has a
+two-load `solve` mode where the coupling constant drops out, and it treats the no-shunt
+load as the **200 kohm bias network rather than infinity**. Its accuracy is characterised:
+within 0.02 for zeta <= 0.6, over-reading by 0.13-0.19 at zeta = 0.8, so do not quote a
+value above ~0.6 as precise. It now also accepts `--at <UTC> ...` to pull release
+transients straight out of the archive, so an injector firing while the station records
+normally needs no separate capture and nothing has to be touched. Bench side:
 
     two AA cells (3 V) -> 300 kohm -> switch -> across the coil, parallel with the ADC
     close, wait ~2 s, OPEN  (the open edge is the measurement; closing bounces)

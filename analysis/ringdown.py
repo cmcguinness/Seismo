@@ -158,7 +158,18 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     m = sub.add_parser("measure", help="fit zeta from a capture containing a tap")
-    m.add_argument("npz", help="capture_raw.py .npz (keys: counts, fs)")
+    m.add_argument("npz", nargs="?", help="capture_raw.py .npz (keys: counts, fs)")
+    # An injector fires while the station is recording normally, so the transient is
+    # already in the day-file -- no separate capture, and nothing has to be touched
+    # (which is what otherwise costs ~35 min of settling before the rig is quiet again).
+    m.add_argument("--at", nargs="+", metavar="UTC",
+                   help="read release instants straight out of the archive instead")
+    m.add_argument("--archive", default="analysis/data",
+                   help="directory of day-files for --at")
+    m.add_argument("--skip-s", type=float, default=0.06,
+                   help="skip after the release: opening the injector drops its IR "
+                        "offset instantly and the anti-alias filter smears that step")
+    m.add_argument("--win-s", type=float, default=1.5, help="fit window after --skip-s")
     m.add_argument("--gain", type=int, default=64)
     m.add_argument("--band", type=float, nargs=2, default=(0.2, 20.0))
 
@@ -171,6 +182,36 @@ def main(argv=None):
     a = ap.parse_args(argv)
 
     if a.cmd == "measure":
+        if a.at:
+            import glob as _glob
+            from obspy import UTCDateTime as _UTC, read as _read
+            zs = []
+            for iso in a.at:
+                t = _UTC(iso)
+                hits = _glob.glob(f"{a.archive}/*.D.{t.year}.{t.julday:03d}.mseed")
+                if not hits:
+                    print(f"  {iso}: no day-file"); continue
+                st = _read(hits[0], starttime=t - 0.5, endtime=t + a.skip_s + a.win_s + 1)
+                st.merge(method=1, fill_value="interpolate")
+                tr = st[0]; fs = float(tr.stats.sampling_rate)
+                i0 = int((t - tr.stats.starttime + a.skip_s) * fs)
+                seg = np.asarray(tr.data[i0:i0 + int(a.win_s * fs)], float)
+                if len(seg) < 20:
+                    print(f"  {iso}: window too short"); continue
+                z, f0, fd, _ = zeta_from_ringdown(seg, fs, *a.band)
+                print(f"  {iso}  zeta {z:.3f}  f0 {f0:.2f} Hz  fd {fd:.2f} Hz")
+                zs.append((z, f0))
+            if len(zs) < 3:
+                raise SystemExit("fewer than 3 usable releases")
+            arr = np.array(zs)
+            print(f"\n{len(arr)} releases:  zeta median {np.median(arr[:,0]):.3f} "
+                  f"(MAD {np.median(np.abs(arr[:,0]-np.median(arr[:,0]))):.3f})   "
+                  f"f0 median {np.median(arr[:,1]):.2f} Hz")
+            print("  NB the estimator over-reads above zeta ~0.6 -- see the docstring.")
+            print("  Feed f0/zeta into analysis/make_stationxml.py (F0, ZETA).")
+            return
+        if not a.npz:
+            raise SystemExit("give an .npz or --at UTC ...")
         d = np.load(a.npz)
         fs = float(d["fs"])
         counts = d["counts"].astype(float)
