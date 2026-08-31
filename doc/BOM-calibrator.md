@@ -47,7 +47,7 @@ depth behind the panel — that last one sets the box's minimum internal width.
 | 1 | 22 kΩ | LM4040 bias: (6 − 2.5)/22 k ≈ 160 µA |
 | 1 | 330 Ω | PhotoMOS LED from a 3 V pin: (3.0 − 1.25)/5 mA |
 | 1 | 1 kΩ + small LED | Status blink, visible through the lid |
-| 1 | Reed switch, SPST | Magnet-swipe disable. Rarely needed — design as though it is always on |
+| 1 | Panel-mount momentary pushbutton, SPST-NO | **Short press: restart the soak. Long press: fire a burst now.** Recess it below the panel face so it cannot be leaned on. Wakes the ATtiny on pin-change with the internal pull-up, so zero standby current with the button open. (Not a reed switch — that belongs on the *sealed* geophone case. This box is indoors and already has two 24 mm holes in it, so there is no penetration to avoid and a magnet is just something to lose) |
 | 2 | 0.1 µF ceramic + 1 x 22 µF | ATtiny decoupling; the 22 µF holds the rail through the 5 mA LED pulse |
 | 1 | 3-pin header | UPDI (or 6-pin ISP for the ATtiny85) |
 | 1 | Small perfboard | It is a dozen parts. No PCB needed |
@@ -110,16 +110,18 @@ fail for different reasons and a merged test cannot tell you which.
    fresh baseline, and over the years those accumulate into a record of whether the box's
    own contribution has drifted as its connectors age.
 
-   Check here whether reed "off" actually halts the oscillator or merely inhibits firing;
-   if it only inhibits, "off" does not remove this noise source and the docs should say
-   so. Better still, make the reed swipe **restart the soak** rather than toggle off —
-   the gesture then means "I just disturbed something", which is what it is wanted for
-   almost every time, and re-baselining and silencing become one action.
+The button's short press **restarts the soak** rather than toggling anything off: the
+   gesture means "I just disturbed something", which is what it is wanted for almost every
+   time, and re-baselining and silencing become one action. Note this does not stop the
+   oscillator — the micro keeps running, so whatever stage 2 measures is present whether
+   soaking or armed. That is the honest reading and the reason stage 2 exists.
 
    The status LED should distinguish soaking from armed, so the state is readable at a
    glance without a meter.
-3. **Firing.** Confirm the burst looks as designed, that `ringdown.py measure --at` fits
-   it, and that the signature finder catches it before it reaches `events.log`.
+3. **Firing.** Long-press to fire a burst on demand rather than waiting out 48 h of soak
+   plus 6 h to the first scheduled one. Confirm the burst looks as designed, that
+   `ringdown.py measure --at` fits it, and that the signature finder catches it before it
+   reaches `events.log`.
 3. Add an `analysis/epochs.py` row the day it goes in — a signal-path hardware change.
 4. **Write the signature finder first.** A 27 mV release against a ~1 µV floor is roughly
    27,000x: every pulse will trigger the detector. Four bursts a day, unrecognised, is
