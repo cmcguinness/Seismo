@@ -55,7 +55,7 @@ adapter or a hot-air station. (The ATtiny412 was briefly in this list and is not
 | 2 | 0.1 µF ceramic + 1 x 22 µF | ATtiny decoupling; the 22 µF holds the rail through the 5 mA LED pulse |
 | 1 | 6-pin ISP header, 2x3 0.1" | For the ATtiny85 |
 | 1 | **8-pin DIP socket** | Program the chip on a breadboard and drop it in; pull it to change the interval. Also makes a bricked chip a 50¢ problem rather than a desoldering job |
-| 1 | ISP programmer — USBasp (~$5), Adafruit USBtinyISP, or an Arduino running `ArduinoISP` | Board package: **ATTinyCore** (Spence Konde) |
+| 1 | ISP programmer — **USBasp** (~$8–12, Amazon/eBay; open design, many clones) or **any Arduino running `ArduinoISP`** (free — Uno/Nano/Pro Mini, six wires, 10 µF across the Uno's RESET to GND). Adafruit's USBtinyISP is **discontinued**, do not go looking for it. Buying a USBasp: check the listing includes a **10-pin→6-pin adapter** (the board is 10-pin IDC, our header is 2×3) and has the **slow-SCK jumper** (usually JP3) | Board package: **ATTinyCore** (Spence Konde) |
 | 1 | Small perfboard | It is a dozen parts. No PCB needed |
 | 1 pk | Insulated crimp ferrules, 22–20 AWG | `STATUS.md`: tinned strands cold-flow under screw terminals. Ferrules, not solder |
 
@@ -91,6 +91,13 @@ against a 2 s pulse, and `ringdown.py` skips the first 60 ms regardless.
   disciplined clock would never do.
 - **Program with the cells out**, powered from the programmer — most ISP dongles drive
   5 V and that must not reach an installed CR2032.
+
+**The gotcha that stops most first ATtiny85 attempts:** a fresh chip ships with `CKDIV8`
+set, so it runs at **1 MHz**, and ISP needs its clock below ¼ of the target — under
+250 kHz — while most USBasp clones default to 375 kHz. It fails with
+`avrdude: error: program enable: target doesn't answer`, which reads exactly like a dead
+chip or miswiring and costs an evening. Set the slow-SCK jumper, or pass `-B 8` to
+avrdude. Confirm this works before suspecting anything else.
 
 ## Wiring rules
 
