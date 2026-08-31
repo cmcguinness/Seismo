@@ -47,7 +47,7 @@ adapter or a hot-air station. (The ATtiny412 was briefly in this list and is not
 | 1 | **ATTINY85-20PU** — PDIP-8 | Through-hole, so it drops straight into perfboard; ISP programming with a USBasp or Arduino-as-ISP. Sleeps at ~5 µA in power-down with the watchdog, wakes on its own timer, fires the burst. **Not the ATtiny412** — there is no DIP version of it (the whole tinyAVR 0/1/2-series is SMD-only; `-SSF`/`-SSN` are both SOIC-8, the suffix being temperature grade only), so it would need a SOIC-8→DIP adapter for no useful gain: its ~1 µA would give 25 years on paper, but CR2032 self-discharge caps real life near 8–10 years either way, and the ATtiny85's ~5 years is already far beyond any revisit interval. A micro rather than a 555/CD4060 because the *three pulses at 2.00 s* signature is what makes the bursts self-identifying in the archive — trivial in firmware, clumsy in logic. A CMOS 555's ~150 µA quiescent would flatten a coin cell in months |
 | 1 | **LM4040DIZ-2.5/NOPB** shunt voltage reference, TO-92 | The part that makes this a calibration rather than a battery-discharge curve — see below. **Buy whichever grade DigiKey actually stocks** — the A is usually a marketplace listing with a ~2 week lead time, and the difference does not matter: the D grade's ±1 % initial tolerance is irrelevant (**measure the actual voltage once with a DMM at build time and write it on the box** — that is the number that counts, and it turns 1 % into your meter's accuracy), and even the worst grade's 150 ppm/°C over a 20 °C garage swing is 0.3 %, several times smaller than the percent-level sensitivity changes this exists to detect — and temperature is logged separately, so even that is separable. Any of 2.048 / 2.5 / 3.0 / 4.096 V also works against the 6 V cell B; just size the injection resistor for V_ref / 10 µA and the bias for ~150 µA |
 | 3 | CR2032 cells + **3 × single holders with flying leads** (`DKS-CR2032H`, DigiKey Standard, 6" leads; or MPD `BC-2032-E2`) | Cell A (one holder, 3 V) runs the ATtiny and the LED. Cell B (**two holders in series, 6 V**) runs the injection leg — a 3 V cell leaves an LM4040-2.5 no headroom. **Wire-lead, not PC-pin**, and **screwed or taped to the box wall, not the board**: changing cells then never involves the perfboard, and the holders can sit where a hand can reach them instead of wherever the layout put them. Three identical singles rather than a single + a dual, because series-wiring two is one solder joint and it halves the number of parts to source. Through-hole PC-pin holders *do* exist if you would rather board-mount (Keystone `103`, MPD `BVSD-2032-PC`, `BA2032`, `BK-913`) — DigiKey's category is mostly SMD reels by volume, so set **Mounting Type → Through Hole** or the first several pages are all SMT |
-| 1 | 249 kΩ **0.1 %** metal film, axial | Injection resistor. 2.5 V / 249 kΩ ≈ 10 µA |
+| 1 | 249 kΩ **0.1 %** metal film, axial | Injection resistor. 2.5 V / 249 kΩ ≈ 10 µA. **Check the resulting burst amplitude against `SNR_SPEC` before committing to this value** — see below |
 | 1 | 22 kΩ axial | LM4040 bias: (6 − 2.5)/22 k ≈ 160 µA |
 | 1 | 330 Ω axial | PhotoMOS LED from a 3 V pin: (3.0 − 1.25)/5 mA |
 | 1 | 1 kΩ axial + 3 mm LED | Status blink. A bring-up aid, not an operational feature — the box sits ignored for months |
@@ -58,6 +58,38 @@ adapter or a hot-air station. (The ATtiny412 was briefly in this list and is not
 | 1 | ISP programmer — **USBasp** (~$8–12, Amazon/eBay; open design, many clones) or **any Arduino running `ArduinoISP`** (free — Uno/Nano/Pro Mini, six wires, 10 µF across the Uno's RESET to GND). Adafruit's USBtinyISP is **discontinued**, do not go looking for it. Buying a USBasp: check the listing includes a **10-pin→6-pin adapter** (the board is 10-pin IDC, our header is 2×3) and has the **slow-SCK jumper** (usually JP3) | Board package: **ATTinyCore** (Spence Konde) |
 | 1 | Small perfboard | It is a dozen parts. No PCB needed |
 | 1 pk | Insulated crimp ferrules, 22–20 AWG | `STATUS.md`: tinned strands cold-flow under screw terminals. Ferrules, not solder |
+
+## How hard to inject — a number the software fixes, not a preference
+
+`analysis/calfinder.py` is what finds these bursts in the archive, and it only works
+above a floor it measures on itself (`python analysis/calfinder.py selftest`). The
+sweep there gives, for a burst of three pulses in a realistic background:
+
+| damping | reliably found above |
+|---|---|
+| ζ = 0.3 | SNR ≥ 14 |
+| ζ = 0.6 | SNR ≥ 20 |
+| ζ = 0.85 | SNR ≥ 40 |
+
+where SNR is the burst's peak amplitude over the background RMS in the 0.5–20 Hz band.
+Heavier damping is harder for the obvious reason: a well-damped element barely rings,
+so there is less waveform to recognise. Since **ζ is precisely the unknown the injector
+exists to measure**, the level has to be sized for the worst case, not the expected
+one. Hence `SNR_SPEC = 50` in `calfinder.py`, which carries margin over the ζ = 0.85
+row.
+
+This is a requirement on the hardware, and it does not negotiate. The detector's
+selectivity comes from `RHO_MIN = 0.90` — the same gate that rejects a truck over
+expansion joints, and machinery ticking at exactly 2.00 s. Lowering it to rescue a
+burst that was injected too faintly would trade the property the whole design rests
+on. **If bursts come out weak, change the resistor, not the threshold.**
+
+So: 10 µA is the starting point, not the answer. Once the box is inline, fire a burst,
+run `calfinder.py scan` over that day, and read the reported `amp_counts` against the
+day's background. If the margin is thin, drop the injection resistor (68 kΩ ≈ 37 µA is
+still a small perturbation) and re-check. Headroom is the limit at the other end — the
+ADS1256 at PGA 64 saturates at ±2·VREF/64 ≈ ±78 mV — so there is a wide range to work
+in, and no reason to sit near the bottom of it.
 
 ## Why the LM4040 goes in from day one
 
