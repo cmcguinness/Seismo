@@ -37,16 +37,20 @@ depth behind the panel — that last one sets the box's minimum internal width.
 
 ## The injector
 
+**Every part below is through-hole.** This is a perfboard build; nothing here needs an
+adapter or a hot-air station. (The ATtiny412 was briefly in this list and is not any more
+— the whole tinyAVR 0/1/2-series is SMD-only.)
+
 | Qty | Part | Notes |
 |-----|------|-------|
 | 5 | **Panasonic AQY212EH** PhotoMOS, 4-DIP through-hole | SPST-NO, 0.85 Ω on, nanoamp off-leakage, 5 kV isolation. **Not** the `EHA`/`EHAX` suffixes — those are surface-mount |
 | 1 | **ATTINY85-20PU** — PDIP-8 | Through-hole, so it drops straight into perfboard; ISP programming with a USBasp or Arduino-as-ISP. Sleeps at ~5 µA in power-down with the watchdog, wakes on its own timer, fires the burst. **Not the ATtiny412** — there is no DIP version of it (the whole tinyAVR 0/1/2-series is SMD-only; `-SSF`/`-SSN` are both SOIC-8, the suffix being temperature grade only), so it would need a SOIC-8→DIP adapter for no useful gain: its ~1 µA would give 25 years on paper, but CR2032 self-discharge caps real life near 8–10 years either way, and the ATtiny85's ~5 years is already far beyond any revisit interval. A micro rather than a 555/CD4060 because the *three pulses at 2.00 s* signature is what makes the bursts self-identifying in the archive — trivial in firmware, clumsy in logic. A CMOS 555's ~150 µA quiescent would flatten a coin cell in months |
-| 1 | **LM4040DIZ-2.5** shunt voltage reference | The part that makes this a calibration rather than a battery-discharge curve — see below |
-| 3 | CR2032 cells + holders (1 single, 1 dual) | Cell A (single, 3 V) runs the ATtiny and the LED. Cell B (**two in series, 6 V**) runs the injection leg — a 3 V cell leaves an LM4040-2.5 no headroom |
-| 1 | 249 kΩ **0.1 %** metal film | Injection resistor. 2.5 V / 249 kΩ ≈ 10 µA |
-| 1 | 22 kΩ | LM4040 bias: (6 − 2.5)/22 k ≈ 160 µA |
-| 1 | 330 Ω | PhotoMOS LED from a 3 V pin: (3.0 − 1.25)/5 mA |
-| 1 | 1 kΩ + small LED | Status blink, visible through the lid |
+| 1 | **LM4040AIZ-2.5/NOPB** shunt voltage reference, TO-92 | The part that makes this a calibration rather than a battery-discharge curve — see below. **A grade, not D**: initial tolerance hardly matters (measure the actual voltage once with a DMM), but the tempco does — 100 ppm/°C vs the D grade's 150 — and a reference that drifts with the garage temperature reintroduces the exact confound it exists to remove |
+| 3 | CR2032 cells + PCB-mount holders (1 single, 1 dual) | Cell A (single, 3 V) runs the ATtiny and the LED. Cell B (**two in series, 6 V**) runs the injection leg — a 3 V cell leaves an LM4040-2.5 no headroom |
+| 1 | 249 kΩ **0.1 %** metal film, axial | Injection resistor. 2.5 V / 249 kΩ ≈ 10 µA |
+| 1 | 22 kΩ axial | LM4040 bias: (6 − 2.5)/22 k ≈ 160 µA |
+| 1 | 330 Ω axial | PhotoMOS LED from a 3 V pin: (3.0 − 1.25)/5 mA |
+| 1 | 1 kΩ axial + 3 mm LED | Status blink. A bring-up aid, not an operational feature — the box sits ignored for months |
 | 1 | Panel-mount momentary pushbutton, SPST-NO | **Short press: restart the soak. Long press: fire a burst now.** Plain panel mount, no recess — the box lives on a shelf and is ignored for months at a time, and anything disturbing it enough to press a button has already caused worse problems than a restarted soak. Wakes the ATtiny on pin-change with the internal pull-up, so zero standby current with the button open. (Not a reed switch — that belongs on the *sealed* geophone case. This box is indoors and already has two 24 mm holes in it, so there is no penetration to avoid and a magnet is just something to lose) |
 | 2 | 0.1 µF ceramic + 1 x 22 µF | ATtiny decoupling; the 22 µF holds the rail through the 5 mA LED pulse |
 | 1 | 6-pin ISP header | For the ATtiny85. (UPDI 3-pin only if you go the ATtiny412 + adapter route) |
