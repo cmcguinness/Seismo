@@ -51,6 +51,8 @@ import argparse
 import glob
 import json
 import math
+import os
+import re
 import sys
 
 import numpy as np
@@ -599,6 +601,29 @@ def selftest():
         print(f"  [{'PASS' if ok else 'FAIL'}] mask windows cover all three")
         if not ok:
             fails.append("mask windows")
+
+    # The firmware and this file are two halves of one agreement, and nothing at
+    # runtime would notice them drifting apart -- the bursts would simply stop being
+    # found, months later, silently. Check it here where it is cheap.
+    print("firmware and finder agree on the signature:")
+    fw = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      "calibrator", "calibrator.c")
+    try:
+        src = open(fw).read()
+        want = {"N_PULSES": N_PULSES,
+                "PULSE_MS": int(PULSE_S * 1000),
+                "SPACING_MS": int(SPACING_S * 1000)}
+        for name, expect in want.items():
+            m = re.search(rf"^#define\s+{name}\s+(\d+)", src, re.M)
+            got = int(m.group(1)) if m else None
+            ok = got == expect
+            print(f"  [{'PASS' if ok else 'FAIL'}] {name}: firmware {got}, "
+                  f"calfinder {expect}")
+            if not ok:
+                fails.append(f"{name} mismatch")
+    except FileNotFoundError:
+        print(f"  [FAIL] {fw} not found")
+        fails.append("firmware missing")
 
     print()
     if fails:

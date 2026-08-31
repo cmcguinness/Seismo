@@ -120,7 +120,7 @@ assignment is not free:
 |---|---|---|
 | PB3 | **PhotoMOS LED drive** | The actual function. Must never share a line with ISP |
 | PB4 | **Button** | Input, internal pull-up, pin-change wake |
-| PB0 (MOSI) | Status LED | Flickers while programming — harmless, and useful feedback |
+| PB1 (MISO) | Status LED | Flickers while programming — harmless, and useful feedback. **MISO, not MOSI:** MISO is driven by the *ATtiny* and only read by the programmer, so the LED's few mA come out of a driver we control. Hung on MOSI the same load sits on the *programmer's* output instead, which is the one end of the link we cannot specify — USBasp clones vary |
 
 - **No low-impedance load on MOSI/MISO/SCK.** The programmer must drive those lines; the
   status LED at 1 kΩ (~3 mA) is fine, the PhotoMOS drive at 330 Ω would fight it. That is
@@ -130,6 +130,8 @@ assignment is not free:
   a cap is not.
 
 ## Fuses — two settings that matter more than the code
+
+**Read them before writing anything: the factory defaults are already correct.** A new ATtiny85 ships `lfuse 0x62 / hfuse 0xDF / efuse 0xFF`, which is internal 8 MHz RC with `CKDIV8` (so, 1 MHz), BOD *already disabled*, `SPIEN` enabled and `RSTDISBL` clear — exactly what is wanted below. `make fuses` reads them back; `make writefuses` exists but should normally be unnecessary. Every fuse write is a chance to brick the part, so the best outcome here is confirming there is nothing to do.
 
 - **Disable the brown-out detector.** BOD enabled draws ~20 µA continuously on an
   ATtiny85 — four times the sleep current the whole power budget assumes, turning ~5 years
