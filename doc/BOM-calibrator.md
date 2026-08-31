@@ -47,7 +47,7 @@ depth behind the panel — that last one sets the box's minimum internal width.
 | 1 | 22 kΩ | LM4040 bias: (6 − 2.5)/22 k ≈ 160 µA |
 | 1 | 330 Ω | PhotoMOS LED from a 3 V pin: (3.0 − 1.25)/5 mA |
 | 1 | 1 kΩ + small LED | Status blink, visible through the lid |
-| 1 | Panel-mount momentary pushbutton, SPST-NO | **Short press: restart the soak. Long press: fire a burst now.** Recess it below the panel face so it cannot be leaned on. Wakes the ATtiny on pin-change with the internal pull-up, so zero standby current with the button open. (Not a reed switch — that belongs on the *sealed* geophone case. This box is indoors and already has two 24 mm holes in it, so there is no penetration to avoid and a magnet is just something to lose) |
+| 1 | Panel-mount momentary pushbutton, SPST-NO | **Short press: restart the soak. Long press: fire a burst now.** Plain panel mount, no recess — the box lives on a shelf and is ignored for months at a time, and anything disturbing it enough to press a button has already caused worse problems than a restarted soak. Wakes the ATtiny on pin-change with the internal pull-up, so zero standby current with the button open. (Not a reed switch — that belongs on the *sealed* geophone case. This box is indoors and already has two 24 mm holes in it, so there is no penetration to avoid and a magnet is just something to lose) |
 | 2 | 0.1 µF ceramic + 1 x 22 µF | ATtiny decoupling; the 22 µF holds the rail through the 5 mA LED pulse |
 | 1 | 3-pin header | UPDI (or 6-pin ISP for the ATtiny85) |
 | 1 | Small perfboard | It is a dozen parts. No PCB needed |
