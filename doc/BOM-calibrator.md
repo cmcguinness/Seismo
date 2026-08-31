@@ -77,6 +77,26 @@ would flatten the cell in about three months:
 Off, nothing draws anywhere. On, the reference settles in microseconds — irrelevant
 against a 2 s pulse, and `ringdown.py` skips the first 60 ms regardless.
 
+## Pin assignment — constrained by in-circuit ISP
+
+The 2x3 header is fitted so the chip can be reprogrammed without pulling it. That makes
+the ISP lines application pins too: PB0 = MOSI, PB1 = MISO, PB2 = SCK, PB5 = RESET. Only
+**PB3 and PB4** are untouched by ISP, and there are three I/O to place — so the
+assignment is not free:
+
+| pin | signal | why |
+|---|---|---|
+| PB3 | **PhotoMOS LED drive** | The actual function. Must never share a line with ISP |
+| PB4 | **Button** | Input, internal pull-up, pin-change wake |
+| PB0 (MOSI) | Status LED | Flickers while programming — harmless, and useful feedback |
+
+- **No low-impedance load on MOSI/MISO/SCK.** The programmer must drive those lines; the
+  status LED at 1 kΩ (~3 mA) is fine, the PhotoMOS drive at 330 Ω would fight it. That is
+  the reason the drive goes on PB3 rather than wherever is convenient on the perfboard.
+- **No capacitor on RESET.** A tempting noise-immunity addition that breaks ISP outright.
+  The internal pull-up is enough in a battery-powered box; a 10 kΩ to VCC is optional,
+  a cap is not.
+
 ## Fuses — two settings that matter more than the code
 
 - **Disable the brown-out detector.** BOD enabled draws ~20 µA continuously on an
