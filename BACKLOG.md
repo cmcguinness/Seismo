@@ -1,3 +1,17 @@
+## Instrument response: PROVISIONAL response now exists; bench ring-down still wanted
+
+`analysis/make_stationxml.py` writes `station/SS.OAKM1.xml` from f0 = 4.5 Hz (nameplate),
+zeta = 0.6 (vendor spec, specification.md) and sensitivity 9.0 V/(m/s) (**measured**,
+refstation.py). Two of the three are guesses and the file says so. Replace f0/zeta with
+the ring-down below; the sensitivity is already real.
+
+The response rolls off as it should: 0.82 of flat-band at the 4.5 Hz corner, 0.20 at
+2 Hz, 0.049 at 1 Hz, 0.012 at 0.5 Hz. That curve is what makes deconvolution below the
+corner possible at all.
+
+Not modelled: the ADS1256 decimation filter, which shapes the last octave below Nyquist.
+Irrelevant to the 1-15 Hz band this station works in; it matters only near 50 Hz.
+
 ## Instrument response: the bench ring-down is required
 
 `analysis/response_fit.py` (2026-08-30) tries to fit the geophone's poles and zeros from

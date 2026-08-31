@@ -247,7 +247,8 @@ CSS = r'''<style>
  /* --- rail: identity ------------------------------------------------------- */
  .r-net{font-family:var(--mono);font-size:.68rem;font-weight:400;letter-spacing:.16em;
    text-transform:uppercase;color:var(--ink-dim)}
- .r-code{font-family:var(--cond);font-weight:600;font-size:2.3rem;line-height:.95;
+ .r-code{display:block;text-decoration:none;
+   font-family:var(--cond);font-weight:600;font-size:2.3rem;line-height:.95;
    letter-spacing:-.01em;color:var(--ink);margin:.35rem 0 .3rem}
  .r-chan{font-family:var(--mono);font-size:.7rem;line-height:1.5;color:var(--ink-dim)}
 
@@ -286,7 +287,10 @@ CSS = r'''<style>
  .r-nav-a{display:block;font-family:var(--cond);font-size:1.02rem;font-weight:500;
    line-height:1.45;color:var(--ink-dim);text-decoration:none;
    padding-left:.7rem;border-left:2px solid transparent}
+ .r-code:hover{color:var(--copper)}
+ .ext{font-size:.8em;color:var(--ink-dim)}
  .r-nav-a:hover{color:var(--ink);border-left-color:var(--rule)}
+ .r-nav-a:hover .ext{color:var(--copper)}
  .r-nav-a.on{color:var(--ink);border-left-color:var(--copper)}
  .r-foot{padding-top:.9rem;border-top:1px solid var(--rule);margin-top:1rem;
    display:flex;align-items:center;gap:.6rem;
@@ -512,8 +516,16 @@ def _rail(active):
                             ("/about", "About this station", "about")]),
         ("Background", [("/learn", "Seismology 101", "learn")]),
     ]
+    # Framed on us and out past anything this station is likely to hear, so the catalogue
+    # view and the drum answer the same question. Opens out of the site, hence the marker.
+    usgs = ("https://earthquake.usgs.gov/earthquakes/map/"
+            "?extent=31.33487,-133.65967&extent=45.52174,-110.6543"
+            "&magnitude=all&listOnlyShown=true&timeZone=utc&settings=true")
     nav = "".join(f'<div class="r-group">{g}</div>' + "".join(link(*i) for i in items)
                   for g, items in groups)
+    nav += ('<div class="r-group">Elsewhere</div>'
+            f'<a class="r-nav-a" href="{usgs}" target="_blank" rel="noopener">'
+            'USGS map <span class="ext">&#8599;</span></a>')
 
     provenance = ("public copy &middot; pushed from the station"
                   if _PUBLIC_COPY else "on the LAN &middot; from the archive")
@@ -528,7 +540,7 @@ def _rail(active):
     return (
         '<aside class="rail">'
         f'<div class="r-id"><div class="r-net">{NETWORK} &middot; {_SHORT_PLACE}</div>'
-        f'<div class="r-code">{STATION}</div>'
+        f'<a class="r-code" href="/">{STATION}</a>'
         f'<div class="r-chan">{LOCATION}.{CHANNEL} &middot; vertical 4.5&nbsp;Hz<br>'
         '100&nbsp;sps &middot; geophone + ADS1256</div></div>'
 

@@ -1,0 +1,103 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<FDSNStationXML xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.2">
+  <Source>Seismo (C. McGuinness) -- PROVISIONAL response</Source>
+  <Module>ObsPy 1.5.0</Module>
+  <ModuleURI>https://www.obspy.org</ModuleURI>
+  <Created>2026-08-31T06:13:56.434988Z</Created>
+  <Network code="SS">
+    <Description>FDSN single-station code</Description>
+    <Station code="OAKM1" startDate="2026-07-20T00:00:00.000000Z">
+      <Latitude unit="DEGREES">38.451817</Latitude>
+      <Longitude unit="DEGREES">-122.621049</Longitude>
+      <Elevation unit="METERS">128.3</Elevation>
+      <Site>
+        <Name>Oakmont, Santa Rosa, CA, USA</Name>
+      </Site>
+      <Channel code="EHZ" startDate="2026-08-30T15:37:00.000000Z" locationCode="00">
+        <Latitude unit="DEGREES">38.451817</Latitude>
+        <Longitude unit="DEGREES">-122.621049</Longitude>
+        <Elevation unit="METERS">128.3</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">-90.0</Dip>
+        <SampleRate>100.0</SampleRate>
+        <Sensor>
+          <Type>Geophone</Type>
+          <Description>LGT-4.5/EG-4.5-II class, 4.5 Hz vertical, 375 ohm coil, no shunt. PROVISIONAL response: f0=4.5 Hz nameplate, zeta=0.6 vendor spec, sensitivity 9.0 V/(m/s) measured vs NP.1835</Description>
+        </Sensor>
+        <DataLogger>
+          <Type>Digitizer</Type>
+          <Description>TI ADS1256, 24-bit, PGA x64, Vref 2.5 V, 100 sps (1.07374e+08 counts/V, exact)</Description>
+        </DataLogger>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>966367526.4</Value>
+            <Frequency>15.0</Frequency>
+            <InputUnits>
+              <Name>M/S</Name>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros name="LGT-4.5 geophone">
+              <InputUnits>
+                <Name>M/S</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>V</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>0.9786214794290999</NormalizationFactor>
+              <NormalizationFrequency unit="HERTZ">15.0</NormalizationFrequency>
+              <Zero number="0">
+                <Real>0.0</Real>
+                <Imaginary>0.0</Imaginary>
+              </Zero>
+              <Zero number="1">
+                <Real>0.0</Real>
+                <Imaginary>0.0</Imaginary>
+              </Zero>
+              <Pole number="0">
+                <Real>-16.964600329384883</Real>
+                <Imaginary>22.61946710584651</Imaginary>
+              </Pole>
+              <Pole number="1">
+                <Real>-16.964600329384883</Real>
+                <Imaginary>-22.61946710584651</Imaginary>
+              </Pole>
+            </PolesZeros>
+            <StageGain>
+              <Value>9.0</Value>
+              <Frequency>15.0</Frequency>
+            </StageGain>
+          </Stage>
+          <Stage number="2">
+            <Coefficients name="ADS1256">
+              <InputUnits>
+                <Name>V</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <CfTransferFunctionType>DIGITAL</CfTransferFunctionType>
+              <Numerator>1.0</Numerator>
+            </Coefficients>
+            <Decimation>
+              <InputSampleRate unit="HERTZ">100.0</InputSampleRate>
+              <Factor>1</Factor>
+              <Offset>0</Offset>
+              <Delay>0.0</Delay>
+              <Correction>0.0</Correction>
+            </Decimation>
+            <StageGain>
+              <Value>107374169.6</Value>
+              <Frequency>15.0</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
+    </Station>
+  </Network>
+</FDSNStationXML>
