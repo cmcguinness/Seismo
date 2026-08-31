@@ -1,3 +1,36 @@
+## Instrument response: the bench ring-down is required
+
+`analysis/response_fit.py` (2026-08-30) tries to fit the geophone's poles and zeros from
+spectral ratios against NP.1835 and **fails to constrain them** — kept as a cross-check,
+not as a method. Residual 2x, f0 indistinguishable anywhere from 2.5-4.5 Hz, zeta
+spanning 0.39-0.70, and sensitivity varying 4.4x between the Geysers path and San
+Leandro. The scatter is site response between two stations 1.64 km apart, so more events
+on the same paths will not help.
+
+**What will:** a coil-reciprocity ring-down. A moving-coil geophone is its own actuator —
+drive DC through the coil, open the circuit, and the mass swings freely. Record the EMF
+through the same coil and fit the damped sinusoid: f_d from the zero crossings, zeta from
+the log decrement (delta = ln(A1/A2), zeta = delta/sqrt(4.pi^2 + delta^2)), then
+f0 = f_d/sqrt(1-zeta^2). Battery, series resistor, switch. Requires disconnecting the
+element from the interface board and costs the usual ~35 min settling afterwards.
+
+Also tried and rejected: fitting the ring-down from impulsive triggers already in the
+archive. 61 impulses across the clean days gave 4 usable fits — the transients are ground
+motion with their own spectra, not free instrument ringing. (Mildly reassuring: a badly
+under-damped element would ring visibly after every thump.)
+
+**Then it is assembly, and that part is easy.** No shunt is fitted and there is no analog
+gain or filtering on the board (the PGA and buffer are inside the ADS1256), so the whole
+chain is two zeros at the origin, one conjugate pole pair, and one exact datasheet
+constant for the digitiser. obspy `Response.from_paz()` -> `Inventory.write(format=
+"STATIONXML")`.
+
+**Why it is worth doing:** Raspberry Shake advertises its velocity channels as flat from
+~0.5 Hz, which is a response-CORRECTED claim on the same class of 4.5 Hz element. Our
+"deaf below 4.5 Hz" is a property of raw counts, not of the instrument. Deconvolving a
+real response could extend the usable band toward ~1 Hz — exactly where the far-field Lg
+energy lives that made Petrolia read 16x below textbook.
+
 ## Write-up: applying Yeck et al. (2020) at hobby scale — long-term
 
 Charles, 2026-08-30, framing it as a medical-style **case report** rather than novel
