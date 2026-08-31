@@ -95,13 +95,29 @@ fail for different reasons and a merged test cannot tell you which.
    series with the 249 kΩ, the board's stray capacitance to the signal pair, the layout,
    and every joint and ferrule. If the floor moves here, the fault is passive and
    physical.
-2. **Batteries IN, firmware sleeping** (long interval, or reed-disabled). A running
-   microcontroller with its oscillator going, centimetres from a µV differential pair, is
-   its own noise source — and this project's worst-ever event was a *powered* device
-   coupling into this exact analog path. A clean stage 1 says nothing about stage 2.
-   Check here whether the reed "off" actually halts the oscillator or merely inhibits
-   firing; if it only inhibits, "off" does not remove this noise source and the docs
-   should say so.
+2. **Batteries IN, firmware in its startup soak.** A running microcontroller with its
+   oscillator going, centimetres from a µV differential pair, is its own noise source —
+   and this project's worst-ever event was a *powered* device coupling into this exact
+   analog path. A clean stage 1 says nothing about stage 2.
+
+   **The firmware enforces this stage itself: on every power-up it sleeps for
+   `SOAK_H = 48` before the first burst.** A spot check is nearly worthless here, because
+   the floor swings from ~0.8 µV RMS at night to ~3.5 µV in the afternoon — only an
+   hour-for-hour comparison against the preceding days can reveal a small addition. Two
+   diurnal cycles rather than one, so day-to-day weather does not masquerade as a result.
+
+   Because it re-soaks on *every* power cycle, a battery change automatically produces a
+   fresh baseline, and over the years those accumulate into a record of whether the box's
+   own contribution has drifted as its connectors age.
+
+   Check here whether reed "off" actually halts the oscillator or merely inhibits firing;
+   if it only inhibits, "off" does not remove this noise source and the docs should say
+   so. Better still, make the reed swipe **restart the soak** rather than toggle off —
+   the gesture then means "I just disturbed something", which is what it is wanted for
+   almost every time, and re-baselining and silencing become one action.
+
+   The status LED should distinguish soaking from armed, so the state is readable at a
+   glance without a meter.
 3. **Firing.** Confirm the burst looks as designed, that `ringdown.py measure --at` fits
    it, and that the signature finder catches it before it reaches `events.log`.
 3. Add an `analysis/epochs.py` row the day it goes in — a signal-path hardware change.
