@@ -53,7 +53,9 @@ adapter or a hot-air station. (The ATtiny412 was briefly in this list and is not
 | 1 | 1 kΩ axial + 3 mm LED | Status blink. A bring-up aid, not an operational feature — the box sits ignored for months |
 | 1 | Panel-mount momentary pushbutton, SPST-NO | **Short press: restart the soak. Long press: fire a burst now.** Plain panel mount, no recess — the box lives on a shelf and is ignored for months at a time, and anything disturbing it enough to press a button has already caused worse problems than a restarted soak. Wakes the ATtiny on pin-change with the internal pull-up, so zero standby current with the button open. (Not a reed switch — that belongs on the *sealed* geophone case. This box is indoors and already has two 24 mm holes in it, so there is no penetration to avoid and a magnet is just something to lose) |
 | 2 | 0.1 µF ceramic + 1 x 22 µF | ATtiny decoupling; the 22 µF holds the rail through the 5 mA LED pulse |
-| 1 | 6-pin ISP header | For the ATtiny85. (UPDI 3-pin only if you go the ATtiny412 + adapter route) |
+| 1 | 6-pin ISP header, 2x3 0.1" | For the ATtiny85 |
+| 1 | **8-pin DIP socket** | Program the chip on a breadboard and drop it in; pull it to change the interval. Also makes a bricked chip a 50¢ problem rather than a desoldering job |
+| 1 | ISP programmer — USBasp (~$5), Adafruit USBtinyISP, or an Arduino running `ArduinoISP` | Board package: **ATTinyCore** (Spence Konde) |
 | 1 | Small perfboard | It is a dozen parts. No PCB needed |
 | 1 pk | Insulated crimp ferrules, 22–20 AWG | `STATUS.md`: tinned strands cold-flow under screw terminals. Ferrules, not solder |
 
@@ -74,6 +76,21 @@ would flatten the cell in about three months:
 
 Off, nothing draws anywhere. On, the reference settles in microseconds — irrelevant
 against a 2 s pulse, and `ringdown.py` skips the first 60 ms regardless.
+
+## Fuses — two settings that matter more than the code
+
+- **Disable the brown-out detector.** BOD enabled draws ~20 µA continuously on an
+  ATtiny85 — four times the sleep current the whole power budget assumes, turning ~5 years
+  of cell life into about one. There is nothing to protect: a coin cell decays slowly and
+  the firmware holds no state worth corrupting.
+- **Never set RSTDISBL.** It reclaims the reset pin as I/O and permanently disables ISP;
+  recovery needs a high-voltage programmer. There is no pin pressure here — LED out and
+  button in uses two of five I/O lines.
+- Internal RC oscillator, no crystal. Its ±10 % drift is *wanted*: it walks the bursts
+  through the day so calibrations sample the whole diurnal temperature range, which a
+  disciplined clock would never do.
+- **Program with the cells out**, powered from the programmer — most ISP dongles drive
+  5 V and that must not reach an installed CR2032.
 
 ## Wiring rules
 
