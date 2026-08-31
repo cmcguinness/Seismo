@@ -43,6 +43,13 @@ on an ATtiny with no crystal, so SPACING_S drifts with temperature and cell volt
 by design, since the burst is self-identifying by shape and does not need to keep
 time. Do not tighten this to "exactly 2.000 s"; it will not be.
 
+FALSE POSITIVE RATE, measured, not estimated. Scanned over 749 h of real archive --
+which contains no injector, so every hit is a false one -- the gates below give ZERO.
+Re-run that whenever they are touched; the synthetic decoys are necessary but they are
+not sufficient, and both of the failure modes that actually mattered (narrowband
+oscillation, and a periodic source fading out) were invisible until real data ran
+through it.
+
     python analysis/calfinder.py selftest
     python analysis/calfinder.py scan --archive analysis/data --day 2026-09-14
     python analysis/calfinder.py scan --archive analysis/data --all --json bursts.json
@@ -78,6 +85,8 @@ RHO_CONT = 0.60       # max correlation with the units either side -- half of th
                       # "exactly three, then stop" test that rejects periodic machinery
 AMP_CONT = 0.50       # ...and the other half: a continuing source also has to keep
                       # its AMPLITUDE up in the next unit. Both must hold to reject
+RHO_CONT_HARD = 0.75  # ...unless the correlation is THIS high, which no amount of
+                      # noise produces and no real burst has shown (see _score)
 QUIET_MAX = 0.45      # a unit must fall SILENT after its two steps. This is what
                       # rejects narrowband oscillation -- see _score()
 PULSE_TOL_S = 0.12    # tolerance on the measured step-on -> step-off separation
@@ -384,7 +393,18 @@ def find_bursts(x, fs, t0=0.0, verbose=False):
         # narrow spikes with few effective degrees of freedom, and its correlation
         # against plain background scatters far more widely than the sample count
         # suggests. Correlation alone would veto real bursts on noise.
-        continues = got["rho_out"] > RHO_CONT and got["amp_out"] > AMP_CONT
+        # Two tiers, because the evidence is not all the same strength. A moderate
+        # rho_out can be chance -- at heavy damping the template is two narrow spikes
+        # with few effective degrees of freedom and its correlation against plain
+        # background scatters widely -- so that tier needs the amplitude to corroborate
+        # it. A rho_out above RHO_CONT_HARD is not chance: across the whole self-test
+        # no genuine burst exceeds ~0.57, because a burst's neighbouring unit is
+        # background and background does not look like the burst. The single false
+        # positive in 749 h of archive sat at 0.85 and survived only because its
+        # amplitude had faded -- a periodic source running down, which is exactly what
+        # the isolation test exists to catch.
+        continues = (got["rho_out"] > RHO_CONT_HARD
+                     or (got["rho_out"] > RHO_CONT and got["amp_out"] > AMP_CONT))
         if (got["rho_in"] < RHO_MIN
                 or continues
                 or got["amp_ratio"] > AMP_TOL
