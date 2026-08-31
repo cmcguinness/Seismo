@@ -21,6 +21,23 @@ spanning 0.39-0.70, and sensitivity varying 4.4x between the Geysers path and Sa
 Leandro. The scatter is site response between two stations 1.64 km apart, so more events
 on the same paths will not help.
 
+**Recipe and analysis are ready** — `analysis/ringdown_fit.py`, self-tested against
+synthetic transients (recovers f0 and zeta to 3 decimals at 1 uV noise). Bench side:
+
+    two AA cells (3 V) -> 300 kohm -> switch -> across the coil, parallel with the ADC
+    close, wait ~2 s, OPEN  (the open edge is the measurement; closing bounces)
+    repeat ~20x, ~10 s apart, note the wall-clock times, then feed them to the script
+
+10 uA gives 33 um deflection and ~27 mV peak EMF — 27,000x the noise floor and inside the
+ADS1256's +-78 mV. Do **not** wind the current up: ~1 mA drives the mass past its stops.
+Leave the element connected and on the slab so the damping measured is the one it
+operates with. Expect the usual ~35 min settling afterwards.
+
+**Note the method is a full second-order fit, NOT log decrement.** If zeta is near the
+vendor's 0.6 the amplitude falls x0.009 per cycle — one overshoot and it is over — so
+peak-ratio methods have nothing to work with. That is also the likely reason scanning 61
+archive impulses for ring-downs produced only 4 fits.
+
 **What will:** a coil-reciprocity ring-down. A moving-coil geophone is its own actuator —
 drive DC through the coil, open the circuit, and the mass swings freely. Record the EMF
 through the same coil and fit the damped sinusoid: f_d from the zero crossings, zeta from
