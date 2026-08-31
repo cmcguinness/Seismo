@@ -76,6 +76,9 @@ RHO_CONT = 0.60       # max correlation with the units either side -- half of th
                       # "exactly three, then stop" test that rejects periodic machinery
 AMP_CONT = 0.50       # ...and the other half: a continuing source also has to keep
                       # its AMPLITUDE up in the next unit. Both must hold to reject
+QUIET_MAX = 0.45      # a unit must fall SILENT after its two steps. This is what
+                      # rejects narrowband oscillation -- see _score()
+PULSE_TOL_S = 0.12    # tolerance on the measured step-on -> step-off separation
 AMP_TOL = 1.30        # max/min of the three unit amplitudes
 TRIG_K = 4.0          # envelope must exceed this x the rolling background
 BAND = (0.5, 20.0)    # the injected transient lives at f0 ~ 4.5 Hz
@@ -104,17 +107,27 @@ def envelope(y, fs, smooth_s=ENV_S):
 
 
 def _rolling_median(a, n):
-    """Coarse rolling median: exact medians on a decimated grid, then interpolated.
+    """Background level: block medians, vectorised, then interpolated.
 
-    A true sliding median over a whole day-file is far too slow and we do not need
-    one -- the background level moves on a scale of minutes, so sampling it every
-    n/4 samples and interpolating is indistinguishable and ~100x cheaper.
+    A true sliding median over a day-file is far too slow and we do not need one --
+    the background moves on a scale of minutes. An earlier version sampled exact
+    medians on a decimated grid, which is correct but still O(N * window) because
+    every grid point re-medians a full window: on 38 day-files that did not finish in
+    ten minutes. Non-overlapping block medians are one vectorised `np.median` over a
+    reshaped array, and a short median-of-blocks afterwards restores the smoothing
+    that the overlap used to provide.
     """
+    a = np.asarray(a, float)
     n = max(1, int(n))
-    step = max(1, n // 4)
-    idx = np.arange(0, len(a), step)
-    med = np.array([np.median(a[max(0, i - n // 2):i + n // 2 + 1]) for i in idx])
-    return np.interp(np.arange(len(a)), idx, med)
+    b = max(1, n // 4)
+    nb = len(a) // b
+    if nb < 3:
+        return np.full(len(a), float(np.median(a)))
+    bm = np.median(a[:nb * b].reshape(nb, b), axis=1)
+    k = 2
+    sm = np.array([np.median(bm[max(0, i - k):i + k + 1]) for i in range(nb)])
+    centres = (np.arange(nb) + 0.5) * b
+    return np.interp(np.arange(len(a)), centres, sm)
 
 
 def normcorr(a, b):
@@ -224,12 +237,30 @@ def _refine(y, fs, a0, u, tmpl_len):
 
 
 def _score(y, fs, a0, tmpl):
-    """Best (spacing, rho_in, rho_out, amp_ratio) for a burst anchored at a0.
+    """Full signature test for a candidate burst anchored near a0.
 
-    Scans every spacing the oscillator could plausibly produce and keeps the one whose
-    WEAKEST repeat is strongest -- so drift is measured rather than assumed. Then asks
-    the isolation question at the measured spacing: is there a fourth repeat? Periodic
-    machinery says yes, an injector burst says no.
+    Returns a dict of measurements, or None. The caller applies the gates.
+
+    THE HARD FALSE POSITIVE, found by scanning real archive data rather than
+    synthetic decoys: a NARROWBAND OSCILLATION. Searching for the spacing that
+    maximises the repeat correlation is exactly the wrong thing to do to a signal that
+    is self-similar at every lag near a multiple of its own period -- a sustained 2 Hz
+    wavetrain correlates with itself at ~2.0 s about as well as a real burst does, and
+    with ~40 candidate lags to choose from, something always fits. The first version
+    of this file reported nine "bursts" in 5.6 h of archive with no injector attached,
+    and gave away the diagnosis by scattering their spacings uniformly across the
+    whole tolerance window instead of clustering.
+
+    Correlation alone cannot see the difference, so this leans on two things we know
+    because we DESIGNED the stimulus, and which no oscillation reproduces:
+
+      QUIET. A unit is two steps PULSE_S apart and then silence for the rest of
+      SPACING_S. Oscillation fills the whole unit. Comparing the tail's RMS with the
+      head's is damping-agnostic -- it asks "did it stop?", not "what shape was it?"
+      -- which matters because the damping is the unknown we are measuring.
+
+      STRUCTURE. The two steps are PULSE_S apart, a number the firmware fixes and the
+      ground has no reason to reproduce.
     """
     u_lo = int((SPACING_S - TOL_S) * fs)
     u_hi = int((SPACING_S + TOL_S) * fs)
@@ -259,12 +290,22 @@ def _score(y, fs, a0, tmpl):
         return None
     u, rho_in = best
 
-    # isolation: the units immediately before and after must NOT match
-    outs = [abs(rf.get(a0 - u, 0.0)), abs(rf.get(a0 + N_PULSES * u, 0.0))]
-    rho_out = max(outs)
+    d_on, pulse_meas = _refine(y, fs, a0, u, len(tmpl))
+    onset = a0 + d_on
+    if onset < 0 or onset + (N_PULSES + 1) * u > len(y):
+        return None
 
-    # Amplitudes by PROJECTION onto the STACK of the three units -- not by peak |y|,
-    # and not onto unit 1.
+    # Stack the FULL units (not just a template's worth) at the refined onset. Signal
+    # adds coherently, noise averages down by sqrt(N_PULSES), and the tail we are
+    # about to interrogate for silence is included.
+    stack = np.mean([y[onset + k * u: onset + (k + 1) * u] for k in range(N_PULSES)],
+                    axis=0)
+    head_n = min(len(stack) - 1, int((PULSE_S + 0.3) * fs))
+    head, tail = stack[:head_n], stack[head_n:]
+    rms = lambda v: float(np.sqrt(np.mean(np.square(v)))) if len(v) else 0.0
+    quiet = rms(tail) / max(rms(head), 1e-12)
+
+    # Amplitudes by PROJECTION onto the stack -- not by peak |y|, and not onto unit 1.
     #
     # Not peak |y|, because a well-damped element's transient is a ~20 ms spike whose
     # peak sample is set as much by what the noise did there as by the injected
@@ -277,31 +318,34 @@ def _score(y, fs, a0, tmpl):
     # their correlation. That is a systematic bias, not scatter -- it made the ratio
     # ~1/rho and rejected bursts for being well correlated. The stack privileges no
     # unit, so every projection carries the same bias and the RATIO is clean.
-    L = len(tmpl)
-    if a0 + N_PULSES * u + L > len(y):
-        return None
-    stack = np.mean([y[a0 + k * u: a0 + k * u + L] for k in range(N_PULSES)], axis=0)
     smask = _energy_mask(stack, fs)
     t = stack[smask] - np.mean(stack[smask])
     tt = float(np.dot(t, t)) or 1e-12
 
     def proj(i):
-        seg = y[i: i + L]
-        if i < 0 or len(seg) < L:
+        seg = y[i: i + len(stack)]
+        if i < 0 or len(seg) < len(stack):
             return 0.0
         seg = seg[smask]
         return abs(float(np.dot(seg - np.mean(seg), t) / tt))
 
     def peak(i):
-        seg = y[max(0, i): i + len(tmpl)]
+        seg = y[max(0, i): i + len(stack)]
         return float(np.max(np.abs(seg))) if len(seg) else 0.0
 
-    amps = [proj(a0 + k * u) for k in range(N_PULSES)]
+    amps = [proj(onset + k * u) for k in range(N_PULSES)]
     ratio = max(amps) / max(min(amps), 1e-12)
     med = max(np.median(amps), 1e-12)
-    amp_out = max(proj(a0 - u), proj(a0 + N_PULSES * u)) / med
-    counts = float(np.median([peak(a0 + k * u) for k in range(N_PULSES)]))
-    return u, rho_in, rho_out, ratio, amps, amp_out, counts
+    amp_out = max(proj(onset - u), proj(onset + N_PULSES * u)) / med
+
+    outs = [abs(rf.get(a0 - u, 0.0)), abs(rf.get(a0 + N_PULSES * u, 0.0))]
+    return {
+        "onset": onset, "u": u,
+        "rho_in": rho_in, "rho_out": max(outs),
+        "amp_ratio": ratio, "amp_out": amp_out,
+        "quiet": quiet, "pulse_s_meas": pulse_meas,
+        "counts": float(np.median([peak(onset + k * u) for k in range(N_PULSES)])),
+    }
 
 
 def find_bursts(x, fs, t0=0.0, verbose=False):
@@ -333,36 +377,39 @@ def find_bursts(x, fs, t0=0.0, verbose=False):
         got = _score(y, fs, e, y[e:e + T])
         if got is None:
             continue
-        u, rho_in, rho_out, ratio, amps, amp_out, counts = got
         # A source that is still going has to look alike AND stay loud. Requiring both
         # matters at heavy damping: the element barely rings, so the template is two
         # narrow spikes with few effective degrees of freedom, and its correlation
         # against plain background scatters far more widely than the sample count
         # suggests. Correlation alone would veto real bursts on noise.
-        continues = rho_out > RHO_CONT and amp_out > AMP_CONT
-        if rho_in < RHO_MIN or continues or ratio > AMP_TOL:
+        continues = got["rho_out"] > RHO_CONT and got["amp_out"] > AMP_CONT
+        if (got["rho_in"] < RHO_MIN
+                or continues
+                or got["amp_ratio"] > AMP_TOL
+                or got["quiet"] > QUIET_MAX
+                or abs(got["pulse_s_meas"] - PULSE_S) > PULSE_TOL_S):
             continue
         claimed.append(e)
-        spacing = u / fs
-        d_on, pulse_meas = _refine(y, fs, e, u, T)
-        onset = e + d_on
+        spacing = got["u"] / fs
+        onset = got["onset"]
         rel = [(onset / fs) + PULSE_S + k * spacing for k in range(N_PULSES)]
         out.append({
             "start": t0 + onset / fs,
             "spacing_s": round(spacing, 4),
-            "rho_in": round(rho_in, 4),
-            "rho_out": round(rho_out, 4),
-            "amp_ratio": round(ratio, 4),
-            "amp_counts": round(counts, 1),
-            "pulse_s_meas": round(pulse_meas, 3),
-            "amp_out": round(amp_out, 3),
+            "rho_in": round(got["rho_in"], 4),
+            "rho_out": round(got["rho_out"], 4),
+            "amp_ratio": round(got["amp_ratio"], 4),
+            "amp_out": round(got["amp_out"], 3),
+            "quiet": round(got["quiet"], 4),
+            "pulse_s_meas": round(got["pulse_s_meas"], 3),
+            "amp_counts": round(got["counts"], 1),
             "releases": [t0 + r for r in rel],
         })
         if verbose:
             print(f"  burst at +{onset/fs:8.2f}s  spacing={spacing:.3f}s "
-                  f"rho_in={rho_in:.3f} rho_out={rho_out:.3f} "
-                  f"amp_out={amp_out:.2f} amp={counts:.0f} "
-                  f"ratio={ratio:.2f}")
+                  f"rho_in={got['rho_in']:.3f} rho_out={got['rho_out']:.3f} "
+                  f"quiet={got['quiet']:.2f} pulse={got['pulse_s_meas']:.2f} "
+                  f"amp={got['counts']:.0f}")
     return out
 
 
@@ -416,7 +463,10 @@ def _noise(nsamp, fs, rms=120.0, rng=None):
 def selftest():
     """Prove the finder catches bursts and, more importantly, refuses decoys."""
     fs = 100.0
-    rng = np.random.default_rng(7)
+    # Each trial draws from its OWN seeded stream. They shared one until adding three
+    # decoys shifted every later noise realisation and made an unrelated test fail --
+    # a test suite whose cases perturb each other cannot be trusted to localise a
+    # regression to the thing that caused it.
     dur = 600
     fails = []
 
@@ -439,7 +489,8 @@ def selftest():
     print("finds real bursts (SNR = peak burst amplitude / background RMS):")
     for zeta in (0.3, 0.6, 0.85):
         for snr in (200.0, 100.0, SNR_SPEC):
-            x = _noise(int(dur * fs), fs, rng=rng)
+            x = _noise(int(dur * fs), fs,
+                       rng=np.random.default_rng(hash((zeta, snr)) % 9999))
             b = synth_burst(fs, zeta=zeta, amp=120.0 * snr)
             at = 300.0
             x[int(at * fs):int(at * fs) + len(b)] += b
@@ -447,14 +498,14 @@ def selftest():
 
     print("tolerates oscillator drift (the ATtiny has no crystal):")
     for sp in (1.85, 2.0, 2.15):
-        x = _noise(int(dur * fs), fs, rng=rng)
-        b = synth_burst(fs, amp=4000.0, spacing_s=sp)
+        x = _noise(int(dur * fs), fs, rng=np.random.default_rng(102))
+        b = synth_burst(fs, amp=120.0 * SNR_SPEC, spacing_s=sp)
         x[int(300 * fs):int(300 * fs) + len(b)] += b
         trial(f"spacing={sp}s", x, 1, t_expect=300.0)
 
     print("rejects decoys:")
     # an earthquake: a growing, decaying, non-repeating wavetrain
-    x = _noise(int(dur * fs), fs, rng=rng)
+    x = _noise(int(dur * fs), fs, rng=np.random.default_rng(103))
     t = np.arange(int(20 * fs)) / fs
     q = (np.exp(-((t - 3) ** 2) / 4.0) * 6000
          * np.sin(2 * math.pi * (2 + 4 * np.exp(-t / 6)) * t))
@@ -462,7 +513,7 @@ def selftest():
     trial("earthquake", x, 0)
 
     # three spikes at 2.00 s but each a different shape -- a truck over expansion joints
-    x = _noise(int(dur * fs), fs, rng=rng)
+    x = _noise(int(dur * fs), fs, rng=np.random.default_rng(104))
     for k in range(3):
         i = int((300 + 2.0 * k) * fs)
         s = synth_burst(fs, f0=4.5 + 2.0 * k, zeta=0.3 + 0.2 * k, amp=5000.0, n=1)
@@ -470,17 +521,29 @@ def selftest():
     trial("three mismatched spikes at 2 s", x, 0)
 
     # three IDENTICAL spikes but amplitudes 1.0 / 0.5 / 1.0
-    x = _noise(int(dur * fs), fs, rng=rng)
+    x = _noise(int(dur * fs), fs, rng=np.random.default_rng(105))
     for k, sc in enumerate((1.0, 0.5, 1.0)):
         i = int((300 + 2.0 * k) * fs)
         s = synth_burst(fs, amp=5000.0 * sc, n=1)
         x[i:i + len(s)] += s
     trial("amplitude-mismatched triplet", x, 0)
 
+    # THE ONE THAT ACTUALLY BIT, and only showed up against real archive data: a
+    # sustained narrowband wavetrain. It is self-similar at every lag near a multiple
+    # of its own period, so the spacing search will always find SOME lag that
+    # correlates -- correlation cannot tell it from a burst. The quiet test can.
+    for f_hz, name in ((2.0, "2 Hz"), (0.7, "0.7 Hz swell"), (4.5, "4.5 Hz at f0")):
+        x = _noise(int(dur * fs), fs, rng=np.random.default_rng(106))
+        t = np.arange(int(12 * fs)) / fs
+        env_ = np.exp(-((t - 6) ** 2) / 18.0)
+        x[int(300 * fs):int(300 * fs) + len(t)] += 6000 * env_ * np.sin(
+            2 * math.pi * f_hz * t)
+        trial(f"narrowband {name}", x, 0)
+
     # THE HARD ONE: periodic machinery, identical signature every 2.00 s, forever.
     # Passes repeatability; must fail isolation.
-    x = _noise(int(dur * fs), fs, rng=rng)
-    s = synth_burst(fs, amp=4000.0, n=1)
+    x = _noise(int(dur * fs), fs, rng=np.random.default_rng(107))
+    s = synth_burst(fs, amp=120.0 * SNR_SPEC, n=1)
     for k in range(60):
         i = int((200 + 2.0 * k) * fs)
         x[i:i + len(s)] += s
@@ -492,7 +555,7 @@ def selftest():
     # would be to lower RHO_MIN, which is exactly what rejects the decoys above. The
     # answer is to inject harder, not to loosen the gate.
     print("documented limit (expected miss -- inject above SNR_SPEC instead):")
-    x = _noise(int(dur * fs), fs, rng=rng)
+    x = _noise(int(dur * fs), fs, rng=np.random.default_rng(108))
     b = synth_burst(fs, zeta=0.85, amp=120.0 * 10.0)
     x[int(300 * fs):int(300 * fs) + len(b)] += b
     trial("zeta=0.85 snr=10", x, 0)
@@ -524,10 +587,10 @@ def selftest():
             fails.append(f"floor zeta={zeta} exceeds SNR_SPEC")
 
     print("finds several bursts in one day, and masks them:")
-    x = _noise(int(6 * 3600 * fs), fs, rng=rng)
+    x = _noise(int(6 * 3600 * fs), fs, rng=np.random.default_rng(4242) if 0 else np.random.default_rng(109))
     ats = [1800.0, 9000.0, 15000.0]
     for at in ats:
-        b = synth_burst(fs, amp=4000.0)
+        b = synth_burst(fs, amp=120.0 * SNR_SPEC)
         x[int(at * fs):int(at * fs) + len(b)] += b
     got = trial("3 bursts in 6 h", x, 3)
     if len(got) == 3:
@@ -546,7 +609,7 @@ def selftest():
 
 
 def cmd_scan(a):
-    from obspy import UTCDateTime, read
+    from obspy import Stream, UTCDateTime, read
 
     pats = []
     if a.day:
@@ -562,10 +625,23 @@ def cmd_scan(a):
     all_bursts = []
     for f in files:
         st = read(f)
-        st.merge(method=1, fill_value="interpolate")
+        try:
+            st.merge(method=1, fill_value="interpolate")
+        except Exception:
+            # The earliest day-files predate the exact 100 sps grid and carry
+            # fragments at several sampling rates, which obspy refuses to merge.
+            # Keep the dominant rate and move on -- that data is equipment testing.
+            rates = [tr.stats.sampling_rate for tr in st]
+            keep = max(set(rates), key=rates.count)
+            print(f"{f}: mixed sampling rates {sorted(set(rates))}, keeping {keep}")
+            st = Stream([tr for tr in st if tr.stats.sampling_rate == keep])
+            st.merge(method=1, fill_value="interpolate")
         for tr in st:
+            if tr.stats.npts < int(10 * N_PULSES * SPACING_S * tr.stats.sampling_rate):
+                continue
             fs = float(tr.stats.sampling_rate)
-            print(f"{f} {tr.id} {tr.stats.starttime} ({tr.stats.npts/fs/3600:.1f} h)")
+            print(f"{f} {tr.id} {tr.stats.starttime} "
+                  f"({tr.stats.npts/fs/3600:.1f} h)", flush=True)
             found = find_bursts(np.asarray(tr.data, float), fs,
                                 t0=float(tr.stats.starttime.timestamp),
                                 verbose=a.verbose)
