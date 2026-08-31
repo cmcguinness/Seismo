@@ -84,11 +84,26 @@ against a 2 s pulse, and `ringdown.py` skips the first 60 ms regardless.
 
 ## Before it is powered for the first time
 
-1. Print, fit the connectors, wire pin 2/3 through with the injector **unpopulated**.
-   Confirm the station still records normally.
-2. Wait out the ~35 min settling, then compare the quiet-night floor with the documented
-   **~0.8 µV RMS in 1–15 Hz**. If it has not moved, the box is transparent. If it has,
-   find out now, before a calibration signal confuses the picture.
+Three stages, each ending in a quiet-night noise floor compared against the documented
+**~0.8 µV RMS in 1–15 Hz**, and each costing a ~35 min settle. Do not merge them: they
+fail for different reasons and a merged test cannot tell you which.
+
+1. **Populated, batteries OUT.** Not a straight-through wire — the whole board, fully
+   assembled, in the run. This is not a preliminary check, it is *the steady-state
+   condition*: the box spends 86,376 s a day doing exactly this, and the pulses are the
+   exception. It exercises the PhotoMOS off-state leakage and output capacitance in
+   series with the 249 kΩ, the board's stray capacitance to the signal pair, the layout,
+   and every joint and ferrule. If the floor moves here, the fault is passive and
+   physical.
+2. **Batteries IN, firmware sleeping** (long interval, or reed-disabled). A running
+   microcontroller with its oscillator going, centimetres from a µV differential pair, is
+   its own noise source — and this project's worst-ever event was a *powered* device
+   coupling into this exact analog path. A clean stage 1 says nothing about stage 2.
+   Check here whether the reed "off" actually halts the oscillator or merely inhibits
+   firing; if it only inhibits, "off" does not remove this noise source and the docs
+   should say so.
+3. **Firing.** Confirm the burst looks as designed, that `ringdown.py measure --at` fits
+   it, and that the signature finder catches it before it reaches `events.log`.
 3. Add an `analysis/epochs.py` row the day it goes in — a signal-path hardware change.
 4. **Write the signature finder first.** A 27 mV release against a ~1 µV floor is roughly
    27,000x: every pulse will trigger the detector. Four bursts a day, unrecognised, is
