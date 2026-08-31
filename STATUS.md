@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-08-27 (UTC)_
+_Last updated: 2026-08-31 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -53,16 +53,106 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 ## Open threads
 
-1. GPS clock host when the HAT arrives (memory + `doc/`); then chrony on seismo.local.
-2. Field rig firmware: log triggered windows to flash, tap-the-piezo milestone.
-3. Retrain the classifier when the confirmed count grows; CNN at ~100 positives.
-4. `seismo_dashboard.py` is 1,028+ lines — split the image/live-data routes out.
-5. The 1.05 Hz line.
+1. **Calibration injector**: order the BOM, install `avr-gcc` and compile the firmware
+   (it has never been built), then bench-test the box before it goes inline. First
+   power-up is gated on `calfinder.py`, which is done and clean over 749 h.
+2. **f0 and zeta are still guesses** — `station/SS.OAKM1.xml` is provisional and every
+   magnitude rests on it. That is what the injector is for.
+3. Field rig firmware: log triggered windows to flash, tap-the-piezo milestone.
+4. Retrain the classifier when the confirmed count grows; CNN at ~100 positives.
+5. `seismo_dashboard.py` is 1,028+ lines — split the image/live-data routes out.
+6. The 1.05 Hz line.
 6. Network code cutover (unit `SEISMO_NETWORK`, pi5 config, epochs row) when ISC answers.
 
 ---
 
 # Recent entries (newest first)
+
+## 🔧 CALIBRATION INJECTOR: BOM, BURST FINDER, FIRMWARE (2026-08-31)
+
+**Why.** Everything downstream — the StationXML below, every magnitude, the whole
+sensitivity claim — rests on f0 and zeta, and we do not know either. The plan is an
+inline box between the Pi and the geophone that closes a PhotoMOS into the coil
+**four times a day, forever**, so the archive accumulates transients whose *input is
+known*. `ringdown.py` fits f0 and zeta from the release. Nothing has to be touched, so
+nothing has to re-settle (the ~35 min settling tax after handling the rig).
+
+**`doc/BOM-calibrator.md`** — all through-hole, D-series Neutrik in/out, `ATTINY85-20PU`
+in a socket, `AQY212EH` PhotoMOS, LM4040 2.5 V reference, three CR2032s (one for the
+micro, two in series for the injection leg). Notes worth keeping: the LED goes on
+**MISO not MOSI** (MISO is driven by the ATtiny, so the load sits on a driver we
+specify; on MOSI it hangs off the programmer's output, and USBasp clones vary); the
+**factory fuses are already correct** (1 MHz via CKDIV8, BOD off, RSTDISBL clear), so
+the right move is to read them and change nothing; and the CKDIV8/slow-SCK trap that
+makes a healthy chip look dead (`-B 8`).
+
+**`analysis/calfinder.py`** — finds the bursts again in the archive. It has to do two
+jobs at once: **mask** them, or ~1500 spurious triggers a year walk into the classifier's
+training set against ~33 real positives; and **feed** them to `ringdown.py`, since they
+are the only signal in the archive whose input we know.
+
+Detection is on **repeatability, not shape** — the three units of a burst are
+near-identical waveforms — because f0 and zeta are precisely the unknowns, so no
+template can be known in advance. Isolation ("exactly three, then silence") rejects
+periodic machinery.
+
+**The self-test was necessary and not sufficient.** It caught four defects that were
+mine by construction: alignment grid-searched at 50 ms (81° of phase at 4.5 Hz);
+masking the isolation test so chance noise correlation read as a fourth repeat;
+unit 1 being both template and member, so it self-projected to 1.0 — a bias that
+rejected bursts *for being well correlated*; and a 0.1 s envelope burying a well-damped
+element's 20 ms spike below the trigger. But the two that mattered only appeared when
+**real archive data** went through it:
+
+  - **Narrowband oscillation.** 9 "bursts" in 5.6 h with no injector attached. A
+    sustained wavetrain is self-similar at every lag near a multiple of its period, so
+    searching ~40 lags for the best correlation always finds one. Every decoy I had
+    written was impulsive; the whole class was untested. Fixed by using what we *design*
+    rather than asking correlation to work harder: a unit is two steps `PULSE_S` apart
+    and then **silence**, where oscillation fills the unit.
+  - **A fading periodic source.** One survivor in 749 h, at `rho_out` 0.85 — its
+    neighbour correlated at 0.85 — which slipped through only because the AND with
+    amplitude let a source that was *running down* pass. Isolation is now two-tier.
+
+**Measured false-positive rate: zero over 749 h of real archive.** Re-run that scan
+whenever the gates are touched; that is now in the module docstring.
+
+**A hardware requirement fell out of it.** The detection floor depends on damping
+(SNR ≥ 14 at zeta 0.3, ≥ 40 at zeta 0.85) — and damping is the unknown, so the injector
+must be sized for the worst case: `SNR_SPEC = 50`, now in the BOM beside the 249 kΩ. If
+bursts come out weak the answer is a smaller resistor, **never** a lower `RHO_MIN`:
+that threshold is the entire decoy rejection.
+
+**`calibrator/calibrator.c` + `Makefile`** — fires the pattern after a firmware-enforced
+`SOAK_H = 48` of silence, so the archive holds two clean diurnal cycles of "off" before
+the first burst rather than that depending on remembering not to install it yet.
+Timekeeping is deliberately bad (watchdog RC, drifts with temperature): the burst is
+identified by shape, `calfinder` *measures* the spacing, and the drift usefully walks the
+bursts through the diurnal cycle. **The firmware and `calfinder.py` are two halves of one
+protocol and nothing at runtime would notice them drifting apart** — the bursts would
+just stop being found, silently, months later — so the self-test parses `calibrator.c`
+and fails on a mismatch.
+
+⚠️ **Not yet compiled** — avr-gcc is not installed on the Mac (`brew tap osx-cross/avr &&
+brew install avr-gcc`, then `cd calibrator && make`). Nothing else blocks on it.
+
+## 📐 INSTRUMENT RESPONSE: THE DATA CANNOT GIVE IT, SO A DECLARED GUESS (2026-08-30)
+
+Tried to fit the response from data — spectral ratio against USGS NP.1835, 1.6 km away
+(`analysis/response_fit.py`). **It cannot be done with what we have, and the script
+documents its own negative result** rather than being deleted: residual 0.298 (2×
+scatter), f0 indistinguishable anywhere in 2.5–4.5 Hz, per-anchor zeta 0.39–0.70,
+sensitivity spread 4.4×. Five anchors over a fixed path is not enough to separate
+instrument from site.
+
+So `analysis/make_stationxml.py` writes `station/SS.OAKM1.xml` from an **explicitly
+declared guess** — f0 4.5 Hz, zeta 0.6, 9.0 V/(m/s) — as two stages (PolesZeros M/S→V,
+Coefficients V→COUNTS). Two zeros at the origin and a conjugate pole pair, standard
+moving-coil. It is honest about being provisional, and it is what the injector above
+exists to replace.
+
+Also fixed here: `COUNTS_PER_VOLT` was **2× wrong** — the ADS1256's full-scale range is
+±2·VREF/PGA, not ±VREF/PGA.
 
 ## ⏱️ GPS CLOCK HOST IN SERVICE; THE STATION IS OFF POOL NTP (2026-08-30 16:20 UTC)
 
