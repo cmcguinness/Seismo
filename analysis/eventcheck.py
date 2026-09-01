@@ -60,7 +60,9 @@ def main() -> None:
     ap.add_argument("--stalon", type=float, default=STA_LON)
     ap.add_argument("--gain", type=int, default=64)
     ap.add_argument("--band", default="2,15", help="bandpass 'fmin,fmax' Hz")
-    ap.add_argument("--pre", type=float, default=20.0, help="seconds before origin")
+    ap.add_argument("--pre", type=float, default=20.0, help="seconds before origin (plot)")
+    ap.add_argument("--noise-s", type=float, default=150.0,
+                    help="length of the pre-origin window the noise stats come from")
     ap.add_argument("--post", type=float, default=0.0, help="seconds after origin (0=auto)")
     ap.add_argument("--no-pull", action="store_true")
     args = ap.parse_args()
@@ -73,14 +75,25 @@ def main() -> None:
     # +T0_INTERCEPT on P: the measured relation is onset = dist/5.19 + 0.30 s (see the
     # VP comment above), and dropping the intercept drew every P marker 0.30 s EARLY,
     # which made real arrivals look systematically late on every plot (2026-08-12).
-    tP, tS = hypo / VP + T0_INTERCEPT, hypo / VS
+    # Travel times from iasp91 where it applies. The constant-velocity model below is
+    # right locally -- it was MEASURED here -- but it has no Pn, so past ~150 km it
+    # predicts arrivals several seconds late: for the M2.3 at 166 km on 2026-09-01 it
+    # put P +4.8 s and S +7.5 s late, which slid the signal box off the actual arrivals
+    # and onto the coda. harvest_events.arrivals_s() already solved this; use it.
+    try:
+        from harvest_events import arrivals_s
+        tP, tS = arrivals_s(epi, args.depth, hypo)
+        tt_src = "iasp91"
+    except Exception:
+        tP, tS = hypo / VP + T0_INTERCEPT, hypo / VS
+        tt_src = f"Vp {VP}, Vs {VS} km/s"
     post = args.post if args.post > 0 else tS + 40.0
     fmin, fmax = (float(x) for x in args.band.split(","))
     uvpc = (2.5 * 2 / (args.gain * (2 ** 23 - 1))) * 1e6
 
     print(f"{args.label}  M{args.mag}  origin {origin} UTC")
     print(f"  epicentral {epi:.1f} km, hypocentral {hypo:.1f} km, depth {args.depth} km")
-    print(f"  predicted P +{tP:.1f}s, S +{tS:.1f}s (Vp {VP}, Vs {VS} km/s)")
+    print(f"  predicted P +{tP:.1f}s, S +{tS:.1f}s ({tt_src})")
 
     if not args.no_pull:
         pull("seismo.local")
@@ -89,7 +102,7 @@ def main() -> None:
     if not matches:
         raise SystemExit(f"no day-file for {origin.year}.{origin.julday:03d} in {LOCAL_DATA}")
     st = read(str(matches[-1]))
-    win = st.slice(origin - args.pre, origin + post)
+    win = st.slice(origin - max(args.pre, args.noise_s + 20), origin + post)
     if not len(win):
         raise SystemExit("NO DATA in the event window (recorder gap at that time?)")
     # The archive is fragmented into many short segments by sub-second timing
@@ -109,16 +122,39 @@ def main() -> None:
     filt.filter("bandpass", freqmin=fmin, freqmax=fmax, corners=4, zerophase=True)
     t = raw.times() + (raw.stats.starttime - origin)
     bp = filt.data * uvpc
+    sr = float(tr.stats.sampling_rate)
 
     def pp(lo, hi):
         seg = bp[(t > lo) & (t < hi)]
         return float(np.ptp(seg)) if seg.size else 0.0
-    noise, signal = pp(-args.pre, tP - 2), pp(tP - 1, tS + 20)
-    ratio = signal / noise if noise else 0.0
-    verdict = ("LIKELY DETECTED" if ratio > 2.5 else
-               "AMBIGUOUS" if ratio > 1.5 else "NOT DETECTED (signal below floor)")
-    print(f"  band {fmin}-{fmax} Hz: noise pp {noise:.1f} uV, P-S pp {signal:.1f} uV, "
-          f"ratio {ratio:.2f} -> {verdict}")
+    # THE VERDICT. The previous version compared peak-to-peak over an 18 s noise window
+    # against peak-to-peak over a 44 s signal window, and peak-to-peak GROWS WITH WINDOW
+    # LENGTH -- you sample the tail of the amplitude distribution more times -- so that
+    # ratio ran above 1 whether or not an earthquake was present. It called the M2.3 at
+    # 166 km on 2026-09-01 "LIKELY DETECTED, ratio 4.16" on a stretch where the noise
+    # window's own peak-to-peak (21.0 uV) equalled the signal window's (20.5 uV).
+    #
+    # Three changes, each one a lesson already paid for elsewhere in this repo:
+    #   - a SMOOTHED ENVELOPE, not raw peak-to-peak, so one sample cannot carry it;
+    #   - compared against the noise window's 99th PERCENTILE, which is length-stable,
+    #     rather than its extremum, which is not;
+    #   - and SUSTAIN, the guard from detection_map.calibrate(): a real arrival is a
+    #     train that holds for seconds, a door slam is one enormous sample. Every
+    #     genuine catch in the harvest holds 3.4-7.9 s.
+    env = np.convolve(np.abs(bp), np.ones(int(sr)) / int(sr), mode="same")
+    nmask = (t >= -args.noise_s) & (t <= -10)
+    smask = (((t >= tP - 2) & (t <= tP + 12)) | ((t >= tS - 4) & (t <= tS + 22)))
+    if not nmask.any() or not smask.any():
+        raise SystemExit("not enough data around the event to judge it")
+    n99 = float(np.percentile(env[nmask], 99))
+    speak = float(env[smask].max())
+    ratio = speak / n99 if n99 else 0.0
+    sustain = float((env[smask] > 2 * n99).sum() / sr)
+    verdict = ("LIKELY DETECTED" if ratio > 2.5 and sustain >= 2.0 else
+               "AMBIGUOUS" if ratio > 1.5 or sustain >= 2.0 else
+               "NOT DETECTED (signal below floor)")
+    print(f"  band {fmin}-{fmax} Hz: noise p99 {n99:.2f} uV, arrival-box peak "
+          f"{speak:.2f} uV, ratio {ratio:.2f}x, sustain {sustain:.1f}s -> {verdict}")
 
     fig, (a1, a2) = plt.subplots(2, 1, sharex=True, figsize=(11, 7))
     a1.plot(t, raw.data * uvpc, "k", lw=0.6); a1.set_ylabel("raw µV")
@@ -131,7 +167,8 @@ def main() -> None:
     # filter actually discards here is mostly content ABOVE 15 Hz. That is why the
     # two panels look nearly identical, which is a property of the instrument, not
     # a bug -- so name the band and let the reader see it.
-    a2.set_title(f"bandpass {fmin:g}-{fmax:g} Hz   ratio {ratio:.2f} -> {verdict}")
+    a2.set_title(f"bandpass {fmin:g}-{fmax:g} Hz   ratio {ratio:.2f}x  "
+                 f"sustain {sustain:.1f}s -> {verdict}")
     for a in (a1, a2):
         a.axvline(0, color="g", ls="--"); a.axvline(tP, color="r", ls=":")
         a.axvline(tS, color="orange", ls=":"); a.grid(alpha=0.3)
