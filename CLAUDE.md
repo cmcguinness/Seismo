@@ -52,7 +52,10 @@ by deploy). Nothing trains on the Pis.
   against USGS NP.1835, 1.6 km away); Vp 5.19 km/s measured from local events.
 - **Detection:** STA/LTA on the station AND on pi5 (the pi5 log is canonical); the
   gradient-boosting trigger classifier (`server/trigger_features.py` defines the
-  features; retrain with `harvest_events.py` → `trigger_dataset.py` → `trigger_train.py`).
+  features; retrain with `harvest_events.py` → `trigger_dataset.py` → `augment.py` →
+  `trigger_train.py --aug`). `augment.py` buries the real events in real archive noise to
+  make the weak positives the catalogue is too slow to supply; those rows are
+  **train-only** and every reported metric is computed on real rows.
 
 ## Bring-up order (isolates ADC faults from geophone faults — §6)
 

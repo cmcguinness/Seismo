@@ -68,6 +68,63 @@ code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~Novembe
 
 # Recent entries (newest first)
 
+## 🧪 NOISE AUGMENTATION: +0.09 TO +0.14 PR-AUC ON REAL ROWS (2026-09-01)
+
+Positives are the bottleneck -- 33 events at ~5/week, set by seismicity inside 89 km.
+Template matching was meant to add real ones and does not work here (its own entry
+below). So: bury the events we have in real archive noise and manufacture the weak,
+barely-triggering positives the catalogue supplies only a handful of.
+
+`analysis/augment.py` -> 792 rows from 58 real ones. Measured on REAL rows only:
+
+| | baseline | +aug |
+|---|---|---|
+| overall PR-AUC | 0.337 | **0.480** |
+| displayed slice (ratio>=20) | 0.760 | **0.882** |
+| deployable, ratio>=10 | 0.694 | **0.784** |
+| deployable, ratio>=20 | 0.868 | **0.895** |
+
+⚠️ With 33 independent events these intervals are wide. The gain is consistent across
+all four slices, which helps, but this multiplies SAMPLE COUNT, not INFORMATION --
+there are still 33 earthquakes in there, and it will not improve generalisation to
+genuinely new sources.
+
+**What had to be right, including two things that were not at first:**
+
+- **Real noise, not synthetic.** From our own archive, across the day so the diurnal
+  range is represented, and >=180 s from any catalogue event so an augmentation cannot
+  quietly contain a second earthquake. Gaussian noise is the wrong distribution: this
+  background is cultural, impulsive and non-stationary, and separating quakes from
+  white noise is not the problem we have.
+
+- **peak_ratio is transformed analytically, not re-measured.** ✗ *First attempt:*
+  re-run `server/stalta.py` over the augmented window. It does not reproduce the
+  detector and structurally cannot -- on pi5 the STA/LTA runs CONTINUOUSLY, so its 30 s
+  LTA carries hours of history. Cold-started on a 150 s lead it reported peak_ratio 5.2
+  where the log says 61.2, and 2149 where the log says 8535. Worse, many real positives
+  sit barely over the threshold -- one is **4.07 against trig=4.0** -- so a slightly
+  different LTA means they do not re-trigger at all, and **60% of events were lost**.
+  ✓ *The physics gives it directly:* the CF is energy, so R = 1 + A²/σ², and adding
+  independent noise at α times background gives **R' = 1 + (R−1)/(1+α²)**. Exact,
+  monotone, starts from the real logged R, needs no detector state. 0/792 rows disagree.
+
+- **Missingness is carried through.** ✗ `hf_lf` is absent from 25 of the 58 real
+  positive rows (older `events.log` schema). Filling it in for augmented rows only
+  would have made them identifiable -- and since every augmented row is a positive, the
+  model could have used that as the label. Now 46% missing in aug against 43% real.
+
+- **Rows below the trigger are dropped** -- 54% of attempts, rising with α
+  (288/252/138/90/24 kept). The classifier only ever scores things that triggered.
+
+- **Groups are inherited.** Augmented rows carry their source event's `origin`, which
+  is what `trigger_train.py` groups positives on, so every derivative lands in the same
+  CV fold. They are also removed from every test fold and from the holdout: a PR-AUC
+  counting synthetic positives would be scoring the augmentation, not the classifier.
+
+Sanity check worth keeping: aggregate `snr_env` RISES with α, which looks wrong until
+you see it is survivorship -- at high α only loud events still clear the trigger. Per
+source row it falls monotonically in 22/23 cases.
+
 ## 🔧 CALIBRATION INJECTOR: BOM, BURST FINDER, FIRMWARE (2026-08-31)
 
 **Why.** Everything downstream — the StationXML below, every magnitude, the whole
