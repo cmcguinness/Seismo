@@ -50,6 +50,15 @@
                              * to install it yet. */
 #define PERIOD_H    6       /* four bursts a day */
 
+/* The button is two commands, told apart by how long it is held. A SHORT press
+ * RESTARTS the soak; a LONG press fires a burst immediately.
+ *
+ * That asymmetry is deliberate and it is the safe way round. This box sits on a shelf
+ * for months, so the realistic button event is an accidental knock -- and the harmless
+ * response to an accident is to start the quiet period again, not to skip it. Firing
+ * the injector is the deliberate act, so it is the one that has to be held for. */
+#define LONG_PRESS_MS  2000
+
 /* ---- pins ----
  * PB0/PB1/PB2 are MOSI/MISO/SCK and belong to the ISP header, so the injector and the
  * button take PB3 and PB4 and the LED has to share one of the programming pins. It
@@ -94,12 +103,34 @@ static uint8_t nap(uint16_t ticks)
     return 0;
 }
 
-static void nap_hours(uint16_t hours)
+/* Returns 1 if the button cut the sleep short. */
+static uint8_t nap_hours(uint16_t hours)
 {
     while (hours--) {
         if (nap(TICKS_PER_HOUR))
-            return;
+            return 1;
     }
+    return 0;
+}
+
+/* Wait for the button to come up; return 1 if it was held past LONG_PRESS_MS.
+ * The LED follows the button so there is feedback while deciding. */
+static uint8_t held_long(void)
+{
+    uint16_t ms = 0;
+    delay_ms_n(30);                                  /* debounce the edge */
+    while (!(PINB & (1 << PIN_BTN))) {               /* active low, internal pull-up */
+        delay_ms_n(10);
+        ms += 10;
+        if (ms >= LONG_PRESS_MS) {
+            PORTB |= (1 << PIN_LED);                 /* long press registered */
+            while (!(PINB & (1 << PIN_BTN)))
+                delay_ms_n(10);                      /* wait for release */
+            PORTB &= (uint8_t) ~(1 << PIN_LED);
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static void delay_ms_n(uint16_t ms)
@@ -143,15 +174,29 @@ int main(void)
     PCMSK |= (1 << PIN_BTN);
     sei();
 
-    /* The soak. Firmware-enforced, because "just leave it unpowered for two days"
-     * is the sort of instruction that gets skipped on the day the box is finished. */
-    nap_hours(SOAK_H);
-    button_hit = 0;
+    /* The soak is firmware-enforced because "just leave it unpowered for two days" is
+     * the sort of instruction that gets skipped on the day the box is finished. */
+    uint8_t soaking = 1;
 
     for (;;) {
+        if (soaking) {
+            if (nap_hours(SOAK_H)) {          /* button cut the soak short */
+                button_hit = 0;
+                if (!held_long())
+                    continue;                 /* short press: soak starts over */
+                soaking = 0;                  /* long press: begin firing now */
+            } else {
+                soaking = 0;                  /* soak completed on its own */
+            }
+        }
+
         burst();
-        button_hit = 0;
-        nap_hours(PERIOD_H);
-        button_hit = 0;         /* a button press means "fire now", and it just did */
+
+        if (nap_hours(PERIOD_H)) {            /* button during the wait */
+            button_hit = 0;
+            if (!held_long())
+                soaking = 1;                  /* short press: back into the soak */
+            /* long press: fall through and burst again immediately */
+        }
     }
 }
