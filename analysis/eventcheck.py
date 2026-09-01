@@ -61,7 +61,7 @@ def main() -> None:
     ap.add_argument("--gain", type=int, default=64)
     ap.add_argument("--band", default="2,15", help="bandpass 'fmin,fmax' Hz")
     ap.add_argument("--pre", type=float, default=20.0, help="seconds before origin (plot)")
-    ap.add_argument("--noise-s", type=float, default=150.0,
+    ap.add_argument("--noise-s", type=float, default=300.0,
                     help="length of the pre-origin window the noise stats come from")
     ap.add_argument("--post", type=float, default=0.0, help="seconds after origin (0=auto)")
     ap.add_argument("--no-pull", action="store_true")
@@ -150,11 +150,43 @@ def main() -> None:
     speak = float(env[smask].max())
     ratio = speak / n99 if n99 else 0.0
     sustain = float((env[smask] > 2 * n99).sum() / sr)
-    verdict = ("LIKELY DETECTED" if ratio > 2.5 and sustain >= 2.0 else
-               "AMBIGUOUS" if ratio > 1.5 or sustain >= 2.0 else
-               "NOT DETECTED (signal below floor)")
+
+    # AN EMPIRICAL NULL, because no single threshold survives daytime background.
+    # Cultural noise is wildly non-stationary: for the M2.1 near Ukiah on 2026-09-01
+    # the 2-6 Hz p99 was 0.78 uV over a 170 s noise window and 2.70 uV over 270 s,
+    # purely because one burst fell outside the shorter one -- and the "2.9x detection"
+    # that produced evaporated when the window grew. Any fixed multiple of any single
+    # noise statistic inherits that instability.
+    #
+    # So ask the question non-parametrically instead: slide the EXACT two-box signal
+    # mask back through the pre-event noise and count how often plain background
+    # produces a peak as large. That is a p-value against the null "this is just a
+    # quiet-ish stretch of the same noise", it needs no threshold, and it is robust to
+    # whatever the neighbourhood happens to be doing.
+    idx = np.flatnonzero(smask)
+    # The smallest shift that clears the event entirely. For a NEARBY event P lands a
+    # second or two after origin, so a fixed 20 s shift leaves the "null" window still
+    # sitting on top of the earthquake -- which is how the M1.8 at 2.8 km, a textbook
+    # detection at 12.8x, first came out AMBIGUOUS: it was being compared against
+    # itself. The shift has to be derived from the mask's own extent, not assumed.
+    k_min = int(idx.max() - np.searchsorted(t, -10.0)) + 1
+    step = max(1, int(2 * sr))
+    off = np.arange(max(k_min, step), int((args.noise_s - 20) * sr), step)
+    null = [float(env[idx - k].max()) for k in off if (idx - k).min() >= 0]
+    n_ge = sum(v >= speak for v in null)
+    # With N null windows the smallest reachable p is 1/(N+1), so N must be big enough
+    # that a real detection can actually clear the threshold: 18 windows floored p at
+    # 0.105 and made "LIKELY DETECTED" unreachable by construction.
+    pval = (n_ge + 1) / (len(null) + 1) if null else float("nan")
+
+    strong = pval <= 0.02 and sustain >= 2.0
+    weak = pval <= 0.10 or sustain >= 2.0
+    verdict = ("LIKELY DETECTED" if strong else
+               "AMBIGUOUS" if weak else "NOT DETECTED (signal below floor)")
     print(f"  band {fmin}-{fmax} Hz: noise p99 {n99:.2f} uV, arrival-box peak "
-          f"{speak:.2f} uV, ratio {ratio:.2f}x, sustain {sustain:.1f}s -> {verdict}")
+          f"{speak:.2f} uV, ratio {ratio:.2f}x, sustain {sustain:.1f}s")
+    print(f"    empirical null: {n_ge}/{len(null)} same-shape noise windows reach it, "
+          f"p={pval:.3f} -> {verdict}")
 
     fig, (a1, a2) = plt.subplots(2, 1, sharex=True, figsize=(11, 7))
     a1.plot(t, raw.data * uvpc, "k", lw=0.6); a1.set_ylabel("raw µV")
