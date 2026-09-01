@@ -1,7 +1,19 @@
 # Firmware for the inline calibration injector. See doc/BOM-calibrator.md.
 #
-#   brew tap osx-cross/avr && brew install avr-gcc
-#   brew install avrdude
+#   brew install avrdude                     # homebrew-core, nothing special needed
+#   brew tap osx-cross/avr
+#   brew trust osx-cross/avr                 # <- REQUIRED, and it is a real decision
+#   brew install avr-gcc
+#
+# Modern Homebrew refuses to load formulae from a third-party tap until you trust it,
+# because a tap can run arbitrary code at install time: "Error: Refusing to load
+# formula osx-cross/avr/avr-gcc@9 from untrusted tap". osx-cross/avr is the standard
+# AVR tap and what every macOS AVR guide points at, but it is still third-party.
+# If you would rather not grant that: `brew install arduino-cli` (which IS in
+# homebrew-core) then `arduino-cli core install arduino:avr` gets you an avr-gcc from
+# Arduino's own distribution, and you point CC at it.
+#
+# avrdude needs none of this -- it is in homebrew-core.
 #
 # Everything here is macOS-friendly; the Windows-only tone of most USBasp listings is
 # about the vendor's GUI, not the hardware. avrdude speaks to it fine.
