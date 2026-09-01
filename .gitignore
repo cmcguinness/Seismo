@@ -45,3 +45,6 @@ analysis/labels.features.csv
 # module docstring for the query). State outlines ARE committed: they are small
 # and the map is unusable without them.
 analysis/geo/seismicity.geojson
+
+# template_match.py templates -- rebuildable from event_harvest.csv + the archive
+analysis/templates.npz
