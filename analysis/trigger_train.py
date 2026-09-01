@@ -12,6 +12,7 @@ analysis/models/trigger_gbm.joblib with its feature list, for the pi5 detector.
 
     python analysis/trigger_train.py
 """
+import argparse
 import csv
 import datetime
 import os
@@ -57,17 +58,37 @@ MIN_RATIO_TRAIN = 10.0
 HOLDOUT_AFTER = "2026-08-31"
 
 
-def load():
+def load(aug_csv=None):
+    """Real rows, plus optionally augmented positives from augment.py.
+
+    Augmented rows are TRAIN-ONLY -- see the aug handling in main(). They inherit their
+    source event's `origin`, which is what positives are grouped on, so every derivative
+    of one earthquake lands in the same CV fold automatically. Without that, near-copies
+    would straddle the split and the score would climb for no reason at all.
+    """
     rows = [r for r in csv.DictReader(open(CSV))
             if not any(a <= r["start"][:16] <= b for a, b in EXCLUDE)]
+    for r in rows:
+        r.setdefault("is_aug", "0")
+    if aug_csv and os.path.exists(aug_csv):
+        extra = [r for r in csv.DictReader(open(aug_csv))
+                 if not any(a <= r["start"][:16] <= b for a, b in EXCLUDE)]
+        rows += extra
+        print(f"loaded {len(extra)} augmented positives from {os.path.basename(aug_csv)}")
     X = np.array([[float(r[f]) if r[f] not in ("", "None") else np.nan for f in FEATURES] for r in rows])
     y = np.array([int(r["label"]) for r in rows])
     groups = np.array([r["origin"] if r["label"] == "1" else r["start"][:10] for r in rows])
-    return rows, X, y, groups
+    is_aug = np.array([str(r.get("is_aug", "0")) == "1" for r in rows])
+    return rows, X, y, groups, is_aug
 
 
 def main():
-    rows, X, y, groups = load()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--aug", nargs="?", const=os.path.join(HERE, "data",
+                    "trigger_features_aug.csv"), default=None,
+                    help="also train on augmented positives from augment.py")
+    args = ap.parse_args()
+    rows, X, y, groups, is_aug = load(args.aug)
     print(f"{len(y)} triggers, {y.sum()} quake, {len(y) - y.sum()} cultural, "
           f"{len(set(groups[y == 1]))} distinct catalog events")
 
@@ -82,11 +103,12 @@ def main():
           f"({tp} TP, {fp} FP, {fn} FN)")
 
     # Reserve the holdout: fitted on nothing after HOLDOUT_AFTER.
-    held = np.array([r["start"][:10] > HOLDOUT_AFTER for r in rows])
+    held = np.array([r["start"][:10] > HOLDOUT_AFTER for r in rows]) & ~is_aug
     if held.any():
         print(f"\nHELD OUT (never fitted): {held.sum()} triggers after {HOLDOUT_AFTER}, "
               f"{int(y[held].sum())} of them quake")
         X, y, groups, rows = X[~held], y[~held], groups[~held], [r for r, h in zip(rows, held) if not h]
+        is_aug = is_aug[~held]
     else:
         print(f"\nholdout after {HOLDOUT_AFTER}: empty so far (it starts accruing tomorrow)")
 
@@ -95,11 +117,24 @@ def main():
     oof = np.zeros(len(y))
     cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=0)
     for k, (tr, te) in enumerate(cv.split(X, y, groups)):
+        # Augmented rows train, never test. A PR-AUC that counted synthetic positives
+        # would be scoring the augmentation, not the classifier -- and since every
+        # augmented row is a positive, it would only ever flatter the number.
+        te = te[~is_aug[te]]
         m = HistGradientBoostingClassifier(max_depth=3, learning_rate=0.05, max_iter=300,
                                            l2_regularization=1.0, min_samples_leaf=20, random_state=k)
         m.fit(X[tr], y[tr], sample_weight=w[tr])
         oof[te] = m.predict_proba(X[te])[:, 1]
-    print(f"\nGBM out-of-fold: PR-AUC {average_precision_score(y, oof):.3f}  ROC-AUC {roc_auc_score(y, oof):.3f}")
+    # every metric below is computed on REAL rows only, but the FULL arrays are kept
+    # so the deployable model further down can still train on the augmented positives
+    ev = ~is_aug
+    Xa, ya, ga, auga = X, y, groups, is_aug
+    X, y, groups, oof = X[ev], y[ev], groups[ev], oof[ev]
+    rows = [r for r, e in zip(rows, ev) if e]
+    rule, has = rule[ev], has[ev]
+    print(f"\nevaluating on {ev.sum()} real rows ({int(y.sum())} quake); "
+          f"{(~ev).sum()} augmented rows were train-only")
+    print(f"GBM out-of-fold: PR-AUC {average_precision_score(y, oof):.3f}  ROC-AUC {roc_auc_score(y, oof):.3f}")
     pr, rc, th = precision_recall_curve(y, oof)
     print("  threshold  precision  recall  #flagged")
     for t in (0.1, 0.2, 0.3, 0.5, 0.7, 0.9):
@@ -134,8 +169,8 @@ def main():
             print(f"  p={oof[i]:.2f}  {r['start'][:19]}  hf_lf={r['hf_lf']} ratio={r['peak_ratio']} dur={r['duration_s']} peak={r['peak_uv']}uV hour={r['hour_local']}")
 
     # --- the deployable model: trained on the displayed range only -------------------
-    st = pr_ >= MIN_RATIO_TRAIN
-    Xs, ys, gs = X[st], y[st], groups[st]
+    st = Xa[:, FEATURES.index("peak_ratio")] >= MIN_RATIO_TRAIN
+    Xs, ys, gs, augs = Xa[st], ya[st], ga[st], auga[st]
     ws = np.where(ys == 1, (ys == 0).sum() / max(1, (ys == 1).sum()), 1.0)
     mk = lambda seed: HistGradientBoostingClassifier(max_depth=2, learning_rate=0.05, max_iter=200,
                                                      l2_regularization=2.0, min_samples_leaf=15,
@@ -143,8 +178,13 @@ def main():
     oofs = np.zeros(len(ys))
     for k, (tr, te) in enumerate(StratifiedGroupKFold(n_splits=min(5, int(ys.sum())), shuffle=True,
                                                       random_state=0).split(Xs, ys, gs)):
+        te = te[~augs[te]]          # augmented rows train, never score
         m = mk(k); m.fit(Xs[tr], ys[tr], sample_weight=ws[tr]); oofs[te] = m.predict_proba(Xs[te])[:, 1]
-    print(f"\nDEPLOYABLE MODEL (trained on peak_ratio >= {MIN_RATIO_TRAIN:g}: {len(ys)} triggers, {int(ys.sum())} quake)")
+    # scores and metrics on the REAL rows of the slice only
+    rs = ~augs
+    print(f"\nDEPLOYABLE MODEL (trained on peak_ratio >= {MIN_RATIO_TRAIN:g}: {len(ys)} triggers, "
+          f"{int(ys.sum())} quake; {int(augs.sum())} of them augmented, train-only)")
+    Xs, ys, oofs = Xs[rs], ys[rs], oofs[rs]
     for name, m_ in (("ratio>=10", np.ones(len(ys), bool)), ("ratio>=20", Xs[:, FEATURES.index("peak_ratio")] >= MIN_RATIO_EVAL)):
         print(f"  {name}: PR-AUC {average_precision_score(ys[m_], oofs[m_]):.3f}  ROC {roc_auc_score(ys[m_], oofs[m_]):.3f}")
         for t in (0.5, 0.7):
