@@ -59,7 +59,11 @@ OUT_HZ = 220.0                   # A3, an octave below concert A -- the centre o
                                  # loudness trim would misstate relative ground
                                  # amplitude -- which is the one thing this is faithful
                                  # about.
-OUT_OCTAVES = 2.0                # total output span, so 220-880 Hz
+OUT_OCTAVES = 2.0                # total output span of the compressed mode
+TRUE_MULT = 64.0                 # subwoofer mode: a straight x64, exactly six octaves
+                                 # up, so 1-15 Hz lands at 64-960 Hz. No warp at all --
+                                 # an octave in the ground is an octave in the ear. It
+                                 # needs real bass response, which is the whole trade.
 PREBUFFER_S = 10.0               # == the dropout tolerance, exactly
 MAX_S = 60.0                     # bounded session; see the docstring
 FLOOR_UV = 0.5                   # a quiet night, mapped to silence
@@ -104,6 +108,7 @@ def markup():
     bands = _band_plan()
     return (
         '<div class="listen">'
+        + mode_control() +
         '<div class="listen-controls">'
         '<button id="lsn-go" class="lsn-btn" type="button">Listen to the ground</button>'
         '<span id="lsn-state" class="lsn-state">ready</span>'
@@ -120,15 +125,36 @@ def markup():
 
 
 def _band_plan():
-    """Band centres in the ground, and the tone each one drives."""
+    """Band centres in the ground, and the two tones each one can drive.
+
+    `fout` is the compressed mapping (2 octaves, 110-440, plays on anything). `foutT`
+    is the faithful one: a straight multiply, so the 3.91 octaves of 1-15 Hz stay 3.91
+    octaves. Only the OUTPUT frequencies differ -- the filter bank analysing the ground
+    is identical -- which is why the page can switch between them mid-playback, and why
+    the switch is an honest A/B rather than two different renderings.
+    """
     import math
     pivot = math.sqrt(BAND_LO * BAND_HI)
     p = math.log(2 ** OUT_OCTAVES) / math.log(BAND_HI / BAND_LO)
     out = []
     for k in range(N_BANDS):
         fin = BAND_LO * (BAND_HI / BAND_LO) ** (k / (N_BANDS - 1))
-        out.append({"fin": fin, "fout": OUT_HZ * (fin / pivot) ** p})
+        out.append({"fin": fin,
+                    "fout": OUT_HZ * (fin / pivot) ** p,
+                    "foutT": fin * TRUE_MULT})
     return out
+
+
+def mode_control():
+    """The compressed / subwoofer switch. One per page; the choice is remembered."""
+    return (
+        '<div class="lsn-mode" id="lsn-mode">'
+        '<span class="lsn-mode-label">tuning</span>'
+        '<button type="button" data-mode="c" class="on">Compressed</button>'
+        '<button type="button" data-mode="t">Subwoofer</button>'
+        '<span class="lsn-mode-note" id="lsn-mode-note"></span>'
+        '</div>'
+    )
 
 
 CSS = """<style>
@@ -149,6 +175,13 @@ CSS = """<style>
 .lsn-bar>i{position:absolute;left:0;right:0;bottom:0;height:0%;
   background:var(--copper);transition:height .07s linear}
 .lsn-legend{font-size:.8rem;color:var(--ink-dim);margin:0}
+.lsn-mode{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:0 0 1.1rem}
+.lsn-mode-label{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-dim);margin-right:.15rem}
+.lsn-mode button{font:inherit;font-size:.82rem;padding:.3rem .7rem;cursor:pointer;
+  color:var(--ink-dim);background:transparent;border:1px solid var(--rule);border-radius:2px}
+.lsn-mode button.on{color:var(--ground);background:var(--copper);border-color:var(--copper)}
+.lsn-mode-note{font-size:.78rem;color:var(--ink-dim)}
 /* the per-catch button on the Catches page */
 .cx-play{display:inline-flex;align-items:center;gap:.5rem;font:inherit;font-size:.85rem;
   font-weight:600;padding:.4rem .8rem;margin:.1rem 0 .9rem;cursor:pointer;
@@ -182,7 +215,7 @@ def script(live=True):
         "bands": _band_plan(), "prebuffer": PREBUFFER_S, "maxS": MAX_S,
         "floorUv": FLOOR_UV, "ceilDb": CEIL_DB, "envTau": ENV_TAU, "q": BAND_Q,
     }
-    js = "<script>const LSN=" + json.dumps(cfg) + ";\n" + _ENGINE
+    js = "<script>const LSN=" + json.dumps(cfg) + ";\n" + _ENGINE + _MODE_GLUE
     if live:
         js += _LIVE_GLUE
     return js + "</script>"
@@ -196,6 +229,9 @@ window.SeismoSynth=(function(){
   let buf=[],fs=100,playIdx=0,t0=0,consumed=0,timer=null,poller=null;
   let bars=[],say=()=>{},onEnd=()=>{},live=false,tEnd=0,maxS=LSN.maxS;
   let onProgress=()=>{};
+  let mode=(function(){try{return localStorage.getItem('seismoTune')||'c';}
+                       catch(e){return 'c';}})();
+  const foutFor=b=>mode==='t'?b.foutT:b.fout;
 
   // Band-pass biquads (RBJ) run in JS on the 100 sps ground samples. The ground never
   // enters the audio graph as audio -- it only ever moves gains, which is why a 100 sps
@@ -219,7 +255,7 @@ window.SeismoSynth=(function(){
     master=ctx.createGain(); master.gain.value=0; master.connect(ctx.destination);
     nodes=LSN.bands.map(b=>{
       const o=ctx.createOscillator(), g=ctx.createGain();
-      o.type='sine'; o.frequency.value=b.fout; g.gain.value=0;
+      o.type='sine'; o.frequency.value=foutFor(b); g.gain.value=0;
       o.connect(g); g.connect(master); o.start(); return {o,g};
     });
     master.gain.setTargetAtTime(1/Math.sqrt(LSN.bands.length), ctx.currentTime, 0.25);
@@ -316,7 +352,39 @@ window.SeismoSynth=(function(){
     if(live) poller=setInterval(()=>pollOnce().catch(()=>{}),2000);
     return true;
   }
-  return {start,stop,bandCount:LSN.bands.length};
+  // Switching retunes the live oscillators; it does NOT touch the filter bank, because
+  // only the OUTPUT mapping differs. That is what makes it an honest A/B of the
+  // compression rather than two unrelated renderings -- and why it can happen mid-note.
+  function setMode(m){
+    mode=(m==='t')?'t':'c';
+    try{localStorage.setItem('seismoTune',mode);}catch(e){}
+    if(ctx) LSN.bands.forEach((b,i)=>{
+      if(nodes[i]) nodes[i].o.frequency.setTargetAtTime(foutFor(b),ctx.currentTime,0.04);
+    });
+    return mode;
+  }
+  return {start,stop,setMode,getMode:()=>mode,bandCount:LSN.bands.length};
+})();
+"""
+
+_MODE_GLUE = r"""
+(function(){
+  const box=document.getElementById('lsn-mode');
+  if(!box||!window.SeismoSynth) return;
+  const note=document.getElementById('lsn-mode-note');
+  const NOTES={
+    c:'2 octaves, 110\u2013440\u202fHz \u2014 plays on anything, but a 4:1 ratio in the ground is heard as 2:1',
+    t:'true pitch, 64\u2013960\u202fHz \u2014 no compression at all; needs real bass response'
+  };
+  function paint(m){
+    [...box.querySelectorAll('button')].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+    if(note) note.textContent=NOTES[m];
+  }
+  box.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    paint(window.SeismoSynth.setMode(b.dataset.mode));
+  });
+  paint(window.SeismoSynth.getMode());
 })();
 """
 

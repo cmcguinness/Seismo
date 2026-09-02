@@ -1097,7 +1097,8 @@ def catches_page():
     cards += "".join(_card(c["head"], catches.catch_html(c), card_id=catches.card_id(c))
                      for c in catches.CATCHES)
     body = _titleblock("Catches", f"earthquakes {SID} has recorded, confirmed by the USGS catalog") + \
-        f'<div class="row"><div class="col-lg-9">{catches.INTRO}{cards}</div></div>'
+        f'<div class="row"><div class="col-lg-9">{catches.INTRO}' \
+        f'{listen.mode_control()}{cards}</div></div>'
     # The synth engine (shared with /listen) plus the per-catch button glue. Only the
     # engine, not the live poller: these buttons drive it from a fixed clip.
     return Response(_shell(f"Catches — {BRAND}", "catches", body,
