@@ -8,7 +8,8 @@ training table; trigger_train.py fits and evaluates.
 Rows:    one per trigger in the pi5 detector's events.log (the log the Detections page
          and the future deployment read), restricted to days with a local day-file.
 Label:   1 (quake) if the trigger starts within [-3, +40] s of a CONFIRMED catalog
-         event's predicted P arrival (origin + hypo/5.19 + 0.30 s; the same criteria as
+         event's predicted P arrival (origin + tp_s, the iasp91 arrival the harvest already
+         computed; the same criteria as
          detection_map.calibrate: snr>=3, -1.2<resid<0.4, lo_hi>=1 in event_harvest.csv).
          0 (cultural) otherwise -- EXCEPT triggers within +-180 s of ANY catalog event the
          harvester marked `seen` (or of a confirmed event), which are dropped as
@@ -43,7 +44,6 @@ from scipy import signal, stats
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
 STA_LAT, STA_LON = 38.451817, -122.621049
-VP, T0_INT = 5.19, 0.30
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -65,8 +65,19 @@ def load_catalog():
         # so the old hypot(dist_km, depth_km) here counted depth twice -- 9.79 km
         # became 13.57 km for the 2026-08-29 M1.8, putting its predicted arrival
         # 0.73 s late and mislabelling the window it trained on.
-        hypo = float(r["dist_km"])
-        arr = t + hypo / VP + T0_INT
+        # Read the arrival the HARVEST already computed, do not recompute it. The old
+        # line here was `t + dist_km/5.19 + 0.30`, a constant-velocity model with no Pn
+        # in it, while harvest_events.arrivals_s() has used iasp91 since 2026-08-29.
+        # Two models of the same quantity is one too many, and this is the LABEL.
+        #
+        # No label changes today: the error is at most 2.38 s over the confirmed set
+        # (88.8 km, Alameda) against a 43 s window, and a trigger never precedes P. But
+        # it is a live hazard rather than a harmless one, because the error grows with
+        # distance -- 16 s at Petrolia's 318 km, which is already `seen`. The day a far
+        # event becomes CONFIRMED, a 16 s shift moves the [-3,+40] window clean off the
+        # real arrival: the true positive falls outside it, and a cultural trigger
+        # 13-56 s later falls inside.
+        arr = t + float(r["tp_s"])
         rec = dict(arr=arr, mag=float(r["mag"]), dist=float(r["dist_km"]), place=r["place"], origin=r["origin"])
         # sustain: the same guard detection_map.calibrate() and the harvest's `seen` use,
         # and it belongs here most of all -- this is the LABEL. Peak SNR is carried by a
