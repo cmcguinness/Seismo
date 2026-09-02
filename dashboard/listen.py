@@ -47,7 +47,32 @@ import json
 
 # --- the mapping. Changing these changes what you hear; see the module docstring. ---
 BAND_LO, BAND_HI = 1.0, 15.0     # the station's working band
-N_BANDS = 12                     # log-spaced across it
+N_BANDS = 12                     # log-spaced across the band. Chosen by ear first and
+                                 # justified afterwards (2026-09-02) -- the justification
+                                 # holds, but it was not a derivation:
+                                 #
+                                 #   THE EAR. Critical bandwidth is ~1/3 octave; tones
+                                 #   closer than that blend rather than being heard
+                                 #   apart. 12 over 3.91 octaves is 0.36 octave spacing,
+                                 #   right at that limit. In compressed mode it is 0.18,
+                                 #   already finer than you can resolve as pitches.
+                                 #
+                                 #   THE FILTERS. At BAND_Q each band is ~1.42 octaves
+                                 #   wide against 0.355 octave spacing, so they already
+                                 #   overlap 4x. More bands at this Q add redundant
+                                 #   copies, not resolution.
+                                 #
+                                 #   AND PHYSICS STOPS THE OBVIOUS FIX. Sharper analysis
+                                 #   needs higher Q, and ring time is ~Q/(pi*f): at 1 Hz
+                                 #   Q=2.6 already rings 0.8 s, so doubling Q makes the
+                                 #   bottom bands take 1.6 s to respond and smears every
+                                 #   onset into a swell.
+                                 #
+                                 # So raising this number is not the way to more fidelity.
+                                 # The loss is PHASE, discarded entirely -- which is why a
+                                 # P-wave crack and a truck thud become the same twelve
+                                 # tones in different proportions. Keeping phase means a
+                                 # phase vocoder, not a wider filter bank.
 OUT_HZ = 220.0                   # A3, an octave below concert A -- the centre of the
                                  # output range. Dropped from 440 on 2026-09-02 because
                                  # earthquakes read as rumble and 220-880 sat too bright
