@@ -101,10 +101,26 @@ OUT_HZ = 220.0                   # A3, an octave below concert A -- the centre o
                                  # amplitude -- which is the one thing this is faithful
                                  # about.
 OUT_OCTAVES = 2.0                # total output span of the compressed mode
-TRUE_MULT = 64.0                 # subwoofer mode: a straight x64, exactly six octaves
-                                 # up, so 1-15 Hz lands at 64-960 Hz. No warp at all --
-                                 # an octave in the ground is an octave in the ear. It
-                                 # needs real bass response, which is the whole trade.
+TRUE_MULT = 16.0                 # subwoofer mode: a straight x16, exactly four octaves
+                                 # up, so 1-15 Hz lands at 16-240 Hz. No warp at all --
+                                 # an octave in the ground is an octave in the ear.
+                                 #
+                                 # WAS x64, AND THAT WAS WRONG. Six octaves was chosen
+                                 # because it was tidy, not for where it put the sound,
+                                 # and the two mappings cross at 3.03 Hz: below that x64
+                                 # is lower than compressed, above it x64 is HIGHER.
+                                 # Nearly all our energy is above 3 Hz, so "subwoofer
+                                 # mode" was actually raising the pitch. Measured on the
+                                 # M2.6 Middletown clip, whose median energy is 5.2 Hz:
+                                 # compressed put it at 256 Hz and x64 at 333 Hz, with
+                                 # nothing at all below 64 Hz. A subwoofer had nothing
+                                 # to do.
+                                 #
+                                 # x16 puts that median at 83 Hz and the bottom bands at
+                                 # 16-30 Hz, which genuinely needs the sub. Lower is
+                                 # available if it wants more rumble -- x12 gives 62 Hz
+                                 # and x8 gives 42 Hz -- at the cost of the lowest bands
+                                 # dropping under what most subs reproduce.
 PREBUFFER_S = 10.0               # == the dropout tolerance, exactly
 MAX_S = 60.0                     # bounded session; see the docstring
 FLOOR_UV = 0.5                   # a quiet night, mapped to silence
@@ -438,7 +454,7 @@ _MODE_GLUE = r"""
   const note=document.getElementById('lsn-mode-note');
   const NOTES={
     c:'2 octaves, 110\u2013440\u202fHz \u2014 plays on anything, but a 4:1 ratio in the ground is heard as 2:1',
-    t:'true pitch, 64\u2013960\u202fHz \u2014 no compression at all; needs real bass response'
+    t:'true pitch, 16\u2013240\u202fHz \u2014 no compression at all; the low bands need a subwoofer'
   };
   function paint(m){
     [...box.querySelectorAll('button')].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
