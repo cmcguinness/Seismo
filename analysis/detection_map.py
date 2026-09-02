@@ -42,6 +42,7 @@ dump is not (3 MB, gitignored) and the map degrades gracefully without it. Re-fe
 """
 import argparse
 import csv
+import datetime
 import json
 import math
 import os
@@ -439,6 +440,20 @@ def main():
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=args.dpi)
+
+    # Write the headline numbers next to the image, so the page that displays the map
+    # can state them instead of carrying a hand-maintained copy. That copy went stale
+    # twice in one day (2026-09-02): the text said 32 while the map's own legend said
+    # 33, and then said 33 while the harvest had moved to 34. Anything derived from the
+    # calibration belongs with the calibration.
+    meta = out.with_suffix(".json")
+    meta.write_text(json.dumps({
+        "n_conf": int(cal["n_conf"]),
+        "reach_km": round(float(cal["reach"]), 1),
+        "generated": datetime.datetime.now(datetime.timezone.utc)
+                             .strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }, indent=2) + "\n")
+    print(f"wrote {meta.name}: {cal['n_conf']} confirmed, reach {cal['reach']:.1f} km")
     print(f"\nwrote {out}")
 
 

@@ -17,9 +17,30 @@ render. Regenerate with:
 
 Conventions follow content.py: HTML entities, "{place}" substituted by the caller.
 """
+import json
 import os
 
 CATCH_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catches")
+
+
+def _map_stats():
+    """Headline numbers written beside the map by analysis/detection_map.py.
+
+    Not hand-maintained: this count went stale twice on 2026-09-02 alone -- the prose
+    said 32 while the map's own legend said 33, then said 33 after the harvest moved to
+    34. Anything derived from the calibration is read from the calibration.
+    """
+    try:
+        with open(os.path.join(CATCH_DIR, "detection-range-map.json")) as fh:
+            d = json.load(fh)
+        return int(d["n_conf"]), float(d["reach_km"])
+    except Exception:
+        return None, None
+
+
+_N_CONF, _REACH = _map_stats()
+_N_TXT = f"{_N_CONF} of them" if _N_CONF else "all of them"
+_REACH_TXT = f"{_REACH:g}&nbsp;km" if _REACH else "89&nbsp;km"
 
 INTRO = (
     "<p>These are the earthquakes the station has recorded and that the USGS catalog "
@@ -41,7 +62,7 @@ MAP_TEXT = (
     "predicted reach by magnitude, inverted from the same amplitude model the harvester "
     "uses and corrected by what the confirmed catches actually measured. Three rings per "
     "magnitude: the inner is a noisy afternoon, the outer a quiet night. Dots are the "
-    "confirmed catches &mdash; 33 of them, out to 89&nbsp;km, and the dashed line is the "
+    f"confirmed catches &mdash; {_N_TXT}, out to {_REACH_TXT}, and the dashed line is the "
     "furthest. Corrected for what those measured, the station reads about 1.8&times; quieter "
     "than the textbook California attenuation predicts.</p>"
     "<p>Two events sit outside that circle and are the only hard constraints on the far "
