@@ -35,51 +35,60 @@ is metadata you can defend, and `SS.OAKM1.xml` currently says f0 and zeta are gu
 conversation from "here is my station, the response is nameplate values." Do the
 ring-down first; ask NCEDC second.
 
-## Sonification: let people HEAR what the geophone hears
+## Sonification: let people HEAR what the geophone hears, LIVE
 
-Charles, 2026-09-02. Take the live feed, shift it into the audible range, and put a
-play button on the dashboard.
+Charles, 2026-09-02, with the constraints tightened the same day: **frequency shift only,
+no temporal shift — "I want to hear the earth live"** — and **map into about two octaves
+around 440 Hz**, not a wide re-rendering.
 
-The band is the whole problem and also the whole opportunity: everything this station
-cares about lives in **1-15 Hz**, which is one to three octaves BELOW the ~20 Hz floor of
-human hearing. So it is not a filtering job, it is a transposition job, and the choice of
-transposition decides what people actually perceive.
+Those two constraints settle the design, because they rule out most of the obvious ideas.
 
-Three approaches, cheapest first:
+**The arithmetic first.** The band is 1–15 Hz, which is **3.91 octaves**. That single
+number does most of the work here:
 
-- **Speed-up / resampling.** Play the samples back at N times the rate. A 100x speedup
-  puts 1-15 Hz at 100-1500 Hz, squarely in the ear's most sensitive region, and turns an
-  hour of record into 36 seconds. This is what IRIS and most seismology outreach actually
-  do, and it is close to free: no synthesis, just a different sample rate. It preserves
-  the RELATIVE structure of the signal perfectly -- a P onset still sounds like an onset,
-  a coda still decays -- which is the honest choice. Drawback: it cannot be live, because
-  100x speedup means you are either playing the past or waiting to buffer.
+- **Heterodyning against a carrier cannot work, and not because 440 Hz is the wrong
+  carrier.** Multiplying by a sine SHIFTS the band additively: 440 + [1,15] = 441–455 Hz,
+  which is **0.045 octaves** — one note, with a faint waver. No choice of carrier fixes
+  that, because the problem is additive-versus-multiplicative, not placement.
+- **A faithful transposition is a MULTIPLY, and stays 3.91 octaves wide.** x64 is exactly
+  six octaves up and lands the band at **64–960 Hz** — roughly C2 to B5, a perfectly
+  ordinary musical range. (The earlier "100–1500 Hz" was just x100, the same width placed
+  higher; nothing about it implied speeding up time.)
+- **Two octaves around 440 is therefore a COMPRESSION, not a shift.** Squeezing 3.91
+  octaves into 2 is a log-frequency warp:
 
-- **Heterodyne against a carrier** (Charles's "beat it against 440 Hz"). Multiply by a
-  440 Hz sine and you shift the whole band to 425-439 Hz. Genuinely live, trivially
-  cheap, and the pitch stays fixed while the TIMBRE moves -- but a 1 Hz and a 15 Hz
-  signal end up 14 Hz apart around the carrier, which the ear hears as almost the same
-  note. It compresses the interesting variation into something nearly inaudible.
+        f_out = 440 * (f_in / 3.87) ** 0.512          (3.87 Hz = sqrt(1*15), the pivot)
 
-- **FM the carrier with the voltage.** Live, and it maps amplitude to something the ear
-  is extremely good at (pitch). It is no longer a recording though -- it is a
-  sonification, and a loud low-frequency wobble and a quiet high-frequency one can
-  produce the same sound.
+        1 Hz -> 220    2 Hz -> 314    4 Hz -> 447    8 Hz -> 638    15 Hz -> 880
 
-**Recommendation: speed-up for the archive, FM for the live view.** They answer different
-questions. Speed-up is "what did that earthquake sound like" and is faithful; FM is "is
-something happening right now" and is a monitoring instrument. The heterodyne is the
-cheapest but the least informative, because it throws away the octave range that carries
-all the meaning.
+  Worth knowing what it costs: a 4:1 ratio in the ground becomes 2:1 in the ear, so
+  "this is twice the frequency" is no longer audible as an octave. For hearing texture and
+  events that is a fine trade; it is a sonification, not a rendering, and should say so.
 
-Worth noting what it would make audible: the 41 Hz heat-pump line is ALREADY above the
-band we filter to, so a naive speed-up of the raw feed would be dominated by HVAC. Band-
-pass to 1-15 Hz first or the whole thing sounds like a compressor cycling.
+**There is a latency floor and it is physics, not code.** Distinguishing 1 Hz from 2 Hz
+requires about a second of signal, whatever the method. So "live" bottoms out near 1–2 s
+no matter how it is built — which is irrelevant in practice, since ground motion heard two
+seconds late is still the earth happening now.
 
-Implementation sketch: the live ring already streams to the dashboard every 3 s. Render
-WAV server-side with numpy (resample, normalise, 16-bit PCM) and serve it, or do it in
-the browser with the Web Audio API from the same JSON the drum already fetches -- the
-browser route costs no server work and makes the "live" version actually live.
+**The build: a filter-bank vocoder, entirely in the browser.** Split 1–15 Hz into N
+log-spaced bands with `BiquadFilterNode`, follow each band's envelope, and drive an
+`OscillatorNode` at the mapped output frequency through a `GainNode`. Envelope-following
+is causal and adds only the smoother's time constant, so total latency is the lowest
+band's ring time — i.e. the physics floor above, and nothing more.
+
+Why this one rather than a phase vocoder: the output frequencies are chosen explicitly,
+so **"two octaves around 440" is a line of config rather than a consequence**, and x64
+faithful mode is the same code with a different mapping function. It is also all native
+Web Audio, so it costs the server nothing.
+
+**The data path already exists.** `/v1/live` is a rolling 30 s window of 100 sps in µV and
+the Live page polls it faster than every 3 s, so the browser has a continuous real-sample
+stream today. Nothing server-side is needed.
+
+**The trap, unchanged:** the 41 Hz heat-pump line is ABOVE our working band, so anything
+fed the raw stream is mostly HVAC. Band-pass to 1–15 Hz before the filter bank.
+
+Expect it to sound like a slowly shifting chord, with a P arrival as a swell across bands.
 
 ## Instrument response: PROVISIONAL response now exists; bench ring-down still wanted
 
