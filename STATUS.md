@@ -86,6 +86,12 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 ## 👀 WHO IS VISITING: A DAILY DIGEST, NOT A LOG DUMP (2026-09-02)
 
+**the NSMP data-centre manager replied the same afternoon** (2026-09-02 14:44 PDT, from an earthquake
+meeting in Istanbul): warm, wants to hear about the setup, offered to check 1835's metadata,
+and sent the ANSS site-characteristics compilation. 1835 has no measured Vs30, only proxies
+(290-540 m/s, class C/D): `doc/np1835-site.md`. A reply describing the station is drafted in
+Gmail; then wait for her to circle back. Outreach plan A1 updated.
+
 Now that the NP.1835 email is out, Charles wanted to know who reads the public dashboard.
 Two obstacles first: the site is proxied through Cloudflare, so the nginx log on apps02
 held Cloudflare's edge addresses, not visitors'; and the live view's 3 s poll was most of
