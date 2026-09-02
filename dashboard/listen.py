@@ -63,9 +63,16 @@ INTRO = (
     "you actually perceive.</p>"
     "<p>Twelve band-pass filters run across the live signal, and each one&rsquo;s "
     "loudness drives a single tone. What you hear is a chord whose balance is the shape "
-    "of the ground&rsquo;s motion right now: low tones for the slow swell of distant "
-    "surf and weather, higher ones for traffic, footsteps, and the sharp arrival of an "
-    "earthquake.</p>"
+    "of the ground&rsquo;s motion right now &mdash; mostly the neighbourhood: traffic "
+    "on Route&nbsp;12, wind and thermal drift, the house&rsquo;s own machinery, and, a "
+    "few times a week, the sharp arrival of an earthquake.</p>"
+    "<p>What you will <em>not</em> hear is the ocean. The microseism &mdash; the "
+    "ceaseless hum of distant surf that larger instruments record hundreds of "
+    "kilometres inland &mdash; lives at 0.07&ndash;0.15&nbsp;Hz. That is not merely "
+    "quieter than the lowest tone here; it is <em>below the bottom of this whole "
+    "range</em>, and measured against a Bodega Bay wave buoy it also sits about "
+    "100&times; under this geophone&rsquo;s noise floor. A 4.5&nbsp;Hz element is "
+    "simply deaf to it.</p>"
 )
 
 CAVEAT = (
