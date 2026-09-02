@@ -30,7 +30,11 @@ COPY dc_watch.py /app/
 # epochs.py is the analysis copy, rsync'd in by deploy.sh -- see activity.py.
 COPY activity.py content.py epochs.py /app/
 # The Catches page: its prose module and the static share images + detection map.
-COPY catches.py /app/
+# NB this COPY list is explicit, so a new page module MUST be added here or the
+# image builds cleanly and then the container dies on import. That is what
+# happened to listen.py on 2026-09-02: build green, `ModuleNotFoundError: listen`
+# at startup, dokku kept the old container, and the only symptom was a 404.
+COPY catches.py listen.py /app/
 COPY catches/ /app/catches/
 COPY signatures.json /app/
 COPY station.jpg /app/
