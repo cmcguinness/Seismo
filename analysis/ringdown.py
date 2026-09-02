@@ -36,6 +36,7 @@ candidate so the choice is made with both numbers visible.
     python ringdown.py solve --z0 0.31 --z1 0.55 --r1 1000
 """
 import argparse
+import math
 import sys
 
 import numpy as np
@@ -48,7 +49,8 @@ R_BIAS = 200_000.0       # the rev-1/2 bias network across the coil: 2 x 100k in
                          # explicitly so "no shunt" is not silently "infinite load".
 
 
-def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0, f_expect=F_ELEMENT):
+def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0, f_expect=F_ELEMENT,
+                       z_max=0.8):
     """Damping ratio from one ring-down burst.
 
     Fits the FULL damped-sinusoid model  A*exp(-alpha*t)*cos(w_d*t + phi)  by least
@@ -75,16 +77,42 @@ def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0, f_expect=F_ELEMENT
          noise once the ring dies in under a second, and least squares then pulls
          the amplitude toward zero and the decay toward nonsense.
 
-    ACCURACY, measured against synthetic ring-downs at 60 uV and 300 uV on a 2 uV
-    noise floor: within 0.02 for zeta <= 0.60; degrading above, and over-reading by
-    0.13-0.19 at zeta 0.80. SNR matters up there -- a 300 uV tap held the error to
-    0.03 at zeta 0.70 where a 60 uV tap gave 0.13, so TAP FIRMLY. Full scale at
-    gain 64 is +-78 mV and a normal tap is a few hundred uV, so there is ~200x of
-    headroom to spend on signal-to-noise.
+    ACCURACY, first characterisation (taps, 60 uV and 300 uV on a 2 uV noise floor):
+    within 0.02 for zeta <= 0.60; degrading above, and OVER-reading by 0.13-0.19 at
+    zeta 0.80. SNR matters up there -- a 300 uV tap held the error to 0.03 at zeta 0.70
+    where a 60 uV tap gave 0.13, so TAP FIRMLY. Full scale at gain 64 is +-78 mV and a
+    normal tap is a few hundred uV, so there is ~200x of headroom to spend on
+    signal-to-noise.
 
-    The bias is in the safe direction: an already well-damped element reads as even
-    more damped, and the decision ("leave the socket empty") is unchanged. Do not
-    quote a value above ~0.6 as precise.
+    ACCURACY, second characterisation (2026-09-02, ahead of the injector). Swept
+    synthetic releases A*exp(-zeta*w0*t)*sin(w_d*t) at f0 4.5 Hz into realistic red
+    noise, 12 seeds per cell, SNR = peak/background RMS:
+
+        zeta      SNR 50      SNR 100     SNR 200
+        0.30    +0.003        -0.001      -0.003
+        0.60    -0.032        -0.041      -0.044
+        0.75    -0.091        -0.092      -0.093
+        0.85    -0.176        -0.145      -0.145
+
+    Two things to take from that, and one unresolved.
+
+    THE HARD LIMIT, now fixed. zeta 0.85 failed 11-12 times out of 12 at EVERY signal
+    level including SNR 200 -- more signal cannot rescue an answer the bounds exclude.
+    See the w_lo comment below: the old lower bound of 0.6*f_expect is exactly a ceiling
+    of zeta = sqrt(1 - 0.6^2) = 0.80. That is now the `z_max` parameter.
+
+    THE BIAS DOES NOT IMPROVE WITH SNR, so it is a method bias, not noise. Widening the
+    fitter's band from 20 Hz to 45 Hz recovers about a third of it at zeta 0.85 (-0.145
+    to -0.093) and none at 0.60, so band-limiting a short, broadband transient is a
+    contributor but not the cause.
+
+    UNRESOLVED, AND IT MATTERS: this sweep reads LOW where the first characterisation
+    above read HIGH. The two disagree in sign, not just size, so at least one harness is
+    unrepresentative -- most likely the synthetic here, which is an ideal velocity
+    release rather than a real tap through the real front end. DO NOT QUOTE A ZETA ABOVE
+    ~0.6 UNTIL THAT IS SETTLED. The injector will settle it: it produces a known,
+    repeatable stimulus many times a day, which is exactly the input neither
+    characterisation had.
 
     Returns (zeta, f0, f_damped, n_cycles_fitted).
     """
@@ -122,14 +150,32 @@ def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0, f_expect=F_ELEMENT
         return A * np.exp(-alpha * tt) * np.cos(wd * tt + phi)
 
     p0 = [seg[0] if abs(seg[0]) > 0 else np.max(np.abs(seg)), alpha0, 2 * np.pi * fd0, 0.0]
-    w_lo, w_hi = 2 * np.pi * 0.6 * f_expect, 2 * np.pi * 1.5 * f_expect
+    # The lower frequency bound IS a ceiling on zeta, and it is worth writing it that
+    # way rather than as a bare 0.6. A damped oscillator rings at
+    # w_d = w_0 * sqrt(1 - zeta^2), so bounding f_d below at 0.6 * f_expect admits
+    # nothing above zeta = sqrt(1 - 0.6^2) = 0.8 -- above that the fit pins on the bound
+    # and raises, no matter how clean the data is. That was found by sweeping synthetic
+    # ring-downs (2026-09-02): zeta 0.85 failed 11 or 12 times out of 12 at EVERY signal
+    # level, including SNR 200, because more signal cannot rescue an excluded answer.
+    #
+    # It matters because zeta is the unknown we are building the injector to measure.
+    # The 0.6 in station/SS.OAKM1.xml is a vendor guess; if the element is really 0.85,
+    # the default bound would simply refuse to say so.
+    #
+    # The bound exists for a reason on TAPS -- a hard tap rings the case, not the
+    # element, and the bound catches that. An injector drives the coil electrically and
+    # excites no case mode, so that path can afford a wider window. Hence a parameter,
+    # with the tap-safe value as the default.
+    w_lo = 2 * np.pi * f_expect * math.sqrt(max(1e-6, 1.0 - min(z_max, 0.999) ** 2))
+    w_hi = 2 * np.pi * 1.5 * f_expect
     p0[2] = min(max(p0[2], w_lo * 1.01), w_hi * 0.99)
     popt, _ = curve_fit(model, t, seg, p0=p0, maxfev=20000,
                         bounds=([-np.inf, 0.0, w_lo, -2 * np.pi],
                                 [np.inf, 200.0, w_hi, 2 * np.pi]))
     _, alpha, w_d, _ = popt
     if not (w_lo * 1.02 < w_d < w_hi * 0.98):
-        raise ValueError(f"fit pinned at the frequency bound ({w_d/2/np.pi:.2f} Hz) — "
+        raise ValueError(f"fit pinned at the frequency bound ({w_d/2/np.pi:.2f} Hz; "
+                         f"z_max={z_max} allows {w_lo/2/np.pi:.2f}-{w_hi/2/np.pi:.2f} Hz) — "
                          "the tap excited a case mode, not the element. Tap gentler.")
     w_0 = np.hypot(alpha, w_d)
     zeta = alpha / w_0
@@ -207,7 +253,8 @@ def main(argv=None):
             print(f"\n{len(arr)} releases:  zeta median {np.median(arr[:,0]):.3f} "
                   f"(MAD {np.median(np.abs(arr[:,0]-np.median(arr[:,0]))):.3f})   "
                   f"f0 median {np.median(arr[:,1]):.2f} Hz")
-            print("  NB the estimator over-reads above zeta ~0.6 -- see the docstring.")
+            print("  NB the estimator is biased above zeta ~0.6 and the two\n"
+                  "     characterisations disagree in SIGN -- see the docstring.")
             print("  Feed f0/zeta into analysis/make_stationxml.py (F0, ZETA).")
             return
         if not a.npz:
