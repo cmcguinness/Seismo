@@ -83,7 +83,24 @@ NULL_TEST = dict(lat=37.501, lon=-118.842, mag=3.4, dist=347.7,
 # n=1 anchor for the corner penalty in place of the M4.2, reshaping every ring on this
 # map from a single far-field point. It is drawn, not fitted.
 FAR_CONFIRMED = dict(lat=40.450, lon=-125.272, mag=4.84, dist=318.6,
+                     origin="2026-08-29T02:41:11",
                      label="M4.8 Petrolia\n319 km — recorded")
+
+# Events that are REAL detections but are deliberately kept out of the range fit,
+# keyed by origin time (the only field a catalogue revision cannot move).
+#
+# This list has to exist because the exclusion was never actually enforced. Petrolia
+# stayed out of the fit only because its residual happened to fail the filter below --
+# and on 2026-09-02 USGS revised its magnitude 4.84 -> 4.74, the residual shifted, it
+# qualified, and the weekly re-harvest tried to publish a validated range of 318.6 km
+# in place of 88.8. The gate in reharvest.py caught it, but a deliberate judgement
+# should not be revocable by a 0.1 magnitude revision.
+#
+# The reasoning for excluding it (STATUS 2026-08-29) is unchanged: it reads ~16x below
+# the textbook amplitude, it is identified by arrival time rather than amplitude, and a
+# single far-field point would reshape every ring on the map. It is still DRAWN -- see
+# FAR_CONFIRMED above -- just not fitted.
+EXCLUDE_FROM_FIT = {"2026-08-29T02:41:11"}
 
 CITIES = [
     ("San Francisco", 37.775, -122.419), ("Sacramento", 38.582, -121.494),
@@ -138,7 +155,8 @@ def calibrate():
     # door slam. Every genuine catch holds 3.4-7.9 s.
     conf = [r for r in rows
             if float(r["snr"]) >= 3 and -1.2 < float(r["resid_log10"]) < 0.4
-            and float(r["lo_hi"]) >= 1 and float(r["sustain_s"]) >= 2.0]
+            and float(r["lo_hi"]) >= 1 and float(r["sustain_s"]) >= 2.0
+            and r["origin"][:19] not in EXCLUDE_FROM_FIT]
     if not conf:
         raise SystemExit("no confirmed events in the harvest CSV -- re-run harvest_events.py")
 
