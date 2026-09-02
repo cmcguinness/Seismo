@@ -84,6 +84,34 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 👀 WHO IS VISITING: A DAILY DIGEST, NOT A LOG DUMP (2026-09-02)
+
+Now that the NP.1835 email is out, Charles wanted to know who reads the public dashboard.
+Two obstacles first: the site is proxied through Cloudflare, so the nginx log on apps02
+held Cloudflare's edge addresses, not visitors'; and the live view's 3 s poll was most of
+the log. Fixed the first with `/home/dokku/seismo/nginx.conf.d/realip.conf` (Cloudflare's
+published ranges + `real_ip_header CF-Connecting-IP`); real addresses from 18:52 UTC.
+
+**`apps02/visitors.py`** (cron 14:00 UTC, installed by `apps02/install-visitors.sh`) runs
+GoAccess 1.9 with the DB-IP lite ASN and country databases over the day's log, minus
+polls, health checks, assets and crawlers, and pushes one ntfy message to the new
+**`seismo-visitors`** topic: visitors, pageviews, top pages, referrers (own hostnames
+excluded), countries, the networks behind the addresses (hosting providers excluded),
+and a starred **WATCHLIST** line at higher priority when a network name matches
+USGS/DOI, Berkeley, universities, NOAA, NASA, LLNL, CGS. The 7-day GoAccess report is at
+**https://seismo.mcguinness.ai/visitors/** behind basic auth (user `charles`, password
+in `/root/seismo-visitors.password` on apps02), served with `access_log off`.
+
+Two things learned on the way: apps02 had never had ntfy credentials (the dashboard's
+own dc_watch push there could not have worked), so pi5's `/etc/seismo/ntfy.env` was
+copied over and the `seismo` ntfy user granted write-only on the new topic; and
+**ntfy.mcguinness.ai is now behind Cloudflare** despite the reference doc, whose WAF
+answers Python-urllib's User-Agent with `403 error code: 1010`. Any named agent passes.
+
+Caveats: the organisation is only as good as the ASN database (a phone reads as a
+carrier); federal traffic often exits a shared DOI block; 2026-09-01 and earlier show
+Cloudflare as the network. Refresh the databases monthly (cron does, 3rd of the month).
+
 ## 🪞 THE CATCHES PAGE NOW SHOWS THE REFERENCE STATION, AND THE TABLE IS DATA (2026-09-02)
 
 Prompted by the outreach plan (`doc/outreach-plan.md`): the first move toward NCEDC is

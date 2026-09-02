@@ -24,7 +24,7 @@ original design with the alternatives already rejected.
 |---|---|---|
 | `seismo.local` (Pi 2B, garage) | acquisition only: `station/adsreader/` (C) owns the ADS1256 — DRDY as a kernel interrupt, hardware timestamps — and `station/recorder.py` writes miniSEED day-files on an exact 100 sps grid, despikes, runs the inline STA/LTA, streams records by UDP to pi5 | `station/` — deployed by hand (`scp`), units in `station/*.service` |
 | `pi5` (Pi 5, house, LAN only) | the owned data plane: `server/udp_collector.py` builds the archive, `server/detector.py` re-detects over it and **scores each trigger with the classifier** (`p_quake`, ntfy push at ≥ 0.7), `server/seismo_server.py` serves `/v1/*`; the **LAN dashboard** (Dokku app `seismo`, `dashboard/`) | `server/`, `dashboard/` — **auto-deployed**: pi5 pulls `main` every 2 min (`pi5/autodeploy.sh`); `./deploy.sh` is the manual path |
-| `apps02.mcguinness.ai` (public VPS) | the **public dashboard**, https://seismo.mcguinness.ai — same image, fed **outbound-only** by pi5 (rsync every minute + the live ring every 3 s). Nothing at the house is reachable from the internet | `./deploy.sh public` |
+| `apps02.mcguinness.ai` (public VPS) | the **public dashboard**, https://seismo.mcguinness.ai — same image, fed **outbound-only** by pi5 (rsync every minute + the live ring every 3 s). Nothing at the house is reachable from the internet. Also the **visitor digest** (`apps02/visitors.py`, GoAccess → ntfy `seismo-visitors` daily; report at `/visitors/` behind basic auth) | `./deploy.sh public`; `apps02/install-visitors.sh` by hand |
 
 The Mac is for analysis (`analysis/`, obspy venv), CAD (`parts/`), **training the
 trigger classifier** (`analysis/trigger_train.py` → `analysis/models/`, shipped to pi5
