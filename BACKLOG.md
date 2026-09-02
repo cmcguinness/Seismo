@@ -35,6 +35,28 @@ is metadata you can defend, and `SS.OAKM1.xml` currently says f0 and zeta are gu
 conversation from "here is my station, the response is nameplate values." Do the
 ring-down first; ask NCEDC second.
 
+## Sonification, part two: a play button on each catch
+
+Obvious once the live version works (2026-09-02, "it's definitely like a Star Trek classic
+kind of sound"). The ambient state is three or four tones drifting; an earthquake excites
+the whole band at once, so all twelve swell together and then decay in sequence — high
+bands first, as the crust strips them out. Nobody will hear that live except by luck: the
+station catches roughly five a week and they last seconds.
+
+So put the same synth on the Catches page. **This does not break the no-temporal-shift
+rule** — it is 1:1 real-time playback of archived samples, exactly like the live feed, just
+reading from a day-file instead of the ring. The M2.6 Middletown record would run about
+40 seconds, comfortably inside the existing 60 s session bound.
+
+Nearly free: the filter bank, the mapping and the bounded-session machinery in
+`dashboard/listen.py` are all reusable. What is needed is an endpoint that returns N
+seconds of archived µV around a catch's trigger time in the same shape `/live-data` uses,
+so the browser code does not care which it is fed. No pre-buffering needed either — the
+whole clip is available at once, which removes the only fiddly part of the live version.
+
+The pairing is the point: hear the neighbourhood, then hear an earthquake, and the
+difference is the entire argument for why the instrument exists.
+
 ## Sonification: let people HEAR what the geophone hears, LIVE
 
 Charles, 2026-09-02, with the constraints tightened the same day: **frequency shift only,
