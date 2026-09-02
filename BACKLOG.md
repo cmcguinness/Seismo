@@ -81,6 +81,38 @@ so **"two octaves around 440" is a line of config rather than a consequence**, a
 faithful mode is the same code with a different mapping function. It is also all native
 Web Audio, so it costs the server nothing.
 
+**The playback contract: pre-buffer, then a bounded 60 s session.** Charles, same day —
+buffer enough first that there is almost never a break, then play continuously for up to
+60 seconds.
+
+The non-obvious consequence, and it is the whole design: **because playback runs at 1:1
+real time, the buffer never refills beyond its head start.** There is no speed-up to let
+it catch up, so whatever B seconds you buffer before starting IS your dropout tolerance,
+exactly and permanently:
+
+| pre-buffer B | survives an outage of | ~polls lost (at 2 s) | lag behind now |
+|---|---|---|---|
+| 5 s | 5 s | 2 | 5 s |
+| 10 s | 10 s | 5 | 10 s |
+| 25 s | 25 s | 12 | 25 s |
+
+So B is a straight dial between *how live* and *how robust*, and it is capped by the
+source: `/v1/live` is a **30 s rolling window**, making ~25 s the practical ceiling. Start
+at B = 10 s. A 60 s session then consumes 60 + B seconds of feed.
+
+**The 60 s cap is a real simplification, not just a limit.** It removes the long-lived
+connection entirely: no WebSocket or SSE, no reconnect/backoff state machine, no unbounded
+memory (60 + 25 s at 100 sps is ~34 KB of source samples), and no fight with background-tab
+timer throttling over long spans. It also fits browser **autoplay policy**, which requires
+a user gesture to start audio — "press play, listen for a minute" satisfies that naturally
+where an always-on live stream would simply be blocked. Create the `AudioContext` on the
+click, close it at the end.
+
+**Two things that will otherwise sound broken.** The rolling window OVERLAPS between polls,
+so splice on the returned `t_end` rather than appending — appending repeats samples and is
+audible as stutter. And splice points and station gaps both need a short crossfade, or
+each one is a click.
+
 **The data path already exists.** `/v1/live` is a rolling 30 s window of 100 sps in µV and
 the Live page polls it faster than every 3 s, so the browser has a continuous real-sample
 stream today. Nothing server-side is needed.
