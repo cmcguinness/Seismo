@@ -92,15 +92,28 @@ held Cloudflare's edge addresses, not visitors'; and the live view's 3 s poll wa
 the log. Fixed the first with `/home/dokku/seismo/nginx.conf.d/realip.conf` (Cloudflare's
 published ranges + `real_ip_header CF-Connecting-IP`); real addresses from 18:52 UTC.
 
-**`apps02/visitors.py`** (cron 14:00 UTC, installed by `apps02/install-visitors.sh`) runs
-GoAccess 1.9 with the DB-IP lite ASN and country databases over the day's log, minus
-polls, health checks, assets and crawlers, and pushes one ntfy message to the new
-**`seismo-visitors`** topic: visitors, pageviews, top pages, referrers (own hostnames
-excluded), countries, the networks behind the addresses (hosting providers excluded),
-and a starred **WATCHLIST** line at higher priority when a network name matches
-USGS/DOI, Berkeley, universities, NOAA, NASA, LLNL, CGS. The 7-day GoAccess report is at
-**https://seismo.mcguinness.ai/visitors/** behind basic auth (user `charles`, password
-in `/root/seismo-visitors.password` on apps02), served with `access_log off`.
+**`apps02/visitors.py`** (installed by `apps02/install-visitors.sh`; cron: ingest hourly,
+digest + report 14:00 UTC, DB-IP refresh monthly) tails the log into **Postgres** (Dokku
+service `seismo-visitors`, like every other database on apps02; the host cron job reaches
+it by container address, DSN in `/etc/seismo/visitors-db.dsn`), resolves each address
+once (DB-IP lite city + ASN via python3-maxminddb), and classifies every (day, address):
+**reader** = fetched a page AND rendered something (asset, /live-data poll, or own-site
+referrer), or 20+ polls; **crawler** = never sent a browser-looking User-Agent that day;
+**scanner** = the rest. Digest to the **`seismo-visitors`** ntfy topic: readers,
+pageviews, scanners, crawlers, top pages, referrers, **US states** and countries,
+networks (hosting hidden), and a starred **WATCHLIST** line at higher priority when a
+network name (USGS/DOI, Berkeley, universities, NOAA, NASA, LLNL, CGS) or a US city
+(Berkeley, Menlo Park, Moffett Field, Mountain View, Pasadena, Golden, Reston, Rohnert
+Park...) matches. Our own report at **https://seismo.mcguinness.ai/visitors/** (basic
+auth, user `charles`, password in `/root/seismo-visitors.password`, `access_log off`):
+readers/scanners per day (30 d), watchlist log, a continent > country > state > city
+tree of readers, pages, referrers, networks, what the scanners probed for. Lines before
+the real-IP fix (18:53:30 UTC) are never ingested: Cloudflare's edges geolocate to San
+Jose, exactly where a Moffett Field reader would appear.
+
+Started with GoAccess and replaced it the same evening: everything actually wanted
+(readers vs scanners, states, excluding pre-fix lines, history past the 7-day log
+rotation) meant parsing the log ourselves anyway, and its panel stops at country.
 
 Two things learned on the way: apps02 had never had ntfy credentials (the dashboard's
 own dc_watch push there could not have worked), so pi5's `/etc/seismo/ntfy.env` was
