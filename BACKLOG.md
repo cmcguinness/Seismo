@@ -1,3 +1,36 @@
+## Being findable: FDSN web services, and who would ever query them
+
+Charles, 2026-09-02: "We can serve them, but if there's nobody to serve, we're left
+singing Be Our Guest." Correct -- the protocol is the easy half, discoverability is the
+real one. Two separable problems.
+
+**Serving (entirely ours, no permission needed).** Implement `fdsnws-station` and
+`fdsnws-dataselect` on the public host and any standard tool can reach us:
+
+    Client("https://seismo.mcguinness.ai").get_waveforms("SS","OAKM1","00","EHZ", t1, t2)
+
+Every piece already exists -- a miniSEED archive, a public host, and `station/SS.OAKM1.xml`,
+which IS what `fdsnws-station` returns. Two endpoints and a query-parameter spec.
+Worth doing even with zero external users: our own analysis stops needing bespoke
+archive-reading glue, and the day someone asks, the answer is a URL rather than a project.
+
+**Being found (needs other people).** Tools discover data through the FDSN **federator
+(FedCatalog)**, which is what obspy's RoutingClient and Wilber3 consult. That needs an
+assigned network code and registration as a data centre. `SS` is self-assigned and not
+unique enough to archive under.
+
+The realistic route is not the standards committee, it is **NCEDC** -- Berkeley/USGS, the
+regional data centre, which already serves NP.1835, the station we calibrate against.
+Contributing to a regional archive is a conversation with people. A continuously-recording
+station on the Rodgers Creek/Maacama system with a documented response is not an absurd
+thing to offer them.
+
+**Which puts the calibrator on this critical path too.** The entry ticket to any archive
+is metadata you can defend, and `SS.OAKM1.xml` currently says f0 and zeta are guesses.
+"Here is my station and here is the bench measurement of its response" is a different
+conversation from "here is my station, the response is nameplate values." Do the
+ring-down first; ask NCEDC second.
+
 ## Sonification: let people HEAR what the geophone hears
 
 Charles, 2026-09-02. Take the live feed, shift it into the audible range, and put a
