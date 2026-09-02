@@ -25,9 +25,16 @@ The day-file for an event can be pulled from the station, e.g.:
     scp seismo.local:'~/seismo/data/XX.OAKMT.00.SHZ.D.YYYY.JJJ.mseed' .
 """
 import argparse
+import json
 import math
+import os
 
 import numpy as np
+
+# The plot box, as fractions of figure width. Constant across BOTH layouts on
+# purpose: anything overlaying these figures needs it, and it is emitted in the
+# .geom.json sidecar beside every render.
+AX_X0, AX_W = 0.075, 0.885
 import obspy
 from obspy import UTCDateTime
 
@@ -196,11 +203,11 @@ def main():
     plt.rcParams.update({"font.family": "DejaVu Sans", "axes.edgecolor": "#d5dbda"})
     if args.spectrogram:
         fig = plt.figure(figsize=(12.0, 9.0), dpi=140)
-        ax = fig.add_axes([0.075, 0.46, 0.885, 0.38])                 # waveform (top)
-        axsp = fig.add_axes([0.075, 0.14, 0.885, 0.28], sharex=ax)    # spectrogram (bottom)
+        ax = fig.add_axes([AX_X0, 0.46, AX_W, 0.38])                  # waveform (top)
+        axsp = fig.add_axes([AX_X0, 0.14, AX_W, 0.28], sharex=ax)     # spectrogram (bottom)
     else:
         fig = plt.figure(figsize=(12.0, 6.75), dpi=140)
-        ax = fig.add_axes([0.075, 0.155, 0.885, 0.60])
+        ax = fig.add_axes([AX_X0, 0.155, AX_W, 0.60])
         axsp = None
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
@@ -298,6 +305,22 @@ def main():
 
     out = args.out or f"eq_{origin.strftime('%Y%m%d_%H%M%S')}.png"
     fig.savefig(out, dpi=140, facecolor="white")
+
+    # Emit the plot geometry beside the image. Without this, anything that wants to
+    # overlay the figure -- the Catches page's playhead, for one -- has to
+    # reverse-engineer it from pixels, and that fails: the existing catch images were
+    # rendered ad hoc with different widths and windows, and a detector run over them on
+    # 2026-09-02 got 4 outright failures and 3 impossible answers out of 9 (the t=0 line
+    # placed AFTER the P line). The axes box is a constant in this file; the time window
+    # is not. Both belong in a sidecar rather than in a guess.
+    geom = {"ax_x0": AX_X0, "ax_x1": AX_X0 + AX_W,
+            "t0": float(t[0]), "t1": float(t[-1]),
+            "origin_utc": str(origin), "png": os.path.basename(str(out))}
+    gp = os.path.splitext(str(out))[0] + ".geom.json"
+    with open(gp, "w") as fh:
+        json.dump(geom, fh, indent=2)
+    print(f"  geometry -> {os.path.basename(gp)}  "
+          f"(axes x {AX_X0:.3f}-{AX_X0+AX_W:.3f}, window {t[0]:.1f}..{t[-1]:.1f}s)")
     print(f"saved {out}  (peak {abs(pk):.1f} µV at +{tpk:.1f}s"
           + (f", epi {epi:.1f} km, hypo {hypo:.1f} km" if epi else "") + ")")
 
