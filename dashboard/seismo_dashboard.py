@@ -19,6 +19,7 @@ from starlette.responses import JSONResponse, Response
 
 import activity
 import catches
+import listen
 import content
 import heli_build
 import heli_render
@@ -514,7 +515,7 @@ def _rail(active):
         return f'<a class="r-nav-a{on}"{aria} href="{href}">{label}</a>'
 
     groups = [
-        ("Now", [("/", "Live", "live")]),
+        ("Now", [("/", "Live", "live"), ("/listen", "Listen", "listen")]),
         ("Recent", ([] if _PUBLIC_COPY else [("/detections", "Detections", "detections")])
                    + [("/history", "History", "history"),
                       ("/activity", "Activity", "activity")]),
@@ -1067,6 +1068,21 @@ def about():
     body = _titleblock("About this station", f"{SID} &middot; {PLACE}") + \
         f'<div class="row"><div class="col-12">{cards}</div></div>'
     return Response(_shell(f"About — {BRAND}", "about", body, narrow=True),
+                    media_type="text/html")
+
+
+@app.get("/listen")
+def listen_page():
+    # The synth is entirely browser-side (listen.py assembles it); the server does no
+    # audio work and needs no new endpoint -- it runs on the samples /live-data already
+    # serves. See listen.py's docstring for why it is a compression, not a transposition.
+    body = _titleblock("Listen", "the ground, live, moved into hearing") + \
+        '<div class="row"><div class="col-12">' + \
+        _card("Hear it", listen.INTRO + listen.markup()) + \
+        _card("What you are actually hearing", listen.CAVEAT) + \
+        '</div></div>'
+    return Response(_shell(f"Listen — {BRAND}", "listen", body,
+                           listen.CSS + listen.script(), narrow=True),
                     media_type="text/html")
 
 
