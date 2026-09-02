@@ -71,6 +71,19 @@
 #define PIN_BTN     PB4     /* panel button, to ground, internal pull-up */
 #define PIN_LED     PB1
 
+/* Invariants the compiler can enforce, so a bad edit fails the build rather than the
+ * experiment. The first one is not hypothetical: burst() computes
+ * SPACING_MS - PULSE_MS in uint16_t, so swapping those two constants would not error --
+ * it would wrap to ~65 s of silence between pulses, and the only symptom would be that
+ * calfinder quietly stopped finding bursts months later. */
+_Static_assert(PULSE_MS < SPACING_MS,
+               "PULSE_MS must be shorter than SPACING_MS or burst() underflows");
+_Static_assert(N_PULSES >= 2, "a single pulse is not a recognisable signature");
+_Static_assert(PIN_INJ != PIN_LED && PIN_INJ != PIN_BTN && PIN_LED != PIN_BTN,
+               "the three pins must be distinct");
+_Static_assert(PIN_BTN != PB5, "PB5 is RESET -- see the RSTDISBL note in the BOM");
+_Static_assert(SOAK_H > 0 && PERIOD_H > 0, "zero-length schedule");
+
 static volatile uint8_t button_hit;
 
 ISR(WDT_vect) { }                    /* wake only */
@@ -113,6 +126,13 @@ static uint8_t nap_hours(uint16_t hours)
     return 0;
 }
 
+static void delay_ms_n(uint16_t ms)
+{
+    while (ms--)
+        _delay_ms(1);
+}
+
+
 /* Wait for the button to come up; return 1 if it was held past LONG_PRESS_MS.
  * The LED follows the button so there is feedback while deciding. */
 static uint8_t held_long(void)
@@ -133,11 +153,6 @@ static uint8_t held_long(void)
     return 0;
 }
 
-static void delay_ms_n(uint16_t ms)
-{
-    while (ms--)
-        _delay_ms(1);
-}
 
 /* The signature: N_PULSES closures of PULSE_MS, starting SPACING_MS apart.
  *
