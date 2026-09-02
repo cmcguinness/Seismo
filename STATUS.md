@@ -167,6 +167,83 @@ Refresh after a new catch: `refstation_compare.py <origin> --harvest`, then
 `catches_data.py`, then `pngquant --force --skip-if-larger --quality 70-90 --ext .png`
 on the new figure. St. Helena (07-25, 60 sps) has a write-up but no row or figure.
 
+## 🎯 THE CATCHES PASS: MEASURED P PICKS, ONE FRAME, AND A VELOCITY RESULT (2026-09-02)
+
+Started as a cosmetic ask — make the playback waveform line up with the trace image
+above it — and turned into the most useful measurement of the day.
+
+**Why it could not be done cheaply.** The catch images were made ad hoc over weeks at
+different widths (1400 and 1150 px) with different windows. A detector run over the old
+set returned **four outright failures and three impossible answers** (the t=0 line placed
+*after* the P line). Reverse-engineering geometry from pixels is not a foundation.
+
+**So the renderer now emits it.** `quake_share.py` writes a `.geom.json` beside every PNG
+(axes box + plotted window), and the axes literals are named rather than repeated.
+
+**The picks are MEASURED.** `quake_share` is explicit that `--p` must be an onset picked
+off the trace, never predicted from catalogue distance. `analysis/catch_picks.py` picks
+all nine, `catch_picks.json` records them; taup supplies only a **search window** — where
+to look, never the answer — and the residual is reported so the difference stays visible:
+**median +1.24 s, spread 0.66 s**. Residuals near zero everywhere would have meant the
+picker was echoing the prediction.
+
+**Three wrong pickers first**, each caught by the one independently recorded number, the
++9.06 s the page already carries for Cloverdale:
+
+- ✗ envelope walk-back on a **zero-phase** filter → 6.81 s. `sosfiltfilt` smears a loud
+  transient *backwards* and the walk-back follows the precursor. (Same acausal trap
+  `calfinder.py` hit from the other direction the same day.) Causal filter now.
+- ✗ AIC alone → 5.51 s: the coarse trigger fired on cultural spikes at 4.2× and 4.8× the
+  median floor, on a night whose noise p99 was already 3.75× median.
+- ✗ "loudest in ±15 s" → four picks 5–9 s late by finding **S**, which at 88 km is 12 s
+  behind P and far louder. ±4 s excludes S; taup is good to ~1–2 s locally.
+
+**⭐ THE RESULT.** Over the 8 local events (<100 km) the measured picks show iasp91
+running **systematically early**:
+
+| model | median error | mean \|error\| |
+|---|---|---|
+| iasp91 (global) | **+0.94 s** | 1.02 s |
+| station's own 5.19 km/s | **−0.14 s** | 0.62 s |
+
+Petrolia at 319 km reverses it exactly as it should — taup −0.63 s, local model
+−16.61 s, because the local model has no Pn. Nine independent picks now support keeping
+**both** models and the crossover between them, which is what `eventcheck.py` does.
+
+**The frame.** Every image spans `[pick−10, pick+40]`, anchored on its own measured P
+rather than on origin — no origin-relative window frames both Santa Rosa (P at +2.2 s)
+and Petrolia (+45.2 s). 50 s, inside the audio player's 60 s cap, so image and clip share
+one window. All nine sidecars now report identical axes and identical 50.0 s spans.
+Result: the playhead sits **0 px** off the figure's plot box on both edges.
+
+⚠️ Images and clips are served with long cache headers (correct — they are static) but
+they must AGREE: a cached clip beside a freshly rendered image is a misaligned playhead,
+the exact bug being fixed. Both URLs now carry an mtime+size version tag.
+
+## 🔊 SONIFICATION, REFINED BY EAR (2026-09-02, later)
+
+Four rounds of Charles listening and correcting, each one a real defect:
+
+- **12 → 13 bands.** 13 tones is 12 intervals, so across exactly 2 octaves each step is
+  exactly 2 semitones: the compressed mode now lands on a **true whole-tone scale**,
+  A2 B2 C♯3 D♯3 F3 G3 A3 B3 C♯4 D♯4 F4 G4 A4, every interval 200.00 cents. It falls out
+  of the existing power law for free. At 12 the steps were 2.18 semitones and the chord
+  sat permanently a few cents sour. (Worth knowing: the whole-tone scale *cannot* exist
+  in just intonation — six major whole tones overshoot the octave, six minor ones fall
+  short. It closes only under equal temperament.)
+- **440 → 220 Hz centre**, because earthquakes are rumbly. Not compensated for the ear's
+  reduced low-frequency sensitivity: a per-band loudness trim would misstate relative
+  ground amplitude, which is the one thing this rendering is faithful about.
+- **The playhead led the sound by ~0.5 s.** 175 ms of that was mine before the audio
+  device was involved — the envelope follower's 120 ms τ plus 50 ms of gain smoothing —
+  and `outputLatency` reports 0 until the context is running, so it is read every tick.
+- **✗ Subwoofer mode was raising the pitch.** ×64 was chosen because six octaves was
+  *tidy*, which is a property of the transform, not the result. The two mappings cross at
+  3.03 Hz and nearly all our energy is above that, so ×64 put the Middletown clip's
+  median energy at **333 Hz against compressed mode's 256** — with nothing below 64 Hz at
+  all, so a subwoofer had nothing to reproduce. Now ×16: median at 83 Hz, bottom bands at
+  16–30 Hz, which genuinely needs the sub.
+
 ## 🔊 SONIFICATION: /listen, AND A PLAY BUTTON ON EVERY CATCH (2026-09-02)
 
 Charles's idea, and every parameter came from a constraint he set rather than a default
