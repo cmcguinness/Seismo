@@ -18,7 +18,7 @@ and BACKLOG.md carries the full reasoning:
 
   SO IT IS A COMPRESSION, NOT A TRANSPOSITION. 1-15 Hz is 3.91 octaves. Multiplying by 64
   would transpose it faithfully to 64-960 Hz, all intervals intact -- but the ask was two
-  octaves around concert A, and squeezing 3.91 into 2 is a log-frequency warp:
+  octaves centred on A3, and squeezing 3.91 into 2 is a log-frequency warp:
 
       f_out = OUT_HZ * (f_in / PIVOT) ** P
 
@@ -36,7 +36,8 @@ and BACKLOG.md carries the full reasoning:
   has to notice.
 
 HOW THE SOUND IS MADE. A filter-bank vocoder, chosen over a phase vocoder because the
-output frequencies are then explicit: "two octaves around 440" is configuration rather
+output frequencies are then explicit: the two-octave span and where it sits are
+configuration rather
 than a consequence. N band-passes across 1-15 Hz run on the 100 sps ground samples in
 JavaScript; each band's envelope drives one oscillator's gain. The ground signal never
 enters the audio graph as audio -- it only ever controls gains, which is what makes a
@@ -47,7 +48,17 @@ import json
 # --- the mapping. Changing these changes what you hear; see the module docstring. ---
 BAND_LO, BAND_HI = 1.0, 15.0     # the station's working band
 N_BANDS = 12                     # log-spaced across it
-OUT_HZ = 440.0                   # concert A, the centre of the output range
+OUT_HZ = 220.0                   # A3, an octave below concert A -- the centre of the
+                                 # output range. Dropped from 440 on 2026-09-02 because
+                                 # earthquakes read as rumble and 220-880 sat too bright
+                                 # for that. Two consequences worth knowing: laptop
+                                 # speakers roll off hard below ~200 Hz, so the lowest
+                                 # bands may vanish on one; and the ear is less sensitive
+                                 # down here, so a low band sounds quieter than its gain
+                                 # says. Neither is compensated, because a per-band
+                                 # loudness trim would misstate relative ground
+                                 # amplitude -- which is the one thing this is faithful
+                                 # about.
 OUT_OCTAVES = 2.0                # total output span, so 220-880 Hz
 PREBUFFER_S = 10.0               # == the dropout tolerance, exactly
 MAX_S = 60.0                     # bounded session; see the docstring
@@ -78,7 +89,8 @@ INTRO = (
 CAVEAT = (
     "<p>This is a <b>sonification, not a recording</b>, and it is worth knowing exactly "
     "how. The frequencies are compressed, not transposed: 3.91 octaves of ground motion "
-    "are squeezed into 2 octaves around concert A, so a signal at twice the frequency "
+    "are squeezed into 2 octaves centred on A3, an octave below concert A, so a signal "
+    "at twice the frequency "
     "does <em>not</em> arrive an octave higher. What survives faithfully is <b>timing and "
     "relative loudness</b> &mdash; nothing is sped up, so every swell and onset happens "
     "when it happens.</p>"
