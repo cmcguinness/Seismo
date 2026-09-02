@@ -161,6 +161,56 @@ Refresh after a new catch: `refstation_compare.py <origin> --harvest`, then
 `catches_data.py`, then `pngquant --force --skip-if-larger --quality 70-90 --ext .png`
 on the new figure. St. Helena (07-25, 60 sps) has a write-up but no row or figure.
 
+## 🔊 SONIFICATION: /listen, AND A PLAY BUTTON ON EVERY CATCH (2026-09-02)
+
+Charles's idea, and every parameter came from a constraint he set rather than a default
+I picked. Live on both dashboards.
+
+**`/listen`** — the ground, live. Twelve band-passes across 1–15 Hz run on the 100 sps
+samples in JavaScript; each band's envelope drives one oscillator's gain. The ground
+never enters the audio graph as audio, only moves gains, which is why a 100 sps source
+and a 48 kHz context never have to meet. No server work: it runs on what `/live-data`
+already serves.
+
+**`/catches`** — nine of the ten featured events carry a play button, the same engine fed
+a pre-rendered clip. Still 1:1 real time. A waveform strip is drawn from the clip's own
+samples with a copper playhead and a P marker; drawing it in the browser rather than
+overlaying the PNG means it cannot drift, and sidesteps the fact that the image and the
+clip cover different windows. St Helena gets no button: it predates the owned archive.
+
+**The mapping, and why it is a compression:**
+
+- 1–15 Hz is **3.91 octaves**, one to three octaves *below* hearing. Not a filtering
+  job — a transposition job.
+- **A carrier cannot work.** Beating against 440 Hz shifts ADDITIVELY: 440 + [1,15] spans
+  **0.045 octaves**, one note with a waver, at any carrier.
+- Two tunings, switchable live and persisted: **Compressed** (110–440 Hz, 3.91 octaves
+  squeezed into 2, plays on anything) and **Subwoofer** (×64, exactly six octaves up,
+  64–960 Hz, *no compression at all*). Switching retunes only the oscillators, not the
+  filter bank, so it works mid-playback and is an honest A/B — which makes the page's own
+  caveat audible instead of something to take on trust.
+
+**Four bugs worth remembering, three of them mine by construction:**
+
+- ✗ **Dockerfile COPY is an explicit list.** `listen.py` was not on it, so the image built
+  green, the container died on `import listen`, dokku kept the old one serving, and the
+  only symptom was a 404. Nothing in the deploy output points at a missing COPY.
+- ✗ **I invented CSS tokens.** `var(--accent-strong)` and `var(--bg)` do not exist here
+  (`--copper` / `--ground` do). An undefined custom property resolves to *nothing* rather
+  than erroring, so the playhead was invisible and both buttons unstyled — and this
+  repeats a bug this project already fixed once. Every `var(--x)` is now checked against
+  the defined properties.
+- ✗ **The clip window was found by energy**, on the reasoning that an earthquake is the
+  loudest thing near its origin. It is not: Geysers M3.2 came back with its "arrival" at
+  +125.7 s and M2.8 at +188.3 s, both having found a louder truck. Anchored to the
+  harvest's `tp_s` now.
+- ✗ **The live button went disabled for the whole session**, so a 60 s listen could not be
+  stopped. It toggles to "■ Stop", and `stop()` can now interrupt the buffering wait too.
+
+⚠️ The page states plainly what it cannot hear: the ocean microseism at 0.07–0.15 Hz is
+below the bottom of the displayed range *and* ~100× under this element's floor. An earlier
+draft claimed we hear "the slow swell of distant surf"; Charles caught it.
+
 ## 🎚️ THE ZETA BIAS WAS THE FIT BAND; AND THE FIRMWARE COMPILES (2026-09-02)
 
 Two findings from testing the injector's software path before the hardware lands, both

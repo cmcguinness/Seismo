@@ -35,7 +35,7 @@ is metadata you can defend, and `SS.OAKM1.xml` currently says f0 and zeta are gu
 conversation from "here is my station, the response is nameplate values." Do the
 ring-down first; ask NCEDC second.
 
-## Sonification, part two: a play button on each catch
+## ~~Sonification, part two: a play button on each catch~~ — SHIPPED 2026-09-02
 
 Obvious once the live version works (2026-09-02, "it's definitely like a Star Trek classic
 kind of sound"). The ambient state is three or four tones drifting; an earthquake excites
@@ -57,9 +57,11 @@ whole clip is available at once, which removes the only fiddly part of the live 
 The pairing is the point: hear the neighbourhood, then hear an earthquake, and the
 difference is the entire argument for why the instrument exists.
 
-## Sonification: let people HEAR what the geophone hears, LIVE
+## ~~Sonification: let people HEAR what the geophone hears, LIVE~~ — SHIPPED 2026-09-02
 
-Charles, 2026-09-02, with the constraints tightened the same day: **frequency shift only,
+**Built and deployed the same day; see STATUS.md for what shipped and what broke
+on the way. Kept here for the reasoning.** Charles, 2026-09-02, with the
+constraints tightened the same day: **frequency shift only,
 no temporal shift — "I want to hear the earth live"** — and **map into about two octaves
 around 440 Hz**, not a wide re-rendering.
 
