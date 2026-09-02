@@ -41,7 +41,7 @@ MAP_TEXT = (
     "predicted reach by magnitude, inverted from the same amplitude model the harvester "
     "uses and corrected by what the confirmed catches actually measured. Three rings per "
     "magnitude: the inner is a noisy afternoon, the outer a quiet night. Dots are the "
-    "confirmed catches &mdash; 32 of them, out to 89&nbsp;km, and the dashed line is the "
+    "confirmed catches &mdash; 33 of them, out to 89&nbsp;km, and the dashed line is the "
     "furthest. Corrected for what those measured, the station reads about 1.8&times; quieter "
     "than the textbook California attenuation predicts.</p>"
     "<p>Two events sit outside that circle and are the only hard constraints on the far "
@@ -228,6 +228,46 @@ CATCHES = [
             "floor. The P onset landed on the predicted +9.0&nbsp;s to within a sample.",
             "Recorded with the station&rsquo;s original Python acquisition loop, a few hours "
             "before it was replaced by the C reader that now owns the digitizer.",
+        ],
+    ),
+    dict(
+        img="2026-09-02-m2.6-middletown.png",
+        head="M2.6 &middot; Middletown &middot; 2026-09-02",
+        sub="03:49:01 UTC &middot; 38.770&deg;N 122.612&deg;W &middot; depth 4.2 km &middot; "
+            "35 km due north, in the Collayomi Valley &mdash; a patch of crust new to this station",
+        facts=[
+            "<b>People felt this one.</b> The USGS &ldquo;Did You Feel It?&rdquo; intensity "
+            "came back as <b>MMI&nbsp;II</b> &mdash; the bottom of the felt scale, the "
+            "kind you notice only if you are sitting still indoors. That is the "
+            "interesting part: at M2.6 and 35&nbsp;km this sits right at the threshold "
+            "where an earthquake stops being purely an instrumental event, and it is a "
+            "usable data point for the question of whether an alert should say "
+            "&ldquo;probably felt&rdquo; rather than quoting a detector ratio at you.",
+            "<b>Not The Geysers</b>, which is where most of our catalogue comes from. The "
+            "geothermal field lies 15.6&nbsp;km WNW of this epicentre, at bearing "
+            "339&deg; from the station; this arrived at bearing <b>1.3&deg;</b>, almost due "
+            "north. Of the ~990 catalogued events between 30 and 50&nbsp;km, 849 are Geysers "
+            "or Cobb induced seismicity inside a narrow 335&ndash;350&deg; band. This is a "
+            "different patch of crust &mdash; the Collayomi fault zone, tectonic rather than "
+            "steam-field &mdash; and it is <b>the first one we have caught from it</b>: four "
+            "earlier Middletown events, M0.46 to M1.52, all went past unrecorded.",
+            "<b>The station&rsquo;s own velocity model beat the global one.</b> P broke out of "
+            "the noise at <b>+7.07&nbsp;s</b>. Our locally measured 5.19&nbsp;km/s relation "
+            "predicted +7.18&nbsp;s &mdash; wrong by 0.11&nbsp;s. iasp91, the global average "
+            "used past 15&nbsp;km, said +6.10&nbsp;s, a full second early. At local distances "
+            "the crust under Sonoma County is genuinely slower than the world average, which "
+            "is exactly why that measurement was worth making.",
+            "<b>The classifier had a good night.</b> The detector fired 17 times in the 11 "
+            "minutes around this event. Its neighbours scored p(quake) between 0.002 and "
+            "0.016; this one scored <b>0.999</b> and pushed an alert. Its high/low band ratio "
+            "was 0.31 where the surrounding triggers ran 1.7 to 6.9.",
+            "<b>What 35&nbsp;km does to a signal &mdash; compare it with Petrolia below.</b> "
+            "The spectrogram here carries energy right up past 20&nbsp;Hz, because there is "
+            "barely enough crust in the way to filter anything out. The M4.8 at 319&nbsp;km is "
+            "a far bigger earthquake and arrives with nothing above ~7&nbsp;Hz. Same "
+            "instrument, same summer; the difference is entirely the path.",
+            "Peak <b>73&nbsp;&micro;V</b> in 1&ndash;15&nbsp;Hz, SNR ~46&times;, detector "
+            "ratio 116.",
         ],
     ),
 ]

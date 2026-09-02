@@ -48,3 +48,7 @@ analysis/geo/seismicity.geojson
 
 # template_match.py templates -- rebuildable from event_harvest.csv + the archive
 analysis/templates.npz
+
+# reharvest.py leaves this when the gates block a publish -- a transient candidate
+# for inspection, not a tracked artefact
+analysis/reharvest-rejected.csv
