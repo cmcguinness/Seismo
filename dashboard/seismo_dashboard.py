@@ -1098,7 +1098,22 @@ def catches_page():
                      for c in catches.CATCHES)
     body = _titleblock("Catches", f"earthquakes {SID} has recorded, confirmed by the USGS catalog") + \
         f'<div class="row"><div class="col-lg-9">{catches.INTRO}{cards}</div></div>'
-    return Response(_shell(f"Catches — {BRAND}", "catches", body), media_type="text/html")
+    # The synth engine (shared with /listen) plus the per-catch button glue. Only the
+    # engine, not the live poller: these buttons drive it from a fixed clip.
+    return Response(_shell(f"Catches — {BRAND}", "catches", body,
+                           listen.CSS + listen.script(live=False) + catches.CATCH_AUDIO_JS),
+                    media_type="text/html")
+
+
+@app.get("/catches/audio/{name}")
+def catches_audio(name: str):
+    # Pre-rendered by analysis/catch_audio.py and committed, exactly like the images --
+    # the public copy has no day-files to read from.
+    p = catches.audio_path(name)
+    if not p:
+        return Response("not found", status_code=404)
+    with open(p, "rb") as f:
+        return Response(f.read(), media_type="application/json", headers=STATIC_CACHE)
 
 
 @app.get("/catches/{name}")
