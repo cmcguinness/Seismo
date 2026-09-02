@@ -111,10 +111,10 @@ click, close it at the end.
 **And it forecloses the real failure mode, which is nobody listening.** Charles: *"or
 worse, having someone just mute their speaker and leave it running forever."* That is not
 a tidiness concern, it is bandwidth on a public VPS. `/live-data` is **17 KB per poll**, so
-at one poll per 2 s a single listener costs 8.6 KB/s — **31 MB/hour, 743 MB/day, 5.2 GB in
+at one poll per 2 s a single listener costs 8.6 KB/s — **32 MB/hour, 756 MB/day, 5.3 GB in
 a week**. A forgotten muted tab spends all of that and delivers nothing to anybody. One
-deliberate 60 s press costs **0.5 MB**, which is about **7,000x** less for the same amount
-of actual listening.
+deliberate 60 s press costs **0.53 MB**. The ratio is exactly the duration ratio, because
+cost is linear in time: a week of not-listening is **10,080x** a minute of listening.
 
 The point is that the bounded session makes that state **unreachable**, rather than
 needing an idle-detector or a visibility watchdog to clean it up afterwards. There is no
