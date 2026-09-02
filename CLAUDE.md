@@ -6,10 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A DIY Raspberry Pi seismometer — a *sensitivity-first* (not precision-first) instrument to detect local earthquakes, sited in Oakmont / Santa Rosa, Sonoma County, atop the Rodgers Creek / Maacama fault system.
 
-**Current state (as of 2026-08-29):** the station has been **recording 24/7 since
-2026-07-20**, with 32 catalog-confirmed earthquakes inside a validated range of 89 km,
+**Current state (as of 2026-09-02):** the station has been **recording 24/7 since
+2026-07-20**, with 34 catalog-confirmed earthquakes inside a validated range of 88.8 km,
 plus an M4.8 recorded at 319 km that is verified by arrival time but deliberately left
-out of the range fit, and two dashboards. **Read `STATUS.md` first** — its *Current system* section is the resume point, then
+out of the range fit (enforced by `EXCLUDE_FROM_FIT` in `analysis/detection_map.py` —
+a magnitude revision made it *qualify* on 2026-09-02 and the re-harvest gate had to stop
+the publish), and two dashboards. **f0 and zeta in `station/SS.OAKM1.xml` are still
+guesses**; the inline calibration injector (`calibrator/`, `doc/BOM-calibrator.md`) is
+being built to replace them, parts due ~2026-09-09. **Read `STATUS.md` first** — its *Current system* section is the resume point, then
 recent entries newest-first; everything before 2026-08-20 is verbatim in
 `STATUS-ARCHIVE.md` (indexed at the bottom of STATUS.md). `BACKLOG.md` holds deferred work; `specification.md` is the
 original design with the alternatives already rejected.
@@ -22,9 +26,19 @@ original design with the alternatives already rejected.
 | `pi5` (Pi 5, house, LAN only) | the owned data plane: `server/udp_collector.py` builds the archive, `server/detector.py` re-detects over it and **scores each trigger with the classifier** (`p_quake`, ntfy push at ≥ 0.7), `server/seismo_server.py` serves `/v1/*`; the **LAN dashboard** (Dokku app `seismo`, `dashboard/`) | `server/`, `dashboard/` — **auto-deployed**: pi5 pulls `main` every 2 min (`pi5/autodeploy.sh`); `./deploy.sh` is the manual path |
 | `apps02.mcguinness.ai` (public VPS) | the **public dashboard**, https://seismo.mcguinness.ai — same image, fed **outbound-only** by pi5 (rsync every minute + the live ring every 3 s). Nothing at the house is reachable from the internet | `./deploy.sh public` |
 
-The Mac is for analysis (`analysis/`, obspy venv), CAD (`parts/`), and **training the
+The Mac is for analysis (`analysis/`, obspy venv), CAD (`parts/`), **training the
 trigger classifier** (`analysis/trigger_train.py` → `analysis/models/`, shipped to pi5
-by deploy). Nothing trains on the Pis.
+by deploy), and the **calibration injector firmware** (`calibrator/`, avr-gcc + avrdude
+via Homebrew — `osx-cross/avr` needs `brew trust`). Nothing trains on the Pis.
+
+The **calibration injector** is a fourth piece of hardware, not a host: an ATtiny85 box
+inline on the geophone cable that fires a known current burst four times a day, so f0 and
+zeta can be measured instead of guessed. `doc/BOM-calibrator.md` is the build,
+`calibrator/` the firmware, `analysis/calfinder.py` finds the bursts in the archive (and
+masks them out of the classifier's training set), `analysis/ringdown.py` fits them.
+**Its protocol constants are shared:** `N_PULSES`/`PULSE_MS`/`SPACING_MS` must match
+between `calibrator/calibrator.c` and `calfinder.py`, and calfinder's self-test parses the
+C file and fails if they drift apart.
 
 **Rules of the road:**
 - Only one process may own the ADS1256. Stop `seismo-recorder` before any ADC tool.
@@ -42,9 +56,11 @@ by deploy). Nothing trains on the Pis.
 
 ## Software notes
 
-- **Sampling:** 100 sps, PGA 64, one vertical channel (`XX.OAKMT.00.SHZ`; a real FDSN
-  network code is pending with ISC). The ADS1256's crystal runs ~80–90 ppm fast; the
-  recorder tosses one sample every ~2 min to hold an exact 100 sps grid (±7.5 ms).
+- **Sampling:** 100 sps, PGA 64, one vertical channel — **`SS.OAKM1.00.EHZ`** since the
+  identity cutover of 2026-08-30 (was `XX.OAKMT.00.SHZ`; `E` because the band code follows
+  the sample rate, and `SS` is self-assigned pending a real FDSN network code from ISC).
+  The ADS1256's crystal runs ~80–90 ppm fast; the recorder tosses one sample every ~2 min
+  to hold an exact 100 sps grid (±7.5 ms).
 - **ADC access:** `station/adsreader/adsreader.c` via spidev + GPIO uAPI (no pigpio in
   the hot path). `pigpio`/`PiPyADC` remain for the diagnostic tools and the fallback
   reader (`SEISMO_READER=pigpio`).

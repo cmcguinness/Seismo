@@ -7,7 +7,7 @@ recent entries run newest-first; then the reference sections that are still true
 index into [`STATUS-ARCHIVE.md`](STATUS-ARCHIVE.md), where everything before 2026-08-20
 lives verbatim. `BACKLOG.md` holds deferred work; `CLAUDE.md` maps the hosts and code.
 
-## 🧭 CURRENT SYSTEM (as of 2026-08-26)
+## 🧭 CURRENT SYSTEM (as of 2026-09-02)
 
 **Station.** LGT-4.5 vertical geophone in a printed case on the garage slab (Oakmont;
 92 m from and 13 m above Route 12), Waveshare ADS1256 at PGA 64, Raspberry Pi 2B
@@ -20,10 +20,18 @@ all counted. Noise floor 1–15 Hz ~0.8 µV RMS on a quiet night, ~3.5 µV after
 
 **Calibration.** Reads ~3.2× quieter than the 28.8 V/(m/s) nameplate (five anchors vs
 USGS NP.1835 1.6 km away, median 3.26×, fixed-path scatter ~1.4×). Vp 5.19 km/s
-measured. 32 catalog-confirmed events, validated range 89 km (M3.8 San Leandro);
-biggest M4.2 Cloverdale (07-29); furthest recorded (but not fitted) the M4.8 off
-Petrolia at 319 km (08-29). Closest: the M1.8 at 2.8 km (08-29). Detection map:
-`dashboard/catches/detection-range-map.png`.
+measured. **34 catalog-confirmed events, validated range 88.8 km** (M3.8 San Leandro);
+biggest M4.2 Cloverdale (07-29); furthest recorded (but deliberately **not fitted** — now
+enforced by `EXCLUDE_FROM_FIT`, not left to a filter a magnitude revision can flip) the
+M4.8 off Petrolia at 319 km (08-29). Closest: the M1.8 at 2.8 km (08-29). Most recent and
+the only one with a felt report: M2.6 Middletown, DYFI MMI II (09-02). Detection map:
+`dashboard/catches/detection-range-map.png`, with its headline numbers in the `.json`
+beside it so the prose cannot drift from the image.
+
+**Instrument response is PROVISIONAL and is the project's biggest open number.**
+`station/SS.OAKM1.xml` uses f0 = 4.5 Hz and zeta = 0.6, both guesses; only the 9.0 V/(m/s)
+sensitivity is measured. Every magnitude rests on them. The inline calibration injector
+(`doc/BOM-calibrator.md`, `calibrator/`, `analysis/calfinder.py`) exists to replace them.
 
 **Spectral lines, all identified but one:** 41.0/40.6/37.65 Hz + 19.3 Hz + 20.0 Hz are the
 heat-pump AC (weather-driven duty cycle, minute-tick edges); 40.0 Hz is the 60 Hz mains
@@ -37,7 +45,7 @@ gradient-boosting **trigger classifier** (`p_quake`; trained on the Mac from the
 station's own catalog — 75 % precision / 86 % recall on the displayed range vs the
 `hf_lf` rule's 2.4 %) and **pushes to ntfy at p ≥ 0.7** (one per 5 min); `seismo_server`
 serves `/v1/*`. pi5 auto-pulls `main` every 2 min. Retrain: `harvest_events.py` →
-`trigger_dataset.py` → `trigger_train.py` → push.
+`trigger_dataset.py` → `augment.py` → `trigger_train.py --aug` → push.
 
 **Dashboards.** LAN copy `http://seismo.pi5.mcguinness.ai` (Live, Detections with
 p(quake), History, Activity day×hour + weekly, Spectrum, Environment, Catches, Learn,
@@ -46,27 +54,149 @@ outbound-only from pi5 (files every minute, live ring every 3 s), no Detections 
 **nothing at the house reachable from the internet** (the Cloudflare Tunnel is gone).
 Every dynamic image reload is double-buffered (the Safari half-drawn-drum fix).
 
-**Pending / on order.** Uputronics GPS HAT for a dedicated Pi 3B+ LAN stratum-1 (seismo
-Pi syncs by chrony; no PPS on the 2B). Geophones for the ESP32/ADS1220 field rig
-(`doc/field-seismograph.md`: hammer refraction on the lot and the street). FDSN network
-code from ISC (placeholder `XX`). Weekly-view weighted median (BACKLOG, ~November).
+**Pending / on order.** **Calibration injector parts (DigiKey, ~2026-09-09; USBasp
+programmer 09-03)** — the box that replaces the guessed f0/zeta. Geophones for the
+ESP32/ADS1220 field rig (`doc/field-seismograph.md`: hammer refraction on the lot and the
+street). FDSN network code from ISC (station currently uses the self-assigned `SS`).
+Weekly-view weighted median (BACKLOG, ~November).
 
 ## Open threads
 
-1. **Calibration injector**: order the BOM, install `avr-gcc` and compile the firmware
-   (it has never been built), then bench-test the box before it goes inline. First
-   power-up is gated on `calfinder.py`, which is done and clean over 749 h.
-2. **f0 and zeta are still guesses** — `station/SS.OAKM1.xml` is provisional and every
-   magnitude rests on it. That is what the injector is for.
+1. **Calibration injector — parts arrive ~09-09.** Everything on the software side is
+   built and tested: `calfinder.py` (0 false positives over 749 h), the firmware (compiles
+   clean, 330 B), and `ringdown.py` (band bias fixed, `z_max` added). Remaining: build the
+   board, `make flash`, acceptance test, then a firmware-enforced 48 h soak before the
+   first burst. **f0 and zeta are still guesses until it runs**, and every magnitude rests
+   on them.
+2. ⚠️ **The −0.066 zeta residual at zeta 0.85 on real noise** that widening the fit band
+   does not touch. If the element is that heavily damped, average hard and caveat the
+   number. The injector settles it empirically.
 3. Field rig firmware: log triggered windows to flash, tap-the-piezo milestone.
 4. Retrain the classifier when the confirmed count grows; CNN at ~100 positives.
+   Augmentation is in the retrain path now (`augment.py` → `trigger_train.py --aug`).
 5. `seismo_dashboard.py` is 1,028+ lines — split the image/live-data routes out.
 6. The 1.05 Hz line.
-6. Network code cutover (unit `SEISMO_NETWORK`, pi5 config, epochs row) when ISC answers.
+7. Network code cutover (unit `SEISMO_NETWORK`, pi5 config, epochs row) when ISC answers.
+8. Serve `fdsnws-station` / `fdsnws-dataselect` (BACKLOG); then ask NCEDC. Do the
+   ring-down first — the entry ticket to any archive is metadata you can defend.
 
 ---
 
 # Recent entries (newest first)
+
+## 🎚️ THE ZETA BIAS WAS THE FIT BAND; AND THE FIRMWARE COMPILES (2026-09-02)
+
+Two findings from testing the injector's software path before the hardware lands, both
+of which would otherwise have surfaced with a soldering iron in hand.
+
+**`ringdown.py` could not represent zeta above 0.8 at all.** A damped oscillator rings at
+w_d = w_0*sqrt(1 - zeta^2), so the fit's lower frequency bound of `0.6 * f_expect` was
+*exactly* a ceiling of zeta = sqrt(1-0.36) = 0.80. Written as a bare `0.6` it did not look
+like a limit on the quantity being measured. zeta 0.85 failed 11-12 times out of 12 at
+**every** signal level including SNR 200 — more signal cannot rescue an excluded answer.
+That matters because zeta is the unknown the injector exists to measure and the 0.6 in
+`SS.OAKM1.xml` is a vendor guess. Now a `z_max` parameter, defaulting to 0.8 so tap
+behaviour is unchanged (the bound earns its keep on taps, where a hard knock rings the
+case); an injector drives the coil electrically and excites no case mode, so that path
+can open the window safely.
+
+**Then a systematic bias, and it was not noise.** A sweep showed zeta reading low, growing
+with damping, and NOT improving with SNR. One experiment settled it: run the estimator on
+a **noiseless** synthetic and the bias is still there, -0.002 at zeta 0.2 growing to
+-0.159 at 0.9. That is also how two characterisations at different SNRs could disagree
+about its *sign* — they were both looking at a noise-independent effect through noise.
+
+The mechanism is in the fitted w_d, systematically high at large zeta (2.48 Hz against a
+true 1.96 at zeta 0.90); since zeta = alpha/hypot(alpha, w_d), over-reading w_d under-reads
+zeta. A heavily damped ring-down is **short and therefore broadband** — nearly a single
+pulse, content from near-DC to tens of Hz — and band-passing to 0.2-20 Hz truncates both
+tails, leaving something that looks more oscillatory and less decayed than the truth.
+
+| zeta | 0.2–20 Hz (noiseless) | 0.01–49 Hz | real noise @SNR 50, 0.2–20 | real noise, 0.05–45 |
+|---|---|---|---|---|
+| 0.30 | −0.006 | −0.001 | −0.006 ±0.01 | **+0.001 ±0.01** |
+| 0.60 | −0.047 | −0.005 | −0.046 ±0.04 | **−0.005 ±0.07** |
+| 0.85 | −0.131 | −0.008 | −0.066 ±0.13 | −0.066 ±0.10 |
+| 0.90 | −0.159 | −0.009 | | |
+
+Default band is now **0.05–45 Hz**. It trades a little scatter for most of the bias, which
+is right *for this instrument specifically*: **bias does not average away and scatter
+does**, and the injector fires 12 releases a day forever. A week is ~84 releases, so 0.10
+of scatter becomes ~0.01 of standard error while a 0.046 bias would have stayed 0.046
+however long we waited. ⚠️ Still open: the −0.066 residual at zeta 0.85 on real noise that
+widening does not touch. And do **not** narrow the band back to reject drift — de-trending
+the short fit window is the right tool and does not distort the transient's spectrum.
+
+**The firmware compiles.** `brew trust osx-cross/avr` cleared the way; avr-gcc 9.5.0 and
+avrdude 8.2 are installed. First build failed for real: `held_long()` called `delay_ms_n()`
+defined below it, so C took the implicit declaration then rejected the static definition.
+Clean afterwards: **330 bytes of flash, 1 byte BSS** — 4 % of the ATtiny85. Added
+`_Static_assert`s for what a compiler can check, one of which is a genuinely silent
+failure: `burst()` computes `SPACING_MS - PULSE_MS` in `uint16_t`, so swapping those
+constants wraps to ~65 s between pulses and the only symptom is calfinder quietly finding
+nothing, months later. Verified the assertion fires by actually breaking it.
+
+## 🎣 M2.6 MIDDLETOWN — 34th CATCH, FIRST FROM THE COLLAYOMI ZONE (2026-09-02)
+
+03:49:01 UTC, 35.4 km due north, depth 4.2 km, **felt (DYFI MMI II)**. Peak 73 µV in
+1–15 Hz, SNR ~46×, detector ratio 116, `p_quake` **0.999**, alert pushed at p=1.00.
+Independently confirmed by eventcheck's empirical null at **p=0.008** — zero of 119
+equivalent noise windows come close.
+
+**Not The Geysers**, which is worth stating because 849 of the ~990 catalogued events we
+see between 30 and 50 km are Geysers/Cobb induced seismicity in a narrow 335–350° band.
+This arrived at bearing **1.3°**, 15.6 km ESE of the field, in the Collayomi fault zone —
+tectonic, not steam-field — and it is the first one we have caught from there. Four
+earlier Middletown events (M0.46–1.52) all went past unrecorded.
+
+**The local velocity model beat the global one.** P broke out at **+7.07 s**. The station's
+own 5.19 km/s relation predicted +7.18 (0.11 s off); iasp91 said +6.10, a full second
+early. At local distances the crust here is genuinely slower than the world average.
+
+**The far-field exclusion is now enforced in code.** The re-harvest gate blocked its own
+publish: USGS revised Petrolia 4.84 → 4.74, its residual shifted, and it *qualified* as
+confirmed — which would have moved the published validated range 88.8 → 318.6 km. The
+exclusion described in STATUS as "deliberate" was never actually enforced; it held only
+because a filter happened to reject it, and a routine magnitude revision undid that.
+`EXCLUDE_FROM_FIT` now keys on origin time, the one field a revision cannot move. Petrolia
+is still *drawn* via `FAR_CONFIRMED`, just not fitted. With that in place the gate passed:
+**33 → 34 confirmed, reach unchanged at 88.8 km**.
+
+Also: `detection_map.py` writes `detection-range-map.json` beside the PNG, and `catches.py`
+reads it. That count went stale twice in one day — the prose said 32 while the map's own
+legend said 33, then 33 after the harvest moved to 34. Anything derived from the
+calibration is now read from it.
+
+## 🔎 eventcheck COULD NOT SAY NO (2026-09-01/02)
+
+Asked "did we see this?" about an M2.3 at 166 km — 1.9× beyond our reach — `eventcheck.py`
+answered **LIKELY DETECTED, ratio 4.16**. It is not there: at the true arrivals the
+envelope reads 0.99 µV (P) and 0.63 µV (S) against a 3.13 µV background, sustain 0.0 s.
+
+Three faults, compounding:
+
+- **It compared unequal windows.** Noise was peak-to-peak over 18 s, signal peak-to-peak
+  over 44 s, and **peak-to-peak grows with window length** — so the ratio sat above 1
+  whether or not an earthquake happened. On that event the noise window's own pp (21.0 µV)
+  equalled the signal window's (20.5).
+- **Constant-velocity travel times**, which have no Pn, so past ~150 km they run late —
+  +4.8 s on P — sliding the box off the arrivals onto the coda.
+- **No sustain guard**, the one that saved the Toms Place null test.
+
+Then a second pass, because a fixed threshold could not survive daytime background: for
+the M2.1 near Ukiah the 2–6 Hz p99 was 0.78 µV over a 170 s noise window and 2.70 µV over
+270 s, purely because one burst fell outside the shorter one — and a "2.9× detection"
+evaporated when the window grew. It now judges **non-parametrically**: slide the exact
+two-box signal mask back through the pre-event noise and count how often background alone
+matches it. Controls at both extremes: M1.8 at 2.8 km p=0.008, M4.8 Petrolia p=0.012,
+M2.3 Challenge p=0.147, M1.78 Toms Place p=0.383, M2.1 Ukiah p=0.527.
+
+**And the same class of bug existed in a third place.** The travel-time audit found
+`trigger_dataset.py` — the *labeller* — still on `origin + dist_km/5.19 + 0.30`. No labels
+change today (max error 2.38 s over the confirmed set against a 43 s window), but it is
+latent: the error grows to 16 s at Petrolia's 318 km, and the day a far event becomes
+confirmed that shift moves the window off the arrival entirely. It reads `tp_s` from the
+harvest now. One travel-time authority remains.
 
 ## 🧪 NOISE AUGMENTATION: +0.09 TO +0.14 PR-AUC ON REAL ROWS (2026-09-01)
 
@@ -124,6 +254,34 @@ genuinely new sources.
 Sanity check worth keeping: aggregate `snr_env` RISES with α, which looks wrong until
 you see it is survivorship -- at high α only loud events still clear the trigger. Per
 source row it falls monotonically in 22/23 cases.
+
+## 🧬 TEMPLATE MATCHING: BUILT, MEASURED, DOES NOT WORK HERE (2026-09-01)
+
+Recommended as the best route to more positives, on the published 5–10× catalogue yield.
+On our data it returns nothing, and the reason is physical rather than tuning, so the
+negative is written into the module rather than left to be rediscovered.
+
+The machinery is right: each template recovers its own source event at cc 0.97–1.00 over a
+full day of archive. But every *other* catalogue event that day — including forty Geysers
+events in the same field as 21 of the templates — sits at cc 0.20–0.33, exactly where
+noise sits. Pairwise over all 33 templates: **max off-diagonal 0.390, median 0.180, zero
+pairs above 0.4**. The most similar pairs are geographically unrelated (Kenwood with
+Hidden Valley Lake), so even those are coincidence.
+
+Template matching needs **repeating events** — the same patch of fault — not events from
+the same region. Similarity survives co-location to about a quarter wavelength; at 43 km
+our dominant frequency after attenuation is ~3–8 Hz, so the wavelength is 0.6–1.7 km and
+the requirement is **150–400 m**. A geothermal field is seismicity spread through a volume
+kilometres across. Two events both labelled "6 km NW of The Geysers" are routinely many
+wavelengths apart — including the two M3.2s 109 seconds apart on 2026-08-12, which do not
+correlate with each other either. The published yields come from aftershock sequences and
+creeping-fault repeaters, where multiplets genuinely exist.
+
+Kept, because it is exactly right for the case it was built for: an aftershock sequence on
+a fault beneath us would produce real multiplets. A `similarity` subcommand now tests the
+premise in seconds and gates any scan — if no two templates correlate, no unknown event
+will correlate with one either, and a scan can only return noise dressed as detections.
+Re-run it as the catalogue grows; the day a pair clears ~0.6, scanning is worth it.
 
 ## 🔧 CALIBRATION INJECTOR: BOM, BURST FINDER, FIRMWARE (2026-08-31)
 

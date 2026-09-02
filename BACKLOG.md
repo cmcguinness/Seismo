@@ -1,5 +1,9 @@
 ## Being findable: FDSN web services, and who would ever query them
 
+> See also **`doc/outreach-plan.md`**, which already sequences the human side of this
+> (Phase 2: measured response, PPSD, an `fdsnws` URL and an ISC network code, *then*
+> email the NCEDC data manager). This entry is the technical half; that one is the ask.
+
 Charles, 2026-09-02: "We can serve them, but if there's nobody to serve, we're left
 singing Be Our Guest." Correct -- the protocol is the easy half, discoverability is the
 real one. Two separable problems.
@@ -105,8 +109,14 @@ this conversation, with a better estimator than the one I started to duplicate: 
 alpha and w_d and takes zeta = alpha/w0 with no need to know f0 in advance, it has a
 two-load `solve` mode where the coupling constant drops out, and it treats the no-shunt
 load as the **200 kohm bias network rather than infinity**. Its accuracy is characterised:
-within 0.02 for zeta <= 0.6, over-reading by 0.13-0.19 at zeta = 0.8, so do not quote a
-value above ~0.6 as precise. It now also accepts `--at <UTC> ...` to pull release
+within 0.02 for zeta <= 0.6. **That characterisation is superseded (2026-09-02):** the
+large error above 0.6 was the FIT BAND, not the estimator -- a heavily damped ring-down is
+short and therefore broadband, and band-passing to 0.2-20 Hz truncated both tails. The
+default band is now 0.05-45 Hz and the noiseless bias at zeta 0.9 falls from -0.159 to
+-0.009. A separate hard limit was also removed: the old lower bound of 0.6*f_expect was
+exactly a ceiling of zeta = 0.8, so zeta 0.85 could not be fitted at ANY signal level;
+that is now the `z_max` parameter. Residual still open: -0.066 at zeta 0.85 on real
+noise. It now also accepts `--at <UTC> ...` to pull release
 transients straight out of the archive, so an injector firing while the station records
 normally needs no separate capture and nothing has to be touched. Bench side:
 
@@ -786,7 +796,7 @@ at 0.05 Hz). A different sensor class is needed to go lower — this is the DIY 
   (Trillium/STS-2/CMG-3T, ~$3–30k) buys the whole flat 0.008–50 Hz band at once
   with force-balance feedback, no thermal-box fuss, if the goal ever justifies it.
 - **Integration:** same recorder/rsync/dashboard pipeline — a second channel
-  (e.g. `XX.OAKMT.00.LHZ`/`LH1`) with its own ASD panel; the Welch/helicorder
+  (e.g. `SS.OAKM1.00.LHZ`/`LH1`) with its own ASD panel; the Welch/helicorder
   code is sensor-agnostic once the channel exists.
 
 ## Site characterization — H/V (HVSR) microtremor survey
