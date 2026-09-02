@@ -358,6 +358,14 @@ CSS = r'''<style>
  .badge-hot{background:var(--rose);color:var(--ground)}
  .badge-warn{background:var(--copper);color:var(--ground)}
  .badge-quiet{background:transparent;color:var(--ink-dim);border:1px solid var(--rule)}
+ /* the Catches page's per-event stat strip: the vitals grid, wider */
+ .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr));
+   gap:.3rem .9rem;margin:0 0 .9rem;padding:.55rem 0;border-top:1px solid var(--rule-soft);
+   border-bottom:1px solid var(--rule-soft)}
+ .stat-grid dt{font-family:var(--mono);font-size:.6rem;letter-spacing:.09em;
+   text-transform:uppercase;color:var(--ink-dim);margin:0}
+ .stat-grid dd{font-family:var(--mono);font-size:.92rem;margin:0;color:var(--ink);
+   font-variant-numeric:tabular-nums}
 
  /* --- server-rendered plots ------------------------------------------------ */
  /* The drum, spectrum and activity images are matplotlib on white and cannot follow
@@ -1068,7 +1076,10 @@ def catches_page():
     cards = _card("How far can this station hear?",
                   '<img src="/catches/detection-range-map.png" class="plot" '
                   'alt="Detection range by magnitude">' + catches.MAP_TEXT)
-    cards += "".join(_card(c["head"], catches.catch_html(c)) for c in catches.CATCHES)
+    cards += _card("Every confirmed event", catches.table_html(), card_id="table")
+    cards += _card("Against the reference station", catches.ref_text(), card_id="reference")
+    cards += "".join(_card(c["head"], catches.catch_html(c), card_id=catches.card_id(c))
+                     for c in catches.CATCHES)
     body = _titleblock("Catches", f"earthquakes {SID} has recorded, confirmed by the USGS catalog") + \
         f'<div class="row"><div class="col-lg-9">{catches.INTRO}{cards}</div></div>'
     return Response(_shell(f"Catches — {BRAND}", "catches", body), media_type="text/html")

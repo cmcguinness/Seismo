@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-08-31 (UTC)_
+_Last updated: 2026-09-02 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -83,6 +83,42 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🪞 THE CATCHES PAGE NOW SHOWS THE REFERENCE STATION, AND THE TABLE IS DATA (2026-09-02)
+
+Prompted by the outreach plan (`doc/outreach-plan.md`): the first move toward NCEDC is
+an email to the USGS strong-motion group about NP.1835, and the thing to link is a page
+that shows our record beside theirs. So the Catches page was restructured.
+
+**`analysis/refstation_compare.py`** puts NP.1835 (response removed to velocity) and
+OAKM1 (counts × the provisional 9.0 V/(m/s)) on the same axes in 5–15 Hz, over the
+harvest's own P/S window, with the envelopes overlaid on a log panel. Nine featured
+catches got figures (`dashboard/catches/ref-*.png`, ~60 KB each after pngquant); every
+confirmed 100 sps event got a ratio (`refstation.json`). **The envelopes coincide** —
+Middletown, the Santa Rosa M1.8, San Leandro, and even Petrolia at 319 km, where both
+instruments show the same Pn and Sn bursts. Residual ratio over the 26 events the
+reference sees clearly: **median 1.21×**, so the 3.2× correction is right to within the
+site scatter (a few events sit at 2–3×, always the same way: 1835 louder). Two honesty
+flags travel with each ratio: the reference at its own floor (RMS ≥ 2.5× or peak ≥ 6×
+its pre-event level, absolute floor from `refstation.py`), and the amplitude epoch
+(events before the 2026-08-07 rebuild are shown with † and never averaged).
+
+**`analysis/catches_data.py`** writes `dashboard/catches/confirmed.json` from the same
+`detection_map.calibrate()` filter the map uses, joined with the ratios. `catches.py`
+reads it for a **summary table of all 35 events** (34 in the fit + Petrolia, flagged),
+a **uniform stat strip** on each featured catch (magnitude, distance, depth, envelope
+peak, envelope SNR, predicted P, sustain, low/high band, vs NP.1835), and a
+**reference-station section** with the method and the headline residual. The prose
+write-ups stay as commentary. Nothing numeric on the page is hand-typed any more.
+
+Dropped on purpose: the harvest's `triggered` column. It is computed against whichever
+copy of the events log was on the Mac at harvest time (the pi5 copy ends 08-30), and it
+said "no" for Middletown, which alerted. Not a page-worthy number until the harvest
+reads the canonical log.
+
+Refresh after a new catch: `refstation_compare.py <origin> --harvest`, then
+`catches_data.py`, then `pngquant --force --skip-if-larger --quality 70-90 --ext .png`
+on the new figure. St. Helena (07-25, 60 sps) has a write-up but no row or figure.
 
 ## 🎚️ THE ZETA BIAS WAS THE FIT BAND; AND THE FIRMWARE COMPILES (2026-09-02)
 

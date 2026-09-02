@@ -15,12 +15,66 @@ render. Regenerate with:
         --usgs-near <trigger time> --spectrogram --out dashboard/catches/<name>.png
     analysis/.venv/bin/python analysis/detection_map.py --out dashboard/catches/detection-range-map.png
 
+The numbers are NOT hand-typed. `confirmed.json` (analysis/catches_data.py) carries every
+confirmed event with the harvest's measurements and, where analysis/refstation_compare.py
+has run, the amplitude ratio against USGS NP.1835 and the side-by-side figure
+(`ref-<date>-<slug>.png`). The summary table, the stat strip on each featured catch and
+the reference section all read from it; the prose in CATCHES is the commentary. Refresh:
+
+    analysis/.venv/bin/python analysis/refstation_compare.py <origin> ... --harvest
+    analysis/.venv/bin/python analysis/catches_data.py
+
 Conventions follow content.py: HTML entities, "{place}" substituted by the caller.
 """
 import json
 import os
 
 CATCH_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catches")
+
+
+def _confirmed():
+    """Every confirmed event + headline numbers, from analysis/catches_data.py."""
+    try:
+        with open(os.path.join(CATCH_DIR, "confirmed.json")) as fh:
+            d = json.load(fh)
+        return d.get("summary", {}), d.get("events", [])
+    except Exception:
+        return {}, []
+
+
+SUMMARY, EVENTS = _confirmed()
+_BY_ORIGIN = {e["origin"][:19]: e for e in EVENTS}
+
+
+def event_for(c):
+    """The confirmed.json row behind a featured catch, matched on origin second."""
+    return _BY_ORIGIN.get((c.get("origin") or "")[:19])
+
+
+def card_id(c):
+    """Anchor for a featured catch, so the table can link to it."""
+    return "e-" + c["origin"][:16].replace(":", "").replace("T", "-")
+
+
+def _fmt(v, nd=1, unit=""):
+    if v is None:
+        return "&mdash;"
+    return f"{v:,.{nd}f}{unit}"
+
+
+def _ref_cell(e):
+    """The 'vs NP.1835' number with its honesty flags, or a dash."""
+    r = e.get("ref")
+    if not r:
+        return '<span class="text-muted">&mdash;</span>'
+    txt = f"{r['ratio_rms']:.2f}&times;"
+    tip = "NP.1835 / this station, RMS in 5&ndash;15 Hz over the P/S window; 1.00 = calibration exact"
+    if not r.get("ref_ok"):
+        txt = f'<span class="text-muted">{txt}</span>'
+        tip = "reference at its own noise floor &mdash; ratio not meaningful"
+    if not r.get("amp_epoch_ok"):
+        txt += "&nbsp;&dagger;"
+    return f'<span title="{tip}">{txt}</span>'
 
 
 def _map_stats():
@@ -82,6 +136,7 @@ MAP_TEXT = (
 CATCHES = [
     dict(
         img="2026-07-29-m4.2-cloverdale.png",
+        origin="2026-07-29T02:40:06",
         head="M4.2 &middot; Cloverdale &middot; 2026-07-29",
         sub="02:40:06 UTC &middot; 38.777&deg;N 122.936&deg;W &middot; depth 5.9 km &middot; 46 km NW, on the Maacama fault",
         facts=[
@@ -103,6 +158,7 @@ CATCHES = [
     ),
     dict(
         img="2026-08-13-san-leandro-m4.1.png",
+        origin="2026-08-13T15:30:04",
         head="M3.8 &middot; San Leandro &middot; 2026-08-13",
         sub="15:30:04 UTC &middot; 37.755&deg;N 122.150&deg;W &middot; depth 5.5 km &middot; 88 km SSE, on the Hayward fault (first reported as M4.1)",
         facts=[
@@ -123,6 +179,7 @@ CATCHES = [
     ),
     dict(
         img="2026-08-29-m4.8-petrolia.png",
+        origin="2026-08-29T02:41:11",
         head="M4.8 &middot; off Petrolia &middot; 2026-08-29",
         sub="02:41:11.61 UTC &middot; 40.450&deg;N 125.272&deg;W &middot; depth 10 km &middot; "
             "319 km NW, offshore of the Mendocino triple junction",
@@ -156,6 +213,7 @@ CATCHES = [
     ),
     dict(
         img="2026-08-29-m1.8-santa-rosa.png",
+        origin="2026-08-29T00:42:16",
         head="M1.8 &middot; Santa Rosa &middot; 2026-08-29",
         sub="00:42:16.67 UTC &middot; 38.429&deg;N 122.633&deg;W &middot; depth 9.4 km &middot; "
             "2.8 km ESE &mdash; all but underneath the station",
@@ -192,6 +250,7 @@ CATCHES = [
     ),
     dict(
         img="2026-07-25-m2.5-st-helena.png",
+        origin="2026-07-25T11:31:41",
         head="M2.5 &middot; St. Helena &middot; 2026-07-25",
         sub="11:31:41 UTC &middot; 38.507&deg;N 122.435&deg;W &middot; depth 6.2 km &middot; 18 km ENE, the Rodgers Creek / Maacama step-over",
         facts=[
@@ -207,6 +266,7 @@ CATCHES = [
     ),
     dict(
         img="2026-08-12-geysers-m3.2.png",
+        origin="2026-08-12T10:28:21",
         head="M3.2 &middot; The Geysers &middot; 2026-08-12",
         sub="10:28:21 UTC &middot; 43 km NNW &middot; the geothermal field",
         facts=[
@@ -219,6 +279,7 @@ CATCHES = [
     ),
     dict(
         img="2026-08-11-geysers-m2.8.png",
+        origin="2026-08-11T21:35:14",
         head="M2.8 &middot; The Geysers &middot; 2026-08-11",
         sub="21:35:14 UTC &middot; 45 km NNW",
         facts=[
@@ -232,6 +293,7 @@ CATCHES = [
     ),
     dict(
         img="2026-07-27-m2.5-the-geysers.png",
+        origin="2026-07-27T06:29:25",
         head="M2.5 &middot; The Geysers &middot; 2026-07-27",
         sub="06:29:25 UTC &middot; 38.798&deg;N 122.781&deg;W &middot; depth 3.5 km &middot; 41 km NNW",
         facts=[
@@ -242,6 +304,7 @@ CATCHES = [
     ),
     dict(
         img="2026-08-25-geysers-m2.4.png",
+        origin="2026-08-25T00:22:31",
         head="M2.4 &middot; The Geysers &middot; 2026-08-25",
         sub="00:22:31 UTC &middot; 38.821&deg;N 122.843&deg;W &middot; depth 1.7 km &middot; 45 km NNW",
         facts=[
@@ -253,6 +316,7 @@ CATCHES = [
     ),
     dict(
         img="2026-09-02-m2.6-middletown.png",
+        origin="2026-09-02T03:49:01",
         head="M2.6 &middot; Middletown &middot; 2026-09-02",
         sub="03:49:01 UTC &middot; 38.770&deg;N 122.612&deg;W &middot; depth 4.2 km &middot; "
             "35 km due north, in the Collayomi Valley &mdash; a patch of crust new to this station",
@@ -308,10 +372,136 @@ def image_path(name):
     return p if os.path.isfile(p) else None
 
 
+_FEATURED = {c["origin"][:19]: c for c in CATCHES}
+
+TABLE_TEXT = (
+    "<p>Every event the catalog comparison confirms, newest first &mdash; the same list "
+    "the map is calibrated from, so the two cannot disagree. Nothing here needs the "
+    "detector to have fired: the catalog gives the time and the archive is cut there "
+    "afterwards, which is how the weak ones get in. <b>Peak</b> is the maximum of the "
+    "1&nbsp;s-smoothed 1&ndash;15&nbsp;Hz envelope in the P/S window, so it reads below the "
+    "raw sample peaks quoted in the write-ups; <b>SNR</b> is that peak over the RMS of the "
+    "minute before; <b>P pred.</b> is the predicted P arrival after origin. "
+    "<b>vs&nbsp;NP.1835</b> is the amplitude "
+    "ratio against the USGS strong-motion station 1.64&nbsp;km away, explained in the next "
+    "section; 1.00 means the calibration is exact. Bold rows have a write-up below. The "
+    "list starts at the 100&nbsp;sps cutover of 2026-07-25, so the first catch, the M2.5 "
+    "St.&nbsp;Helena a few hours before it, has a write-up but no row.</p>"
+)
+
+_TH = ("<thead><tr><th>UTC</th><th>M</th><th>place</th><th class=\"text-end\">km</th>"
+       "<th class=\"text-end\">depth</th><th class=\"text-end\">peak &micro;V</th>"
+       "<th class=\"text-end\">SNR</th><th class=\"text-end\">P pred.</th>"
+       "<th class=\"text-end\">vs NP.1835</th></tr></thead>")
+
+
+def _table_row(e):
+    key = e["origin"][:19]
+    feat = _FEATURED.get(key)
+    when = e["origin"][:16].replace("T", "&nbsp;")
+    place = e["place"].replace(", CA", "")
+    if feat:
+        place = f'<a href="#{card_id(feat)}"><b>{place}</b></a>'
+    if not e.get("in_fit", True):
+        place += ' <span class="badge badge-quiet" title="recorded, but kept out of the range fit">not in fit</span>'
+    return (f"<tr><td class=\"text-nowrap\">{when}</td><td>{_fmt(e['mag'], 1)}</td><td>{place}</td>"
+            f"<td class=\"text-end\">{_fmt(e['dist_km'], 0)}</td>"
+            f"<td class=\"text-end\">{_fmt(e['depth_km'], 1)}</td>"
+            f"<td class=\"text-end\">{_fmt(e['peak_uv'], 0)}</td>"
+            f"<td class=\"text-end\">{_fmt(e['snr'], 0)}</td>"
+            f"<td class=\"text-end\">{_fmt(e['tp_s'], 1, '&nbsp;s')}</td>"
+            f"<td class=\"text-end\">{_ref_cell(e)}</td></tr>")
+
+
+def table_html():
+    if not EVENTS:
+        return TABLE_TEXT + '<p class="text-muted">confirmed.json not built yet.</p>'
+    rows = "".join(_table_row(e) for e in EVENTS)
+    foot = ("<p class=\"text-muted small mt-2 mb-0\">&dagger; recorded with the earlier "
+            "front end (before the 2026-08-07 rebuild): a different amplitude epoch from "
+            "the calibration anchors, shown but not averaged.</p>")
+    return (TABLE_TEXT + '<div class="table-responsive"><table class="table table-sm '
+            f'table-striped mb-0 align-middle">{_TH}<tbody>{rows}</tbody></table></div>' + foot)
+
+
+def ref_text():
+    """The reference-station section: method and the headline residual."""
+    s = SUMMARY
+    head = ""
+    if s.get("ref_median") is not None:
+        head = (f"<p><b>Result so far:</b> over the {s['n_ref']} confirmed events the reference "
+                f"could see clearly, the residual ratio has a median of <b>{s['ref_median']:.2f}&times;</b> "
+                f"(range {s['ref_min']:.2f}&ndash;{s['ref_max']:.2f}), so the 3.2&times; correction "
+                "in use is right to within the site scatter two stations 1.64&nbsp;km apart "
+                "are entitled to. The spread is the interesting part: at 5&ndash;15&nbsp;Hz two "
+                "sites that close routinely differ by 2&times; on the same event, and which way "
+                "depends on the path.</p>")
+    return (
+        "<p>NP.1835 is a USGS National Strong-Motion Project accelerometer at Santa Rosa "
+        "Fire Station 7, <b>1.64&nbsp;km</b> from this geophone, whose waveforms and full "
+        "instrument response the Northern California Earthquake Data Center serves "
+        "publicly. Same basin, same geology, same earthquakes: it is as good a reference "
+        "as this project will ever have, and every absolute number this station reports "
+        "is anchored to it.</p>"
+        "<p>The method is a direct waveform comparison. The reference&rsquo;s response is "
+        "removed to ground velocity; our counts are converted with the <b>provisional "
+        "sensitivity of 9.0&nbsp;V/(m/s)</b> that this same comparison produced (the "
+        "nameplate says 28.8, and is wrong by 3.2&times;); both are band-passed to "
+        "5&ndash;15&nbsp;Hz, above the geophone&rsquo;s 4.5&nbsp;Hz corner where its response is "
+        "flat and nothing has to be modelled on our side. If the calibration is right the "
+        "two traces lie on top of each other and the ratio printed on each figure is 1.0. "
+        "Each featured catch below carries its own side-by-side figure.</p>"
+        + head +
+        "<p>Two honesty flags. A strong-motion accelerometer is deaf where a geophone is "
+        "comfortable: below its own noise floor the ratio is meaningless and is greyed out "
+        "in the table &mdash; though the figure is still worth a look, because a "
+        "professional instrument measuring itself while this one records an earthquake "
+        "at 60&times; signal-to-noise is rather the point of a sensitivity-first design. And "
+        "events before the 2026-08-07 front-end rebuild are a different amplitude epoch, "
+        "marked &dagger;: shown, never averaged.</p>"
+    )
+
+
+# (label, confirmed.json field, decimals, unit) -- the same strip on every featured catch
+_STATS = [("magnitude", "mag", 1, ""), ("distance", "dist_km", 1, " km"),
+          ("depth", "depth_km", 1, " km"), ("envelope peak", "peak_uv", 0, " µV"),
+          ("envelope SNR", "snr", 0, "×"), ("P predicted", "tp_s", 1, " s"),
+          ("sustain", "sustain_s", 1, " s"), ("low/high band", "lo_hi", 1, "×")]
+
+
+def _stat_strip(e):
+    """The same measurements on every featured catch, from the harvest -- so the
+    numbers are comparable across cards, where the prose peaks (raw samples) are not."""
+    if not e:
+        return ""
+    cells = "".join(f"<div><dt>{lab}</dt><dd>{_fmt(e.get(f), nd, unit)}</dd></div>"
+                    for lab, f, nd, unit in _STATS)
+    cells += f"<div><dt>vs NP.1835</dt><dd>{_ref_cell(e)}</dd></div>"
+    return f'<dl class="stat-grid">{cells}</dl>'
+
+
+def _ref_figure(e):
+    r = (e or {}).get("ref") or {}
+    img = r.get("img")
+    if not img or not image_path(img):
+        return ""
+    cap = "Side by side with USGS NP.1835, 1.64&nbsp;km away, both in ground velocity."
+    if not r.get("ref_ok"):
+        cap += " The reference is at its own noise floor here."
+    if not r.get("amp_epoch_ok"):
+        cap += " Earlier front end than the calibration anchors, so the ratio is not averaged in."
+    return (f'<img src="/catches/{img}" class="plot mt-3" loading="lazy" '
+            f'alt="{e["place"]} against NP.1835">'
+            f'<p class="text-muted small mt-2 mb-0">{cap}</p>')
+
+
 def catch_html(c):
+    e = event_for(c)
     facts = "".join(f"<li>{f}</li>" for f in c["facts"])
     return (
+        f'<p class="text-muted small mb-2">{c["sub"]}</p>'
+        + _stat_strip(e) +
         f'<img src="/catches/{c["img"]}" class="plot" loading="lazy" alt="{c["head"]}">'
-        f'<p class="text-muted small mt-2 mb-2">{c["sub"]}</p>'
-        f'<ul class="mb-0">{facts}</ul>'
+        f'<ul class="mt-3 mb-0">{facts}</ul>'
+        + _ref_figure(e)
     )
