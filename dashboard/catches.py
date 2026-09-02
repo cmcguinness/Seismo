@@ -101,7 +101,10 @@ def _play_button(img):
     stem = img.rsplit(".", 1)[0]
     return (f'<button class="cx-play" type="button" data-clip="{stem}">'
             f'<span>&#9654;</span> Hear this earthquake</button>'
-            f'<span class="cx-note" data-note="{stem}"></span>')
+            f'<span class="cx-note" data-note="{stem}"></span>'
+            f'<div class="cx-wave" data-wave="{stem}">'
+            f'<canvas></canvas><div class="cx-mark"><b>P</b></div>'
+            f'<div class="cx-head"></div></div>')
 
 
 def _map_stats():
@@ -544,10 +547,48 @@ CATCH_AUDIO_JS = """<script>
   const btns=[...document.querySelectorAll('.cx-play')];
   if(!btns.length||!window.SeismoSynth) return;
   let active=null;
-  const note=stem=>document.querySelector('[data-note="'+stem+'"]');
+  const note=st=>document.querySelector('[data-note="'+st+'"]');
+  const wave=st=>document.querySelector('[data-wave="'+st+'"]');
+
+  // The waveform is drawn from the SAME samples the synth is playing, so the playhead
+  // cannot drift from the sound. Drawing it here rather than overlaying the PNG also
+  // sidesteps the fact that the two cover different time windows -- and it inherits the
+  // page's theme tokens for free.
+  function draw(box,clip){
+    const cv=box.querySelector('canvas');
+    const w=box.clientWidth, h=box.clientHeight, dpr=window.devicePixelRatio||1;
+    cv.width=w*dpr; cv.height=h*dpr;
+    const g=cv.getContext('2d'); g.scale(dpr,dpr); g.clearRect(0,0,w,h);
+    const cs=getComputedStyle(document.documentElement);
+    g.strokeStyle=(cs.getPropertyValue('--ink-dim')||'#888').trim();
+    g.lineWidth=1;
+    const uv=clip.uv, n=uv.length;
+    let peak=0; for(let i=0;i<n;i++){const a=Math.abs(uv[i]); if(a>peak)peak=a;}
+    peak=peak||1;
+    // one min/max column per pixel: honest at any width, and cheap
+    g.beginPath();
+    for(let x=0;x<w;x++){
+      const i0=Math.floor(x*n/w), i1=Math.max(i0+1,Math.floor((x+1)*n/w));
+      let lo=Infinity,hi=-Infinity;
+      for(let i=i0;i<i1&&i<n;i++){ const v=uv[i]; if(v<lo)lo=v; if(v>hi)hi=v; }
+      if(lo===Infinity) continue;
+      const y0=h/2-(hi/peak)*(h/2-2), y1=h/2-(lo/peak)*(h/2-2);
+      g.moveTo(x+0.5,y0); g.lineTo(x+0.5,y1);
+    }
+    g.stroke();
+    // where the P arrival sits: pre_s into the clip, by construction
+    const mark=box.querySelector('.cx-mark');
+    const frac=(clip.pre_s||0)/(n/(clip.fs||100));
+    if(mark) mark.style.left=(frac*100).toFixed(2)+'%';
+    return peak;
+  }
+
   function reset(b){ if(!b) return; b.disabled=false;
     b.innerHTML='<span>&#9654;</span> Hear this earthquake';
-    const n=note(b.dataset.clip); if(n) n.textContent=''; }
+    const st=b.dataset.clip, n=note(st), w=wave(st);
+    if(n) n.textContent=''; if(w){ w.classList.remove('on'); }
+  }
+
   btns.forEach(b=>b.addEventListener('click',async()=>{
     const stem=b.dataset.clip;
     if(active===b){ window.SeismoSynth.stop(); return; }
@@ -555,10 +596,13 @@ CATCH_AUDIO_JS = """<script>
     b.disabled=true; b.innerHTML='<span>&#9654;</span> loading…';
     try{
       const clip=await (await fetch('/catches/audio/'+stem+'.json')).json();
-      b.innerHTML='<span>&#9632;</span> playing';
-      b.disabled=false;
+      const box=wave(stem), head=box?box.querySelector('.cx-head'):null;
+      if(box){ box.classList.add('on'); draw(box,clip); }
+      b.innerHTML='<span>&#9632;</span> playing'; b.disabled=false;
       await window.SeismoSynth.start({
-        clip, say:s=>{const n=note(stem); if(n) n.textContent=s;},
+        clip,
+        say:s=>{const n=note(stem); if(n) n.textContent=s;},
+        onProgress:f=>{ if(head) head.style.left=(f*100).toFixed(2)+'%'; },
         onEnd:()=>{ reset(b); if(active===b) active=null; }
       });
     }catch(e){ const n=note(stem); if(n) n.textContent='could not load'; reset(b); }

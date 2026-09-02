@@ -146,6 +146,16 @@ CSS = """<style>
 .cx-play[disabled]{opacity:.5;cursor:default;background:transparent;color:var(--ink-dim);
   border-color:var(--rule)}
 .cx-note{font-family:var(--mono);font-size:.75rem;color:var(--ink-dim);margin-left:.6rem}
+.cx-wave{position:relative;height:76px;margin:.1rem 0 1rem;display:none;
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.cx-wave.on{display:block}
+.cx-wave canvas{display:block;width:100%;height:100%}
+.cx-wave .cx-head{position:absolute;top:0;bottom:0;width:2px;left:0;
+  background:var(--accent-strong);pointer-events:none}
+.cx-wave .cx-mark{position:absolute;top:0;bottom:0;width:1px;
+  background:var(--ink-dim);opacity:.55;pointer-events:none}
+.cx-wave .cx-mark b{position:absolute;top:2px;left:4px;font:600 .62rem/1 var(--mono);
+  color:var(--ink-dim);letter-spacing:.06em}
 </style>"""
 
 
@@ -172,6 +182,7 @@ window.SeismoSynth=(function(){
   let ctx=null,nodes=[],master=null,filts=[],kEnv=0,dc=0;
   let buf=[],fs=100,playIdx=0,t0=0,consumed=0,timer=null,poller=null;
   let bars=[],say=()=>{},onEnd=()=>{},live=false,tEnd=0,maxS=LSN.maxS;
+  let onProgress=()=>{};
 
   // Band-pass biquads (RBJ) run in JS on the 100 sps ground samples. The ground never
   // enters the audio graph as audio -- it only ever moves gains, which is why a 100 sps
@@ -247,6 +258,9 @@ window.SeismoSynth=(function(){
       nodes[k].g.gain.setTargetAtTime(u*u, now, 0.05);
       if(bars[k]) bars[k].style.height=(u*100).toFixed(1)+'%';
     }
+    // Progress is reported from the SAMPLE index, not the wall clock, so the playhead
+    // is showing where the sound actually is rather than where it ought to be.
+    onProgress(buf.length ? Math.min(1, playIdx/buf.length) : 0);
     const left=maxS-(now-t0);
     if(left<=0){ stop(); return; }
     say((live?'playing — ':'')+Math.ceil(left)+' s left');
@@ -257,12 +271,14 @@ window.SeismoSynth=(function(){
     if(ctx){ master.gain.setTargetAtTime(0,ctx.currentTime,0.15);
              const c=ctx; setTimeout(()=>c.close(),600); ctx=null; }
     bars.forEach(b=>{if(b)b.style.height='0%';});
+    onProgress(0); onProgress=()=>{};
     const cb=onEnd; onEnd=()=>{}; cb();
   }
 
   async function start(opts){
     stop();                                   // only one source may sound at a time
     bars=opts.bars||[]; say=opts.say||(()=>{}); onEnd=opts.onEnd||(()=>{});
+    onProgress=opts.onProgress||(()=>{});
     live=!!opts.live; buf=[]; tEnd=0;
     if(live){
       const first=await pollOnce();
