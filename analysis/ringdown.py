@@ -49,7 +49,7 @@ R_BIAS = 200_000.0       # the rev-1/2 bias network across the coil: 2 x 100k in
                          # explicitly so "no shunt" is not silently "infinite load".
 
 
-def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0, f_expect=F_ELEMENT,
+def zeta_from_ringdown(x, fs, f_lo=0.05, f_hi=45.0, win_s=4.0, f_expect=F_ELEMENT,
                        z_max=0.8):
     """Damping ratio from one ring-down burst.
 
@@ -106,13 +106,47 @@ def zeta_from_ringdown(x, fs, f_lo=0.2, f_hi=20.0, win_s=4.0, f_expect=F_ELEMENT
     to -0.093) and none at 0.60, so band-limiting a short, broadband transient is a
     contributor but not the cause.
 
-    UNRESOLVED, AND IT MATTERS: this sweep reads LOW where the first characterisation
-    above read HIGH. The two disagree in sign, not just size, so at least one harness is
-    unrepresentative -- most likely the synthetic here, which is an ideal velocity
-    release rather than a real tap through the real front end. DO NOT QUOTE A ZETA ABOVE
-    ~0.6 UNTIL THAT IS SETTLED. The injector will settle it: it produces a known,
-    repeatable stimulus many times a day, which is exactly the input neither
-    characterisation had.
+    RESOLVED (2026-09-02): the bias was THE FIT BAND, and the default is now wide.
+
+    Run the estimator on a NOISELESS synthetic and the bias is still there, growing
+    monotonically with zeta -- so it was never a noise effect, which is how two harnesses
+    at different SNRs could disagree about its sign. The mechanism shows in the fitted
+    w_d, which comes out systematically HIGH at large zeta (2.48 Hz against a true
+    1.96 Hz at zeta 0.90); since zeta = alpha/hypot(alpha, w_d), over-reading w_d
+    under-reads zeta.
+
+    The cause is that a heavily damped ring-down is SHORT and therefore BROADBAND -- it
+    is nearly a single pulse, with content from near-DC to tens of Hz. Band-passing to
+    0.2-20 Hz truncates both tails and leaves something that looks more oscillatory and
+    less decayed than the real transient. Widening the band fixes it, noiselessly:
+
+        zeta      0.2-20 Hz    0.01-49 Hz
+        0.30        -0.006        -0.001
+        0.60        -0.047        -0.005
+        0.85        -0.131        -0.008
+        0.90        -0.159        -0.009
+
+    On REAL archive noise at SNR 50, which is what the injector will actually deliver:
+
+        zeta      0.2-20 Hz       0.05-45 Hz
+        0.30   -0.006 +-0.01   +0.001 +-0.01
+        0.60   -0.046 +-0.04   -0.005 +-0.07
+        0.85   -0.066 +-0.13   -0.066 +-0.10
+
+    So the default band is now 0.05-45 Hz. It trades a little scatter for most of the
+    bias, which is the right trade HERE for a specific reason: bias does not average
+    away and scatter does, and the injector fires 12 releases a day forever. A week is
+    ~84 releases, so 0.10 of scatter becomes ~0.01 of standard error while a 0.046 bias
+    would have stayed 0.046 no matter how long we waited.
+
+    STILL OPEN: the -0.066 residual at zeta 0.85 on real noise, which widening does not
+    touch. If the element turns out that heavily damped, average hard and quote it with
+    the caveat. The injector settles this empirically -- a known, repeatable stimulus
+    many times a day is exactly the input neither synthetic characterisation had.
+
+    Do NOT narrow this band back to reject drift. The high-pass is not the right tool
+    for that; de-trending the (short) fit window is, and it does not distort the
+    transient's spectrum.
 
     Returns (zeta, f0, f_damped, n_cycles_fitted).
     """
@@ -217,7 +251,8 @@ def main(argv=None):
                         "offset instantly and the anti-alias filter smears that step")
     m.add_argument("--win-s", type=float, default=1.5, help="fit window after --skip-s")
     m.add_argument("--gain", type=int, default=64)
-    m.add_argument("--band", type=float, nargs=2, default=(0.2, 20.0))
+    m.add_argument("--band", type=float, nargs=2, default=(0.05, 45.0),
+                   help="fit band. Wide on purpose -- see the ACCURACY note")
 
     s = sub.add_parser("solve", help="size the shunt from two zeta measurements")
     s.add_argument("--z0", type=float, required=True, help="zeta with NO shunt")
