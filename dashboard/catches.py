@@ -598,7 +598,7 @@ CATCH_AUDIO_JS = """<script>
       const clip=await (await fetch('/catches/audio/'+stem+'.json')).json();
       const box=wave(stem), head=box?box.querySelector('.cx-head'):null;
       if(box){ box.classList.add('on'); draw(box,clip); }
-      b.innerHTML='<span>&#9632;</span> playing'; b.disabled=false;
+      b.innerHTML='<span>&#9632;</span> Stop'; b.disabled=false;
       await window.SeismoSynth.start({
         clip,
         say:s=>{const n=note(stem); if(n) n.textContent=s;},

@@ -228,7 +228,7 @@ window.SeismoSynth=(function(){
   let ctx=null,nodes=[],master=null,filts=[],kEnv=0,dc=0;
   let buf=[],fs=100,playIdx=0,t0=0,consumed=0,timer=null,poller=null;
   let bars=[],say=()=>{},onEnd=()=>{},live=false,tEnd=0,maxS=LSN.maxS;
-  let onProgress=()=>{};
+  let onProgress=()=>{},cancelled=false;
   let mode=(function(){try{return localStorage.getItem('seismoTune')||'c';}
                        catch(e){return 'c';}})();
   const foutFor=b=>mode==='t'?b.foutT:b.fout;
@@ -316,6 +316,7 @@ window.SeismoSynth=(function(){
   }
 
   function stop(){
+    cancelled=true;
     clearInterval(timer); clearInterval(poller); timer=poller=null;
     if(ctx){ master.gain.setTargetAtTime(0,ctx.currentTime,0.15);
              const c=ctx; setTimeout(()=>c.close(),600); ctx=null; }
@@ -326,6 +327,7 @@ window.SeismoSynth=(function(){
 
   async function start(opts){
     stop();                                   // only one source may sound at a time
+    cancelled=false;
     bars=opts.bars||[]; say=opts.say||(()=>{}); onEnd=opts.onEnd||(()=>{});
     onProgress=opts.onProgress||(()=>{});
     live=!!opts.live; buf=[]; tEnd=0;
@@ -336,9 +338,14 @@ window.SeismoSynth=(function(){
       if(!first){ say('no live data from the station right now'); onEnd(); return false; }
       const need=LSN.prebuffer*fs; let guard=0;
       while(buf.length<need && guard++<40){
-        await new Promise(r=>setTimeout(r,1000)); await pollOnce();
+        await new Promise(r=>setTimeout(r,1000));
+        // stop() during the wait must actually stop. Ten seconds of un-cancellable
+        // buffering is a long time to have taken someone's button away.
+        if(cancelled){ onEnd(); return false; }
+        await pollOnce();
         say('buffering… '+Math.min(100,Math.round(100*buf.length/need))+'%');
       }
+      if(cancelled){ onEnd(); return false; }
       if(buf.length<need*0.5){ say('not enough live data yet'); onEnd(); return false; }
       maxS=LSN.maxS;
     }else{
@@ -393,12 +400,21 @@ _LIVE_GLUE = r"""
   const go=document.getElementById('lsn-go'), st=document.getElementById('lsn-state');
   if(!go) return;
   const bars=LSN.bands.map((_,i)=>document.getElementById('lsn-b'+i));
+  const START='Listen to the ground', AGAIN='Listen again';
+  let busy=false, played=false;
+  // The button stops as well as starts, so it has to SAY which it will do. It used to
+  // go disabled for the whole session, which left no way out of a 60 s listen.
   go.addEventListener('click',async()=>{
-    go.disabled=true; st.textContent='buffering…';
-    await window.SeismoSynth.start({
+    // stop() runs onEnd synchronously, so set the text AFTER it, or the
+    // countdown from the last tick is left standing next to a stopped player.
+    if(busy){ window.SeismoSynth.stop(); st.textContent='stopped'; return; }
+    busy=true; go.innerHTML='<span>&#9632;</span> Stop'; st.textContent='buffering…';
+    const ok=await window.SeismoSynth.start({
       live:true, bars, say:s=>{st.textContent=s;},
-      onEnd:()=>{ go.disabled=false; go.textContent='Listen again'; }
+      onEnd:()=>{ busy=false; played=true; go.textContent=AGAIN;
+                  st.textContent='done'; }
     });
+    if(!ok){ busy=false; go.textContent=played?AGAIN:START; }
   });
 })();
 """
