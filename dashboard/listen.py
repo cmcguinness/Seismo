@@ -348,9 +348,24 @@ window.SeismoSynth=(function(){
       nodes[k].g.gain.setTargetAtTime(u*u, now, 0.05);
       if(bars[k]) bars[k].style.height=(u*100).toFixed(1)+'%';
     }
-    // Progress is reported from the SAMPLE index, not the wall clock, so the playhead
-    // is showing where the sound actually is rather than where it ought to be.
-    onProgress(buf.length ? Math.min(1, playIdx/buf.length) : 0);
+    // WHERE THE SOUND ACTUALLY IS, which is behind where the analysis has got to.
+    // Reporting raw playIdx put the playhead visibly ahead of the audio -- Charles
+    // measured about half a second. Three things separate the two, and only the last
+    // was ever in doubt:
+    //
+    //   ENV_TAU (120 ms)  the envelope follower responds ~tau after the sample that
+    //                     moved it, so the tone swells late by that much
+    //   0.05 s            the setTargetAtTime smoothing on each band's gain
+    //   base + output     AudioContext scheduling, plus whatever the device chain adds.
+    //                     outputLatency is only meaningful once the context is running,
+    //                     so it is read every tick rather than once at build time -- it
+    //                     also changes if the output device does.
+    //
+    // Anything the browser cannot see (an external DSP host inserting its own
+    // processing) stays uncompensated, because nothing here can measure it.
+    const lag = LSN.envTau + 0.05 + (ctx.baseLatency||0) + (ctx.outputLatency||0);
+    const heard = playIdx - lag*fs;
+    onProgress(buf.length ? Math.max(0, Math.min(1, heard/buf.length)) : 0);
     const left=maxS-(now-t0);
     if(left<=0){ stop(); return; }
     say((live?'playing — ':'')+Math.ceil(left)+' s left');
