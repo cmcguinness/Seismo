@@ -47,15 +47,31 @@ import json
 
 # --- the mapping. Changing these changes what you hear; see the module docstring. ---
 BAND_LO, BAND_HI = 1.0, 15.0     # the station's working band
-N_BANDS = 12                     # log-spaced across the band. Chosen by ear first and
+N_BANDS = 13                     # log-spaced across the band. Chosen by ear first and
                                  # justified afterwards (2026-09-02) -- the justification
                                  # holds, but it was not a derivation:
                                  #
                                  #   THE EAR. Critical bandwidth is ~1/3 octave; tones
                                  #   closer than that blend rather than being heard
-                                 #   apart. 12 over 3.91 octaves is 0.36 octave spacing,
-                                 #   right at that limit. In compressed mode it is 0.18,
+                                 #   apart. 13 over 3.91 octaves is 0.33 octave spacing,
+                                 #   right at that limit. In compressed mode it is 0.17,
                                  #   already finer than you can resolve as pitches.
+                                 #
+                                 #   AND 13, NOT 12, BECAUSE OF THE TUNING. 13 tones is
+                                 #   12 intervals, so across exactly 2 octaves each step
+                                 #   is exactly 2 semitones: the compressed mode lands on
+                                 #   a true WHOLE-TONE SCALE, A2 B2 C#3 D#3 F3 G3 A3 B3
+                                 #   C#4 D#4 F4 G4 A4, every interval 200.00 cents with
+                                 #   no deviation from equal temperament. It falls out of
+                                 #   the existing power law for free -- both axes are
+                                 #   uniform in log, so an even span divides evenly. At 12
+                                 #   the steps were 2.18 semitones and the chord was
+                                 #   permanently a few cents sour with itself.
+                                 #
+                                 #   Only the COMPRESSED mode is tuned. Subwoofer mode is
+                                 #   a straight x64 and stays untuned on purpose: exact
+                                 #   transposition is the only thing it claims, and
+                                 #   snapping it to a scale would break precisely that.
                                  #
                                  #   THE FILTERS. At BAND_Q each band is ~1.42 octaves
                                  #   wide against 0.355 octave spacing, so they already
