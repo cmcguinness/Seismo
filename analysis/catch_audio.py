@@ -7,8 +7,12 @@ too -- so anything the Catches page needs must be a committed artefact, not a li
 render. These clips follow the images exactly: generated here on the Mac, checked in,
 served as bytes.
 
-WHAT THE WINDOW IS. Anchored to the P arrival the catches table already carries
-(`tp_s`, computed with taup/iasp91), NOT to the loudest thing near the origin.
+WHAT THE WINDOW IS. Read from the image's own `.geom.json` sidecar, so the clip and the
+picture it sits under span EXACTLY the same seconds. That is what lets the playhead be a
+cross-reference to the figure above rather than a decoration: same window, same axes box,
+same time at the same x.
+
+Before the sidecars existed this computed its own window, anchored to the taup arrival.
 
 That distinction was not academic. The first version hunted for the envelope peak in a
 generous window after the origin, on the reasoning that an earthquake is the loudest
@@ -42,6 +46,8 @@ sys.path.insert(0, os.path.join(HERE, "..", "dashboard"))
 import catches                                            # noqa: E402
 
 ARCHIVE = os.path.join(HERE, "data")
+PICKS = (json.load(open(os.path.join(HERE, "catch_picks.json")))
+         if os.path.exists(os.path.join(HERE, "catch_picks.json")) else {})
 OUT_DIR = os.path.join(HERE, "..", "dashboard", "catches", "audio")
 UV = 2.5 * 2 / (64 * (2 ** 23 - 1)) * 1e6
 PRE_S, CLIP_S = 12.0, 50.0        # lead-in, then the whole clip length
@@ -64,7 +70,7 @@ def _trace(o):
     return max(st, key=lambda t: t.stats.npts) if len(st) else None
 
 
-def clip_for(origin, tp=None):
+def clip_for(origin, tp=None, window=None):
     o = UTCDateTime(origin)
     tr = _trace(o)
     if tr is None:
@@ -80,6 +86,19 @@ def clip_for(origin, tp=None):
     y = signal.sosfiltfilt(sos, x)
     rel = np.arange(len(y)) / fs + (tr.stats.starttime - o)
     env = np.convolve(np.abs(y), np.ones(int(fs)) / int(fs), mode="same")
+    if window is not None:
+        t0, t1 = window
+        m = (rel >= t0) & (rel < t1)
+        seg = y[m]
+        want = int((t1 - t0) * fs)
+        if len(seg) < want * 0.8:
+            return None, f"short window ({len(seg)}/{want})"
+        ei = env[m]
+        return {"uv": [round(float(v), 1) for v in seg], "fs": fs,
+                "t0": round(t0, 3), "t1": round(t1, 3), "anchor": "geom",
+                "pre_s": None,
+                "peak_in_clip_s": round(float(int(np.argmax(ei)) / fs), 2),
+                "peak_uv": round(float(np.max(np.abs(seg))), 1)}, None
     if tp is not None:
         t_anchor, how = float(tp), "tp"
     else:
@@ -111,17 +130,32 @@ def main():
             continue
         stem = c["img"].rsplit(".", 1)[0]
         row = catches._BY_ORIGIN.get(c["origin"][:19]) or {}
-        d, err = clip_for(c["origin"], row.get("tp_s"))
+        gp = os.path.join(OUT_DIR, "..", stem + ".geom.json")
+        win, geom = None, None
+        if os.path.exists(gp):
+            geom = json.load(open(gp))
+            win = (geom["t0"], geom["t1"])
+        d, err = clip_for(c["origin"], row.get("tp_s"), win)
         if d is None:
             print(f"  SKIP {stem}: {err}")
             continue
+        # Carry the figure's own geometry into the clip, so the page can inset the
+        # waveform to exactly the axes box of the image above it and put the P marker
+        # where the image puts it. Hardcoding 0.075/0.96 in the CSS would work today and
+        # silently drift the day the figure layout changes.
+        if geom:
+            d["ax_x0"], d["ax_x1"] = geom["ax_x0"], geom["ax_x1"]
+            pk = PICKS.get(stem, {}).get("t")
+            if pk is not None:
+                d["p_frac"] = round((pk - geom["t0"]) / (geom["t1"] - geom["t0"]), 5)
         p = os.path.join(OUT_DIR, stem + ".json")
         with open(p, "w") as fh:
             json.dump(d, fh, separators=(",", ":"))
         ok += 1
-        print(f"  {stem[:30]:<32} anchor {d['anchor']:>6} +{d['anchor_s']:7.2f}s  "
-              f"peak {d['peak_uv']:7.1f} uV at +{d['peak_in_clip_s']:5.2f}s into clip"
-              f"  {os.path.getsize(p)/1024:4.0f} KB")
+        w = (f"{d['t0']:+.1f}..{d['t1']:+.1f}s" if d.get("anchor") == "geom"
+             else f"anchor {d.get('anchor')}")
+        print(f"  {stem[:30]:<32} {w:>18}  peak {d['peak_uv']:7.1f} uV at "
+              f"+{d['peak_in_clip_s']:5.2f}s into clip  {os.path.getsize(p)/1024:4.0f} KB")
     print(f"\n{ok} clip(s) -> {os.path.relpath(OUT_DIR, os.path.join(HERE,'..'))}")
 
 

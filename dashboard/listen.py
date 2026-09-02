@@ -235,6 +235,7 @@ CSS = """<style>
 .cx-wave{position:relative;height:76px;margin:.1rem 0 1rem;display:none;
   border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
 .cx-wave.on{display:block}
+.cx-frame{position:absolute;top:0;bottom:0;left:0;right:0}
 .cx-wave canvas{display:block;width:100%;height:100%}
 .cx-wave .cx-head{position:absolute;top:0;bottom:0;width:2px;left:0;
   background:var(--copper);box-shadow:0 0 6px var(--copper);

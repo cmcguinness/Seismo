@@ -95,16 +95,33 @@ def audio_path(name):
     return p if os.path.exists(p) else None
 
 
+def _ver(path):
+    """Short version tag from a file's mtime+size, for cache-busting a URL.
+
+    The image and its clip MUST agree: they share a time window, and a browser holding a
+    cached clip beside a freshly rendered image would put the playhead in the wrong place
+    -- precisely the misalignment this pairing exists to fix. Both are served with long
+    cache headers (correct, they are static), so the URL has to change when the file does.
+    """
+    try:
+        st = os.stat(path)
+        return f"{int(st.st_mtime):x}{st.st_size:x}"[-8:]
+    except OSError:
+        return "0"
+
+
 def _play_button(img):
     if not audio_path(img):
         return ""
     stem = img.rsplit(".", 1)[0]
-    return (f'<button class="cx-play" type="button" data-clip="{stem}">'
+    v = _ver(audio_path(img))
+    return (f'<button class="cx-play" type="button" data-clip="{stem}" data-v="{v}">'
             f'<span>&#9654;</span> Hear this earthquake</button>'
             f'<span class="cx-note" data-note="{stem}"></span>'
             f'<div class="cx-wave" data-wave="{stem}">'
-            f'<canvas></canvas><div class="cx-mark"><b>P</b></div>'
-            f'<div class="cx-head"></div></div>')
+            f'<div class="cx-frame"><canvas></canvas>'
+            f'<div class="cx-mark"><b>P</b></div>'
+            f'<div class="cx-head"></div></div></div>')
 
 
 def _map_stats():
@@ -367,8 +384,8 @@ CATCHES = [
             "steam-field &mdash; and it is <b>the first one we have caught from it</b>: four "
             "earlier Middletown events, M0.46 to M1.52, all went past unrecorded.",
             "<b>The station&rsquo;s own velocity model beat the global one.</b> P broke out of "
-            "the noise at <b>+7.07&nbsp;s</b>. Our locally measured 5.19&nbsp;km/s relation "
-            "predicted +7.18&nbsp;s &mdash; wrong by 0.11&nbsp;s. iasp91, the global average "
+            "the noise at <b>+7.14&nbsp;s</b>. Our locally measured 5.19&nbsp;km/s relation "
+            "predicted +7.18&nbsp;s &mdash; wrong by 0.04&nbsp;s. iasp91, the global average "
             "used past 15&nbsp;km, said +6.10&nbsp;s, a full second early. At local distances "
             "the crust under Sonoma County is genuinely slower than the world average, which "
             "is exactly why that measurement was worth making.",
@@ -531,7 +548,8 @@ def catch_html(c):
     return (
         f'<p class="text-muted small mb-2">{c["sub"]}</p>'
         + _stat_strip(e) +
-        f'<img src="/catches/{c["img"]}" class="plot" loading="lazy" alt="{c["head"]}">'
+        f'<img src="/catches/{c["img"]}?v={_ver(os.path.join(CATCH_DIR, c["img"]))}" '
+        f'class="plot" loading="lazy" alt="{c["head"]}">'
         + _play_button(c["img"]) +
         f'<ul class="mt-3 mb-0">{facts}</ul>'
         + _ref_figure(e)
@@ -555,8 +573,16 @@ CATCH_AUDIO_JS = """<script>
   // sidesteps the fact that the two cover different time windows -- and it inherits the
   // page's theme tokens for free.
   function draw(box,clip){
+    // Inset the frame to the axes box of the image above, which the clip carries with
+    // it. Same window, same box, so the same x is the same instant in both -- which is
+    // the whole point of the playhead being here rather than being decoration.
+    const fr=box.querySelector('.cx-frame');
+    if(clip.ax_x0!=null){
+      fr.style.left=(clip.ax_x0*100).toFixed(3)+'%';
+      fr.style.right=((1-clip.ax_x1)*100).toFixed(3)+'%';
+    }
     const cv=box.querySelector('canvas');
-    const w=box.clientWidth, h=box.clientHeight, dpr=window.devicePixelRatio||1;
+    const w=fr.clientWidth, h=fr.clientHeight, dpr=window.devicePixelRatio||1;
     cv.width=w*dpr; cv.height=h*dpr;
     const g=cv.getContext('2d'); g.scale(dpr,dpr); g.clearRect(0,0,w,h);
     const cs=getComputedStyle(document.documentElement);
@@ -576,10 +602,11 @@ CATCH_AUDIO_JS = """<script>
       g.moveTo(x+0.5,y0); g.lineTo(x+0.5,y1);
     }
     g.stroke();
-    // where the P arrival sits: pre_s into the clip, by construction
+    // the P marker sits where the MEASURED pick sits, carried in the clip
     const mark=box.querySelector('.cx-mark');
-    const frac=(clip.pre_s||0)/(n/(clip.fs||100));
-    if(mark) mark.style.left=(frac*100).toFixed(2)+'%';
+    const frac=(clip.p_frac!=null) ? clip.p_frac
+             : (clip.pre_s||0)/(n/(clip.fs||100));
+    if(mark) mark.style.left=(frac*100).toFixed(3)+'%';
     return peak;
   }
 
@@ -595,7 +622,7 @@ CATCH_AUDIO_JS = """<script>
     reset(active); active=b;
     b.disabled=true; b.innerHTML='<span>&#9654;</span> loading…';
     try{
-      const clip=await (await fetch('/catches/audio/'+stem+'.json')).json();
+      const clip=await (await fetch('/catches/audio/'+stem+'.json?v='+(b.dataset.v||'0'))).json();
       const box=wave(stem), head=box?box.querySelector('.cx-head'):null;
       if(box){ box.classList.add('on'); draw(box,clip); }
       b.innerHTML='<span>&#9632;</span> Stop'; b.disabled=false;
