@@ -123,9 +123,9 @@ CSS = """<style>
 .listen{margin:0 0 1.25rem}
 .listen-controls{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem}
 .lsn-btn{font:inherit;font-weight:600;padding:.65rem 1.15rem;cursor:pointer;
-  color:var(--bg);background:var(--accent-strong);border:1px solid var(--accent-strong);
+  color:var(--ground);background:var(--copper);border:1px solid var(--copper);
   border-radius:2px}
-.lsn-btn:hover{filter:brightness(1.08)}
+.lsn-btn:hover{background:var(--copper-lit);border-color:var(--copper-lit)}
 .lsn-btn[disabled]{opacity:.55;cursor:default;filter:none}
 .lsn-state{font-family:var(--mono);font-size:.85rem;color:var(--ink-dim);
   letter-spacing:.04em;text-transform:none}
@@ -135,14 +135,14 @@ CSS = """<style>
 .lsn-bar{flex:1;width:100%;background:var(--rule);position:relative;border-radius:1px;
   overflow:hidden}
 .lsn-bar>i{position:absolute;left:0;right:0;bottom:0;height:0%;
-  background:var(--accent-strong);transition:height .07s linear}
+  background:var(--copper);transition:height .07s linear}
 .lsn-legend{font-size:.8rem;color:var(--ink-dim);margin:0}
 /* the per-catch button on the Catches page */
 .cx-play{display:inline-flex;align-items:center;gap:.5rem;font:inherit;font-size:.85rem;
   font-weight:600;padding:.4rem .8rem;margin:.1rem 0 .9rem;cursor:pointer;
-  color:var(--accent-strong);background:transparent;border:1px solid var(--accent-strong);
+  color:var(--copper);background:transparent;border:1px solid var(--copper);
   border-radius:2px}
-.cx-play:hover{color:var(--bg);background:var(--accent-strong)}
+.cx-play:hover{color:var(--ground);background:var(--copper-lit);border-color:var(--copper-lit)}
 .cx-play[disabled]{opacity:.5;cursor:default;background:transparent;color:var(--ink-dim);
   border-color:var(--rule)}
 .cx-note{font-family:var(--mono);font-size:.75rem;color:var(--ink-dim);margin-left:.6rem}
@@ -151,7 +151,8 @@ CSS = """<style>
 .cx-wave.on{display:block}
 .cx-wave canvas{display:block;width:100%;height:100%}
 .cx-wave .cx-head{position:absolute;top:0;bottom:0;width:2px;left:0;
-  background:var(--accent-strong);pointer-events:none}
+  background:var(--copper);box-shadow:0 0 6px var(--copper);
+  pointer-events:none;will-change:left}
 .cx-wave .cx-mark{position:absolute;top:0;bottom:0;width:1px;
   background:var(--ink-dim);opacity:.55;pointer-events:none}
 .cx-wave .cx-mark b{position:absolute;top:2px;left:4px;font:600 .62rem/1 var(--mono);
