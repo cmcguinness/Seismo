@@ -529,6 +529,71 @@ CATCHES = [
             "ratio 116.",
         ],
     ),
+    dict(
+        img="2026-08-21-m2.3-alameda.png",
+        origin="2026-08-21T11:38:49",
+        head="M2.3 &middot; Alameda &middot; 2026-08-21",
+        sub="11:38:49 UTC &middot; 88.8&nbsp;km SSE &middot; depth 18.2 km &mdash; the furthest "
+            "event still inside the calibrated range",
+        facts=[
+            "<b>This is where measurement stops and extrapolation starts.</b> At "
+            "88.8&nbsp;km it is the most distant event in the range fit, edging out the "
+            "M3.8 San Leandro at 88.0&nbsp;km &mdash; and the dashed circle on the range "
+            "map is drawn from it. Everything outside that line on the map is inference; "
+            "this is the last point that is measurement.",
+            "<b>It is also nearly the faintest thing here.</b> Peak 4.6&nbsp;&micro;V "
+            "against a 0.76&nbsp;&micro;V floor &mdash; a signal-to-noise of 6.1, and the "
+            "third quietest of the 35 confirmed catches. An M2.3 is an ordinary "
+            "earthquake; at 89&nbsp;km it arrives as a few microvolts and eleven seconds "
+            "of shaking that would be invisible on any casual look at the trace.",
+            "<b>Most of the distance is downward.</b> The hypocentre is deeper than "
+            "16&nbsp;km against a median of 4.2&nbsp;km for everything else on this page "
+            "&mdash; roughly four times the usual, and depth counts in full toward the "
+            "distance the wave actually travelled. A shallower earthquake at the same "
+            "map position would have arrived louder. (The table says 18.2&nbsp;km and the "
+            "figure says 16.5: USGS revised it between the two, which is exactly why the "
+            "harvest re-runs a week after every event rather than trusting the first "
+            "solution.)",
+            "<b>The reference station agrees to within 5&nbsp;%.</b> Against USGS NP.1835, "
+            "1.64&nbsp;km away, the amplitude ratio is 1.05. At the very edge of what this "
+            "instrument can hear, it is still reading the ground correctly rather than "
+            "reading itself.",
+            "<b>Nobody chose this one.</b> It is on this page because the superlative rule "
+            "computed it from the record, and it had been sitting in the table unremarked "
+            "while the page gave the &ldquo;furthest fitted&rdquo; title to a nearer event.",
+        ],
+    ),
+    dict(
+        img="2026-08-29-m1.4-santa-rosa.png",
+        origin="2026-08-29T04:13:48",
+        head="M1.4 &middot; Santa Rosa &middot; 2026-08-29",
+        sub="04:13:48 UTC &middot; 9.0&nbsp;km &middot; depth 8.4 km &mdash; the closest of "
+            "all, and almost directly underneath",
+        facts=[
+            "<b>Nearly all of that distance is straight down.</b> The epicentre is only "
+            "3.2&nbsp;km away across the ground, and the hypocentre is 8.4&nbsp;km beneath "
+            "it &mdash; so the ray arrives about <b>21&deg; from vertical</b>. This is the "
+            "closest thing in the record to an earthquake happening directly under the "
+            "garage, with the energy coming up rather than along.",
+            "<b>P lands 1.74&nbsp;s after the rupture.</b> There is very little to wait "
+            "for: at 9&nbsp;km the first arrival is quicker than the pause between two "
+            "words.",
+            "<b>An M1.4 is barely an earthquake, and it is unmistakable here.</b> "
+            "13.3&nbsp;&micro;V against a 2.4&nbsp;&micro;V floor. Compare the M2.3 near "
+            "Alameda on this page: nine times the energy at the source, arriving three "
+            "times fainter, purely because it had 89&nbsp;km of crust to cross.",
+            "<b>Two events can both be &ldquo;closest&rdquo;.</b> This one is nearest "
+            "through the rock at 9.0&nbsp;km. The "
+            "<a href='/catch/2026-08-29-004216'>M1.8 later the same morning</a> is nearer "
+            "across the map &mdash; 2.7&nbsp;km epicentral &mdash; but 9.9&nbsp;km once its "
+            "9.4&nbsp;km of depth is counted. Every distance on this site is "
+            "<b>hypocentral</b>, the distance the wave actually travelled, which is the one "
+            "the amplitude cares about.",
+            "<b>Short.</b> The shaking holds above the floor for 3.8&nbsp;s. Small and near "
+            "means a brief, sharp event rather than the long trains the distant ones "
+            "produce.",
+        ],
+    ),
 ]
 
 

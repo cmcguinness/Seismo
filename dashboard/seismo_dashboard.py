@@ -496,7 +496,7 @@ VITALS_JS = r"""<script>
 
 STAGE_FOOT = (
     '<div class="stagefoot">'
-    'Independent station, not for scientific use. Times are UTC. '
+    'Independent station. Times are UTC. '
     'Built by <a href="https://www.linkedin.com/in/charlesmcguinness/">Charles McGuinness</a>.'
     '</div>'
 )

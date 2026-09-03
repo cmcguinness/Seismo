@@ -44,6 +44,15 @@
     "t": 16.47,
     "tp_taup": 15.17
   },
+  "2026-08-21-m2.3-alameda": {
+    "floor_uv": 0.652,
+    "origin": "2026-08-21T11:38:49",
+    "peak_t": 17.21,
+    "snr": 6.4,
+    "source": "picked",
+    "t": 16.19,
+    "tp_taup": 15.03
+  },
   "2026-08-25-geysers-m2.4": {
     "floor_uv": 2.536,
     "origin": "2026-08-25T00:22:31",
@@ -52,6 +61,15 @@
     "source": "picked",
     "t": 9.21,
     "tp_taup": 7.83
+  },
+  "2026-08-29-m1.4-santa-rosa": {
+    "floor_uv": 1.289,
+    "origin": "2026-08-29T04:13:48",
+    "peak_t": 3.43,
+    "snr": 15.1,
+    "source": "picked",
+    "t": 2.27,
+    "tp_taup": 1.74
   },
   "2026-08-29-m1.8-santa-rosa": {
     "floor_uv": 2.285,
