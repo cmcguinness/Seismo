@@ -290,6 +290,15 @@ tr:hover .spark{opacity:1}
 .cx-wave .cx-mark b{position:absolute;top:2px;left:4px;font:600 .62rem/1 var(--mono);
   color:var(--ink-dim);letter-spacing:.06em}
 .cx-wave .cx-mark.cx-s{background:none;width:0;border-left:1px dashed var(--ink-dim)}
+/* the fold on each featured catch: one quiet line, copper marker, no box */
+.cx-more>summary{cursor:pointer;color:var(--copper);font-size:.9rem;list-style:none;
+  padding:.15rem 0;width:max-content}
+.cx-more>summary::-webkit-details-marker{display:none}
+.cx-more>summary::before{content:"▸";display:inline-block;width:1em;font-size:1.15em;line-height:1;
+  transition:transform .15s}
+.cx-more[open]>summary::before{transform:rotate(90deg)}
+.cx-more>summary:hover{color:var(--copper-lit)}
+.cx-more[open]>summary{margin-bottom:.5rem}
 </style>"""
 
 

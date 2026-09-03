@@ -53,6 +53,36 @@ JSON_OUT = os.path.join(OUT_DIR, "refstation.json")
 ANCHOR = "2026-08-11T21:35:14"            # first of the anchors the 3.2x was fitted on
 STATION = os.environ.get("SEISMO_STATION", "OAKM1")
 
+# NP.1835 sits 1.64 km SE of us (NCEDC station service), so for a local event its P and S
+# arrive at a different moment than ours: for the M3.5 under Larkfield-Wikiup on 2026-09-03
+# (WNW of both) it is the farther station by 1.3 km, 0.25 s later at Vp. The harvest's
+# predictions are for THIS station; the reference panel gets its own, scaled by the ratio
+# of hypocentral distances (straight-line travel time, exact for the local field where
+# the harvest itself uses a constant Vp, and a good approximation past it). If the
+# catalogue lookup fails the reference panel falls back to our marks, and says so.
+REF_LAT, REF_LON = 38.442097, -122.606796
+
+
+def ref_arrival_scale(origin, depth_km):
+    """hypo(reference) / hypo(this station) for the catalogue event at `origin`, or None."""
+    import math
+    import harvest_events as he
+    from obspy import UTCDateTime
+    o = UTCDateTime(origin)
+    try:
+        feats = he.fetch(str(o - 3)[:19], str(o + 3)[:19], 600, 0)
+    except Exception:
+        return None
+    if not feats:
+        return None
+    lon, lat, dep = feats[0]["geometry"]["coordinates"][:3]
+    dep = dep if dep is not None else depth_km
+    mine = he.hypo_km(lat, lon, dep)
+    dlat = (lat - REF_LAT) * 111.32
+    dlon = (lon - REF_LON) * 111.32 * math.cos(math.radians((lat + REF_LAT) / 2))
+    ref = math.hypot(math.hypot(dlat, dlon), (dep or 0.0))
+    return ref / mine if mine > 0 else None
+
 TEAL, INK, RED, BLUE, MUT = "#2f6f6b", "#16211f", "#c0392b", "#2c6e9b", "#6b7775"
 
 
@@ -98,6 +128,8 @@ def compare(origin, row, pre=10.0, post_extra=15.0):
     o = UTCDateTime(origin)
     tp, ts = float(row["tp_s"]), float(row["ts_s"])
     w0, w1 = tp - 2.0, ts + 22.0                      # the harvest's P/S box
+    k = ref_arrival_scale(origin, float(row.get("depth_km") or 0))
+    tp_ref, ts_ref = (tp * k, ts * k) if k else (tp, ts)
     t0, t1 = o - pre, o + w1 + post_extra
     ref = reference(o - pre - 60, t1 + 60)            # generous: the taper needs margin
     mine = our_trace(o, t0 - 60, t1 + 60)
@@ -128,7 +160,7 @@ def compare(origin, row, pre=10.0, post_extra=15.0):
     # 3 s of signal), so a clear peak counts as well -- noise peaks run ~3-4x its RMS.
     ref_ok = (r_rms * 1e-6) >= REF_MIN_RMS and (
         not np.isfinite(r_floor) or r_rms >= 2.5 * r_floor or r_pk >= 6.0 * r_floor)
-    return dict(o=o, tp=tp, ts=ts, w0=w0, w1=w1, r_t=r_t, r_v=r_v, m_t=m_t, m_v=m_v,
+    return dict(o=o, tp=tp, ts=ts, tp_ref=tp_ref, ts_ref=ts_ref, ref_scaled=bool(k), w0=w0, w1=w1, r_t=r_t, r_v=r_v, m_t=m_t, m_v=m_v,
                 r_rms=r_rms, m_rms=m_rms, r_pk=r_pk, m_pk=m_pk,
                 r_floor=r_floor, m_floor=m_floor,
                 ratio_rms=r_rms / m_rms, ratio_pk=r_pk / m_pk, ref_ok=ref_ok,
@@ -156,13 +188,13 @@ def figure(res, row, out):
     fig, axes = plt.subplots(3, 1, figsize=(12.0, 8.4), dpi=100, sharex=True,
                              gridspec_kw=dict(height_ratios=[1, 1, 0.8], hspace=0.12))
     ymax = 1.15 * max(res["r_pk"], res["m_pk"])
-    for ax, t, v, col, label, rms in (
+    for ax, t, v, col, label, rms, tp_i, ts_i in (
             (axes[0], res["r_t"], res["r_v"], BLUE,
              f"NP.1835 · USGS strong-motion, 1.64 km away · response removed to velocity",
-             res["r_rms"]),
+             res["r_rms"], res["tp_ref"], res["ts_ref"]),
             (axes[1], res["m_t"], res["m_v"], TEAL,
              f"SS.{STATION} · this station · counts × provisional 9.0 V/(m/s)",
-             res["m_rms"])):
+             res["m_rms"], res["tp"], res["ts"])):
         ax.plot(t, v, color=col, lw=0.7)
         ax.set_ylim(-ymax, ymax)
         ax.axvspan(res["w0"], res["w1"], color="#000", alpha=0.035, lw=0)
@@ -170,7 +202,7 @@ def figure(res, row, out):
         ax.text(0.01, 0.95, label, transform=ax.transAxes, va="top", fontsize=10, color=INK)
         ax.text(0.99, 0.95, f"RMS in window {rms:.2f} µm/s", transform=ax.transAxes,
                 va="top", ha="right", fontsize=9, color=MUT)
-        for x, name in ((res["tp"], "P pred."), (res["ts"], "S pred.")):
+        for x, name in ((tp_i, "P pred."), (ts_i, "S pred.")):
             ax.axvline(x, color=RED, lw=0.8, ls=":", alpha=0.8)
             ax.text(x, -ymax * 0.92, f" {name}", color=RED, fontsize=8, va="bottom")
     ax = axes[2]
@@ -200,7 +232,8 @@ def figure(res, row, out):
     fig.suptitle(f"M{mag:.1f} · {place} · {row['origin'][:19].replace('T', ' ')} UTC · "
                  f"{dist:.0f} km", fontsize=13, color=INK, x=0.075, ha="left", y=0.98)
     fig.text(0.075, 0.945, f"{BAND[0]:g}–{BAND[1]:g} Hz band, both instruments · "
-             "shaded = the harvest's P/S window around the predicted arrivals",
+             "shaded = the harvest's P/S window around the predicted arrivals"
+             + ("" if res["ref_scaled"] else " · reference marks are this station's"),
              fontsize=9.5, color=MUT)
     fig.text(0.075, 0.92, verdict + ("" if not notes else " · " + " · ".join(notes)),
              fontsize=9.5, color=RED if notes else MUT)

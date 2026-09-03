@@ -64,7 +64,8 @@ def event_for(c):
 
 # Events with a felt report (USGS "Did You Feel It?"). Curated because confirmed.json
 # has no felt field -- everything else in STELLAR is computed, and should stay that way.
-FELT = {"2026-09-02T03:49:01": "MMI&nbsp;II"}
+FELT = {"2026-09-02T03:49:01": "MMI&nbsp;II",
+        "2026-09-03T17:33:27": "MMI&nbsp;II"}   # and felt in this house, unprompted
 
 
 def _n(e, k, d=0.0):
@@ -109,8 +110,10 @@ def stellar():
          "the nearest event large enough to be unmistakable"),
         ("closest of all", min(EVENTS, key=lambda e: _n(e, "dist_km")),
          "almost no path between the source and the sensor"),
-        ("the only one felt", felt[0] if felt else None,
-         "the only catch anybody reported feeling"),
+        ("felt" if len(felt) > 1 else "the only one felt",
+         max(felt, key=lambda e: _n(e, "mag")) if felt else None,
+         "the strongest of the catches people reported feeling" if len(felt) > 1
+         else "the only catch anybody reported feeling"),
     ]
     out, seen = [], {}
     for title, e, why in slots:
@@ -128,25 +131,30 @@ def stellar():
 
 
 def stellar_html(sl):
-    """A compact card: what makes it stellar, the trace, the sound, and a way in."""
+    """A compact card: the titles and one line, always; the trace, the sound and the
+    facts folded behind a disclosure, because seven of these in a row scrolled forever."""
     e, c = sl["event"], sl["featured"]
     chips = "".join(f'<span class="chip">{t}</span>' for t in sl["titles"])
     head = f'M{_n(e, "mag"):.1f} &middot; {e.get("place","")}'
     sub = (f'{e["origin"][:19].replace("T", " ")} UTC &middot; '
            f'{_n(e, "dist_km"):.1f}&nbsp;km &middot; {sl["why"]}')
     body = f'<div class="chips">{chips}</div><p class="text-muted small mb-2">{sub}</p>'
+    more = ""
     if c and image_path(c["img"]):
-        body += (f'<a href="/catch/{sl["slug"]}">'
+        more += (f'<a href="/catch/{sl["slug"]}">'
                  f'<img src="/catches/{c["img"]}?v={_ver(os.path.join(CATCH_DIR, c["img"]))}" '
-                 f'class="plot" alt="{head}"></a>')
-        body += _play_button(c["img"])
+                 f'class="plot" loading="lazy" alt="{head}"></a>')
+        more += _play_button(c["img"])
     if c:
-        body += f'<ul class="mt-3 mb-2">{"".join(f"<li>{f}</li>" for f in c["facts"][:2])}</ul>'
-        body += f'<p class="mb-0"><a href="/catch/{sl["slug"]}">the full write-up &rarr;</a></p>'
+        more += f'<ul class="mt-3 mb-2">{"".join(f"<li>{f}</li>" for f in c["facts"][:2])}</ul>'
+        more += f'<p class="mb-0"><a href="/catch/{sl["slug"]}">the full write-up &rarr;</a></p>'
+        label = "the trace, the sound and the story"
     else:
-        body += (f'<p class="mt-2 mb-0">Holds a record and has <b>not been written up yet</b> '
+        more += (f'<p class="mt-2 mb-0">Holds a record and has <b>not been written up yet</b> '
                  f'&mdash; the rule found it, not a person. '
                  f'<a href="/catch/{sl["slug"]}">its measurements &rarr;</a></p>')
+        label = "more"
+    body += f'<details class="cx-more"><summary>{label}</summary>{more}</details>'
     return head, body
 
 
@@ -598,6 +606,39 @@ CATCHES = [
             "<b>Short.</b> The shaking holds above the floor for 3.8&nbsp;s. Small and near "
             "means a brief, sharp event rather than the long trains the distant ones "
             "produce.",
+        ],
+    ),
+    dict(
+        img="2026-09-03-m3.5-larkfield-wikiup.png",
+        origin="2026-09-03T17:33:27",
+        head="M3.5 &middot; Larkfield-Wikiup &middot; 2026-09-03",
+        sub="17:33:27 UTC &middot; 38.498&deg;N 122.718&deg;W &middot; depth 7.4 km &middot; "
+            "12 km WNW, on the Rodgers Creek fault this station was sited above &mdash; "
+            "the closest and the biggest, and felt in the house",
+        facts=[
+            "<b>Five times anything before it.</b> The peak in the 1&ndash;15&nbsp;Hz band was "
+            "<b>6,843&nbsp;&micro;V</b> against the M4.2 Cloverdale&rsquo;s 1,406, and the ADC "
+            "still had sevenfold headroom: at gain 64 it clips near 39,000&nbsp;&micro;V. In ground "
+            "terms, NP.1835 read a peak of 1.5&nbsp;mm/s in the 5&ndash;15&nbsp;Hz band, this "
+            "station 0.84&nbsp;mm/s.",
+            "<b>The closest earthquake in the record</b>, 12.4&nbsp;km hypocentral at bearing "
+            "301&deg;, under the Rodgers Creek fault &mdash; the fault system this station was "
+            "built to listen to. P broke out of the noise at <b>+2.2&nbsp;s</b> after origin "
+            "against a predicted +2.4; S was due at about +4.1. With so little path there is "
+            "almost no room for the two to separate.",
+            "<b>Felt.</b> Plainly, in the house, before any instrument said so. The USGS "
+            "&ldquo;Did You Feel It?&rdquo; intensity opened at MMI&nbsp;II and ShakeMap "
+            "puts MMI&nbsp;3.4 at the epicentre. The first catch on this page that was an "
+            "event to the people living above the sensor rather than only to the sensor.",
+            "<b>The classifier was never in doubt.</b> p(quake) <b>0.998</b>; the high/low "
+            "band ratio was 0.32 where the fourteen other triggers in the surrounding quarter "
+            "hour ran 1.2 to 5.5 and scored at most 0.008.",
+            "<b>Against NP.1835</b>, 1.64&nbsp;km away: RMS ratio 1.31&times;, peak 1.82&times; "
+            "in the 5&ndash;15&nbsp;Hz band, and the two envelopes lie on top of each other "
+            "from the peak through the whole coda. Before the P wave the accelerometer&rsquo;s "
+            "own floor is visible at 1.7&nbsp;&micro;m/s; ours sits at 0.3.",
+            "USGS solution is still <i>automatic</i>: magnitude, depth and epicentre will "
+            "move as it is reviewed, and every number here is from the first cut.",
         ],
     ),
 ]

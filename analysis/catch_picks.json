@@ -97,5 +97,14 @@
     "source": "picked",
     "t": 7.14,
     "tp_taup": 6.14
+  },
+  "2026-09-03-m3.5-larkfield-wikiup": {
+    "floor_uv": 1.933,
+    "origin": "2026-09-03T17:33:27",
+    "peak_t": 5.77,
+    "snr": 1962.4,
+    "source": "picked",
+    "t": 2.56,
+    "tp_taup": 2.4
   }
 }

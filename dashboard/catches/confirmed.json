@@ -1,14 +1,39 @@
 {
  "summary": {
-  "n_conf": 34,
+  "n_conf": 35,
   "reach_km": 88.8,
-  "n_ref": 26,
-  "ref_median": 1.21,
+  "n_ref": 27,
+  "ref_median": 1.22,
   "ref_min": 0.61,
   "ref_max": 3.28,
-  "n_ref_all": 35
+  "n_ref_all": 36
  },
  "events": [
+  {
+   "origin": "2026-09-03T17:33:27Z",
+   "place": "3 km ESE of Larkfield-Wikiup, CA",
+   "az": "WNW",
+   "triggered": false,
+   "in_fit": true,
+   "mag": 3.54,
+   "dist_km": 12.4,
+   "depth_km": 7.4,
+   "peak_uv": 2667.9,
+   "floor_uv": 2.36,
+   "snr": 1131.8,
+   "tp_s": 2.4,
+   "ts_s": 4.14,
+   "sustain_s": 3.5,
+   "lo_hi": 5.85,
+   "resid_log10": 0.09,
+   "ref": {
+    "ratio_rms": 1.31,
+    "ratio_peak": 1.815,
+    "ref_ok": true,
+    "amp_epoch_ok": true,
+    "img": "ref-2026-09-03-m3.5-larkfield-wikiup.png"
+   }
+  },
   {
    "origin": "2026-09-02T03:49:01Z",
    "place": "2 km N of Middletown, CA",

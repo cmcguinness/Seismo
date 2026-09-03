@@ -838,5 +838,29 @@
   "sens_v_per_ms": 9.0,
   "provisional_factor": 3.2,
   "ref_id": "NP.1835.HNZ"
+ },
+ "2026-09-03T17:33:27": {
+  "origin": "2026-09-03T17:33:27Z",
+  "mag": 3.54,
+  "place": "3 km ESE of Larkfield-Wikiup, CA",
+  "dist_km": 12.4,
+  "img": "ref-2026-09-03-m3.5-larkfield-wikiup.png",
+  "band": [
+   5.0,
+   15.0
+  ],
+  "ratio_rms": 1.31,
+  "ratio_peak": 1.815,
+  "ref_rms_ums": 127.832,
+  "our_rms_ums": 97.6055,
+  "ref_peak_ums": 1529.956,
+  "our_peak_ums": 842.734,
+  "ref_floor_ums": 1.7459,
+  "our_floor_ums": 0.3062,
+  "ref_ok": true,
+  "amp_epoch_ok": true,
+  "sens_v_per_ms": 9.0,
+  "provisional_factor": 3.2,
+  "ref_id": "NP.1835.HNZ"
  }
 }

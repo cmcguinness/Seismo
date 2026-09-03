@@ -1,13 +1,13 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-02 (UTC)_
+_Last updated: 2026-09-03 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
 index into [`STATUS-ARCHIVE.md`](STATUS-ARCHIVE.md), where everything before 2026-08-20
 lives verbatim. `BACKLOG.md` holds deferred work; `CLAUDE.md` maps the hosts and code.
 
-## 🧭 CURRENT SYSTEM (as of 2026-09-02)
+## 🧭 CURRENT SYSTEM (as of 2026-09-03)
 
 **Station.** LGT-4.5 vertical geophone in a printed case on the garage slab (Oakmont;
 92 m from and 13 m above Route 12), Waveshare ADS1256 at PGA 64, Raspberry Pi 2B
@@ -20,11 +20,13 @@ all counted. Noise floor 1–15 Hz ~0.8 µV RMS on a quiet night, ~3.5 µV after
 
 **Calibration.** Reads ~3.2× quieter than the 28.8 V/(m/s) nameplate (five anchors vs
 USGS NP.1835 1.6 km away, median 3.26×, fixed-path scatter ~1.4×). Vp 5.19 km/s
-measured. **34 catalog-confirmed events, validated range 88.8 km** (M3.8 San Leandro);
-biggest M4.2 Cloverdale (07-29); furthest recorded (but deliberately **not fitted** — now
-enforced by `EXCLUDE_FROM_FIT`, not left to a filter a magnitude revision can flip) the
-M4.8 off Petrolia at 319 km (08-29). Closest: the M1.8 at 2.8 km (08-29). Most recent and
-the only one with a felt report: M2.6 Middletown, DYFI MMI II (09-02). Detection map:
+measured. **35 catalog-confirmed events, validated range 88.8 km** (M3.8 San Leandro);
+biggest earthquake M4.2 Cloverdale (07-29); **biggest signal the M3.5 under
+Larkfield-Wikiup at 12 km (09-03), 6,843 µV in 1–15 Hz, felt in the house**; furthest
+recorded (but deliberately **not fitted** — enforced by `EXCLUDE_FROM_FIT`, not left to a
+filter a magnitude revision can flip) the M4.8 off Petrolia at 319 km (08-29). Closest:
+the M1.8 at 2.8 km (08-29). Felt reports: Middletown M2.6 (09-02) and Larkfield-Wikiup,
+both DYFI MMI II. Detection map:
 `dashboard/catches/detection-range-map.png`, with its headline numbers in the `.json`
 beside it so the prose cannot drift from the image.
 
@@ -83,6 +85,30 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🏠 THE ONE WE FELT: M3.5 UNDER LARKFIELD-WIKIUP, 12 KM (2026-09-03)
+
+17:33:27 UTC, 38.498°N 122.718°W, depth 7.4 km, on the Rodgers Creek fault this station
+was sited to watch. Charles felt it in the house before any instrument said so. The
+detector fired at 17:33:29 with p(quake) 0.998 (hf_lf 0.32 against 1.2–5.5 for the fourteen
+cultural triggers around it); the harvest puts the 1–15 Hz peak at **6,843 µV, five times
+the M4.2 Cloverdale's 1,406**, with the ADC still 7× from clipping. P broke out at +2.2 s
+against a predicted +2.4. Against NP.1835 the RMS ratio is 1.31×, peak 1.82×, envelopes
+coincident through the whole coda; 1835's own noise floor (1.7 µm/s) is visible before the
+P wave where ours (0.3) is not.
+
+The catch pipeline ran by hand the same hour: harvest row appended, `catch_picks` (P at
++2.56, the onset of the largest swing), `render_catches`, `refstation_compare`,
+`catches_data`, `catch_sparklines`, `catch_audio`, `detection_map` (35 confirmed, range
+unchanged). Two things changed on the way. `refstation_compare` now draws **each panel's
+own predicted P and S**: 1835 is 1.3 km further from this epicentre than we are, so its
+arrivals are 0.25 s later, and drawing our marks on its trace was wrong (Charles caught
+it). And the Catches page folds each featured catch to three lines with a disclosure for
+the trace, sound and story — seven full cards in a row scrolled forever.
+
+USGS solution is still *automatic*; the weekly `reharvest` will redo the row when it
+settles. The "felt" slot on Catches now takes the strongest felt event rather than
+assuming there is only one.
 
 ## 🔓 THE REPO IS PUBLIC (2026-09-02)
 
