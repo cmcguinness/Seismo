@@ -1302,6 +1302,8 @@ about catches directly.
 
 ## Strong-motion channel: ADXL355 on an ESP32, location code 10 (ordered 2026-09-03)
 
+**BOM and wiring: `doc/BOM-accelerometer.md`.**
+
 EVAL-ADXL355Z ordered from Mouser 2026-09-03. The Pi 2 is not touched: an ESP32-S3 reads
 the chip over SPI at 250 sps, decimates to 100, SNTP against the stratum-1 host, stamps
 the first sample of each UDP packet and counts from there; pi5's collector grows one
