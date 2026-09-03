@@ -13,9 +13,10 @@ fails, per the "push, don't discover it in the morning" rule.
 
 ## Being findable: FDSN web services, and who would ever query them
 
-> See also **`doc/outreach-plan.md`**, which already sequences the human side of this
-> (Phase 2: measured response, PPSD, an `fdsnws` URL and an ISC network code, *then*
-> email the NCEDC data manager). This entry is the technical half; that one is the ask.
+> The human side of this (who to talk to, in what order) is kept in the private
+> sibling repo, Seismo-private. It sequences things as: measured response, PPSD, an
+> `fdsnws` URL and an ISC network code, *then* measured response, PPSD, an `fdsnws` URL and an ISC network code, *then*
+> email the NCEDC data manager. This entry is the technical half; that one is the ask.
 
 Charles, 2026-09-02: "We can serve them, but if there's nobody to serve, we're left
 singing Be Our Guest." Correct -- the protocol is the easy half, discoverability is the

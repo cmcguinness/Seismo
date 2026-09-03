@@ -86,11 +86,12 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 ## 👀 WHO IS VISITING: A DAILY DIGEST, NOT A LOG DUMP (2026-09-02)
 
-**the NSMP data-centre manager replied the same afternoon** (2026-09-02 14:44 PDT, from an earthquake
-meeting in Istanbul): warm, wants to hear about the setup, offered to check 1835's metadata,
-and sent the ANSS site-characteristics compilation. 1835 has no measured Vs30, only proxies
-(290-540 m/s, class C/D): `doc/np1835-site.md`. A reply describing the station is drafted in
-Gmail; then wait for her to circle back. Outreach plan A1 updated.
+**The NSMP data-centre manager replied the same afternoon**, warmly, offering to check
+1835's metadata and pointing at the ANSS site-characteristics compilation (Schleicher et
+al. 2021, sciencebase 6183f02cd34ec04fc9bf7f8f): 1835 has no measured Vs30, only proxies
+(290-540 m/s, class C/D). `analysis/refstation_spectra.py` then showed the 1835/OAKM1
+ratio is flat over 5-15 Hz (slope -0.06), so the 1.2x is our sensitivity, not the site:
+`doc/refstation-spectra.png`. Next contact after the calibration injector has a result.
 
 Now that the NP.1835 email is out, Charles wanted to know who reads the public dashboard.
 Two obstacles first: the site is proxied through Cloudflare, so the nginx log on apps02
@@ -98,8 +99,8 @@ held Cloudflare's edge addresses, not visitors'; and the live view's 3 s poll wa
 the log. Fixed the first with `/home/dokku/seismo/nginx.conf.d/realip.conf` (Cloudflare's
 published ranges + `real_ip_header CF-Connecting-IP`); real addresses from 18:52 UTC.
 
-**`apps02/visitors.py`** (installed by `apps02/install-visitors.sh`; cron: ingest hourly,
-digest + report 14:00 UTC, DB-IP refresh monthly) tails the log into **Postgres** (Dokku
+**The visitor digest** (code in the private sibling repo `Seismo-private`; cron: ingest
+hourly, digest + report 14:00 UTC, DB-IP refresh monthly) tails the log into **Postgres** (Dokku
 service `seismo-visitors`, like every other database on apps02; the host cron job reaches
 it by container address, DSN in `/etc/seismo/visitors-db.dsn`), resolves each address
 once (DB-IP lite city + ASN via python3-maxminddb), and classifies every (day, address):
@@ -107,15 +108,13 @@ once (DB-IP lite city + ASN via python3-maxminddb), and classifies every (day, a
 referrer), or 20+ polls; **crawler** = never sent a browser-looking User-Agent that day;
 **scanner** = the rest. Digest to the **`seismo-visitors`** ntfy topic: readers,
 pageviews, scanners, crawlers, top pages, referrers, **US states** and countries,
-networks (hosting hidden), and a starred **WATCHLIST** line at higher priority when a
-network name (USGS/DOI, Berkeley, universities, NOAA, NASA, LLNL, CGS) or a US city
-(Berkeley, Menlo Park, Moffett Field, Mountain View, Pasadena, Golden, Reston, Rohnert
-Park...) matches. Our own report at **https://seismo.mcguinness.ai/visitors/** (basic
-auth, user `charles`, password in `/root/seismo-visitors.password`, `access_log off`):
-readers/scanners per day (30 d), watchlist log, a continent > country > state > city
+networks (hosting hidden), and a higher-priority line when a visitor comes from a
+research or agency network. Our own report at **https://seismo.mcguinness.ai/visitors/**
+(basic auth, `access_log off`):
+readers/scanners per day (30 d), a continent > country > state > city
 tree of readers, pages, referrers, networks, what the scanners probed for. Lines before
 the real-IP fix (18:53:30 UTC) are never ingested: Cloudflare's edges geolocate to San
-Jose, exactly where a Moffett Field reader would appear.
+Jose and would look like Bay Area readers.
 
 Started with GoAccess and replaced it the same evening: everything actually wanted
 (readers vs scanners, states, excluding pre-fix lines, history past the 7-day log
@@ -133,7 +132,7 @@ Cloudflare as the network. Refresh the databases monthly (cron does, 3rd of the 
 
 ## 🪞 THE CATCHES PAGE NOW SHOWS THE REFERENCE STATION, AND THE TABLE IS DATA (2026-09-02)
 
-Prompted by the outreach plan (`doc/outreach-plan.md`): the first move toward NCEDC is
+Prompted by the outreach plan (kept in the private sibling repo): the first move toward NCEDC is
 an email to the USGS strong-motion group about NP.1835, and the thing to link is a page
 that shows our record beside theirs. So the Catches page was restructured.
 
