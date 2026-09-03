@@ -72,7 +72,7 @@ def cached_raw_reference(o, t0, t1):
     return tr
 
 
-def onset(tr, o, tp, k):
+def onset(tr, o, tp, k, search=None):
     """(onset_s_after_origin or None, snr): catch_picks.py's picker, so the two stations
     are measured the same way. Causal 1-15 Hz band-pass; the arrival is the LOUDEST thing
     in the search window around the predicted P (an earthquake inside a window centred on
@@ -90,7 +90,8 @@ def onset(tr, o, tp, k):
     if nm.sum() < fs * 5:
         return None, 0.0
     floor = float(np.median(env[nm])) or 1e-9
-    sm = np.flatnonzero((t >= tp + SEARCH[0]) & (t <= tp + SEARCH[1]))
+    lo, hi = search or SEARCH
+    sm = np.flatnonzero((t >= tp + lo) & (t <= tp + hi))
     if not sm.size:
         return None, 0.0
     coarse = int(sm[int(np.argmax(env[sm]))])
