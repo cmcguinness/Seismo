@@ -247,6 +247,9 @@ CSS = """<style>
 .cx-play:hover{color:var(--ground);background:var(--copper-lit);border-color:var(--copper-lit)}
 .cx-play[disabled]{opacity:.5;cursor:default;background:transparent;color:var(--ink-dim);
   border-color:var(--rule)}
+.chips{display:flex;gap:.4rem;flex-wrap:wrap;margin:0 0 .5rem}
+.chip{font-family:var(--mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;
+  padding:.18rem .5rem;border:1px solid var(--copper);color:var(--copper);border-radius:2px}
 .spark-cell{width:68px;padding:2px 6px!important;vertical-align:middle}
 /* the site CSS stretches svg to the container, which blew the sparkline out to 180px
    and pushed the log table into horizontal scroll -- pin it. */

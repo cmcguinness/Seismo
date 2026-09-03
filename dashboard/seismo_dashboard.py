@@ -520,7 +520,7 @@ def _rail(active):
                    + [("/history", "History", "history"),
                       ("/activity", "Activity", "activity")]),
         ("The record", [("/catches", "Catches", "catches")]),
-        ("The instrument", [("/spectrum", "Spectrum", "spectrum"),
+        ("The instrument", [("/range", "Range", "range"), ("/spectrum", "Spectrum", "spectrum"),
                             ("/env", "Environment", "env"),
                             ("/about", "About this station", "about")]),
         ("Background", [("/learn", "Seismology 101", "learn")]),
@@ -1088,22 +1088,33 @@ def listen_page():
 
 @app.get("/catches")
 def catches_page():
-    # Content and images live in catches.py / catches/ -- this handler only assembles.
-    cards = _card("How far can this station hear?",
-                  '<img src="/catches/detection-range-map.png" class="plot" '
-                  'alt="Detection range by magnitude">' + catches.MAP_TEXT)
+    # Two jobs only: the computed superlatives, then the log. The range map and the
+    # reference-station comparison moved to /range -- they are the instrument's
+    # performance argument, consulted rather than read, and they were what made this
+    # page a 15-minute read doing six different things.
+    cards = "".join(_card(h, inner, card_id="s-" + sl["slug"])
+                    for sl, (h, inner) in
+                    ((sl, catches.stellar_html(sl)) for sl in catches.stellar()))
     cards += _card("Every confirmed event", catches.table_html(), card_id="table")
-    cards += _card("Against the reference station", catches.ref_text(), card_id="reference")
-    cards += "".join(_card(c["head"], catches.catch_html(c), card_id=catches.card_id(c))
-                     for c in catches.CATCHES)
     body = _titleblock("Catches", f"earthquakes {SID} has recorded, confirmed by the USGS catalog") + \
         f'<div class="row"><div class="col-lg-9">{catches.INTRO}' \
         f'{listen.mode_control()}{cards}</div></div>'
-    # The synth engine (shared with /listen) plus the per-catch button glue. Only the
-    # engine, not the live poller: these buttons drive it from a fixed clip.
     return Response(_shell(f"Catches — {BRAND}", "catches", body,
                            listen.CSS + listen.script(live=False) + catches.CATCH_AUDIO_JS),
                     media_type="text/html")
+
+
+@app.get("/range")
+def range_page():
+    cards = _card("How far can this station hear?",
+                  '<img src="/catches/detection-range-map.png?v='
+                  + catches._ver(os.path.join(catches.CATCH_DIR, "detection-range-map.png"))
+                  + '" class="plot" alt="Detection range by magnitude">' + catches.MAP_TEXT,
+                  card_id="map")
+    cards += _card("Against the reference station", catches.ref_text(), card_id="reference")
+    body = _titleblock("Range", "how far this station hears, and how hard that was to pin down") + \
+        f'<div class="row"><div class="col-lg-9">{cards}</div></div>'
+    return Response(_shell(f"Range — {BRAND}", "range", body), media_type="text/html")
 
 
 @app.get("/catch/{slug}")

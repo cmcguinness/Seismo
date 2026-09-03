@@ -62,6 +62,94 @@ def event_for(c):
     return _BY_ORIGIN.get((c.get("origin") or "")[:19])
 
 
+# Events with a felt report (USGS "Did You Feel It?"). Curated because confirmed.json
+# has no felt field -- everything else in STELLAR is computed, and should stay that way.
+FELT = {"2026-09-02T03:49:01": "MMI&nbsp;II"}
+
+
+def _n(e, k, d=0.0):
+    try:
+        return float(e[k])
+    except (KeyError, TypeError, ValueError):
+        return d
+
+
+def _truthy(e, k):
+    return str(e.get(k)).lower() in ("1", "true", "yes")
+
+
+def stellar():
+    """The featured set, COMPUTED from the record rather than curated.
+
+    Superlatives on this page have gone stale before -- two of them broke the day
+    Petrolia landed -- because they were maintained by hand. Deriving them means the page
+    cannot claim a record that some later event has already beaten, and it surfaces
+    events that deserve a write-up instead of quietly keeping the ones that have one.
+
+    Distances are HYPOCENTRAL throughout, the same as the range fit, the map and the
+    harvest. Worth stating because the prose has quoted epicentral in places: the M1.8
+    Santa Rosa is 2.7 km away on the surface and 9.9 km through the rock, and a
+    "closest" slot has to mean one of them.
+    """
+    if not EVENTS:
+        return []
+    fitted = [e for e in EVENTS if _truthy(e, "in_fit")]
+    big = [e for e in EVENTS if _n(e, "mag") >= 2.5]
+    felt = [e for e in EVENTS if e["origin"][:19] in FELT]
+    slots = [
+        ("biggest swing", max(EVENTS, key=lambda e: _n(e, "peak_uv")),
+         "the largest voltage this station has ever produced"),
+        ("biggest earthquake", max(EVENTS, key=lambda e: _n(e, "mag")),
+         "the largest magnitude in the record"),
+        ("furthest recorded", max(EVENTS, key=lambda e: _n(e, "dist_km")),
+         "the greatest distance, fitted or not"),
+        ("furthest in the fit", max(fitted, key=lambda e: _n(e, "dist_km")) if fitted else None,
+         "where measurement ends and extrapolation begins"),
+        ("closest at M2.5+", min(big, key=lambda e: _n(e, "dist_km")) if big else None,
+         "the nearest event large enough to be unmistakable"),
+        ("closest of all", min(EVENTS, key=lambda e: _n(e, "dist_km")),
+         "almost no path between the source and the sensor"),
+        ("the only one felt", felt[0] if felt else None,
+         "the only catch anybody reported feeling"),
+    ]
+    out, seen = [], {}
+    for title, e, why in slots:
+        if e is None:
+            continue
+        o = e["origin"][:19]
+        if o in seen:                      # one event can hold several titles
+            seen[o]["titles"].append(title)
+            continue
+        d = {"titles": [title], "why": why, "event": e,
+             "featured": featured_by_origin(o), "slug": slug_for(o)}
+        seen[o] = d
+        out.append(d)
+    return out
+
+
+def stellar_html(sl):
+    """A compact card: what makes it stellar, the trace, the sound, and a way in."""
+    e, c = sl["event"], sl["featured"]
+    chips = "".join(f'<span class="chip">{t}</span>' for t in sl["titles"])
+    head = f'M{_n(e, "mag"):.1f} &middot; {e.get("place","")}'
+    sub = (f'{e["origin"][:19].replace("T", " ")} UTC &middot; '
+           f'{_n(e, "dist_km"):.1f}&nbsp;km &middot; {sl["why"]}')
+    body = f'<div class="chips">{chips}</div><p class="text-muted small mb-2">{sub}</p>'
+    if c and image_path(c["img"]):
+        body += (f'<a href="/catch/{sl["slug"]}">'
+                 f'<img src="/catches/{c["img"]}?v={_ver(os.path.join(CATCH_DIR, c["img"]))}" '
+                 f'class="plot" alt="{head}"></a>')
+        body += _play_button(c["img"])
+    if c:
+        body += f'<ul class="mt-3 mb-2">{"".join(f"<li>{f}</li>" for f in c["facts"][:2])}</ul>'
+        body += f'<p class="mb-0"><a href="/catch/{sl["slug"]}">the full write-up &rarr;</a></p>'
+    else:
+        body += (f'<p class="mt-2 mb-0">Holds a record and has <b>not been written up yet</b> '
+                 f'&mdash; the rule found it, not a person. '
+                 f'<a href="/catch/{sl["slug"]}">its measurements &rarr;</a></p>')
+    return head, body
+
+
 def slug_for(origin):
     """Stable URL slug for any confirmed event: '2026-08-21-113849'.
 
@@ -190,9 +278,9 @@ INTRO = (
     "spectrogram below it: an earthquake arrives as a burst that <em>starts</em> at low "
     "frequency and stays there, because the ground filters out the high frequencies on "
     "the way; a local disturbance is broadband and impulsive. That difference is how the "
-    "detector tells them apart &mdash; though the Santa&nbsp;Rosa M1.8 below is the "
-    "exception that proves it, because at 2.8&nbsp;km there is no path to do the "
-    "filtering.</p>"
+    "detector tells them apart &mdash; with one exception that proves it: a quake a few "
+    "kilometres away arrives broadband too, because there is barely any path to do "
+    "the filtering.</p>"
 )
 
 MAP_TEXT = (
@@ -227,7 +315,8 @@ CATCHES = [
             "<b>The biggest signal this station has recorded</b> &mdash; though no longer "
             "the biggest earthquake. Peak <b>1,406&nbsp;&micro;V</b> in 1&ndash;15&nbsp;Hz "
             "against a ~1.5&nbsp;&micro;V floor, an ~80&nbsp;s coda, and a detector ratio of "
-            "8,535, where the previous record was 645. The M4.8 off Petrolia above is the larger "
+            "8,535, where the previous record was 645. The <a href='/catch/2026-08-29-024111'>M4.8 "
+            "off Petrolia</a> is the larger "
             "quake &mdash; 0.6 magnitude units, about four times the amplitude at the "
             "source &mdash; and it arrived here at 52&nbsp;&micro;V, <b>27 times "
             "smaller</b>, because it happened 319&nbsp;km away instead of 46.",
@@ -248,7 +337,7 @@ CATCHES = [
         facts=[
             "Still the <b>furthest catch inside the calibrated range</b> &mdash; 88&nbsp;km, "
             "nearly twice the previous record, and the event the map&rsquo;s dashed circle is "
-            "drawn from. The M4.8 off Petrolia above was recorded nearly four times further "
+            "drawn from. The <a href='/catch/2026-08-29-024111'>M4.8 off Petrolia</a> was recorded nearly four times further "
             "out, but it reads so far below the textbook amplitude that it is deliberately "
             "left out of the fit, so this is where measurement still ends and inference "
             "begins. Peak 503&nbsp;&micro;V at +30&nbsp;s, the energy arriving as a long train "
@@ -280,7 +369,8 @@ CATCHES = [
             "the energy sits below ~7&nbsp;Hz, hugging the geophone&rsquo;s own 4.5&nbsp;Hz "
             "corner &mdash; the crust has stripped everything above it out on the way. Its "
             "high/low band ratio is 0.40, where every other trigger that evening ran 1.2 to "
-            "3.3. Set it beside the M1.8 below, which arrived from 2.8&nbsp;km with energy "
+            "3.3. Set it beside the <a href='/catch/2026-08-29-004216'>M1.8 Santa Rosa</a>, which "
+            "arrived from 2.8&nbsp;km with energy "
             "still present at 24&nbsp;Hz: same instrument, same night, opposite ends of the "
             "same rule.",
             "<b>The station said so at the time.</b> The trigger classifier scored it "
@@ -430,7 +520,7 @@ CATCHES = [
             "minutes around this event. Its neighbours scored p(quake) between 0.002 and "
             "0.016; this one scored <b>0.999</b> and pushed an alert. Its high/low band ratio "
             "was 0.31 where the surrounding triggers ran 1.7 to 6.9.",
-            "<b>What 35&nbsp;km does to a signal &mdash; compare it with Petrolia below.</b> "
+            "<b>What 35&nbsp;km does to a signal &mdash; compare it with <a href='/catch/2026-08-29-024111'>Petrolia</a>.</b> "
             "The spectrogram here carries energy right up past 20&nbsp;Hz, because there is "
             "barely enough crust in the way to filter anything out. The M4.8 at 319&nbsp;km is "
             "a far bigger earthquake and arrives with nothing above ~7&nbsp;Hz. Same "
