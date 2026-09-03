@@ -133,7 +133,7 @@ INTRO = (
     "to three octaves <em>below</em> human hearing. So this is not a matter of turning "
     "the volume up &mdash; the sound has to be moved, and how you move it decides what "
     "you actually perceive.</p>"
-    "<p>Twelve band-pass filters run across the live signal, and each one&rsquo;s "
+    "<p>Thirteen band-pass filters run across the live signal, and each one&rsquo;s "
     "loudness drives a single tone. What you hear is a chord whose balance is the shape "
     "of the ground&rsquo;s motion right now &mdash; mostly the neighbourhood: traffic "
     "on Route&nbsp;12, wind and thermal drift, the house&rsquo;s own machinery, and, a "

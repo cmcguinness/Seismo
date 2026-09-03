@@ -246,7 +246,11 @@ def _play_button(img):
             f'<div class="cx-wave" data-wave="{stem}">'
             f'<div class="cx-frame"><canvas></canvas>'
             f'<div class="cx-mark"><b>P</b></div>'
-            f'<div class="cx-head"></div></div></div>')
+            f'<div class="cx-head"></div></div></div>'
+            f'<p class="text-muted small mb-2">Listen for how the pitch balance changes as the '
+            f'P&nbsp;wave, the S&nbsp;wave and the coda arrive. Volume is normalised to this '
+            f'clip, so it only says how much energy there is before, during and after the '
+            f'event relative to its own peak &mdash; not how big the earthquake was.</p>')
 
 
 def _map_stats():
