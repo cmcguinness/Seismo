@@ -3,3 +3,5 @@
 # ObsPy pulls numpy/scipy/matplotlib -- fine on the Mac, too heavy for the Pi
 # (which uses simplemseed for acquisition instead).
 obspy>=1.4
+scikit-learn>=1.4
+joblib>=1.3
