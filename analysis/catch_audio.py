@@ -148,6 +148,13 @@ def main():
             pk = PICKS.get(stem, {}).get("t")
             if pk is not None:
                 d["p_frac"] = round((pk - geom["t0"]) / (geom["t1"] - geom["t0"]), 5)
+            # The S marker is the harvest's PREDICTED S (ts_s, from the local Vp/Vs), not
+            # a pick -- there is no S picker -- so the page draws it dashed and says so.
+            ts = row.get("ts_s")
+            if ts not in (None, ""):
+                sf = (float(ts) - geom["t0"]) / (geom["t1"] - geom["t0"])
+                if 0.0 < sf < 1.0:
+                    d["s_frac"] = round(sf, 5)
         p = os.path.join(OUT_DIR, stem + ".json")
         with open(p, "w") as fh:
             json.dump(d, fh, separators=(",", ":"))

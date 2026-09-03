@@ -246,9 +246,11 @@ def _play_button(img):
             f'<div class="cx-wave" data-wave="{stem}">'
             f'<div class="cx-frame"><canvas></canvas>'
             f'<div class="cx-mark"><b>P</b></div>'
+            f'<div class="cx-mark cx-s" hidden><b>S</b></div>'
             f'<div class="cx-head"></div></div></div>'
-            f'<p class="text-muted small mb-2">Listen for how the pitch balance changes as the '
-            f'P&nbsp;wave, the S&nbsp;wave and the coda arrive. Volume is normalised to this '
+            f'<p class="text-muted small mb-2">Listen for how the pitch balance changes at the '
+            f'P&nbsp;wave (marked where it was picked), at the S&nbsp;wave (the dashed mark is '
+            f'its predicted arrival) and through the coda that follows. Volume is normalised to this '
             f'clip, so it only says how much energy there is before, during and after the '
             f'event relative to its own peak &mdash; not how big the earthquake was.</p>')
 
@@ -856,6 +858,10 @@ CATCH_AUDIO_JS = """<script>
     const frac=(clip.p_frac!=null) ? clip.p_frac
              : (clip.pre_s||0)/(n/(clip.fs||100));
     if(mark) mark.style.left=(frac*100).toFixed(3)+'%';
+    // the S marker is the predicted S arrival (no S picker exists): dashed, and absent
+    // when it falls outside the clip
+    const smark=box.querySelector('.cx-s');
+    if(smark){ if(clip.s_frac!=null){ smark.style.left=(clip.s_frac*100).toFixed(3)+'%'; smark.hidden=false; } else smark.hidden=true; }
     return peak;
   }
 

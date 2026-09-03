@@ -28,7 +28,7 @@ CONF_JSON = os.path.join(OUT, "confirmed.json")
 # arithmetic; anything derived belongs in the analysis, not the dashboard.
 FIELDS = dict(mag=("mag", 2), dist_km=("dist_km", 1), depth_km=("depth_km", 1),
               peak_uv=("peak_1_15", 1), floor_uv=("pre_1_15", 2), snr=("snr", 1),
-              tp_s=("tp_s", 2), sustain_s=("sustain_s", 1), lo_hi=("lo_hi", 2),
+              tp_s=("tp_s", 2), ts_s=("ts_s", 2), sustain_s=("sustain_s", 1), lo_hi=("lo_hi", 2),
               resid_log10=("resid_log10", 2))
 
 

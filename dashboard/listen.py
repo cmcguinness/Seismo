@@ -271,6 +271,7 @@ tr:hover .spark{opacity:1}
   background:var(--ink-dim);opacity:.55;pointer-events:none}
 .cx-wave .cx-mark b{position:absolute;top:2px;left:4px;font:600 .62rem/1 var(--mono);
   color:var(--ink-dim);letter-spacing:.06em}
+.cx-wave .cx-mark.cx-s{background:none;width:0;border-left:1px dashed var(--ink-dim)}
 </style>"""
 
 
