@@ -508,7 +508,7 @@ _MODE_GLUE = r"""
   const note=document.getElementById('lsn-mode-note');
   const NOTES={
     c:'2 octaves, 110\u2013440\u202fHz \u2014 plays on anything, but a 4:1 ratio in the ground is heard as 2:1',
-    t:'true pitch, 16\u2013240\u202fHz \u2014 no compression at all; the low bands need a subwoofer'
+    t:'true pitch, 16\u2013240\u202fHz \u2014 no compression at all; the low bands need a subwoofer or good headphones'
   };
   function paint(m){
     [...box.querySelectorAll('button')].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
