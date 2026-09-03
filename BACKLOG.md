@@ -1300,3 +1300,20 @@ learns about it second, so this wants the drum to read `confirmed.json` (or the 
 at render time and emit an image map or an overlay of positioned anchors, not to know
 about catches directly.
 
+## Strong-motion channel: ADXL355 on an ESP32, location code 10 (ordered 2026-09-03)
+
+EVAL-ADXL355Z ordered from Mouser 2026-09-03. The Pi 2 is not touched: an ESP32-S3 reads
+the chip over SPI at 250 sps, decimates to 100, SNTP against the stratum-1 host, stamps
+the first sample of each UDP packet and counts from there; pi5's collector grows one
+packet format and three day-files (`SS.OAKM1.10.HNZ/HNN/HNE`). Bolted to an aluminium
+plate epoxied to the slab a few metres from the geophone (same point seismically at
+10 Hz, out of the ESP32's radiated field), oriented N/E by compass and recorded in the
+StationXML, static tilt logged from the DC output. Separate wall supply, no ground strap
+to the Pi box: inverse square helps only with what travels through the air. Response
+from the datasheet poles, the first defensible response on the site.
+
+What it buys: horizontals (S wave, H/V site ratio and a Vs30 proxy of our own), headroom
+above the geophone's ~4 mm/s saturation, and PGA/PGV/instrumental intensity line for
+line against NP.1835's ShakeMap entry. Noise ~1 mm/s^2 RMS in 1-15 Hz: M3+ within 20 km
+is clean, M2.5 at 40 km is at the floor. After the injector build; both want the bench.
+

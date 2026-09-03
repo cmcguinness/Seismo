@@ -57,7 +57,8 @@ outbound-only from pi5 (files every minute, live ring every 3 s), no Detections 
 Every dynamic image reload is double-buffered (the Safari half-drawn-drum fix).
 
 **Pending / on order.** **Calibration injector parts (DigiKey, ~2026-09-09; USBasp
-programmer 09-03)** — the box that replaces the guessed f0/zeta. Geophones for the
+programmer 09-03)** — the box that replaces the guessed f0/zeta. **EVAL-ADXL355Z (Mouser, ordered 09-03)** — the strong-motion
+channel on an ESP32, location code 10; plan in BACKLOG. Geophones for the
 ESP32/ADS1220 field rig (`doc/field-seismograph.md`: hammer refraction on the lot and the
 street). FDSN network code from ISC (station currently uses the self-assigned `SS`).
 Weekly-view weighted median (BACKLOG, ~November).
