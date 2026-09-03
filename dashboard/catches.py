@@ -43,12 +43,49 @@ def _confirmed():
 
 
 SUMMARY, EVENTS = _confirmed()
+
+
+def _sparks():
+    try:
+        with open(os.path.join(CATCH_DIR, "sparklines.json")) as fh:
+            return json.load(fh)
+    except Exception:
+        return {}
+
+
+SPARKS = _sparks()
 _BY_ORIGIN = {e["origin"][:19]: e for e in EVENTS}
 
 
 def event_for(c):
     """The confirmed.json row behind a featured catch, matched on origin second."""
     return _BY_ORIGIN.get((c.get("origin") or "")[:19])
+
+
+def slug_for(origin):
+    """Stable URL slug for any confirmed event: '2026-08-21-113849'.
+
+    From the origin time rather than the place, because place strings move (USGS
+    revises them) and two events can share one. This has to stay stable -- these URLs
+    are the shareable artefact the outreach plan wants, so a slug that drifts breaks
+    every link anyone has ever sent.
+    """
+    o = (origin or "")[:19]
+    return o[:10] + "-" + o[11:].replace(":", "")
+
+
+def event_by_slug(slug):
+    for e in EVENTS:
+        if slug_for(e.get("origin")) == slug:
+            return e
+    return None
+
+
+def featured_by_origin(origin):
+    for c in CATCHES:
+        if c["origin"][:19] == (origin or "")[:19]:
+            return c
+    return None
 
 
 def card_id(c):
@@ -436,10 +473,30 @@ TABLE_TEXT = (
     "St.&nbsp;Helena a few hours before it, has a write-up but no row.</p>"
 )
 
-_TH = ("<thead><tr><th>UTC</th><th>M</th><th>place</th><th class=\"text-end\">km</th>"
+_TH = ("<thead><tr><th>UTC</th><th>M</th><th>place</th><th>trace</th>"
+       "<th class=\"text-end\">km</th>"
        "<th class=\"text-end\">depth</th><th class=\"text-end\">peak &micro;V</th>"
        "<th class=\"text-end\">SNR</th><th class=\"text-end\">P pred.</th>"
        "<th class=\"text-end\">vs NP.1835</th></tr></thead>")
+
+
+def _sparkline(slug):
+    """A 96-column envelope trace as inline SVG.
+
+    Inline rather than a PNG per row: no extra requests, crisp at any size, inherits the
+    page's colour through currentColor, and the whole set is 10 KB. Every one is drawn
+    against ONE log scale spanning the record (see catch_sparklines.py), so the height
+    means something -- a self-normalised sparkline would draw the M0.4 exactly like the
+    M4.2, on a page whose whole argument is about amplitude.
+    """
+    v = SPARKS.get(slug)
+    if not v:
+        return ""
+    n = len(v)
+    pts = " ".join(f"{i * 100 / (n - 1):.2f},{50 - h * 0.48:.2f} "
+                   f"{i * 100 / (n - 1):.2f},{50 + h * 0.48:.2f}" for i, h in enumerate(v))
+    return (f'<svg class="spark" viewBox="0 0 100 100" preserveAspectRatio="none" '
+            f'aria-hidden="true"><polyline points="{pts}"/></svg>')
 
 
 def _table_row(e):
@@ -447,11 +504,14 @@ def _table_row(e):
     feat = _FEATURED.get(key)
     when = e["origin"][:16].replace("T", "&nbsp;")
     place = e["place"].replace(", CA", "")
-    if feat:
-        place = f'<a href="#{card_id(feat)}"><b>{place}</b></a>'
+    slug = slug_for(e["origin"])
+    # every row links to its own page -- that URL is the shareable thing, and it exists
+    # for all 35 whether or not the event has been written up
+    place = f'<a href="/catch/{slug}">{"<b>" + place + "</b>" if feat else place}</a>'
     if not e.get("in_fit", True):
         place += ' <span class="badge badge-quiet" title="recorded, but kept out of the range fit">not in fit</span>'
     return (f"<tr><td class=\"text-nowrap\">{when}</td><td>{_fmt(e['mag'], 1)}</td><td>{place}</td>"
+            f"<td class=\"spark-cell\">{_sparkline(slug)}</td>"
             f"<td class=\"text-end\">{_fmt(e['dist_km'], 0)}</td>"
             f"<td class=\"text-end\">{_fmt(e['depth_km'], 1)}</td>"
             f"<td class=\"text-end\">{_fmt(e['peak_uv'], 0)}</td>"
@@ -514,6 +574,36 @@ _STATS = [("magnitude", "mag", 1, ""), ("distance", "dist_km", 1, " km"),
           ("depth", "depth_km", 1, " km"), ("envelope peak", "peak_uv", 0, " µV"),
           ("envelope SNR", "snr", 0, "×"), ("P predicted", "tp_s", 1, " s"),
           ("sustain", "sustain_s", 1, " s"), ("low/high band", "lo_hi", 1, "×")]
+
+
+def single_html(e):
+    """One catch, on its own page. Works from confirmed.json alone.
+
+    Assets UPGRADE this page, they are not required by it: 35 events are confirmed, 10
+    have a rendered trace and 9 have an audio clip. Building the page from the table row
+    means every event is linkable today and the renders can be backfilled, instead of 25
+    events waiting on a batch job before they have a URL.
+    """
+    c = featured_by_origin(e.get("origin"))
+    o = (e.get("origin") or "")[:19].replace("T", " ")
+    head = f'M{float(e.get("mag") or 0):.1f} &middot; {e.get("place","")}'
+    sub = (f'{o} UTC &middot; {float(e.get("dist_km") or 0):.1f}&nbsp;km '
+           f'({e.get("az","")}) &middot; depth {float(e.get("depth_km") or 0):.1f}&nbsp;km')
+    body = f'<p class="text-muted small mb-2">{sub}</p>' + _stat_strip(e)
+    if c:
+        img = c["img"]
+        if image_path(img):
+            body += (f'<img src="/catches/{img}?v={_ver(os.path.join(CATCH_DIR, img))}" '
+                     f'class="plot" alt="{head}">')
+        body += _play_button(img)
+        body += f'<ul class="mt-3 mb-0">{"".join(f"<li>{f}</li>" for f in c["facts"])}</ul>'
+    else:
+        body += ('<p class="mt-3 mb-0">This one is in the record but has not been written '
+                 'up: no rendered trace and no audio yet, just the measurements above. '
+                 'They are the same measurements every featured catch is judged by.</p>')
+    body += _ref_figure(e)
+    body += ('<p class="mt-4 mb-0"><a href="/catches">&larr; all catches</a></p>')
+    return head, body
 
 
 def _stat_strip(e):

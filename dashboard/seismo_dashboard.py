@@ -1106,6 +1106,21 @@ def catches_page():
                     media_type="text/html")
 
 
+@app.get("/catch/{slug}")
+def catch_single(slug: str):
+    # Singular /catch/ on purpose: /catches/{name} already serves the PNGs and would
+    # swallow a slug. These URLs are the shareable artefact, so they get their own space.
+    e = catches.event_by_slug(slug)
+    if not e:
+        return Response("not found", status_code=404)
+    head, inner = catches.single_html(e)
+    body = _titleblock(head, f"one catch &middot; {SID}") + \
+        '<div class="row"><div class="col-lg-9">' + _card(head, inner) + '</div></div>'
+    return Response(_shell(f"{head} — {BRAND}", "catches", body,
+                           listen.CSS + listen.script(live=False) + catches.CATCH_AUDIO_JS),
+                    media_type="text/html")
+
+
 @app.get("/catches/audio/{name}")
 def catches_audio(name: str):
     # Pre-rendered by analysis/catch_audio.py and committed, exactly like the images --
