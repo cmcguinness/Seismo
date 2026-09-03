@@ -111,3 +111,50 @@ Print on the back, honestly:
 The delight is watching your own footsteps register from across the room — not waiting
 months for an M4. Anything the packaging implies beyond that will disappoint, and it
 does not need to.
+
+---
+
+## Variant B (2026-09-03): Pi + touchscreen + ADXL355, the household strong-motion box
+
+The section above is right about a **slab**: on concrete a footstep at 3 m is ~100 µg and
+the ADXL355 cannot see it. It is wrong about a **house**. On a shelf in a wood-frame home
+the floor flexes and the same footstep is tens to hundreds of times larger; a door slam or
+the washing machine's spin cycle is tens of mm/s². The MEMS box is deaf to distant
+earthquakes (M2 at 40 km is below its ~1 mm/s² floor) and hears every felt one (M3+
+within tens of km is 100–1000× above it), plus the whole life of the house. That is a
+different gift from the geophone toy, not a worse one: no damping resistor, no coil, no
+24-bit front end, no level to fuss, works on a bookshelf. The display, not the sensor,
+sets the expectations: lead with the USGS feed, a "last time this box moved" card with a
+catalogue match or "something in the house", and a felt-intensity readout in words; the
+helicorder is the second panel and the picture they show people the day a real one
+crosses it. Plan for the source classifier is in the 2026-09-03 STATUS entry: the
+station's features unchanged on acceleration, plus H/V vs time from three components,
+the touchscreen as the labelling tool, NCEDC strong-motion records as the positive class.
+
+### Bill of materials, ~$190/unit
+
+| part | why | ~cost |
+|---|---|---|
+| Raspberry Pi 4 Model B, 2 GB | fanless (a fan is a vibration source in the sensor's own box); the Pi 5 wants one and the Zero 2 W has no DSI port | $45 |
+| Raspberry Pi Touch Display 2, 7" | the face of the thing and the labelling tool; DSI, powered from the Pi | $60 |
+| EVAL-ADXL355Z | the sensor, on the board with corner mounting holes (not the -PMDZ, which is a Pmod plug) | $40 |
+| BME280 breakout | temperature (the ADXL355's offset drifts with it, and the box should say so when the heater comes on) and pressure, which casual users like more than any of it; I²C, same header | $8 |
+| Raspberry Pi 27 W USB-C supply | the display adds current; cheap adapters brown out | $12 |
+| 32 GB high-endurance microSD | it writes day-files all day; endurance grade, not speed | $12 |
+| 7-way 0.1" female leads, 15 cm | 3V3, GND, SCLK, MOSI, MISO, CS, INT1 — sensor to header, so the chip is NOT plugged into the Pi and does not feel the screen being poked | $3 |
+| M2.5 standoffs, screws, nuts | four corners of the eval board to the case floor | $5 |
+| 10 µF ceramic | across the sensor supply | — |
+| four hard feet | rubber feet decouple from the shelf, the opposite of what you want | $2 |
+| printed case | bezel for the display, Pi behind it, sensor screwed to a flat floor away from the ribbon; the SmartiPi Touch case is the $30 shortcut but tilts on a stand (a lever arm) and has nowhere to bolt the sensor | filament |
+
+Not needed: RTC or GPS (NTP over the house WiFi; if it drops, count samples and re-sync),
+a separate ADC, level shifting (both sides are 3.3 V), a fan.
+
+### Wiring and rates
+
+ADXL355 on SPI0 (CE0), INT1 → a GPIO for FIFO drain on interrupt; run the chip at
+250 sps with its 62.5 Hz low-pass and decimate to 100 in software so its day-files are
+byte-for-byte the shape of OAKM1's location-10 channel and every analysis and dashboard
+tool runs on both. BME280 on I²C1, read once a minute. Same reader pattern as
+`station/adsreader`, same recorder, dashboard on the local screen.
+
