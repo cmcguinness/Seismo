@@ -1104,7 +1104,7 @@ splitting the page handlers from the chrome before it grows again.
 
 ## 🧠 TRIGGER CLASSIFIER, STAGE 1 — trained on the Mac, not yet on pi5 (2026-08-26 19:00 UTC)
 
-After Yeck et al. 2020 (`doc/yeck2020.pdf`: NEIC keeps STA/LTA and bolts small
+After Yeck et al. 2020 (doi:10.1785/0220200178 — NEIC keeps STA/LTA and bolts small
 classifiers onto its PICKS; the win was 25 % fewer false associations, not more
 detections). Same shape as this station's STA/LTA → `hf_lf` rule, so: learn to believe
 triggers less, from the station's own catalog.

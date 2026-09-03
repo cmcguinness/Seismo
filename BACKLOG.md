@@ -979,7 +979,7 @@ standard (the APRS-IS / MQTT-broker analog).
 
 ## ML detection (Jetson Orin Nano)
 
-> **UPDATE 2026-08-26 — largely superseded.** Following Yeck et al. 2020 (`doc/`), the
+> **UPDATE 2026-08-26 — largely superseded.** Following Yeck et al. 2020 (doi:10.1785/0220200178), the
 > station keeps STA/LTA and classifies its *triggers* instead: a gradient-boosting model
 > trained on the Mac from the station's own catalog (28 confirmed events), deployed in
 > the pi5 detector as `p_quake` with an ntfy push at ≥ 0.7 (STATUS 2026-08-26). No GPU
