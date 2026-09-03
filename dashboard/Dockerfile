@@ -34,7 +34,7 @@ COPY activity.py content.py epochs.py /app/
 # image builds cleanly and then the container dies on import. That is what
 # happened to listen.py on 2026-09-02: build green, `ModuleNotFoundError: listen`
 # at startup, dokku kept the old container, and the only symptom was a 404.
-COPY catches.py listen.py /app/
+COPY catches.py listen.py sound.py /app/
 COPY catches/ /app/catches/
 COPY signatures.json /app/
 COPY station.jpg /app/
