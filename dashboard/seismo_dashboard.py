@@ -20,6 +20,7 @@ from starlette.responses import JSONResponse, Response
 import activity
 import catches
 import listen
+import sound
 import content
 import heli_build
 import heli_render
@@ -523,7 +524,8 @@ def _rail(active):
         ("The instrument", [("/range", "Range", "range"), ("/spectrum", "Spectrum", "spectrum"),
                             ("/env", "Environment", "env"),
                             ("/about", "About this station", "about")]),
-        ("Background", [("/learn", "Seismology 101", "learn")]),
+        ("Background", [("/learn", "Seismology 101", "learn"),
+                        ("/sound", "How the sound is made", "sound")]),
     ]
     # Framed on us and out past anything this station is likely to hear, so the catalogue
     # view and the drum answer the same question. Opens out of the site, hence the marker.
@@ -534,7 +536,9 @@ def _rail(active):
                   for g, items in groups)
     nav += ('<div class="r-group">Elsewhere</div>'
             f'<a class="r-nav-a" href="{usgs}" target="_blank" rel="noopener">'
-            'USGS map <span class="ext">&#8599;</span></a>')
+            'USGS map <span class="ext">&#8599;</span></a>'
+            '<a class="r-nav-a" href="https://github.com/cmcguinness/Seismo" target="_blank" '
+            'rel="noopener">Source on GitHub <span class="ext">&#8599;</span></a>')
 
     provenance = ("public copy &middot; pushed from the station"
                   if _PUBLIC_COPY else "on the LAN &middot; from the archive")
@@ -1045,6 +1049,19 @@ def learn():
               'looks like jargon, it is in the glossary at the bottom.</p>'
             + cards + '</div></div>')
     return Response(_shell(f"Seismology 101 — {BRAND}", "learn", body, narrow=True),
+                    media_type="text/html")
+
+
+@app.get("/sound")
+def sound_page():
+    cards = "".join(_card(h, inner, card_id=_slug(h)) for h, inner in sound.SECTIONS)
+    body = (_titleblock("How the sound is made",
+                        "moving the ground into hearing without moving time")
+            + '<div class="row"><div class="col-12">'
+            + '<p class="text-muted">The engineering behind the Listen page and the clips on '
+              'Catches. No audio background assumed.</p>'
+            + cards + '</div></div>')
+    return Response(_shell(f"How the sound is made — {BRAND}", "sound", body, narrow=True),
                     media_type="text/html")
 
 
