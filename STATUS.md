@@ -84,6 +84,14 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 🔓 THE REPO IS PUBLIC (2026-09-02)
+
+github.com/cmcguinness/Seismo went public tonight so the 1835 comparison is reproducible
+by the people it was sent to. History was rewritten first: the outreach plan, the 1835
+site notes and the visitor analytics moved to a private sibling repo (`Seismo-private`),
+and contact names came out of every file and message. `README.md` is the front door,
+`LICENSE` is MIT. From here on, STATUS entries and commit messages are public writing.
+
 ## 👀 WHO IS VISITING: A DAILY DIGEST, NOT A LOG DUMP (2026-09-02)
 
 **The NSMP data-centre manager replied the same afternoon**, warmly, offering to check
