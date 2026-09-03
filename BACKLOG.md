@@ -1,3 +1,16 @@
+## Archive backup: the whole record lives on one SD card
+
+Charles, 2026-09-02: the archive is "less disposable" than in July, and a dead SD card
+on pi5 is something he would definitely want covered. Nothing off pi5 holds the day-files
+today except the public copy on apps02 (which only receives what the rsync has pushed and
+is not treated as an archive) and whatever `eventcheck.py` has pulled to the Mac.
+
+Cheapest adequate answer: a nightly rsync of the miniSEED archive plus the detector log
+and `station/*.xml` to a second disk (the Mac's DataT2 volume, or a USB drive on pi5),
+and a monthly tarball to off-site storage. Restore test once. The day-files are ~35 MB/day
+at 100 sps, so a year is ~13 GB: trivial. Also worth an ntfy alert if the nightly run
+fails, per the "push, don't discover it in the morning" rule.
+
 ## Being findable: FDSN web services, and who would ever query them
 
 > See also **`doc/outreach-plan.md`**, which already sequences the human side of this
