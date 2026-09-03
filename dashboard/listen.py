@@ -295,6 +295,7 @@ def script(live=True):
 _ENGINE = r"""
 window.SeismoSynth=(function(){
   let ctx=null,nodes=[],master=null,filts=[],kEnv=0,dc=0;
+  let floorUv=LSN.floorUv, ceilDb=LSN.ceilDb;   // the level map; per-clip for clips, see scanClip
   let buf=[],fs=100,playIdx=0,t0=0,consumed=0,timer=null,poller=null;
   let bars=[],say=()=>{},onEnd=()=>{},live=false,tEnd=0,maxS=LSN.maxS;
   let onProgress=()=>{},cancelled=false;
@@ -321,7 +322,22 @@ window.SeismoSynth=(function(){
 
   function build(){
     ctx=new (window.AudioContext||window.webkitAudioContext)();
-    master=ctx.createGain(); master.gain.value=0; master.connect(ctx.destination);
+    master=ctx.createGain(); master.gain.value=0;
+    // A LIMITER, because 13 sines at full gain sum to 13/sqrt(13) = 3.6x full scale and
+    // the browser hard-clips at 1.0 -- the M4.2 Cloverdale clip, which pins every band
+    // at the ceiling, came out as a buzz that sounded like integer wrap. Two stages:
+    // a fast compressor that catches the sustained overload, then a tanh soft-clip
+    // that is unity-gain for small signals (pre-gain x slope 4, net 1.0 after the
+    // compressor's built-in makeup gain) and can never exceed
+    // +-1 no matter what the compressor lets through. Quiet playback is unchanged.
+    const lim=ctx.createDynamicsCompressor();
+    lim.threshold.value=-9; lim.knee.value=6; lim.ratio.value=20;
+    lim.attack.value=0.002; lim.release.value=0.12;
+    const pre=ctx.createGain(); pre.gain.value=0.158;  // 0.25 / the compressor's fixed 1.58x makeup gain
+    const soft=ctx.createWaveShaper(), curve=new Float32Array(2049), K=4, T=Math.tanh(K);
+    for(let i=0;i<curve.length;i++){ const x=i/(curve.length-1)*2-1; curve[i]=Math.tanh(K*x)/T; }
+    soft.curve=curve; soft.oversample='2x';
+    master.connect(lim); lim.connect(pre); pre.connect(soft); soft.connect(ctx.destination);
     nodes=LSN.bands.map(b=>{
       const o=ctx.createOscillator(), g=ctx.createGain();
       o.type='sine'; o.frequency.value=foutFor(b); g.gain.value=0;
@@ -330,6 +346,32 @@ window.SeismoSynth=(function(){
     master.gain.setTargetAtTime(1/Math.sqrt(LSN.bands.length), ctx.currentTime, 0.25);
     filts=LSN.bands.map(b=>mkBand(b.fin,LSN.q,fs));
     kEnv=1-Math.exp(-1/(LSN.envTau*fs)); dc=0; playIdx=0; consumed=0;
+    floorUv=LSN.floorUv; ceilDb=LSN.ceilDb;
+  }
+
+  // NORMALISE A CLIP TO ITSELF before playing it. The live map (floorUv..ceilDb above it)
+  // is right for the live ground: a quiet night is silence, 42 dB up is full. A catch
+  // clip is not live ground: the M4.2 Cloverdale peaks 27 dB ABOVE that ceiling, so every
+  // band sat pinned at full gain for most of 50 s -- thirteen sines at full amplitude,
+  // beating against each other, which the ear reports as horrible distortion even
+  // though the output never clipped (peak 0.53 measured). Charles's fix: run the whole
+  // clip through the same filter bank first, take its own pre-event level as the floor
+  // (6 dB under it, so the pre-event ground is faint rather than silent) and its own
+  // peak as full scale. Then only the peak moment is loud, and the rest has room.
+  function scanClip(uv,fs,clip){
+    const fb=LSN.bands.map(b=>mkBand(b.fin,LSN.q,fs)), k1=1-Math.exp(-1/(LSN.envTau*fs));
+    let d=0, peak=1e-6; const pre=[];
+    const preN=Math.floor(fs*Math.max(2, Math.min(clip.pre_s||8, (clip.peak_in_clip_s||8)*0.7)));
+    for(let i=0;i<uv.length;i++){
+      d+=(uv[i]-d)*0.0005; const x=uv[i]-d; let m=0;
+      for(let k=0;k<fb.length;k++){ const f=fb[k], a=Math.abs(run(f,x)); f.env+=(a-f.env)*k1; if(f.env>m) m=f.env; }
+      if(i>=fs*0.5 && i<preN) pre.push(m);   // skip the first half second: filter start-up
+      if(m>peak) peak=m;
+    }
+    pre.sort((a,b)=>a-b);
+    const preLvl=pre.length?pre[Math.floor(pre.length*0.5)]:LSN.floorUv;
+    const fl=Math.max(1e-3, preLvl/2), ce=Math.max(12, 20*Math.log10(peak/fl));
+    return {floor:fl, ceil:ce};
   }
 
   async function pollOnce(){
@@ -371,8 +413,8 @@ window.SeismoSynth=(function(){
     }
     const now=ctx.currentTime;
     for(let k=0;k<filts.length;k++){
-      const db=20*Math.log10(Math.max(filts[k].env,1e-6)/LSN.floorUv);
-      const u=Math.max(0,Math.min(1,db/LSN.ceilDb));
+      const db=20*Math.log10(Math.max(filts[k].env,1e-6)/floorUv);
+      const u=Math.max(0,Math.min(1,db/ceilDb));
       nodes[k].g.gain.setTargetAtTime(u*u, now, 0.05);
       if(bars[k]) bars[k].style.height=(u*100).toFixed(1)+'%';
     }
@@ -437,6 +479,7 @@ window.SeismoSynth=(function(){
       maxS=Math.min(LSN.maxS, buf.length/fs);   // a clip is as long as it is
     }
     build();
+    if(!live){ const lv=scanClip(buf,fs,opts.clip); floorUv=lv.floor; ceilDb=lv.ceil; }
     if(ctx.state==='suspended') await ctx.resume();
     t0=ctx.currentTime; consumed=0;
     timer=setInterval(tick,25);
