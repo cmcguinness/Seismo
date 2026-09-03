@@ -1289,3 +1289,14 @@ change, off the request path. Design in `dashboard/HELICORDER.md`. Open items:
   garage-door-era 90-min sample; re-tune on real calm 8 h pi5 data.
 - **Deploy to pi5**: fold `heli_build` deps (already have obspy) — the service runs
   in-app; verify `/data/heli` is writable in the mounted volume, then `ps:rebuild`.
+
+## Helicorder: link the event markers to their catch (added 2026-09-03)
+
+The drum already places a USGS marker at each catalogued event's predicted arrival. Once
+an event has a catch (a `CATCHES` entry, or at least a `confirmed.json` row with a slug),
+the marker on the drum should be a link to `/catch/<slug>`, the way a professional
+webicorder links to the event page. Sequencing: the catch pipeline runs first, the drum
+learns about it second, so this wants the drum to read `confirmed.json` (or the slug list)
+at render time and emit an image map or an overlay of positioned anchors, not to know
+about catches directly.
+

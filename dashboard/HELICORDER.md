@@ -59,9 +59,12 @@ the UDP-collector archive on pi5 (/data/data; the public copy has no miniSEED an
   read top→bottom. Row + title labels sized for the 1920px image (16 / 22 pt).
 - **Scale:** one global `k = row_h·ENV_FRAC / median(env)` — comparable across
   rows and across refreshes (not per-row auto-scale). `ENV_FRAC` default 0.15.
-- **No clip** (since 2026-09-03): a big event swings across as many rows as it needs,
-  so the drum shows the full extent of the motion. The old ±3-row clip is still there
-  behind `SEISMO_HELI_CLIP_ROWS` (0 = off) if it ever gets silly.
+- **asinh amplitude** (since 2026-09-03): linear to ±1 row, then compressed as asinh,
+  so a big event draws ~4 rows tall with its P, S and coda shape instead of a bar off
+  the top of the image (the M3.5 under Larkfield-Wikiup was 100+ rows). Knee is
+  `SEISMO_HELI_ASINH_ROWS` (0 = linear). The ±3-row clip is gone by default; it is still
+  there behind `SEISMO_HELI_CLIP_ROWS` (0 = off). Real drums clip; this is the one thing
+  a screen can do that paper could not. The footer says so.
 - Per pixel: draw the vertical min→max segment (via one `LineCollection`).
   4-colour row cycle (dark red · dark green · blue · black), per-row `HH:MM` UTC label.
 
@@ -76,7 +79,7 @@ the UDP-collector archive on pi5 (/data/data; the public copy has no miniSEED an
 | `SEISMO_HELI_INTERVAL` | `900` | seconds per row |
 | `SEISMO_HELI_HOURS` | `4` | window / retention (rows = hours×4) |
 | `SEISMO_HELI_POLL` | `20` | service mtime-check period (s) |
-| `ENV_FRAC` / `CLIP_ROWS` | 0.05 / 0 (off) | render scale + clip (in heli_render.py; env-tunable) |
+| `ENV_FRAC` / `ASINH_ROWS` / `CLIP_ROWS` | 0.05 / 1 / 0 (off) | render scale, amplitude knee, clip (heli_render.py; all env-tunable) |
 
 ## Status
 

@@ -55,6 +55,17 @@ ENV_FRAC = float(os.environ.get("SEISMO_HELI_ENV_FRAC", "0.05"))
                                               # env-tunable -- `dokku config:set seismo
                                               # SEISMO_HELI_ENV_FRAC=0.15` to restore
                                               # without a rebuild once the floor is fixed.
+ASINH_ROWS = float(os.environ.get("SEISMO_HELI_ASINH_ROWS", "1.0"))
+                                              # amplitude knee, in rows; 0 = linear.
+                                              # Below the knee the drum is linear and
+                                              # looks exactly as before; above it the
+                                              # excursion grows as asinh, so a 100-row
+                                              # swing draws ~4 rows tall WITH its P, S
+                                              # and coda shape instead of as a bar off
+                                              # the top of the image. 2026-09-03, after
+                                              # the M3.5 did exactly that. Real drums
+                                              # clip; this is the one thing a screen can
+                                              # do that paper could not.
 CLIP_ROWS = float(os.environ.get("SEISMO_HELI_CLIP_ROWS", "0"))
                                               # excursion clip, +/- rows; 0 = no clip.
                                               # Was 3.0 until 2026-09-03: the M3.5 under
@@ -188,6 +199,13 @@ def _helicorder_png(heli_dir, station_id, place, t_start, hours):
     env_ref = float(np.median(ev)) if ev.size else 1.0
     k = (row_h * ENV_FRAC) / env_ref              # counts -> pixels
     clip = CLIP_ROWS * row_h if CLIP_ROWS > 0 else np.inf
+    knee = ASINH_ROWS * row_h if ASINH_ROWS > 0 else 0.0
+
+    def squash(a):
+        """Pixels -> pixels: identity below the knee, asinh-compressed above it."""
+        if not knee:
+            return a
+        return knee * np.arcsinh(a / knee)
     npix = rows[0]["mins"].size
     xs = MARGIN_L + (np.arange(npix) + 0.5) / npix * PLOT_W
 
@@ -196,8 +214,8 @@ def _helicorder_png(heli_dir, station_id, place, t_start, hours):
     n_cultural = 0
     for r_i, r in enumerate(rows):
         base = MARGIN_T + (r_i + 0.5) * row_h
-        lo = np.clip(k * r["mins"], -clip, clip)   # up = smaller y (inverted axis)
-        hi = np.clip(k * r["maxs"], -clip, clip)
+        lo = np.clip(squash(k * r["mins"]), -clip, clip)   # up = smaller y (inverted axis)
+        hi = np.clip(squash(k * r["maxs"]), -clip, clip)
         good = np.isfinite(lo) & np.isfinite(hi)
         row_color = ROW_COLORS[r_i % len(ROW_COLORS)]
         # Cultural columns: high-frequency AND loud. `env` is this row's own median
@@ -211,8 +229,8 @@ def _helicorder_png(heli_dir, station_id, place, t_start, hours):
         # The 1-8 Hz CORE of each column, on the same counts scale. On a cultural
         # column this is the part of the excursion that could be seismic at all: the
         # faded halo is what the total exceeds it by, which is HF and therefore local.
-        c_lo = np.clip(k * r["lo_mins"], -clip, clip)
-        c_hi = np.clip(k * r["lo_maxs"], -clip, clip)
+        c_lo = np.clip(squash(k * r["lo_mins"]), -clip, clip)
+        c_hi = np.clip(squash(k * r["lo_maxs"]), -clip, clip)
         have_core = np.isfinite(c_lo) & np.isfinite(c_hi)
         for i in np.nonzero(good)[0]:
             seg = [(xs[i], base - hi[i]), (xs[i], base - lo[i])]
@@ -353,6 +371,11 @@ def _helicorder_png(heli_dir, station_id, place, t_start, hours):
                 "faded = local (>15 Hz); solid core = its 1–8 Hz part, where a quake "
                 "shows. Full-strength bursts may be local too",
                 ha="left", va="center", fontsize=9, color="#666", zorder=5)
+
+    if knee:
+        ax.text(MARGIN_L + PLOT_W, IMG_H - 14,
+                f"amplitude: linear to ±{ASINH_ROWS:g} row, asinh-compressed beyond",
+                ha="right", va="center", fontsize=9, color="#666", zorder=5)
 
     # --- x-axis: a minute tick along the bottom (each row spans 15 min) ---
     axis_y = MARGIN_T + PLOT_H                 # bottom of the plot area
