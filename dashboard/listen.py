@@ -147,6 +147,23 @@ INTRO = (
     "simply deaf to it.</p>"
 )
 
+WHY_QUAKES = (
+    "<h2 class=\"h5 mt-4 mb-2\">Listening to quakes</h2>"
+    "<p>The frequencies of earthquakes are usually well below the limits of human hearing, "
+    "but we are able to shift them up into an audible range. Why would you want to "
+    "&ldquo;hear&rdquo; them? Because it gives you a sense of the character and duration "
+    "of how an earthquake is felt. When you experience one, live, it usually takes you "
+    "several seconds to recognize what is happening, and your mind is racing through "
+    "questions of how to react. You aren&rsquo;t trying to analyze the changing intensity "
+    "and frequency of the event. You can see that in our spectrum charts, but that&rsquo;s "
+    "still not intuitive. But if you listen to the quake &mdash; remapped into the range "
+    "we can hear &mdash; suddenly you can tell how long it lasts, how the intensity hits "
+    "fast and then how quickly, or not, it subsides. You can even sense how fast or slow "
+    "the shaking is. It&rsquo;s not quantitative, it&rsquo;s qualitative, but it is the "
+    "closest thing you&rsquo;ll feel to the real thing short of being in an earthquake. "
+    "Only with the sound you&rsquo;re not worrying the house will collapse on you.</p>"
+)
+
 CAVEAT = (
     "<p>This is a <b>sonification, not a recording</b>, and it is worth knowing exactly "
     "how. The frequencies are compressed, not transposed: 3.91 octaves of ground motion "

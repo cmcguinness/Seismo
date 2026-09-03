@@ -1098,7 +1098,7 @@ def catches_page():
     cards += _card("Every confirmed event", catches.table_html(), card_id="table")
     body = _titleblock("Catches", f"earthquakes {SID} has recorded, confirmed by the USGS catalog") + \
         f'<div class="row"><div class="col-lg-9">{catches.INTRO}' \
-        f'{listen.mode_control()}{cards}</div></div>'
+        f'{listen.WHY_QUAKES}{listen.mode_control()}{cards}</div></div>'
     return Response(_shell(f"Catches — {BRAND}", "catches", body,
                            listen.CSS + listen.script(live=False) + catches.CATCH_AUDIO_JS),
                     media_type="text/html")
