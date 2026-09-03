@@ -110,6 +110,26 @@ USGS solution is still *automatic*; the weekly `reharvest` will redo the row whe
 settles. The "felt" slot on Catches now takes the strongest felt event rather than
 assuming there is only one.
 
+**Does 1835 hear P late?** On this event its onset lagged ours by 0.60 s where geometry
+allows 0.25, and the obvious story was the alluvium under it. `analysis/refstation_delay.py`
+asked every confirmed event the same question (catch_picks' causal AIC picker on both
+stations, geometry from the catalogue epicentre): **19 usable events, median excess
++0.03 s, MAD 0.20** — no station delay. The far events (Geysers, 40+ km, where geometry
+is insensitive to epicentre error) sit at −0.03 median; the near ones scatter ±0.3 s,
+which is what a 1–2 km error in an automatic epicentre does to a 12 km path. So the
+0.35 s is most likely the M3.5's automatic location, not the ground under 1835; re-run
+after the reviewed solution lands. `doc/refstation-delay.png`. Aside from the same run:
+our own first breaks come in ~1 s AFTER the harvest's straight-line prediction at
+40+ km (median +1.07 s over all 19), which is the Vp 5.19 line lacking its +0.30 s
+intercept plus the AIC pick landing on the first strong swing rather than the emergent
+break — worth a look before anyone quotes those residuals.
+
+Also today: the helicorder lost its ±3-row clip and gained an asinh knee at one row, so
+the M3.5 draws four rows tall with its shape instead of a bar off the page; the standard
+spectrogram gained headroom (−25..+25 dB on the lower 70 % of the colormap, +25..+70 on
+the rest) after the M3.5 rendered as a yellow block for ten seconds; every catch image
+re-rendered. And the readmes now mention the stratum-1 clock (Charles).
+
 ## 🔓 THE REPO IS PUBLIC (2026-09-02)
 
 github.com/cmcguinness/Seismo went public tonight so the 1835 comparison is reproducible

@@ -32,6 +32,11 @@ kept current because the AI side of the project works from it.
   sample carries a hardware timestamp (`station/adsreader/`, C).
 - **Recorder:** miniSEED day-files on an exact 100 sps grid, despiking, an inline
   STA/LTA trigger, and a UDP stream to the Pi 5 (`station/recorder.py`).
+- **Time:** a dedicated stratum-1 clock host on the LAN (a Raspberry Pi 3B+ with a
+  Uputronics GPS/RTC HAT, PPS-disciplined chrony, holding to tens of nanoseconds of
+  GPS). The station syncs to it over Ethernet with chrony; its error bound is a few
+  milliseconds, and every sample is stamped from the kernel interrupt rather than from
+  a polling loop. Arrival-time comparisons with the USGS station next door rest on this.
 - **Front end:** the analogue path between coil and ADC is in `doc/rev2-frontend.md`;
   the shunt-damping reasoning is `doc/shunt-damping.md`; power is `doc/power-wiring.md`.
 
