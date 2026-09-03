@@ -106,8 +106,8 @@ arrivals are 0.25 s later, and drawing our marks on its trace was wrong (Charles
 it). And the Catches page folds each featured catch to three lines with a disclosure for
 the trace, sound and story — seven full cards in a row scrolled forever.
 
-USGS solution is still *automatic*; the weekly `reharvest` will redo the row when it
-settles. The "felt" slot on Catches now takes the strongest felt event rather than
+USGS reviewed the solution the same afternoon and the hypocentre did not move; the
+weekly `reharvest` will still redo the row, but nothing here changes. The "felt" slot on Catches now takes the strongest felt event rather than
 assuming there is only one.
 
 **Does 1835 hear P late?** On this event its onset lagged ours by 0.60 s where geometry
@@ -116,9 +116,15 @@ asked every confirmed event the same question (catch_picks' causal AIC picker on
 stations, geometry from the catalogue epicentre): **19 usable events, median excess
 +0.03 s, MAD 0.20** — no station delay. The far events (Geysers, 40+ km, where geometry
 is insensitive to epicentre error) sit at −0.03 median; the near ones scatter ±0.3 s,
-which is what a 1–2 km error in an automatic epicentre does to a 12 km path. So the
-0.35 s is most likely the M3.5's automatic location, not the ground under 1835; re-run
-after the reviewed solution lands. `doc/refstation-delay.png`. Aside from the same run:
+which is what a 1–2 km error in an automatic epicentre does to a 12 km path. The
+reviewed solution then landed WITHOUT moving, so the location story died too, and
+`analysis/network_residuals.py` (every NCEDC station within 40 km, same picker) settled
+it: 42 picks, 1835 at +0.08 s in the middle of the near-field crowd, **OAKM1 at −0.20 s,
+the early one**. Across five catches we are ~0.1 s early relative to the network median
+on the near events and on the median for the far ones — a near-surface effect (slab at
+the foot of the hills vs the plain's sediment) and a sharper onset for the AIC picker,
+not a clock: a clock offset would be the same at every distance, and chrony on the
+station reads −67 µs against the GPS host with a ±3.6 ms bound. No hardware test wanted. `doc/refstation-delay.png`. Aside from the same run:
 our own first breaks come in ~1 s AFTER the harvest's straight-line prediction at
 40+ km (median +1.07 s over all 19), which is the Vp 5.19 line lacking its +0.30 s
 intercept plus the AIC pick landing on the first strong swing rather than the emergent

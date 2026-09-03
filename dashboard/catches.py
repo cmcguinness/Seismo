@@ -637,8 +637,11 @@ CATCHES = [
             "in the 5&ndash;15&nbsp;Hz band, and the two envelopes lie on top of each other "
             "from the peak through the whole coda. Before the P wave the accelerometer&rsquo;s "
             "own floor is visible at 1.7&nbsp;&micro;m/s; ours sits at 0.3.",
-            "USGS solution is still <i>automatic</i>: magnitude, depth and epicentre will "
-            "move as it is reviewed, and every number here is from the first cut.",
+            "<b>Reviewed by USGS the same day</b>, and the hypocentre did not move. Forty-two "
+            "stations within 40&nbsp;km picked the P wave (<code>analysis/network_residuals.py</code>): "
+            "1835 sits in the middle of the near-field crowd and this station is the early one, "
+            "by about 0.1&nbsp;s relative to its neighbours &mdash; the slab at the foot of the "
+            "hills, not the clock, which is GPS-disciplined to microseconds.",
         ],
     ),
 ]
