@@ -8,8 +8,9 @@ must be cheap enough to render on every pull (or serve pre-rendered).
 
 Scaling (see dashboard/HELICORDER.md): one global counts->pixels factor keyed to
 the median interval sigma so amplitude is comparable across rows and refreshes.
-1 sigma ~= 1/4 of the row spacing; excursions clip at +/-3 rows (a "big" event
-swings 3 lines up and down, then clips -- dramatic but not lossy).
+1 sigma ~= 1/4 of the row spacing; excursions are drawn at full extent (a "big" event
+swings across its neighbours -- the clip at +/-3 rows was removed 2026-09-03, and is
+still available via SEISMO_HELI_CLIP_ROWS).
 """
 import datetime
 import glob
@@ -54,7 +55,14 @@ ENV_FRAC = float(os.environ.get("SEISMO_HELI_ENV_FRAC", "0.05"))
                                               # env-tunable -- `dokku config:set seismo
                                               # SEISMO_HELI_ENV_FRAC=0.15` to restore
                                               # without a rebuild once the floor is fixed.
-CLIP_ROWS = 3.0                               # excursion clip, +/- rows
+CLIP_ROWS = float(os.environ.get("SEISMO_HELI_CLIP_ROWS", "0"))
+                                              # excursion clip, +/- rows; 0 = no clip.
+                                              # Was 3.0 until 2026-09-03: the M3.5 under
+                                              # Larkfield-Wikiup (6,843 uV, 12 km) hit the
+                                              # clip and Charles wanted the full swing on
+                                              # the drum, neighbours be damned. Set back
+                                              # with `dokku config:set seismo
+                                              # SEISMO_HELI_CLIP_ROWS=3` if it gets silly.
 # --- cultural-noise shading -------------------------------------------------------
 # A loud row is not necessarily an earthquake. Columns whose energy is mostly ABOVE
 # 15 Hz can only come from a source metres away -- path attenuation strips that band
@@ -179,7 +187,7 @@ def _helicorder_png(heli_dir, station_id, place, t_start, hours):
     ev = ev[np.isfinite(ev) & (ev > 0)]
     env_ref = float(np.median(ev)) if ev.size else 1.0
     k = (row_h * ENV_FRAC) / env_ref              # counts -> pixels
-    clip = CLIP_ROWS * row_h
+    clip = CLIP_ROWS * row_h if CLIP_ROWS > 0 else np.inf
     npix = rows[0]["mins"].size
     xs = MARGIN_L + (np.arange(npix) + 0.5) / npix * PLOT_W
 

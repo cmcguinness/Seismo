@@ -59,9 +59,9 @@ the UDP-collector archive on pi5 (/data/data; the public copy has no miniSEED an
   read top→bottom. Row + title labels sized for the 1920px image (16 / 22 pt).
 - **Scale:** one global `k = row_h·ENV_FRAC / median(env)` — comparable across
   rows and across refreshes (not per-row auto-scale). `ENV_FRAC` default 0.15.
-- **Clip** at ±`CLIP_ROWS` (=3) rows: a "big" event swings 3 lines up/down then
-  clips — dramatic but not lossy (you still see it happened and its duration).
-  Future: break clipped events into their own panel (see BACKLOG).
+- **No clip** (since 2026-09-03): a big event swings across as many rows as it needs,
+  so the drum shows the full extent of the motion. The old ±3-row clip is still there
+  behind `SEISMO_HELI_CLIP_ROWS` (0 = off) if it ever gets silly.
 - Per pixel: draw the vertical min→max segment (via one `LineCollection`).
   4-colour row cycle (dark red · dark green · blue · black), per-row `HH:MM` UTC label.
 
@@ -76,7 +76,7 @@ the UDP-collector archive on pi5 (/data/data; the public copy has no miniSEED an
 | `SEISMO_HELI_INTERVAL` | `900` | seconds per row |
 | `SEISMO_HELI_HOURS` | `4` | window / retention (rows = hours×4) |
 | `SEISMO_HELI_POLL` | `20` | service mtime-check period (s) |
-| `ENV_FRAC` / `CLIP_ROWS` | 0.15 / 3 | render scale + clip (in heli_render.py) |
+| `ENV_FRAC` / `CLIP_ROWS` | 0.05 / 0 (off) | render scale + clip (in heli_render.py; env-tunable) |
 
 ## Status
 
