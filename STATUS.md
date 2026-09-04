@@ -1288,7 +1288,10 @@ triggers less, from the station's own catalog.
 | ratio ≥ 20 (2,795 trig, 14 quake) | precision **2.4 %**, recall 100 % (7 TP / 283 FP) | PR-AUC 0.84; p≥0.5 → **75 % / 86 %**; p≥0.7 → 85 % / 79 % |
 | ratio ≥ 10 (6,976 trig, 19 quake) | — | PR-AUC 0.65; p≥0.5 → 50 % / 68 % |
 
-  Top features: 1–3 Hz and 3–8 Hz energy fractions (the same physics as `hf_lf`, in
+  Top features (**re-measured 2026-09-04**: `frac_1_3` +0.569, `frac_3_8` +0.366, then
+  **`dur3_s` +0.223 and `rise_s` +0.110** — the duration/rise pair overtook kurtosis by 5×
+  as the catalogue grew; kurtosis is now +0.040). As of 2026-08-26 it read:
+  1–3 Hz and 3–8 Hz energy fractions (the same physics as `hf_lf`, in
   two bands), then kurtosis and 8–15 Hz. **`analysis/models/trigger_gbm.joblib`** (133 KB;
   trained on ratio ≥ 10, scores nothing below it). 14–19 positives: treat the numbers
   as "about right", not as decimals. Stage 3 (CNN) waits for ~100 positives.

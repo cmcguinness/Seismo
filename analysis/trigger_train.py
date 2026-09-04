@@ -180,27 +180,43 @@ def main():
                                                       random_state=0).split(Xs, ys, gs)):
         te = te[~augs[te]]          # augmented rows train, never score
         m = mk(k); m.fit(Xs[tr], ys[tr], sample_weight=ws[tr]); oofs[te] = m.predict_proba(Xs[te])[:, 1]
-    # scores and metrics on the REAL rows of the slice only
+    # Metrics on the REAL rows of the slice; the model TRAINS on the full slice.
+    #
+    # Those are two different sets and they need two different names. The block that
+    # splits the main dataset above is careful about this -- it keeps Xa/ya/ga/auga so
+    # the deployable model can still see the augmented positives -- and this block used
+    # to narrow Xs/ys in place instead, which broke both halves at once: `ws` was still
+    # the full length, so final.fit() died with a shape error (2026-09-04), and had it
+    # not died it would have quietly trained the shipped model on REAL ROWS ONLY,
+    # throwing away the 420 augmented positives that are the entire point of --aug.
+    # The crash was the only thing standing between us and a silently worse model.
     rs = ~augs
     print(f"\nDEPLOYABLE MODEL (trained on peak_ratio >= {MIN_RATIO_TRAIN:g}: {len(ys)} triggers, "
           f"{int(ys.sum())} quake; {int(augs.sum())} of them augmented, train-only)")
-    Xs, ys, oofs = Xs[rs], ys[rs], oofs[rs]
-    for name, m_ in (("ratio>=10", np.ones(len(ys), bool)), ("ratio>=20", Xs[:, FEATURES.index("peak_ratio")] >= MIN_RATIO_EVAL)):
-        print(f"  {name}: PR-AUC {average_precision_score(ys[m_], oofs[m_]):.3f}  ROC {roc_auc_score(ys[m_], oofs[m_]):.3f}")
+    Xr, yr, oofr = Xs[rs], ys[rs], oofs[rs]          # real rows -> every number reported
+    for name, m_ in (("ratio>=10", np.ones(len(yr), bool)), ("ratio>=20", Xr[:, FEATURES.index("peak_ratio")] >= MIN_RATIO_EVAL)):
+        print(f"  {name}: PR-AUC {average_precision_score(yr[m_], oofr[m_]):.3f}  ROC {roc_auc_score(yr[m_], oofr[m_]):.3f}")
         for t in (0.5, 0.7):
-            pd_ = (oofs >= t) & m_
-            tpk = int((pd_ & (ys == 1)).sum()); fpk = int((pd_ & (ys == 0)).sum())
-            print(f"     p>={t}: precision {tpk/(tpk+fpk+1e-9):.2f} recall {tpk/max(1,ys[m_].sum()):.2f} flagged {int(pd_.sum())}")
+            pd_ = (oofr >= t) & m_
+            tpk = int((pd_ & (yr == 1)).sum()); fpk = int((pd_ & (yr == 0)).sum())
+            print(f"     p>={t}: precision {tpk/(tpk+fpk+1e-9):.2f} recall {tpk/max(1,yr[m_].sum()):.2f} flagged {int(pd_.sum())}")
     final = mk(0)
-    final.fit(Xs, ys, sample_weight=ws)
-    imp = permutation_importance(final, Xs, ys, scoring="average_precision", n_repeats=5, random_state=0)
+    final.fit(Xs, ys, sample_weight=ws)              # full slice: augmented rows included
+    # Importance on REAL rows: measured over the augmented ones it would partly be
+    # describing augment.py's noise, not the ground's.
+    imp = permutation_importance(final, Xr, yr, scoring="average_precision", n_repeats=5, random_state=0)
     order = np.argsort(-imp.importances_mean)
     print("\npermutation importance (PR-AUC drop):")
     for i in order[:10]:
         print(f"  {FEATURES[i]:14s} {imp.importances_mean[i]:+.3f}")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     joblib.dump({"model": final, "features": FEATURES, "min_ratio": MIN_RATIO_TRAIN,
+                 # n_pos counts what it TRAINED on, which includes augmented rows;
+                 # n_pos_real is how many independent earthquakes are actually behind
+                 # them. A reader who saw only the first number would badly overestimate
+                 # how much this model has seen.
                  "n_train": int(len(ys)), "n_pos": int(ys.sum()),
+                 "n_pos_real": int(yr.sum()),
                  # Stamped, not hardcoded: this string is what the pi5 detector
                  # prints at startup, so a stale literal makes a fresh model look
                  # like the old one in the log.

@@ -65,7 +65,7 @@ So the catalogue is what we learn **from**, not what we wait **for**. That inver
 the whole design: we use the catalogue to train a model on what an earthquake looks like
 in our own data. But at run time we use our model.
 
-We still start with STA/LTA as the detector and **learn to believe it less**.
+We still start with STA/LTA as the detector and use it as a sign not that an earthquake happened but as a sign that there's something distinct we need to look at.
 
 That framing is not original here — it is taken directly from how the USGS National
 Earthquake Information Center runs its own pipeline, described in **Yeck et al.
@@ -205,6 +205,38 @@ coda; a door slam is a spike that stops.
 
 **Statistical shape.** Kurtosis — roughly, how spiky the waveform is versus how
 Gaussian.
+
+### Which of them actually matter
+
+Seventeen features is not seventeen *useful* features. Permutation importance — shuffle
+one column, see how much the score falls — gives the ranking, measured on real rows only
+(measured over the augmented ones it would partly be describing our noise generator):
+
+| feature | PR-AUC drop when shuffled |
+|---|---|
+| `frac_1_3` | **+0.569** |
+| `frac_3_8` | **+0.366** |
+| `dur3_s` | +0.223 |
+| `rise_s` | +0.110 |
+| `kurtosis` | +0.040 |
+| `hf_lf` | +0.034 |
+| `frac_8_15` | +0.024 |
+
+The top two are the low-frequency energy fractions, which is the physics you would
+predict: distance strips out high frequencies, so an earthquake arriving from 40 km away
+is bass-heavy in a way a passing truck is not. Between them they carry most of the
+decision.
+
+The interesting part is third and fourth. **`dur3_s` is how long the shaking stays above
+three times the noise floor, and `rise_s` is how quickly it gets to its peak** — pure
+shape in time, no spectrum involved. The model has learned that an earthquake *sustains*
+and a door slam does not, which is exactly the distinction a person makes by eye on a
+trace. Earlier versions of this model leant on `kurtosis` instead; as the catalogue grew,
+the duration features overtook it by a factor of five. More data moved the model from
+"how spiky" toward "how long", and the second is the better question.
+
+Note also how far down `hf_lf` sits — the hand-written rule this classifier replaced used
+that single number for its entire decision.
 
 ### The one non-obvious design decision
 
