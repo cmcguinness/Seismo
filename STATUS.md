@@ -21,8 +21,10 @@ all counted. Noise floor 1–15 Hz ~0.8 µV RMS on a quiet night, ~3.5 µV after
 **Calibration.** Reads ~3.2× quieter than the 28.8 V/(m/s) nameplate (five anchors vs
 USGS NP.1835 1.6 km away, median 3.26×, fixed-path scatter ~1.4×). Vp 5.19 km/s
 measured. **35 catalog-confirmed events, validated range 88.8 km** (M3.8 San Leandro);
-biggest earthquake M4.2 Cloverdale (07-29); **biggest signal the M3.5 under
-Larkfield-Wikiup at 12 km (09-03), 6,843 µV in 1–15 Hz, felt in the house**; furthest
+biggest earthquake M4.2 Cloverdale (07-29); **biggest signal the M3.3 under
+Larkfield-Wikiup at 13.3 km (09-03), 6,843 µV in 1–15 Hz, felt in the house**
+(USGS revised it from M3.54/12.4 km/7.4 km on 09-04; the closest M2.5+ by 3×, though
+four smaller catches are nearer); furthest
 recorded (but deliberately **not fitted** — enforced by `EXCLUDE_FROM_FIT`, not left to a
 filter a magnitude revision can flip) the M4.8 off Petrolia at 319 km (08-29). Closest:
 the M1.8 at 2.8 km (08-29). Felt reports: Middletown M2.6 (09-02) and Larkfield-Wikiup,
@@ -147,10 +149,10 @@ Kept in the repo on the `template_match.py` precedent: the measurement is the re
 
 ## 🔊 THE M3.5 WAS *HEARD*, AND IT IS IN THE ARCHIVE (2026-09-04)
 
-Kathy heard the Larkfield-Wikiup M3.5 as a **sound**, and a local Facebook group reported
+Kathy heard the Larkfield-Wikiup M3.3 as a **sound**, and a local Facebook group reported
 the same. Audible earthquakes are real: above ~20 Hz ground motion couples into air
 directly, and close shallow events are the ones that still have energy up there on
-arrival. This one was 12.4 km away and 7.4 km deep.
+arrival. This one was 13.3 km away and 8.8 km deep (revised 09-04 from 12.4 / 7.4).
 
 **It is in our data.** RMS before vs during, µV:
 
@@ -235,6 +237,12 @@ p ≥ 0.7: **42 % / 91 %**. Lower, and trustworthy for the first time. `architec
 also now documents both AIs — the classifier, and that this was built with Claude Code.
 
 ## 🏠 THE ONE WE FELT: M3.5 UNDER LARKFIELD-WIKIUP, 12 KM (2026-09-03)
+
+> ⚠️ **REVISED 2026-09-04.** USGS moved it: **M3.54 → 3.34, 12.4 → 13.3 km, depth
+> 7.4 → 8.8 km**. This entry is left as written, because it records what was known on the
+> day; every *live* surface (the Catches page, `audible.py`, Current system above) now
+> carries the revised numbers. Note that this entry's "the hypocentre did not move" was
+> true of the same-day review and is no longer true of the catalogue.
 
 17:33:27 UTC, 38.498°N 122.718°W, depth 7.4 km, on the Rodgers Creek fault this station
 was sited to watch. Charles felt it in the house before any instrument said so. The

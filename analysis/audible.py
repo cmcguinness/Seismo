@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """audible.py -- what the station recorded in the band a person can HEAR.
 
-Written the morning of 2026-09-03, when the M3.5 3 km ESE of Larkfield-Wikiup was
+Written the morning of 2026-09-03, when the M3.3 3 km ESE of Larkfield-Wikiup was
 heard as a sound -- not just felt -- by people around Santa Rosa, this household
 included. An audible earthquake is a real and well-documented thing: ground motion
 above roughly 20 Hz couples into the air directly, and close shallow events are the
-ones that still have energy up there by the time they arrive. This one was 12.4 km
-away and 7.4 km deep, which is about as favourable as our siting gets.
+ones that still have energy up there by the time they arrive. This one was 13.3 km
+away and 8.8 km deep, which is about as favourable as our siting gets.
+
+(USGS first published it as M3.54 at 12.4 km and 7.4 km deep, and revised it to
+M3.34 / 13.3 / 8.8 the following day. The numbers here are the revised ones. Nothing
+in the analysis below depends on the difference -- it is still close and still
+shallow -- but a document that quoted the automatic solution forever would be wrong
+in exactly the way analysis/reharvest.py exists to prevent.)
 
 So: is the sound people heard actually IN our data?
 

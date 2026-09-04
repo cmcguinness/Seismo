@@ -167,12 +167,21 @@ WHY_QUAKES = (
 
 CAVEAT = (
     "<p>This is a <b>sonification, not a recording</b>, and it is worth knowing exactly "
-    "how. The frequencies are compressed, not transposed: 3.91 octaves of ground motion "
-    "are squeezed into 2 octaves centred on A3, an octave below concert A, so a signal "
-    "at twice the frequency "
-    "does <em>not</em> arrive an octave higher. What survives faithfully is <b>timing and "
-    "relative loudness</b> &mdash; nothing is sped up, so every swell and onset happens "
-    "when it happens.</p>"
+    "how &mdash; because <b>the two modes do different things to the pitch</b>, and only "
+    "one of them compresses.</p>"
+    "<p><b>Compressed</b> squeezes the 3.91 octaves of 1&ndash;15&nbsp;Hz into 2 octaves "
+    "centred on A3, an octave below concert A. Intervals are therefore warped: a signal at "
+    "twice the frequency does <em>not</em> arrive an octave higher. That is the price of "
+    "landing the whole band where an ordinary speaker can reproduce it.</p>"
+    "<p><b>True pitch</b> does not compress at all. Every frequency is multiplied by 16, so "
+    "1&nbsp;Hz becomes 16, 10 becomes 160, and 15 becomes 240. Because &times;16 is exactly "
+    "four octaves, the 3.91 octaves in the ground stay 3.91 octaves in the ear: it is a "
+    "<b>transposition</b>, the same shape played higher, with nothing warped. The catch is "
+    "the bottom of it &mdash; 16&nbsp;Hz is below what most speakers can produce, so this "
+    "mode wants a subwoofer or good headphones.</p>"
+    "<p>What survives faithfully in <em>both</em> modes is <b>timing and relative "
+    "loudness</b> &mdash; nothing is sped up, so every swell and onset happens when it "
+    "happens.</p>"
     "<p>It buffers for a few seconds before starting, then plays for up to a minute. "
     "Because playback runs at real speed, that head start is also the whole tolerance "
     "for a network hiccup: it never catches back up.</p>"
@@ -568,8 +577,8 @@ _MODE_GLUE = r"""
   if(!box||!window.SeismoSynth) return;
   const note=document.getElementById('lsn-mode-note');
   const NOTES={
-    c:'2 octaves, 110\u2013440\u202fHz \u2014 plays on anything, but a 4:1 ratio in the ground is heard as 2:1',
-    t:'true pitch, 16\u2013240\u202fHz \u2014 no compression at all; the low bands need a subwoofer or good headphones'
+    c:'compressed \u2014 the same 1\u201315\u202fHz band squeezed into two octaves, 110\u2013440\u202fHz, so it plays on any speaker. The cost is warped intervals: a 4:1 ratio in the ground is heard as 2:1',
+    t:'true pitch \u2014 every frequency multiplied by 16, so the station\u2019s 1\u201315\u202fHz band lands at 16\u2013240\u202fHz: 1 Hz becomes 16, 10 becomes 160, 15 becomes 240. \u00d716 is exactly four octaves, so nothing is stretched or squashed \u2014 the same shape, played higher. The low end needs a subwoofer or good headphones'
   };
   function paint(m){
     [...box.querySelectorAll('button')].forEach(b=>b.classList.toggle('on',b.dataset.mode===m));

@@ -210,6 +210,23 @@ def _ref_cell(e):
     return f'<span title="{tip}">{txt}</span>'
 
 
+def _quiet_rank(origin):
+    """Where this catch sits in the quietness ranking, as an English ordinal.
+
+    Hand-written once as "third quietest of the 35 confirmed catches" and wrong twice
+    inside a week: the count went stale when catches landed (36), and the RANK went stale
+    when an M1.36 at 3.2 uV arrived below it (fourth, not third). Both derived now.
+    """
+    ranked = sorted((e for e in EVENTS if e.get("peak_uv") is not None),
+                    key=lambda e: e["peak_uv"])
+    words = ["quietest", "second quietest", "third quietest", "fourth quietest",
+             "fifth quietest", "sixth quietest"]
+    for i, e in enumerate(ranked):
+        if (e.get("origin") or "").startswith(origin):
+            return words[i] if i < len(words) else f"{i + 1}th quietest"
+    return "among the quietest"
+
+
 AUDIO_DIR = os.path.join(CATCH_DIR, "audio")
 
 
@@ -236,8 +253,8 @@ def real_audio_path(name):
     at 1-10 Hz, which is below hearing, so listen.py has to shift it up before an ear
     can do anything with it. Faithful, but a representation.
 
-    The M3.5 under Larkfield-Wikiup needs none of that. It was close (12.4 km) and
-    shallow (7.4 km), so it still had real energy at 20-50 Hz when it arrived -- inside
+    The M3.3 under Larkfield-Wikiup needs none of that. It was close (13.3 km) and
+    shallow (8.8 km), so it still had real energy at 20-50 Hz when it arrived -- inside
     human hearing -- and people around Santa Rosa HEARD it as a sound. That clip plays
     at 1:1: same duration, same pitch, nothing shifted. Almost no event will ever
     qualify, so this is deliberately a per-catch file that is simply absent for the
@@ -616,7 +633,8 @@ CATCHES = [
             "this is the last point that is measurement.",
             "<b>It is also nearly the faintest thing here.</b> Peak 4.6&nbsp;&micro;V "
             "against a 0.76&nbsp;&micro;V floor &mdash; a signal-to-noise of 6.1, and the "
-            f"third quietest of the {len(EVENTS)} confirmed catches. An M2.3 is an ordinary "
+            f"{_quiet_rank('2026-08-21T11:38')} of the {len(EVENTS)} confirmed catches. "
+            "An M2.3 is an ordinary "
             "earthquake; at 89&nbsp;km it arrives as a few microvolts and eleven seconds "
             "of shaking that would be invisible on any casual look at the trace.",
             "<b>Most of the distance is downward.</b> The hypocentre is deeper than "
@@ -670,20 +688,23 @@ CATCHES = [
     dict(
         img="2026-09-03-m3.5-larkfield-wikiup.png",
         origin="2026-09-03T17:33:27",
-        head="M3.5 &middot; Larkfield-Wikiup &middot; 2026-09-03",
-        sub="17:33:27 UTC &middot; 38.498&deg;N 122.718&deg;W &middot; depth 7.4 km &middot; "
-            "12 km WNW, on the Rodgers Creek fault this station was sited above &mdash; "
-            "the closest and the biggest, and felt in the house",
+        head="M3.3 &middot; Larkfield-Wikiup &middot; 2026-09-03",
+        sub="17:33:27 UTC &middot; 38.498&deg;N 122.718&deg;W &middot; depth 8.8 km &middot; "
+            "13 km NW, on the Rodgers Creek fault this station was sited above &mdash; "
+            "the biggest signal yet, and felt in the house",
         facts=[
             "<b>Five times anything before it.</b> The peak in the 1&ndash;15&nbsp;Hz band was "
             "<b>6,843&nbsp;&micro;V</b> against the M4.2 Cloverdale&rsquo;s 1,406, and the ADC "
             "still had sevenfold headroom: at gain 64 it clips near 39,000&nbsp;&micro;V. In ground "
             "terms, NP.1835 read a peak of 1.5&nbsp;mm/s in the 5&ndash;15&nbsp;Hz band, this "
             "station 0.84&nbsp;mm/s.",
-            "<b>The closest earthquake in the record</b>, 12.4&nbsp;km hypocentral at bearing "
-            "301&deg;, under the Rodgers Creek fault &mdash; the fault system this station was "
-            "built to listen to. P broke out of the noise at <b>+2.2&nbsp;s</b> after origin "
-            "against a predicted +2.4; S was due at about +4.1. With so little path there is "
+            "<b>The closest sizeable earthquake in the record</b>, 13.3&nbsp;km hypocentral "
+            "at bearing 304&deg;, under the Rodgers Creek fault &mdash; the fault system this "
+            "station was sited to listen to. Nothing else at M2.5 or above has landed within "
+            "35&nbsp;km, so at this magnitude it is nearest by a factor of three; four smaller "
+            "catches are closer still. P broke out of the noise at <b>+2.2&nbsp;s</b> after "
+            "origin against a predicted +2.6; S was due at about +4.4. With so little path "
+            "there is "
             "almost no room for the two to separate.",
             "<b>Felt.</b> Plainly, in the house, before any instrument said so. The USGS "
             "&ldquo;Did You Feel It?&rdquo; intensity opened at MMI&nbsp;II and ShakeMap "
@@ -696,7 +717,13 @@ CATCHES = [
             "in the 5&ndash;15&nbsp;Hz band, and the two envelopes lie on top of each other "
             "from the peak through the whole coda. Before the P wave the accelerometer&rsquo;s "
             "own floor is visible at 1.7&nbsp;&micro;m/s; ours sits at 0.3.",
-            "<b>Reviewed by USGS the same day</b>, and the hypocentre did not move. Forty-two "
+            "<b>Reviewed by USGS, and then revised.</b> The same-day review left the "
+            "hypocentre where it was; the weekly re-harvest on 2026-09-04 picked up a later "
+            "revision that moved it &mdash; M3.54&rarr;<b>3.34</b>, 12.4&rarr;<b>13.3</b>&nbsp;km, "
+            "depth 7.4&rarr;<b>8.8</b>&nbsp;km. Every number on this page is the revised one. "
+            "That is exactly why <code>analysis/reharvest.py</code> exists: an automatic "
+            "solution appears in minutes, a reviewed one can take days, and a page built on "
+            "the first is quietly wrong. Forty-two "
             "stations within 40&nbsp;km picked the P wave (<code>analysis/network_residuals.py</code>): "
             "1835 sits in the middle of the near-field crowd and this station is the early one, "
             "by about 0.1&nbsp;s relative to its neighbours &mdash; the slab at the foot of the "
