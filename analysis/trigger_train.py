@@ -104,11 +104,20 @@ def main():
 
     # Reserve the holdout: fitted on nothing after HOLDOUT_AFTER.
     held = np.array([r["start"][:10] > HOLDOUT_AFTER for r in rows]) & ~is_aug
+    X_held = y_held = None
     if held.any():
+        X_all_held, y_all_held = X[held], y[held]
         print(f"\nHELD OUT (never fitted): {held.sum()} triggers after {HOLDOUT_AFTER}, "
               f"{int(y[held].sum())} of them quake")
         X, y, groups, rows = X[~held], y[~held], groups[~held], [r for r, h in zip(rows, held) if not h]
         is_aug = is_aug[~held]
+        # rule/has are built above from the FULL table, so they have to be trimmed here
+        # too or the `rule[ev]` further down indexes a 36,704-long array with a
+        # 32,367-long mask. This branch had never executed before 2026-09-04: the
+        # holdout was chosen on 08-30 with no data after it yet, so the first run that
+        # actually held anything out was the first run to touch these two lines.
+        rule, has = rule[~held], has[~held]
+        X_held, y_held = X_all_held, y_all_held
     else:
         print(f"\nholdout after {HOLDOUT_AFTER}: empty so far (it starts accruing tomorrow)")
 
@@ -206,6 +215,29 @@ def main():
     # describing augment.py's noise, not the ground's.
     imp = permutation_importance(final, Xr, yr, scoring="average_precision", n_repeats=5, random_state=0)
     order = np.argsort(-imp.importances_mean)
+    # THE HOLDOUT, SCORED. Reserving rows and never looking at them is not a holdout, it
+    # is just deleting data -- and until 2026-09-04 this block had nothing to score, so
+    # the omission was invisible. These rows were never in any fold and never fitted, so
+    # this is the only number here that is out-of-sample in the strict sense. It is also
+    # tiny: with a handful of quakes it moves by a whole event, so read it as a smoke
+    # test that nothing is catastrophically wrong, not as a performance figure.
+    if X_held is not None and len(y_held):
+        hs = X_held[:, FEATURES.index("peak_ratio")] >= MIN_RATIO_TRAIN
+        if hs.sum() and y_held[hs].sum():
+            ph = final.predict_proba(X_held[hs])[:, 1]
+            yh = y_held[hs]
+            flagged = int((ph >= 0.7).sum())
+            tp = int(((ph >= 0.7) & (yh == 1)).sum())
+            print(f"\nHOLDOUT (never fitted, never in a fold): {int(hs.sum())} triggers at "
+                  f"ratio >= {MIN_RATIO_TRAIN:g}, {int(yh.sum())} quake")
+            print(f"  PR-AUC {average_precision_score(yh, ph):.3f}  "
+                  f"ROC {roc_auc_score(yh, ph):.3f}")
+            print(f"  p>=0.7: caught {tp}/{int(yh.sum())}, flagged {flagged} "
+                  f"({flagged - tp} false)")
+        else:
+            print(f"\nHOLDOUT: {int(hs.sum())} triggers at ratio >= {MIN_RATIO_TRAIN:g} "
+                  f"but no quake among them -- nothing to score yet")
+
     print("\npermutation importance (PR-AUC drop):")
     for i in order[:10]:
         print(f"  {FEATURES[i]:14s} {imp.importances_mean[i]:+.3f}")

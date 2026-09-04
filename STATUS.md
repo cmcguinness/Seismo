@@ -105,6 +105,57 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 🧠 THE RETRAIN, AND TWO NETWORKS MEASURED AGAINST IT (2026-09-04)
+
+**Retrained on current data at last.** The dataset stopped at 08-30 and the live model
+had never seen the M2.6 Middletown or the M3.3 Larkfield. Rebuilt through 09-04:
+**36,259 rows, 64 quake, 34 distinct events** (was 28,204 / 58 / 30), 924 augmented
+positives, and the deployable model now scores **PR-AUC 0.899 / ROC 0.999** on the
+displayed slice with **recall 1.00** at p ≥ 0.7 (precision 0.43, down from 0.61 — more
+false pushes for complete recall; `SEISMO_ALERT_P=0.8` gives 0.48 if they annoy).
+
+**The held-out set finally has something in it** — 4,337 triggers after 2026-08-31, 4 of
+them quake — and the first genuinely out-of-sample number this project has produced:
+**PR-AUC 0.646, caught 4/4 at p ≥ 0.7 with 17 false positives over five days.** Four
+quakes is a smoke test, not a performance figure, but it passes.
+
+**Three bugs in code that had never run.** `--aug` crashed before saving (a mask/weight
+length mismatch) — so *every* deployed model to date was trained without augmentation,
+and the crash was the only thing preventing a silently worse one. The holdout branch
+crashed the first time it held anything out (`rule`/`has` not trimmed with `X`/`y`). And
+the holdout was **reserved but never scored**, which until today was just deleting data.
+
+**Two networks, measured on the same rows, folds and grouping** (`trigger_nn.py`,
+`trigger_cnn.py`, `spec_dataset.py`, `cnn_learning_curve.py`):
+
+| model | PR-AUC | train | note |
+|---|---|---|---|
+| trees, 17 features | **0.899** | — | the incumbent |
+| MLP `[18,64,1]` | **0.914** | 0.867 | competitive; one hidden layer |
+| MLP `[18,50,30,10,1]` | 0.645 | 0.923 | memorises; seed sd **0.184** |
+| CNN on spectrograms | 0.392 | 0.778 | memorises |
+
+- **Depth, not size, breaks the MLP.** `[18,64,1]` has *more* parameters than
+  `[18,32,16,1]` and generalises where that one memorises. One hidden layer works at
+  every width; two or more collapse.
+- **A single seed proves nothing.** Seed 0 of the deep net scored 0.9036 and "beat the
+  trees"; seeds 1 and 2 scored 0.54 and 0.49.
+- **The CNN is data-limited, and that is measured rather than assumed.**
+  `cnn_learning_curve.py` trains on a growing fraction of the *events*: 7 → 0.171,
+  14 → 0.191, 20 → 0.326, 27 → **0.413**, slope **+0.0124 per event and still climbing**.
+  Naive extrapolation to 0.899 wants ~66 events; curves bend, so read it as a floor. It
+  lands near the "~100 positives" threshold this file has carried on instinct.
+- **Two CNN bugs preceded the result, and both looked like "the idea fails".** At 0.3%
+  positives with batch 256, half the batches held no earthquake at all — balanced
+  batching took the *training* score 0.06 → 0.76. And global average pooling averaged
+  away the **frequency** axis one layer before the decision; keeping six bands cost 80
+  parameters and returned 27% with a 3× smaller seed spread.
+
+**Epistemics, now a rule in CLAUDE.md** (Charles): *failure is never proof of
+impossibility*. Three times today a thing looked impossible and was somebody's bug. A
+negative result is evidence about the attempt — name the configuration, list what was
+not varied, and write "does not work **here, yet, like this**".
+
 ## 🌈 CODA ATTENUATION AS A FEATURE: MEASURED, NOT ESTABLISHED (2026-09-04)
 
 Charles, from watching spectrograms: real earthquakes start broad and narrow toward low

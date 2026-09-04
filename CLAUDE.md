@@ -128,6 +128,38 @@ Suspense is for fiction; this is a lab notebook.
 The tell is any sentence that describes the significance of a result instead of stating
 the result. Delete it and give the number.
 
+## Failure is never proof of impossibility
+
+**A negative result is evidence about the attempt, not about the problem.** Write it up
+that way, because the wording outlives the session and a future reader will inherit
+whichever claim was made.
+
+Charles, 2026-09-04: *"the idea that everything you can think of is everything that can
+be done"* is an assumption of ignorance. He is right, and the same day supplied three
+proofs of it — each of which, if the work had stopped one step earlier, would have been
+written down as "measured, does not work":
+
+- the spectrogram CNN "could not learn" until the batches contained any earthquakes at
+  all (at 0.3% positives, half of all batches held none);
+- pooling averaged away the frequency axis one layer before the decision, costing 27% of
+  the score, which 80 parameters bought back;
+- the first A/B verdict rule compared a *paired* delta against the *between-fold* spread
+  and would have thrown away a genuine effect as noise.
+
+**How to write a negative result:**
+
+- Say what was measured and **name the configuration it was measured on**. "This
+  architecture, this preprocessing, these hyperparameters" — never "the approach".
+- **List what was not varied.** That list is the honest boundary of the claim, and it is
+  usually longer than the list of what was tried.
+- Distinguish *underpowered* from *disproved*, and give the number that decides it. A
+  learning curve that is still climbing means data; one that has flattened means this
+  configuration.
+- Keep the failures in the repo (`template_match.py`, `coda_probe.py`) — the measurement
+  is the result. But state it as "does not work **here, yet, like this**".
+- Beware the comfortable conclusion. "Not enough data" is the most flattering thing a
+  losing model can be told, so it needs evidence, not vibes.
+
 ## Environment
 
 - Python **3.13+** (see `pyproject.toml`). A project `.venv` exists (uv-managed) and is auto-activated by direnv.
