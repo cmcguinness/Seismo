@@ -76,9 +76,28 @@ cultural noise.** So any trigger within ±180 s of *any* known event is **droppe
 ambiguous** rather than guessed at. The busy hours after the Cloverdale mainshock are
 mostly excluded from training on purpose.
 
-A rule worth internalising: when you cannot label an example honestly, deleting it beats
-guessing. A wrong label is worse than no label, because the model will faithfully learn
-it.
+```mermaid
+flowchart TD
+    T["One STA/LTA trigger"] --> Q1{"Lines up with a
+    known earthquake?"}
+    Q1 -->|yes| L1["earthquake
+    58 rows"]
+    Q1 -->|no| Q2{"Close in time to one,
+    but not lined up?"}
+    Q2 -->|"yes — we cannot tell"| DROP["THROW IT AWAY
+    a guess here would teach the model
+    that earthquakes are noise"]
+    Q2 -->|no| L0["not an earthquake
+    27,667 rows"]
+```
+
+The middle branch is the one to look at. It would be so easy to let it fall through to
+0 — it is only an `else` — and the dataset would look bigger and cleaner and be quietly
+poisoned.
+
+A rule worth internalising: **when you cannot label an example honestly, deleting it
+beats guessing.** A wrong label is worse than no label, because the model has no way to
+know it is wrong and will faithfully learn it.
 
 ## 3. The features
 
@@ -182,6 +201,32 @@ So each round:
    is to identify *regions of feature space where the model is currently wrong, and in
    which direction*.
 3. Add it to the running score, scaled down by the learning rate: `F ← F + ν·h(x)`.
+
+```mermaid
+flowchart TD
+    START["Start by assuming
+    it is not an earthquake"] --> R
+
+    R["1 · How wrong are we,
+    and in which direction?
+    residual = y − p"] --> T
+
+    T["2 · Fit a small tree to the RESIDUALS
+    — not to the labels —
+    so it learns WHERE we are wrong"] --> A
+
+    A["3 · Nudge the prediction that way.
+    Only a nudge, on purpose"] --> Q{"done 300 times?"}
+
+    Q -->|"no — go again"| R
+    Q -->|yes| OUT["p_quake"]
+```
+
+Follow one earthquake through the loop. Suppose it is currently scored `p = 0.3`. Its
+residual is `+0.7`: the next tree is strongly pulled toward finding whatever region of
+feature space that row sits in and pushing it up. Once it reaches `p = 0.95` its residual
+is `+0.05` and it stops asking for attention, so later trees spend their capacity
+elsewhere. Cultural noise already at `0.02` was never a problem and is ignored throughout.
 
 The ensemble is a sum of small corrections, and the process automatically concentrates
 its attention on the examples it is still getting wrong. That is the entire algorithm,

@@ -13,6 +13,34 @@ page and raw data to downstream users. Three hosts, one repository:
 3. **A public-facing website** on a cloud server, which gives public access to the data
    and the tools built on it.
 
+```mermaid
+flowchart TD
+    subgraph HOUSE["the house — nothing in here is reachable from the internet"]
+        G["geophone
+        on the garage slab"]
+        S["Pi 2B
+        LISTENS, and nothing else
+        (a busy Pi is a noisy Pi)"]
+        P["Pi 5
+        does all the thinking"]
+        K["Pi 3B+
+        GPS clock"]
+
+        G -->|"XLR, kept away from the electronics"| S
+        K -.->|"the time"| S
+        S -->|"the readings"| P
+    end
+
+    P ==>|"OUTBOUND ONLY"| A["public server
+    seismo.mcguinness.ai"]
+    A --> V["anyone"]
+```
+
+Two things in that picture are the whole design. The Pi 2B does **nothing but acquire**,
+because processing on the same board raises its own electrical noise floor. And the arrow
+to the public server points **one way**: the house is never connected *to*, only *from*,
+so there is no inbound path to attack.
+
 This differs from the Shake, which puts the geophone and the Pi in a single box and has
 that Pi both collect the readings and process them. My initial design mimicked that, but
 I discovered that the busier the Pi gets, the more electrical noise it generates, and
