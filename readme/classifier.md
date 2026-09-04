@@ -24,9 +24,17 @@ That traditional method has a name: **STA/LTA**, short-term average over long-te
 average. When the ratio crosses a threshold, something just got much louder than the
 recent background, and you call that a **trigger**.
 
-It is a beautiful algorithm. It is fifty years old, it needs almost no CPU, it adapts
-automatically as background noise changes through the day, and it makes no assumptions
-about what an earthquake looks like.
+People who are familiar with stock charting might recognize this: a common approach to
+stock trade timing is to compare a 50-day SMA (Simple Moving Average) to a 200-day SMA:
+when the 50-day rises above the 200-day that's the "golden cross" and a sign to buy, and
+when it drops below it's the "death cross" and a sign to sell (Nota bene: this is *not*
+trading advice). One difference is worth holding on to, though: the trader acts on the
+crossing itself, where we wait until the short window is several times louder than the
+long one — parity here would fire on every passing car.
+
+It is a beautifully simple algorithm. It is fifty years old, it needs almost no CPU, it
+adapts automatically as background noise changes through the day, and it makes no
+assumptions about what an earthquake looks like.
 
 That last property is also the problem. **STA/LTA does not detect earthquakes. It
 detects things getting louder.** In a residential garage in California, the things that
