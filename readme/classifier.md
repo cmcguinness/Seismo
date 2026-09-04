@@ -1,22 +1,28 @@
 # The trigger classifier
 
-*How this station decides whether it just felt an earthquake — written for someone who
-can program and has met a little probability, but has never touched seismology.*
+The station sees the ground activity level suddenly pick up. Did something noteworthy
+happen?
 
-The short version: an earthquake detector that reacts to "the ground got suddenly
-louder" reacts mostly to cars. Deciding which of its alarms are real is a **binary
-classification problem**, and this document is about solving it honestly with a
-frustratingly small number of examples.
+There's a traditional way to find out: you divide the activity level over the last
+second or so by the average level over the last minute or so. If the result is over a
+certain threshold, it's an event. And if your seismometer is in a remote or quiet
+location, that's good enough. But I'm in neither a remote nor a quiet location. That
+event is vastly more likely to be a garbage truck.
 
----
+Can we tell temblor from truck?
 
-## 1. Why there is a problem at all
+That's the goal of our Trigger Classifier: an AI tool to tell them apart. The core idea
+is neither new nor novel, but the implementation is a bit different from what's in
+common use owing to the rather simpler device I have deployed.
 
-The classical seismic detector is **STA/LTA**: short-term average over long-term
-average. You keep two running averages of the signal's amplitude — a short window
-(about a second) and a long one (about a minute) — and you divide one by the other.
-When the ratio crosses a threshold, something just got much louder than the recent
-background, and you call that a **trigger**.
+Read on to learn how mine works. *What follows assumes you can program and have met a
+little probability, but nothing at all about seismology.*
+
+## 1. The core problem
+
+That traditional method has a name: **STA/LTA**, short-term average over long-term
+average. When the ratio crosses a threshold, something just got much louder than the
+recent background, and you call that a **trigger**.
 
 It is a beautiful algorithm. It is fifty years old, it needs almost no CPU, it adapts
 automatically as background noise changes through the day, and it makes no assumptions
@@ -34,43 +40,42 @@ ground actually moves — a real catalogued earthquake within our ~89 km reach �
 
 So the detector's raw output is about 99.8% noise, and we need a second stage.
 
-## 2. What we are trying to do, and the shape of the whole thing
+## 2. The goal
 
 **The goal is to know that an earthquake has happened within seconds of it happening,
 without waiting for anyone else to tell us.** That single sentence explains every choice
 in this document, so it is worth stating before the machinery.
 
-The USGS catalogue is authoritative, and it is also *late*: an automatic solution appears
-in minutes and a reviewed one can take days. If all we wanted was a list of local
-earthquakes, there would be nothing to build — you download it. What a station of your
-own gives you is the answer **now**, from your own ground, which means the decision
+The USGS catalogue is authoritative, and it is also *late*: an automatic solution
+appears in minutes and a reviewed one can take days. If all we wanted was a list of
+local earthquakes, there would be nothing to build — you download it. What a station of
+your own gives you is the answer **now**, from your own ground, which means the decision
 *"was that an earthquake?"* has to be made here, unaided, at the moment the shaking
 arrives.
 
 So the catalogue is what we learn **from**, not what we wait **for**. That inversion is
-the whole design: we spend the catalogue once, offline, to teach a model what an
-earthquake looks like in our own data — and after that the live path never consults it
-again.
+the whole design: we use the catalogue to train a model on what an earthquake looks like
+in our own data. But at run time we use our model.
 
-We keep STA/LTA as the detector and **learn to believe it less**.
+We still start with STA/LTA as the detector and **learn to believe it less**.
 
 That framing is not original here — it is taken directly from how the USGS National
 Earthquake Information Center runs its own pipeline, described in **Yeck et al.
 (2020)**[^yeck]. The instinct on first meeting this problem is to replace STA/LTA with
 something cleverer. NEIC does not. It keeps the fifty-year-old detector, which is fast,
-adaptive and assumption-free, and bolts learned classifiers on *afterwards* to judge what
-it produced. Their reported win was about **25 % fewer false associations — not more
-detections**. That is the whole idea this station borrowed, four orders of magnitude
-down: the cheap detector stays, and a model is trained to disbelieve it.
+adaptive and assumption-free, and bolts learned classifiers on *afterwards* to judge
+what it produced. Their reported win was about **25 % fewer false associations — not
+more detections**. That is the whole idea this station borrowed, four orders of
+magnitude down: the cheap detector stays, and a model is trained to disbelieve it.
 
-[^yeck]: Yeck, W. L., Patton, J. M., Ross, Z. E., Hayes, G. P., Guy, M. R., Ambruz,
-    N. B., Shelly, D. R., Benz, H. M., & Earle, P. S. (2020). *Leveraging Deep Learning
-    in Global 24/7 Real-Time Earthquake Monitoring at the National Earthquake Information
+[^yeck]: Yeck, W. L., Patton, J. M., Ross, Z. E., Hayes, G. P., Guy, M. R., Ambruz, N. B.,
+    Shelly, D. R., Benz, H. M., & Earle, P. S. (2020). *Leveraging Deep Learning in
+    Global 24/7 Real-Time Earthquake Monitoring at the National Earthquake Information
     Center.* **Seismological Research Letters, 92**(1), 469–480.
-    [doi:10.1785/0220200178](https://doi.org/10.1785/0220200178) — published online
-    23 September 2020, in the January 2021 issue.
+    [doi:10.1785/0220200178](https://doi.org/10.1785/0220200178) — published online 23
+    September 2020, in the January 2021 issue.
 
-### The pipeline, end to end
+## 3. How it works, end to end
 
 Two halves. The thing to hold on to is that **they run in opposite directions in time.**
 
@@ -79,10 +84,10 @@ Two halves. The thing to hold on to is that **they run in opposite directions in
 1. Take our own event log: every STA/LTA trigger this station has ever fired.
 2. **Label** each one — did it line up with an earthquake the USGS catalogue confirms?
 3. **Drop** the ones too ambiguous to label honestly (§ below — this matters more than
-   it sounds).
+it sounds).
 4. **Measure features**: seventeen numbers describing the shape of each trigger.
 5. **Fit** a classifier to predict the label from the features — with some
-   synthetic weak positives mixed in, because real ones are desperately scarce (§6).
+synthetic weak positives mixed in, because real ones are desperately scarce (§7).
 6. **Test** it against the backlog, and against the hand-written rule it replaces.
 7. If it is good enough, **deploy** it to the Pi 5.
 
@@ -120,19 +125,19 @@ flowchart TD
     end
 ```
 
-Notice what is *not* in the lower half: the catalogue. Once the model is fitted, the live
-path is self-contained — which is the point, because the catalogue is the thing we are
-trying to beat to the answer.
+Notice what is *not* in the lower half: the catalogue. Once the model is fitted, the
+live path is self-contained — which is the point, because the catalogue is the thing we
+are trying to beat to the answer.
 
-Everything from §3 onward is detail on one of those steps.
+Everything from §4 onward is detail on one of those steps.
 
 ### What a row is
 
 - **One row** = one trigger. Not one earthquake, one *trigger* — a single earthquake
-  usually fires several, as P waves, then S waves, then coda arrive.
+usually fires several, as P waves, then S waves, then coda arrive.
 - **The window** = 5 seconds before the trigger to 25 seconds after, from the 100 sps
-  archive. The 5 seconds of lead-in matters: it is the only measurement of what the
-  background looked like immediately beforehand.
+archive. The 5 seconds of lead-in matters: it is the only measurement of what the
+background looked like immediately beforehand.
 - **The label** = 1 if this trigger lines up with a real earthquake, 0 otherwise.
 
 ### Where labels come from, and the trap in them
@@ -165,15 +170,15 @@ flowchart TD
     27,667 rows"]
 ```
 
-The middle branch is the one to look at. It would be so easy to let it fall through to
-0 — it is only an `else` — and the dataset would look bigger and cleaner and be quietly
+The middle branch is the one to look at. It would be so easy to let it fall through to 0
+— it is only an `else` — and the dataset would look bigger and cleaner and be quietly
 poisoned.
 
 A rule worth internalising: **when you cannot label an example honestly, deleting it
 beats guessing.** A wrong label is worse than no label, because the model has no way to
 know it is wrong and will faithfully learn it.
 
-## 3. The features
+## 4. The features
 
 Seventeen numbers per trigger, defined once in `server/trigger_features.py`. They fall
 into three groups, and each is trying to capture something physical:
@@ -182,8 +187,8 @@ into three groups, and each is trying to capture something physical:
 15–30, 30–45 Hz), the ratio of high-band to low-band energy, the spectral centroid, and
 the dominant frequency. This is the workhorse group, because an earthquake and a car
 genuinely differ here: a car is a broadband, high-frequency scrape, while an earthquake
-that has travelled tens of kilometres through rock has had its high frequencies
-absorbed along the way and arrives comparatively bass-heavy.
+that has travelled tens of kilometres through rock has had its high frequencies absorbed
+along the way and arrives comparatively bass-heavy.
 
 **What the shape looks like in time.** Rise time to the peak, decay time, duration above
 three times the noise floor, where in the window the peak falls, and the signal-to-noise
@@ -204,11 +209,11 @@ events happened before August"* — a fact about this project's hardware history
 about the ground. The moment the hardware changed again, that knowledge would become
 actively wrong.
 
-This is a general lesson about leakage. A feature does not have to be obviously
-cheating to be useless; it only has to correlate with the answer *for reasons that will
-not survive deployment*.
+This is a general lesson about leakage. A feature does not have to be obviously cheating
+to be useless; it only has to correlate with the answer *for reasons that will not
+survive deployment*.
 
-## 4. The model: gradient-boosted decision trees
+## 5. The model: gradient-boosted decision trees
 
 This is the part worth slowing down on, because the choice of model class is doing more
 work here than any hyperparameter.
@@ -223,16 +228,16 @@ separates the classes by some impurity measure. Recurse. Stop at a depth limit.
 Two properties matter for us. Splits are **axis-aligned** (each test looks at a single
 feature), so nothing needs to be on a comparable scale — a feature in microvolts and a
 feature that is a dimensionless fraction coexist without normalisation. And the tree is
-**piecewise constant**: it carves the feature space into boxes and predicts one value per
-box.
+**piecewise constant**: it carves the feature space into boxes and predicts one value
+per box.
 
 A single shallow tree is a weak model. It is also high-variance — shift a few training
 points and the greedy first split can flip, changing everything beneath it.
 
 ### Two ways to combine trees, and why the difference matters
 
-If you sort-of remember random forests: those are **bagging**. Train many deep trees
-*in parallel* on bootstrap samples with random feature subsets, then average. Averaging
+If you sort-of remember random forests: those are **bagging**. Train many deep trees *in
+parallel* on bootstrap samples with random feature subsets, then average. Averaging
 independent noisy estimates cancels noise, so bagging attacks **variance**. Each tree is
 individually overfit; the ensemble is not.
 
@@ -272,8 +277,8 @@ So each round:
 
 1. Compute every row's residual under the current model.
 2. **Fit a small regression tree to the residuals** — not to the labels. This tree's job
-   is to identify *regions of feature space where the model is currently wrong, and in
-   which direction*.
+is to identify *regions of feature space where the model is currently wrong, and in
+which direction*.
 3. Add it to the running score, scaled down by the learning rate: `F ← F + ν·h(x)`.
 
 ```mermaid
@@ -298,9 +303,10 @@ flowchart TD
 
 Follow one earthquake through the loop. Suppose it is currently scored `p = 0.3`. Its
 residual is `+0.7`: the next tree is strongly pulled toward finding whatever region of
-feature space that row sits in and pushing it up. Once it reaches `p = 0.95` its residual
-is `+0.05` and it stops asking for attention, so later trees spend their capacity
-elsewhere. Cultural noise already at `0.02` was never a problem and is ignored throughout.
+feature space that row sits in and pushing it up. Once it reaches `p = 0.95` its
+residual is `+0.05` and it stops asking for attention, so later trees spend their
+capacity elsewhere. Cultural noise already at `0.02` was never a problem and is ignored
+throughout.
 
 The ensemble is a sum of small corrections, and the process automatically concentrates
 its attention on the examples it is still getting wrong. That is the entire algorithm,
@@ -329,19 +335,18 @@ statement that the model may not carve out a special case for a handful of event
 **`l2_regularization=1.0`** shrinks the leaf values themselves toward zero, so even a
 confident-looking region cannot contribute an unbounded jump in log-odds.
 
-The class imbalance is handled by passing **per-sample weights** at fit time, up-weighting
-the rare positives so 27,667 negatives cannot simply drown them out. (Not scikit-learn's
-`class_weight` parameter — the weights are computed explicitly and passed to `fit`, which
-also allows augmented rows to be weighted separately from real ones.)
+The class imbalance is handled by passing **per-sample weights** at fit time,
+up-weighting the rare positives so 27,667 negatives cannot simply drown them out. (Not
+scikit-learn's `class_weight` parameter — the weights are computed explicitly and passed
+to `fit`, which also allows augmented rows to be weighted separately from real ones.)
 
 ### Why this model class suits *this* problem
 
 **The data is tabular and already engineered.** The heavy lifting — turning 3,000 raw
-samples into 17 physically meaningful numbers — is done by DSP in
-`trigger_features.py`, not learned. Deep learning earns its keep when it discovers
-representations from raw signals, and with 30 events there is no chance of that. Given
-good hand-built features on a table, boosted trees are the method to beat, and usually
-are not beaten.
+samples into 17 physically meaningful numbers — is done by DSP in `trigger_features.py`,
+not learned. Deep learning earns its keep when it discovers representations from raw
+signals, and with 30 events there is no chance of that. Given good hand-built features
+on a table, boosted trees are the method to beat, and usually are not beaten.
 
 **The decision boundary is genuinely non-monotonic, so linear models are out.** A
 spectral centroid around 5–8 Hz is earthquake-like; both much lower (a door thump) and
@@ -361,8 +366,9 @@ older triggers have no `hf_lf` recorded, and the histogram-based implementation 
 *default direction* for missing values at each split, which is a real answer rather than
 a guess dressed as a mean.
 
-**It outputs a probability we can threshold.** `p_quake` is a number we can slide against
-the precision/recall trade-off, which a bare decision boundary would not give us.
+**It outputs a probability we can threshold.** `p_quake` is a number we can slide
+against the precision/recall trade-off, which a bare decision boundary would not give
+us.
 
 **It stays inspectable.** Permutation importance tells us which features carry the
 decision, so when the model disagrees with the old hand-written rule we can go and look
@@ -389,12 +395,12 @@ properly. The threshold is chosen from the measured precision/recall table, not 
 believing the number.
 
 **Sample weighting is a blunt instrument.** Up-weighting the positives makes the model
-care about the rare class, and simultaneously distorts the output probabilities away from
-the true base rate — the model is fitted as if earthquakes were far more common than they
-are. Another reason to treat `p_quake` as a ranking score rather than a literal
-likelihood.
+care about the rare class, and simultaneously distorts the output probabilities away
+from the true base rate — the model is fitted as if earthquakes were far more common
+than they are. Another reason to treat `p_quake` as a ranking score rather than a
+literal likelihood.
 
-## 5. Evaluation, which is where most of the difficulty actually is
+## 6. Evaluation, which is where most of the difficulty actually is
 
 ### Accuracy is a useless metric here, and it is worth seeing why
 
@@ -407,9 +413,9 @@ see a headline accuracy figure on rare-event data, this is the first thing to ch
 ### Precision and recall
 
 - **Precision** = of the triggers we flagged, what fraction were real? *(Low precision =
-  your phone buzzes at trucks.)*
+your phone buzzes at trucks.)*
 - **Recall** = of the real earthquakes, what fraction did we flag? *(Low recall = you
-  sleep through it.)*
+sleep through it.)*
 
 You trade one against the other by moving the decision threshold, and the right trade
 depends entirely on what happens next. Here, a flagged trigger sends a phone
@@ -432,13 +438,13 @@ supplies a textbook illustration of the gap:
 | all triggers | 0.841 | **0.480** |
 | the strong-signal slice | 0.999 | **0.882** |
 
-A ROC-AUC of 0.999 sounds like a solved problem. The PR-AUC of 0.882 on the same rows
-is the honest number, and even that is 140× the base rate rather than 99.9% of anything.
+A ROC-AUC of 0.999 sounds like a solved problem. The PR-AUC of 0.882 on the same rows is
+the honest number, and even that is 140× the base rate rather than 99.9% of anything.
 
 ### Cross-validation has to be *grouped*
 
-The standard move is k-fold cross-validation: split the rows into k parts, train on
-k−1, test on the held-out one, rotate.
+The standard move is k-fold cross-validation: split the rows into k parts, train on k−1,
+test on the held-out one, rotate.
 
 Splitting **randomly** would be wrong here, in a way that is easy to miss and would
 inflate every number in this document. One earthquake produces several triggers — P, S,
@@ -448,10 +454,11 @@ seen. Worse, aftershocks resemble their own mainshock, so an aftershock in the t
 can be "predicted" by having memorised the mainshock.
 
 So the splits are **grouped** — five folds of `StratifiedGroupKFold`, with positives
-grouped by catalogue event and negatives grouped by day. An event is wholly in train or wholly in test, never split across both. This
-lowers the reported scores, which is the point — the lower number is the true one.
+grouped by catalogue event and negatives grouped by day. An event is wholly in train or
+wholly in test, never split across both. This lowers the reported scores, which is the
+point — the lower number is the true one.
 
-## 6. The rare-positive problem, and what augmentation actually buys
+## 7. The rare-positive problem, and what augmentation actually buys
 
 Fifty-eight positive rows is not many, and the shortage is not fixable by working
 harder: it is set by how often the ground moves, which is about five times a week.
@@ -470,9 +477,9 @@ Two rules make this honest, and they are the whole reason it is defensible:
 
 - Augmented rows are **train-only**. They never appear in a test fold.
 - **Every reported metric is computed on real rows.** A PR-AUC that counted synthetic
-  positives would be measuring our noise generator, not the station.
+positives would be measuring our noise generator, not the station.
 
-## 7. The confession about leakage
+## 8. The confession about leakage
 
 There is a form of overfitting that cross-validation cannot detect, and this project has
 it.
@@ -492,7 +499,7 @@ The comment in `trigger_train.py` is worth quoting in full, because it is the ac
 safeguard: *move this date forward ONLY by deliberately promoting the holdout into
 training and choosing a new one; never to make a number look better.*
 
-## 8. How well does it work?
+## 9. How well does it work?
 
 Against the hand-written rule it replaced (`hf_lf < 1.4`, meaning "bass-heavy, therefore
 seismic"):
@@ -505,12 +512,12 @@ seismic"):
 | the model at p ≥ 0.7, that slice | **0.417** | 0.91 |
 
 On the slice that actually reaches a human, the model is **16× more precise than the
-rule** at comparable recall — 48 flags instead of 465 to catch the same earthquakes.
-The deployment threshold is **p ≥ 0.7**, and triggers below a peak-to-noise ratio of 10
-are not scored at all: that region is 20,000 blips a month, and a model trained there
-learns to predict blips (PR-AUC 0.06).
+rule** at comparable recall — 48 flags instead of 465 to catch the same earthquakes. The
+deployment threshold is **p ≥ 0.7**, and triggers below a peak-to-noise ratio of 10 are
+not scored at all: that region is 20,000 blips a month, and a model trained there learns
+to predict blips (PR-AUC 0.06).
 
-## 9. What it gets wrong, which is the interesting part
+## 10. What it gets wrong, which is the interesting part
 
 The training script prints every real earthquake ranked by its out-of-fold score, so the
 failures are visible rather than averaged away. The misses share an obvious pattern:
@@ -536,7 +543,7 @@ Note also the Glen Ellen M1.69 appearing at p=0.00 *and*, from a different trigg
 the same event, at p=0.86. Rows are triggers, not earthquakes. One arrival can be
 unmistakable while another from the same quake is invisible.
 
-## 10. Getting it into production without it rotting
+## 11. Getting it into production without it rotting
 
 One failure mode kills more deployed models than any modelling mistake: **training/
 serving skew**, where the features computed at training time and the features computed
@@ -552,16 +559,16 @@ Raspberry Pi ever trains anything.
 
 ---
 
-## 11. What transfers from the professionals, and what does not
+## 12. What transfers from the professionals, and what does not
 
 Since this station copied its architecture from Yeck et al., it is worth being explicit
-about which parts of a national-scale system survive the drop to one sensor in a garage —
-because the answer is not "all of them", and the differences are the interesting part.
+about which parts of a national-scale system survive the drop to one sensor in a garage
+— because the answer is not "all of them", and the differences are the interesting part.
 
 **The framework transfers.** STA/LTA feeding a learned discriminator works at *tens* of
-positives, which is genuinely surprising and is the single most useful thing this project
-has confirmed for anyone else at hobby scale. You do not need a national network to make
-the second stage pay for itself.
+positives, which is genuinely surprising and is the single most useful thing this
+project has confirmed for anyone else at hobby scale. You do not need a national network
+to make the second stage pay for itself.
 
 **The architecture does not.** NEIC learns filters directly from raw waveforms, which is
 what a training set of ~1.3 million analyst-reviewed arrivals buys you. With 30 events,
@@ -573,13 +580,13 @@ the data does not exist.
 **Two problems are ours and not theirs:**
 
 - **Hardware churn.** A hobby station gets rebuilt: this one's front end changed on
-  2026-08-07. NEIC's instruments do not change under it mid-catalogue. That is why every
-  feature here is amplitude-*relative* and why the project keeps a formal epoch table
-  (`analysis/epochs.py`), so a fit can never silently straddle a rebuild.
+2026-08-07. NEIC's instruments do not change under it mid-catalogue. That is why every
+feature here is amplitude-*relative* and why the project keeps a formal epoch table
+(`analysis/epochs.py`), so a fit can never silently straddle a rebuild.
 - **Grouped cross-validation is mandatory at small N.** Positives arrive in clusters —
-  mainshock plus aftershocks, Geysers sequences — so ungrouped folds let an aftershock
-  vouch for its own mainshock. At 1.3 million samples that leakage is diluted to
-  nothing; at 58 it dominates.
+mainshock plus aftershocks, Geysers sequences — so ungrouped folds let an aftershock
+vouch for its own mainshock. At 1.3 million samples that leakage is diluted to nothing;
+at 58 it dominates.
 
 There is a longer write-up of this deferred in `BACKLOG.md`, framed as a medical-style
 **case report** — not novel research, but an honest account of how far the original work
@@ -597,61 +604,61 @@ greater length. These are the ones actually worth your time, with what each is g
 **STA/LTA and seismic triggering**
 
 - Trnkoczy, *[Understanding and parameter setting of STA/LTA trigger
-  algorithm](https://gfzpublic.gfz.de/pubman/item/item_43337_3/component/file_56122/IS_8.1_rev1.pdf)*
-  (IASPEI New Manual of Seismological Observatory Practice, IS 8.1,
-  doi:10.2312/GFZ.NMSOP_r1_IS_8.1). Twenty pages, free, and the standard practical
-  reference. If you only read one thing about *why* the windows are the lengths they are,
-  read this.
+algorithm](https://gfzpublic.gfz.de/pubman/item/item_43337_3/component/file_56122/IS_8.1_rev1.pdf)*
+(IASPEI New Manual of Seismological Observatory Practice, IS 8.1,
+doi:10.2312/GFZ.NMSOP_r1_IS_8.1). Twenty pages, free, and the standard practical
+reference. If you only read one thing about *why* the windows are the lengths they are,
+read this.
 - ObsPy's [trigger/picker tutorial](https://docs.obspy.org/tutorial/code_snippets/trigger_tutorial.html)
-  — runnable code with plots. The fastest way to get a feel for STA/LTA is to move the
-  threshold yourself and watch what it catches.
+— runnable code with plots. The fastest way to get a feel for STA/LTA is to move the
+threshold yourself and watch what it catches.
 
 **Decision trees and gradient boosting**
 
 - Parr & Howard, *[How to explain gradient boosting](https://explained.ai/gradient-boosting/)*.
-  **Start here.** Three articles that build the algorithm up visually from "fit a tree to
-  the residuals", including a careful treatment of the one question everyone stumbles on —
-  in what sense this is gradient descent, and descent through *what* space.
+**Start here.** Three articles that build the algorithm up visually from "fit a tree to
+the residuals", including a careful treatment of the one question everyone stumbles on —
+in what sense this is gradient descent, and descent through *what* space.
 - StatQuest, *[Gradient Boost Part 1: Regression Main
-  Ideas](https://www.youtube.com/watch?v=3CC4N4z3GJc)* (four parts, ~15 min each). If you
-  prefer being talked through it on a whiteboard, this is the clearest version anywhere,
-  and parts 3–4 cover the classification case that this project actually uses.
+Ideas](https://www.youtube.com/watch?v=3CC4N4z3GJc)* (four parts, ~15 min each). If you
+prefer being talked through it on a whiteboard, this is the clearest version anywhere,
+and parts 3–4 cover the classification case that this project actually uses.
 - scikit-learn's [ensembles user guide](https://scikit-learn.org/stable/modules/ensemble.html)
-  — the reference for what the knobs in our code do, including the histogram-based
-  implementation and its native handling of missing values.
+— the reference for what the knobs in our code do, including the histogram-based
+implementation and its native handling of missing values.
 - Friedman (2001), *[Greedy Function Approximation: A Gradient Boosting
-  Machine](https://projecteuclid.org/journals/annals-of-statistics/volume-29/issue-5/Greedy-function-approximation-A-gradient-boosting-machine/10.1214/aos/1013203451.full)*,
-  Annals of Statistics 29(5). The original. Read it after one of the two above, not
-  before.
+Machine](https://projecteuclid.org/journals/annals-of-statistics/volume-29/issue-5/Greedy-function-approximation-A-gradient-boosting-machine/10.1214/aos/1013203451.full)*,
+Annals of Statistics 29(5). The original. Read it after one of the two above, not
+before.
 - James, Witten, Hastie & Tibshirani, *[An Introduction to Statistical
-  Learning](https://www.statlearning.com/)* — free PDF, and pitched at exactly the level
-  of this document. Chapter 8 is trees, bagging, random forests and boosting in about
-  thirty readable pages. Its heavier sibling, *[The Elements of Statistical
-  Learning](https://hastie.su.domains/ElemStatLearn/)*, is also free and goes much deeper
-  into why shrinkage works.
+Learning](https://www.statlearning.com/)* — free PDF, and pitched at exactly the level
+of this document. Chapter 8 is trees, bagging, random forests and boosting in about
+thirty readable pages. Its heavier sibling, *[The Elements of Statistical
+Learning](https://hastie.su.domains/ElemStatLearn/)*, is also free and goes much deeper
+into why shrinkage works.
 
 **Evaluating a classifier when the positives are rare**
 
 - Saito & Rehmsmeier (2015), *[The Precision-Recall Plot Is More Informative than the ROC
-  Plot When Evaluating Binary Classifiers on Imbalanced
-  Datasets](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0118432)*,
-  PLOS ONE 10(3): e0118432. This is the paper behind §5. If the ROC-AUC 0.999 versus
-  PR-AUC 0.882 gap in this document surprised you, it explains exactly why that happens.
+Plot When Evaluating Binary Classifiers on Imbalanced
+Datasets](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0118432)*,
+PLOS ONE 10(3): e0118432. This is the paper behind §6. If the ROC-AUC 0.999 versus
+PR-AUC 0.882 gap in this document surprised you, it explains exactly why that happens.
 - scikit-learn's [precision-recall
-  example](https://scikit-learn.org/stable/auto_examples/model_selection/plot_precision_recall.html)
-  — short, with the code to reproduce the curves on your own data.
+example](https://scikit-learn.org/stable/auto_examples/model_selection/plot_precision_recall.html)
+— short, with the code to reproduce the curves on your own data.
 
 **Cross-validation and leakage**
 
 - scikit-learn's [cross-validation user
-  guide](https://scikit-learn.org/stable/modules/cross_validation.html). Read the section
-  on **grouped** splitters; it is the machinery behind §5 and the reason an aftershock
-  cannot vouch for its own mainshock here.
+guide](https://scikit-learn.org/stable/modules/cross_validation.html). Read the section
+on **grouped** splitters; it is the machinery behind §6 and the reason an aftershock
+cannot vouch for its own mainshock here.
 - Kaufman, Rosset & Perlich (2011), *[Leakage in Data Mining: Formulation, Detection, and
-  Avoidance](https://www.cs.umb.edu/~ding/history/470_670_fall_2011/papers/cs670_Tran_PreferredPaper_LeakingInDataMining.pdf)*
-  (KDD). The catalogue of ways information sneaks from test into train. §7's confession —
-  that a human repeatedly looking at the same rows leaks too, and no cross-validation
-  scheme can catch it — is this problem in its hardest-to-see form.
+Avoidance](https://www.cs.umb.edu/~ding/history/470_670_fall_2011/papers/cs670_Tran_PreferredPaper_LeakingInDataMining.pdf)*
+(KDD). The catalogue of ways information sneaks from test into train. §8's confession —
+that a human repeatedly looking at the same rows leaks too, and no cross-validation
+scheme can catch it — is this problem in its hardest-to-see form.
 
 ---
 
