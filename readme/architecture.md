@@ -89,6 +89,11 @@ Training runs on the Mac (`analysis/harvest_events.py` → `trigger_dataset.py` 
 `augment.py` → `trigger_train.py`); the fitted model is shipped to the Pi 5 by
 `deploy.sh`. Neither Pi ever trains anything.
 
+**[The trigger classifier, explained](classifier.md)** covers all of the above from the
+beginning — what STA/LTA is and why it over-triggers, how gradient-boosted trees work and
+why they suit a problem with 30 positive examples, why accuracy is a useless metric at a
+0.21% base rate, and which earthquakes this model misses.
+
 ## Public website
 
 - **Dashboard:** the LAN and public copies are the same Docker image (`dashboard/`,

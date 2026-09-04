@@ -20,6 +20,7 @@ Does it work? Does it work well? To answer that, its findings are checked agains
 
 - [The story](readme/story.md): why, how, and what a hobbyist can and cannot claim.
 - [Architecture](readme/architecture.md): the three hosts, why they are three, and how this differs from a Raspberry Shake.
+- [The trigger classifier](readme/classifier.md): how the station decides an alarm was an earthquake and not a truck, from STA/LTA to gradient boosting, at undergraduate level.
 - [Reproducing the results](readme/reproducing.md): the comparison against NP.1835, the detection-range fit, and retraining the trigger classifier.
 - [Catches](https://seismo.mcguinness.ai/catches): every confirmed earthquake beside the professional station's record, on the same axes.
 
