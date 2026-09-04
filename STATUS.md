@@ -1,13 +1,13 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-03 (UTC)_
+_Last updated: 2026-09-04 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
 index into [`STATUS-ARCHIVE.md`](STATUS-ARCHIVE.md), where everything before 2026-08-20
 lives verbatim. `BACKLOG.md` holds deferred work; `CLAUDE.md` maps the hosts and code.
 
-## 🧭 CURRENT SYSTEM (as of 2026-09-03)
+## 🧭 CURRENT SYSTEM (as of 2026-09-04)
 
 **Station.** LGT-4.5 vertical geophone in a printed case on the garage slab (Oakmont;
 92 m from and 13 m above Route 12), Waveshare ADS1256 at PGA 64, Raspberry Pi 2B
@@ -44,8 +44,12 @@ the time-median PSD). **1.05 Hz is the one unexplained line.** The ocean microse
 **Data plane (pi5, LAN only).** `udp_collector` owns the archive; `detector` re-runs
 STA/LTA over it, dedupes (±3 s), scores every trigger with ratio ≥ 10 using the
 gradient-boosting **trigger classifier** (`p_quake`; trained on the Mac from the
-station's own catalog — 75 % precision / 86 % recall on the displayed range vs the
-`hf_lf` rule's 2.4 %) and **pushes to ntfy at p ≥ 0.7** (one per 5 min); `seismo_server`
+station's own catalog — at the deployed p ≥ 0.7, **42 % precision / 91 % recall** on the
+displayed range against the `hf_lf` rule's 2.6 %, i.e. 48 flags instead of 465 for the
+same events; re-measured 2026-09-04 on 22 positives, and *lower* than the 75 %/86 % this
+line used to quote because that was p ≥ 0.5 on 14 positives back in August — early
+numbers on a handful of positives, promoted to the summary without their caveat) and
+**pushes to ntfy at p ≥ 0.7** (one per 5 min); `seismo_server`
 serves `/v1/*`. pi5 auto-pulls `main` every 2 min. Retrain: `harvest_events.py` →
 `trigger_dataset.py` → `augment.py` → `trigger_train.py --aug` → push.
 
@@ -65,12 +69,18 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 ## Open threads
 
-1. **Calibration injector — parts arrive ~09-09.** Everything on the software side is
-   built and tested: `calfinder.py` (0 false positives over 749 h), the firmware (compiles
-   clean, 330 B), and `ringdown.py` (band bias fixed, `z_max` added). Remaining: build the
-   board, `make flash`, acceptance test, then a firmware-enforced 48 h soak before the
-   first burst. **f0 and zeta are still guesses until it runs**, and every magnitude rests
-   on them.
+1. **Calibration injector — parts arrive ~09-09, buttons tomorrow (09-05).** Everything
+   on the software side is built and tested: `calfinder.py` (0 false positives over
+   749 h), the firmware (compiles clean, 330 B), and `ringdown.py` (band bias fixed,
+   `z_max` added). The burst timing is now measured rather than assumed — see the bench
+   mule below. Remaining: build the board, `make flash`, acceptance test, then a
+   firmware-enforced 48 h soak before the first burst. **f0 and zeta are still guesses
+   until it runs**, and every magnitude rests on them.
+   **Next session:** the button paths (short = restart soak, long = fire) are the only
+   untested logic. Wire a real button to D12/GND on the mule and run
+   `make mule-flash MULE_SOAK_H=1 && make mule-watch`. Use the real button, not a
+   jumper: the point is whether `held_long()`'s fixed 30 ms debounce survives a tactile
+   switch's contact chatter, and a wire bounces differently from a button.
 2. ⚠️ **The −0.066 zeta residual at zeta 0.85 on real noise** that widening the fit band
    does not touch. If the element is that heavily damped, average hard and caveat the
    number. The injector settles it empirically.
@@ -78,6 +88,12 @@ Weekly-view weighted median (BACKLOG, ~November).
 4. Retrain the classifier when the confirmed count grows; CNN at ~100 positives.
    Augmentation is in the retrain path now (`augment.py` → `trigger_train.py --aug`).
 5. `seismo_dashboard.py` is 1,028+ lines — split the image/live-data routes out.
+5b. `analysis/specgram.py` crops every standard spectrogram at `FMAX_HZ = 25.0`, with a
+   docstring still citing "the 30 Hz Nyquist at 60 sps" — stale since the 100 sps
+   cutover. It hides half our real bandwidth, which on 09-03 turned out to be hiding
+   signal. `audible.py` works around it by overriding the module global; the fix is to
+   raise it and re-render, but that changes every existing figure, so it wants a
+   deliberate pass rather than a drive-by.
 6. The 1.05 Hz line.
 7. Network code cutover (unit `SEISMO_NETWORK`, pi5 config, epochs row) when ISC answers.
 8. Serve `fdsnws-station` / `fdsnws-dataselect` (BACKLOG); then ask NCEDC. Do the
@@ -86,6 +102,95 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🔊 THE M3.5 WAS *HEARD*, AND IT IS IN THE ARCHIVE (2026-09-04)
+
+Kathy heard the Larkfield-Wikiup M3.5 as a **sound**, and a local Facebook group reported
+the same. Audible earthquakes are real: above ~20 Hz ground motion couples into air
+directly, and close shallow events are the ones that still have energy up there on
+arrival. This one was 12.4 km away and 7.4 km deep.
+
+**It is in our data.** RMS before vs during, µV:
+
+| band | quiet | event | ratio |
+|---|---|---|---|
+| 1–15 Hz | 2.7 | 1193 | 441× |
+| 15–25 Hz | 1.5 | 267 | 180× |
+| 25–35 Hz | 0.83 | 35.7 | 43× |
+| 35–50 Hz | 1.1 | 17.5 | **16×** |
+
+Still 16× above the floor hard against Nyquist. In the spectrogram it is a bright stripe
+at the P arrival spanning all 50 Hz, gone in seconds — a bang, not a rumble.
+
+**The ceiling hiding it was ours, not Nyquist.** `specgram.py` crops at 25 Hz (thread 5b).
+
+**And the archive under-reports that band by up to 5.5×.** The ADS1256 runs at DRATE =
+100 sps, so its sinc⁵ decimation filter is already rolling off inside the band of
+interest: −6.6 dB at 30 Hz, −12.1 at 40, −19.6 at 50. `analysis/audible.py`'s
+`undo_sinc5()` divides it back out. That is only honest because nothing else shapes
+20–50 Hz here: the analogue RC is deliberately at ~1.7–8 kHz (`doc/rev2-frontend.md`) and
+a 4.5 Hz geophone is flat in velocity above f0. Corrected, 35–50 Hz goes 17 → 96 µV. It
+buys **no SNR** — signal and noise get identical gain — only amplitude.
+
+**The correction checks itself, which was not designed in.** Above the corner frequency a
+Brune source predicts velocity falling as f⁻¹. Uncorrected, ours falls as f⁻² from 5 to
+45 Hz; corrected, f⁻¹. Undoing the sinc⁵ lands it on the textbook slope with nothing
+tuned to make it.
+
+**Published:** a "Hear the real thing" block on the Larkfield catch, live on both
+dashboards. Every other clip on the site is pitch-shifted because 1–10 Hz is below
+hearing; this one plays at **1:1**. The caveat sits *above* the player — it is 20–50 Hz,
+and laptop and phone speakers roll off near 150 Hz and will play nothing at all.
+
+**Curiosity logged:** a second faint full-band stripe ~16 s after origin, too early and
+too broadband for coda. Possibly an immediate aftershock; not chased.
+
+## 🐘 AN ELEGOO UNO AS THE INJECTOR'S BENCH MULE (2026-09-04)
+
+The ATtiny85 has no serial port and no spare pin, so the burst timing and the button
+state machine have never been observable on the thing that ships. An Uno R3 turned up,
+and an ATmega328P is close enough that `calibrator.c` runs on it **unmodified** —
+`calibrator/hal.h` supplies the four registers and three pins that differ, `bench.c` adds
+a microsecond edge log and a UART. A mule running its own `burst()` would prove nothing.
+
+Verified rather than asserted: **the ATtiny85 hex is byte-identical** to the pre-change
+build, and `calfinder.py selftest` still agrees with the protocol constants.
+
+    burst: 3 pulses logged, want 3
+      PASS  width = 500.200 ms (want 500)
+      PASS  spacing = 2000.788 ms (want 2000)
+
+The +200 µs / +788 µs is `delay_ms_n()`'s loop overhead. Only the schedule constants are
+overridable (`TICKS_PER_HOUR=1` → an "hour" is 8 s, so 48 h of soak takes 6.4 min); the
+protocol constants are not, because `calfinder.py` reads them from that file.
+
+Three bugs found by building it, all mine, all documented where they bit:
+
+- **make cannot see a `-D` flag change**, so `make mule-flash MULE_SOAK_H=1` flashed a
+  stale hex and I spent twenty minutes watching a board obey an instruction from six
+  minutes earlier. The flags are a stamped file dependency now.
+- **`bench_note()` drains and CLEARS TXC0**, so the drain inside sleep-entry waited
+  forever for a completion already consumed. Hung the board solid.
+- **Sleeping put 14 junk bytes per nap on the wire.** Parking PD1 as a driven output
+  *before* releasing TXEN0 got it to 3; a throwaway `\r` on **each** side of the nap got
+  it to 0. A frame sent only *after* the wake makes it worse — that frame is the one that
+  gets eaten.
+
+## 📄 THE CLASSIFIER, EXPLAINED (2026-09-04)
+
+`readme/classifier.md` — the long version at undergraduate level: what STA/LTA is and why
+it fires mostly at cars, how gradient-boosted trees work (residual = y − p, bagging vs
+boosting, why small steps), why they suit 30 positive examples, why accuracy is useless at
+a 0.21 % base rate, PR-AUC vs ROC-AUC on our own numbers (0.882 vs 0.999 on the same
+rows), and **which earthquakes it misses** — nearly all far and weak, including an M3.2 at
+43 km that scored 0.04.
+
+**It also caught documentation drift.** The summary line in *Current system* claimed
+75 % / 86 %; that was **p ≥ 0.5 on 14 positives, measured 2026-08-26**, promoted into the
+summary without the "treat these as about right, not decimals" caveat that sat two lines
+below it in the original entry. Re-measured today on 22 positives at the **deployed**
+p ≥ 0.7: **42 % / 91 %**. Lower, and trustworthy for the first time. `architecture.md`
+also now documents both AIs — the classifier, and that this was built with Claude Code.
 
 ## 🏠 THE ONE WE FELT: M3.5 UNDER LARKFIELD-WIKIUP, 12 KM (2026-09-03)
 

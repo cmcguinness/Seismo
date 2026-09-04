@@ -36,8 +36,23 @@ So the detector's raw output is about 99.8% noise, and we need a second stage.
 
 ## 2. Turning it into a classification problem
 
-We keep STA/LTA as the detector and **learn to believe it less**. (This is the standard
-modern architecture; Yeck et al. 2020 is the reference this project followed.)
+We keep STA/LTA as the detector and **learn to believe it less**.
+
+That framing is not original here — it is taken directly from how the USGS National
+Earthquake Information Center runs its own pipeline, described in **Yeck et al.
+(2020)**[^yeck]. The instinct on first meeting this problem is to replace STA/LTA with
+something cleverer. NEIC does not. It keeps the fifty-year-old detector, which is fast,
+adaptive and assumption-free, and bolts learned classifiers on *afterwards* to judge what
+it produced. Their reported win was about **25 % fewer false associations — not more
+detections**. That is the whole idea this station borrowed, four orders of magnitude
+down: the cheap detector stays, and a model is trained to disbelieve it.
+
+[^yeck]: Yeck, W. L., Patton, J. M., Ross, Z. E., Hayes, G. P., Guy, M. R., Ambruz,
+    N. B., Shelly, D. R., Benz, H. M., & Earle, P. S. (2020). *Leveraging Deep Learning
+    in Global 24/7 Real-Time Earthquake Monitoring at the National Earthquake Information
+    Center.* **Seismological Research Letters, 92**(1), 469–480.
+    [doi:10.1785/0220200178](https://doi.org/10.1785/0220200178) — published online
+    23 September 2020, in the January 2021 issue.
 
 - **One row** = one trigger. Not one earthquake, one *trigger* — a single earthquake
   usually fires several, as P waves, then S waves, then coda arrive.
@@ -415,6 +430,42 @@ Mac) and the live detector (on the Pi 5). There is no second implementation to f
 of step. The saved model carries its own feature list and ratio floor in the joblib
 bundle, so the scorer reads columns by name in the order the model expects. Neither
 Raspberry Pi ever trains anything.
+
+---
+
+## 11. What transfers from the professionals, and what does not
+
+Since this station copied its architecture from Yeck et al., it is worth being explicit
+about which parts of a national-scale system survive the drop to one sensor in a garage —
+because the answer is not "all of them", and the differences are the interesting part.
+
+**The framework transfers.** STA/LTA feeding a learned discriminator works at *tens* of
+positives, which is genuinely surprising and is the single most useful thing this project
+has confirmed for anyone else at hobby scale. You do not need a national network to make
+the second stage pay for itself.
+
+**The architecture does not.** NEIC learns filters directly from raw waveforms, which is
+what a training set of ~1.3 million analyst-reviewed arrivals buys you. With 30 events,
+representation learning is not on the table, and hand-engineered features are the
+substitute — which is why so much of this document is about DSP rather than about
+networks. Deep learning is not being avoided out of taste; it is being avoided because
+the data does not exist.
+
+**Two problems are ours and not theirs:**
+
+- **Hardware churn.** A hobby station gets rebuilt: this one's front end changed on
+  2026-08-07. NEIC's instruments do not change under it mid-catalogue. That is why every
+  feature here is amplitude-*relative* and why the project keeps a formal epoch table
+  (`analysis/epochs.py`), so a fit can never silently straddle a rebuild.
+- **Grouped cross-validation is mandatory at small N.** Positives arrive in clusters —
+  mainshock plus aftershocks, Geysers sequences — so ungrouped folds let an aftershock
+  vouch for its own mainshock. At 1.3 million samples that leakage is diluted to
+  nothing; at 58 it dominates.
+
+There is a longer write-up of this deferred in `BACKLOG.md`, framed as a medical-style
+**case report** — not novel research, but an honest account of how far the original work
+carries into a much more modest setting. It is deliberately waiting for more positives,
+because the before/after currently rests on a handful of events.
 
 ---
 
