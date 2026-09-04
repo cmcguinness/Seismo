@@ -78,6 +78,11 @@ kept current because the AI side of the project works from it — see
 
 ### The trigger classifier
 
+The goal is to know an earthquake has happened **within seconds, without waiting for the
+USGS to say so** — otherwise you would just download their catalogue and skip the station
+entirely. So the catalogue is what the model learns *from*, offline, not what the live
+path waits *for*.
+
 An STA/LTA trigger fires on anything that gets suddenly louder, which in a residential
 garage is mostly cars, doors, footsteps and the heat pump. The station logs roughly
 20,000 near-threshold blips a month with a handful of real M1.3–1.8 earthquakes hiding

@@ -34,7 +34,23 @@ ground actually moves — a real catalogued earthquake within our ~89 km reach �
 
 So the detector's raw output is about 99.8% noise, and we need a second stage.
 
-## 2. Turning it into a classification problem
+## 2. What we are trying to do, and the shape of the whole thing
+
+**The goal is to know that an earthquake has happened within seconds of it happening,
+without waiting for anyone else to tell us.** That single sentence explains every choice
+in this document, so it is worth stating before the machinery.
+
+The USGS catalogue is authoritative, and it is also *late*: an automatic solution appears
+in minutes and a reviewed one can take days. If all we wanted was a list of local
+earthquakes, there would be nothing to build — you download it. What a station of your
+own gives you is the answer **now**, from your own ground, which means the decision
+*"was that an earthquake?"* has to be made here, unaided, at the moment the shaking
+arrives.
+
+So the catalogue is what we learn **from**, not what we wait **for**. That inversion is
+the whole design: we spend the catalogue once, offline, to teach a model what an
+earthquake looks like in our own data — and after that the live path never consults it
+again.
 
 We keep STA/LTA as the detector and **learn to believe it less**.
 
@@ -53,6 +69,64 @@ down: the cheap detector stays, and a model is trained to disbelieve it.
     Center.* **Seismological Research Letters, 92**(1), 469–480.
     [doi:10.1785/0220200178](https://doi.org/10.1785/0220200178) — published online
     23 September 2020, in the January 2021 issue.
+
+### The pipeline, end to end
+
+Two halves. The thing to hold on to is that **they run in opposite directions in time.**
+
+**Training — backwards, offline, on the Mac, occasionally.**
+
+1. Take our own event log: every STA/LTA trigger this station has ever fired.
+2. **Label** each one — did it line up with an earthquake the USGS catalogue confirms?
+3. **Drop** the ones too ambiguous to label honestly (§ below — this matters more than
+   it sounds).
+4. **Measure features**: seventeen numbers describing the shape of each trigger.
+5. **Fit** a classifier to predict the label from the features — with some
+   synthetic weak positives mixed in, because real ones are desperately scarce (§6).
+6. **Test** it against the backlog, and against the hand-written rule it replaces.
+7. If it is good enough, **deploy** it to the Pi 5.
+
+**Running — forwards, live, on the Pi 5, every time a trigger fires.**
+
+A trigger fires → measure *the same seventeen features* → the model returns `p_quake` →
+at ≥ 0.7 a notification goes to a phone. No catalogue, no network, no waiting.
+
+```mermaid
+flowchart TD
+    subgraph TRAIN["TRAINING · backwards, offline, now and then"]
+        direction TB
+        L1["our own event log
+        every trigger we ever fired"] --> L2["label each one against
+        the USGS catalogue"]
+        L2 --> L3["drop the ones too
+        ambiguous to label"]
+        L3 --> L4["measure 17 features
+        per trigger"]
+        L4 --> L5["fit the classifier"]
+        L5 --> L6["test on the backlog.
+        good enough?"]
+    end
+
+    L6 ==>|"ship the fitted model"| M
+
+    subgraph LIVE["RUNNING · forwards, live, every trigger"]
+        direction TB
+        T["a trigger fires, now"] --> F["measure the same
+        17 features"]
+        F --> M["the classifier"]
+        M --> P["p_quake ≥ 0.7?"]
+        P -->|yes| N["notification
+        to a phone"]
+    end
+```
+
+Notice what is *not* in the lower half: the catalogue. Once the model is fitted, the live
+path is self-contained — which is the point, because the catalogue is the thing we are
+trying to beat to the answer.
+
+Everything from §3 onward is detail on one of those steps.
+
+### What a row is
 
 - **One row** = one trigger. Not one earthquake, one *trigger* — a single earthquake
   usually fires several, as P waves, then S waves, then coda arrive.

@@ -616,7 +616,7 @@ CATCHES = [
             "this is the last point that is measurement.",
             "<b>It is also nearly the faintest thing here.</b> Peak 4.6&nbsp;&micro;V "
             "against a 0.76&nbsp;&micro;V floor &mdash; a signal-to-noise of 6.1, and the "
-            "third quietest of the 35 confirmed catches. An M2.3 is an ordinary "
+            f"third quietest of the {len(EVENTS)} confirmed catches. An M2.3 is an ordinary "
             "earthquake; at 89&nbsp;km it arrives as a few microvolts and eleven seconds "
             "of shaking that would be invisible on any casual look at the trace.",
             "<b>Most of the distance is downward.</b> The hypocentre is deeper than "
