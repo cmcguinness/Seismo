@@ -514,6 +514,73 @@ because the before/after currently rests on a handful of events.
 
 ---
 
+## Further reading
+
+Everything above is a compressed version of ideas other people explain better and at
+greater length. These are the ones actually worth your time, with what each is good
+*for* — not a bibliography.
+
+**STA/LTA and seismic triggering**
+
+- Trnkoczy, *[Understanding and parameter setting of STA/LTA trigger
+  algorithm](https://gfzpublic.gfz.de/pubman/item/item_43337_3/component/file_56122/IS_8.1_rev1.pdf)*
+  (IASPEI New Manual of Seismological Observatory Practice, IS 8.1,
+  doi:10.2312/GFZ.NMSOP_r1_IS_8.1). Twenty pages, free, and the standard practical
+  reference. If you only read one thing about *why* the windows are the lengths they are,
+  read this.
+- ObsPy's [trigger/picker tutorial](https://docs.obspy.org/tutorial/code_snippets/trigger_tutorial.html)
+  — runnable code with plots. The fastest way to get a feel for STA/LTA is to move the
+  threshold yourself and watch what it catches.
+
+**Decision trees and gradient boosting**
+
+- Parr & Howard, *[How to explain gradient boosting](https://explained.ai/gradient-boosting/)*.
+  **Start here.** Three articles that build the algorithm up visually from "fit a tree to
+  the residuals", including a careful treatment of the one question everyone stumbles on —
+  in what sense this is gradient descent, and descent through *what* space.
+- StatQuest, *[Gradient Boost Part 1: Regression Main
+  Ideas](https://www.youtube.com/watch?v=3CC4N4z3GJc)* (four parts, ~15 min each). If you
+  prefer being talked through it on a whiteboard, this is the clearest version anywhere,
+  and parts 3–4 cover the classification case that this project actually uses.
+- scikit-learn's [ensembles user guide](https://scikit-learn.org/stable/modules/ensemble.html)
+  — the reference for what the knobs in our code do, including the histogram-based
+  implementation and its native handling of missing values.
+- Friedman (2001), *[Greedy Function Approximation: A Gradient Boosting
+  Machine](https://projecteuclid.org/journals/annals-of-statistics/volume-29/issue-5/Greedy-function-approximation-A-gradient-boosting-machine/10.1214/aos/1013203451.full)*,
+  Annals of Statistics 29(5). The original. Read it after one of the two above, not
+  before.
+- James, Witten, Hastie & Tibshirani, *[An Introduction to Statistical
+  Learning](https://www.statlearning.com/)* — free PDF, and pitched at exactly the level
+  of this document. Chapter 8 is trees, bagging, random forests and boosting in about
+  thirty readable pages. Its heavier sibling, *[The Elements of Statistical
+  Learning](https://hastie.su.domains/ElemStatLearn/)*, is also free and goes much deeper
+  into why shrinkage works.
+
+**Evaluating a classifier when the positives are rare**
+
+- Saito & Rehmsmeier (2015), *[The Precision-Recall Plot Is More Informative than the ROC
+  Plot When Evaluating Binary Classifiers on Imbalanced
+  Datasets](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0118432)*,
+  PLOS ONE 10(3): e0118432. This is the paper behind §5. If the ROC-AUC 0.999 versus
+  PR-AUC 0.882 gap in this document surprised you, it explains exactly why that happens.
+- scikit-learn's [precision-recall
+  example](https://scikit-learn.org/stable/auto_examples/model_selection/plot_precision_recall.html)
+  — short, with the code to reproduce the curves on your own data.
+
+**Cross-validation and leakage**
+
+- scikit-learn's [cross-validation user
+  guide](https://scikit-learn.org/stable/modules/cross_validation.html). Read the section
+  on **grouped** splitters; it is the machinery behind §5 and the reason an aftershock
+  cannot vouch for its own mainshock here.
+- Kaufman, Rosset & Perlich (2011), *[Leakage in Data Mining: Formulation, Detection, and
+  Avoidance](https://www.cs.umb.edu/~ding/history/470_670_fall_2011/papers/cs670_Tran_PreferredPaper_LeakingInDataMining.pdf)*
+  (KDD). The catalogue of ways information sneaks from test into train. §7's confession —
+  that a human repeatedly looking at the same rows leaks too, and no cross-validation
+  scheme can catch it — is this problem in its hardest-to-see form.
+
+---
+
 ## Where the code lives
 
 | file | what it does |
