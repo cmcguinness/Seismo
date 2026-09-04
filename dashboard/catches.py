@@ -228,6 +228,65 @@ def audio_path(name):
     return p if os.path.exists(p) else None
 
 
+def real_audio_path(name):
+    """The REAL recording for a catch image name, or None -- an mp3, not a synth clip.
+
+    This is a different kind of artefact from audio_path() and the difference is the
+    whole point of it. Every other clip on this site is a SONIFICATION: the ground moves
+    at 1-10 Hz, which is below hearing, so listen.py has to shift it up before an ear
+    can do anything with it. Faithful, but a representation.
+
+    The M3.5 under Larkfield-Wikiup needs none of that. It was close (12.4 km) and
+    shallow (7.4 km), so it still had real energy at 20-50 Hz when it arrived -- inside
+    human hearing -- and people around Santa Rosa HEARD it as a sound. That clip plays
+    at 1:1: same duration, same pitch, nothing shifted. Almost no event will ever
+    qualify, so this is deliberately a per-catch file that is simply absent for the
+    rest, rather than a pipeline.
+    """
+    stem = os.path.basename(name).rsplit(".", 1)[0]
+    if "/" in name or ".." in stem:
+        return None
+    p = os.path.join(AUDIO_DIR, stem + "-real.mp3")
+    return p if os.path.exists(p) else None
+
+
+def _real_audio_block(img):
+    """A plain <audio> element, not the synth player: this is a recording, so the
+    browser can just play it.
+
+    THE CAVEAT IS NOT OPTIONAL AND IT COMES FIRST. This clip is 20-50 Hz, the bottom
+    octave and a half of hearing. Laptop and phone speakers roll off around 150 Hz and
+    will reproduce NONE of it -- a visitor on a phone gets silence and concludes the
+    page is broken, when the page is fine and the speaker cannot do it. Saying so before
+    they press play costs two sentences and saves the whole impression.
+    """
+    p = real_audio_path(img)
+    if not p:
+        return ""
+    stem = os.path.basename(img).rsplit(".", 1)[0]
+    v = _ver(p)
+    return (
+        '<div class="cx-real mt-4">'
+        '<h5 class="mb-1">Hear the real thing</h5>'
+        '<p class="text-muted small mb-2">'
+        '<b>You need a subwoofer or good over-ear headphones.</b> This is 20&ndash;50&nbsp;Hz '
+        '&mdash; the bottom octave and a half of human hearing. Laptop and phone speakers '
+        'roll off near 150&nbsp;Hz and will play <b>nothing at all</b>. That is the speaker, '
+        'not the recording.</p>'
+        f'<audio controls preload="none" class="cx-audio" '
+        f'src="/catches/audio/{stem}-real.mp3?v={v}"></audio>'
+        '<p class="text-muted small mt-2 mb-0">'
+        'Not a sonification. Every other clip on this site is pitch-shifted, because '
+        'ground motion at 1&ndash;10&nbsp;Hz is below hearing and plays as silence at true '
+        'speed. This earthquake was close enough and shallow enough to still carry real '
+        'energy at 20&ndash;50&nbsp;Hz, and people around Santa Rosa heard it as a sound. '
+        'So this plays at <b>1:1</b> &mdash; same duration, same pitch, nothing shifted. '
+        'It is the bottom of what was actually heard: the archive stops at 50&nbsp;Hz, so '
+        'every overtone above that is missing, and the ADC&rsquo;s own roll-off has been '
+        'divided back out (<code>analysis/audible.py</code>).</p>'
+        '</div>')
+
+
 def _ver(path):
     """Short version tag from a file's mtime+size, for cache-busting a URL.
 
@@ -802,6 +861,7 @@ def single_html(e):
                      f'class="plot" alt="{head}">')
         body += _play_button(img)
         body += f'<ul class="mt-3 mb-0">{"".join(f"<li>{f}</li>" for f in c["facts"])}</ul>'
+        body += _real_audio_block(img)
     else:
         body += ('<p class="mt-3 mb-0">This one is in the record but has not been written '
                  'up: no rendered trace and no audio yet, just the measurements above. '
@@ -847,6 +907,7 @@ def catch_html(c):
         f'class="plot" loading="lazy" alt="{c["head"]}">'
         + _play_button(c["img"]) +
         f'<ul class="mt-3 mb-0">{facts}</ul>'
+        + _real_audio_block(c["img"])
         + _ref_figure(e)
     )
 

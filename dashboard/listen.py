@@ -290,6 +290,14 @@ tr:hover .spark{opacity:1}
 .cx-wave .cx-mark b{position:absolute;top:2px;left:4px;font:600 .62rem/1 var(--mono);
   color:var(--ink-dim);letter-spacing:.06em}
 .cx-wave .cx-mark.cx-s{background:none;width:0;border-left:1px dashed var(--ink-dim)}
+/* "Hear the real thing" -- the one catch that needed no pitch-shifting. Set apart with
+   a copper rule rather than a box, because it is a sibling of the play button above it,
+   not a different kind of thing. The browser's own audio control is left native on purpose:
+   people know what it does, and a bespoke transport would be one more thing to explain
+   on a block whose caveat already needs the reader's attention. */
+.cx-real{border-left:2px solid var(--copper);padding:.1rem 0 .1rem 1rem;margin-left:.1rem}
+.cx-real h5{font-size:.95rem;letter-spacing:.01em;color:var(--copper)}
+.cx-audio{width:100%;max-width:32rem;height:2.2rem;margin:.2rem 0 0}
 /* the fold on each featured catch: one quiet line, copper marker, no box */
 .cx-more>summary{cursor:pointer;color:var(--copper);font-size:.9rem;list-style:none;
   padding:.15rem 0;width:max-content}

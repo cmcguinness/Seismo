@@ -1151,8 +1151,20 @@ def catch_single(slug: str):
 
 @app.get("/catches/audio/{name}")
 def catches_audio(name: str):
-    # Pre-rendered by analysis/catch_audio.py and committed, exactly like the images --
-    # the public copy has no day-files to read from.
+    # Pre-rendered and committed, exactly like the images -- the public copy has no
+    # day-files to read from.
+    #
+    # TWO kinds of clip live behind this one route and they are not the same thing. The
+    # default is a JSON sample block from analysis/catch_audio.py, fed to listen.py's
+    # synth in the browser: a SONIFICATION, pitch-shifted because 1-10 Hz is below
+    # hearing. A "-real.mp3" is an actual recording that needed no shifting, which so
+    # far means exactly one event (see catches.real_audio_path).
+    if name.endswith("-real.mp3"):
+        p = catches.real_audio_path(name[:-len("-real.mp3")] + ".png")
+        if not p:
+            return Response("not found", status_code=404)
+        with open(p, "rb") as f:
+            return Response(f.read(), media_type="audio/mpeg", headers=STATIC_CACHE)
     p = catches.audio_path(name)
     if not p:
         return Response("not found", status_code=404)
