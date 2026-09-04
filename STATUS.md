@@ -103,6 +103,48 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 🌈 CODA ATTENUATION AS A FEATURE: MEASURED, NOT ESTABLISHED (2026-09-04)
+
+Charles, from watching spectrograms: real earthquakes start broad and narrow toward low
+frequency — the higher the band, the faster it attenuates. Do we have a feature for it?
+**No.** Every spectral feature is a single Welch PSD over the whole window, so the
+spectrum is collapsed before the model sees it; the time-domain features come from a
+1–15 Hz envelope only, one band, so they cannot compare decay *across* frequency.
+
+**The window is the first finding and it is the structural one.** `trigger_features.py`
+uses PRE=5, POST=25. On the spectrogram that prompted this, the arrival is at ~2 s and
+the narrowing is still visibly running at 42 s. **More than a third of the evidence is
+outside the window the classifier is handed**, so no feature computed on it could encode
+this however cleverly written.
+
+`analysis/coda_probe.py` measures candidates on the 9,140 labelled rows (33 quake);
+`analysis/coda_ab.py` does the correlation matrix and the A/B against the existing 17.
+
+- **Best candidate `drop_diff_hi_lo_db`: ROC-AUC 0.871**, computable on 100 % of rows,
+  no thresholds. Better than any single feature we already have.
+- **They are NOT redundant.** Largest Spearman anywhere is `drop_hi_db`↔`kurtosis` +0.50.
+  The prediction that `decay_lo` would re-describe `dur3_s` was wrong: **rho 0.17**.
+- **And it cannot be shown to help.** Nine candidates: mean per-fold delta **+0.016**,
+  positive in 2/5 folds. Pre-specified best two: **+0.042**, 3/5. Both flip sign. Pooled
+  PR-AUC rises 0.4548 → 0.5354, which looks convincing and is not — pooling hides that
+  two folds improved and two got worse by as much. **Underpowered, not disproved:** with
+  33 positives across five folds one Geysers sequence moves PR-AUC by 0.25 and we are
+  chasing 0.04. Revisit at ~100 positives; the measurement is built and waiting.
+- **The sign is backwards from the physics**, and that is the finding to carry forward.
+  Cultural triggers show the high band falling 11.7 dB further than the low; earthquakes
+  show −2.0 dB. Very likely **saturation**, not propagation: the measure bottoms out once
+  a band hits its own noise floor, and a truck's high band starts far above the HF floor
+  while its low band barely clears the LF background. It reads "which band had more
+  headroom to lose" — close to "how bass-heavy", not coda Q. Fix before claiming Q.
+
+Two methodological bugs found, both of which would have produced confident nonsense:
+the first verdict rule compared a **paired** delta against the **between-fold** spread
+(far too conservative — both models see identical folds, so shared difficulty cancels),
+and the guard-based features encoded *"passed the author's arbitrary thresholds"* rather
+than a physical quantity, which is why the threshold-free `drop_*_db` set exists.
+
+Kept in the repo on the `template_match.py` precedent: the measurement is the result.
+
 ## 🔊 THE M3.5 WAS *HEARD*, AND IT IS IN THE ARCHIVE (2026-09-04)
 
 Kathy heard the Larkfield-Wikiup M3.5 as a **sound**, and a local Facebook group reported
