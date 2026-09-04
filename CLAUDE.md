@@ -107,6 +107,27 @@ The 3D-printed enclosure is modeled with **build123d** (not CadQuery/OpenSCAD). 
   defined as the base's TOP face (= the cover's rim). ⚠️ Names there must NOT start with
   `_` — `from dimensions import *` silently skips them.
 
+## Don't be a tease
+
+**Lead with the finding. Never announce that a finding exists and then make Charles wait
+for it.**
+
+Banned constructions, all of which happened in one session on 2026-09-04 and all of which
+put a drum roll in front of a tool call:
+
+- "That image changes the design, and one thing in it is decisive." *(then a tool call)*
+- "10.0 km on the surface, 13.3 km through the rock — and the interesting part is which
+  one moved." *(then a tool call)*
+- "…and the results are in. Let me check." Anything of that shape.
+
+If the answer is known, say it in the same sentence: *"the epicentre barely moved — 9.95
+to 9.97 km — so the revision is almost entirely depth."* If it is NOT yet known, say
+plainly what is being run and why, with no promise about how interesting it will be.
+Suspense is for fiction; this is a lab notebook.
+
+The tell is any sentence that describes the significance of a result instead of stating
+the result. Delete it and give the number.
+
 ## Environment
 
 - Python **3.13+** (see `pyproject.toml`). A project `.venv` exists (uv-managed) and is auto-activated by direnv.
