@@ -34,7 +34,7 @@ CFLAGS  = -mmcu=$(MCU) -DF_CPU=$(F_CPU) -Os -Wall -Wextra -std=gnu99 \
 
 all: calibrator.hex
 
-calibrator.elf: calibrator.c
+calibrator.elf: calibrator.c hal.h bench.h
 	avr-gcc $(CFLAGS) -o $@ $<
 	avr-size $@
 
@@ -43,6 +43,78 @@ calibrator.hex: calibrator.elf
 
 flash: calibrator.hex
 	avrdude -c $(PROG) -p $(PART) $(SLOW) -U flash:w:$<:i
+
+# ---------------------------------------------------------------------------
+# BENCH MULE -- an Elegoo Uno R3 (ATmega328P, 16 MHz) running the same calibrator.c.
+#
+# The tiny85 has no serial port and no spare pin to probe, so the burst timing and the
+# button state machine are hard to observe on the thing that ships. The mule runs the
+# identical source -- hal.h supplies the register and pin differences, bench.c adds a
+# microsecond edge log on top -- and reports what it did over USB:
+#
+#   make mule-flash && make mule-watch     build, program, then watch it fire
+#   screen $(MULE_PORT) 115200             same thing by hand; quit with C-a k
+#
+# Wiring: nothing. The injector is D11, the button is D12 (short it to GND with a
+# jumper -- tap for a short press, hold 2 s for a long one), and the burst is visible
+# on the onboard D13 LED.
+#
+# THE SCHEDULE IS COMPRESSED and nothing else is. TICKS_PER_HOUR=1 makes an "hour" one
+# watchdog period, i.e. 8 s, so the 48 h soak takes 6.4 minutes and the 6 h period
+# takes 48 s -- long enough to be a real test of nap()/nap_hours(), short enough to sit
+# through. The PROTOCOL constants are untouched, so the pulse train the mule emits is
+# bit-for-bit the one the flight board will emit. Override on the command line if you
+# want to skip the soak while iterating:  make mule-flash MULE_SOAK_H=1
+# ---------------------------------------------------------------------------
+MULE_MCU        = atmega328p
+MULE_F_CPU      = 16000000UL
+MULE_PART       = m328p
+MULE_PROG       = arduino
+MULE_BAUD       = 115200
+MULE_SOAK_H     = 48
+MULE_PERIOD_H   = 6
+MULE_TICKS_H    = 1
+
+# The Uno enumerates as a usbmodem whose suffix is the USB location, so it changes if
+# you move the cable to another port. Pick the one that answers rather than hard-coding
+# it; override with `make mule-flash MULE_PORT=/dev/cu.usbmodemXXXX` if you have two.
+MULE_PORT ?= $(shell ls /dev/cu.usbmodem* 2>/dev/null | head -1)
+
+MULE_CFLAGS = -mmcu=$(MULE_MCU) -DF_CPU=$(MULE_F_CPU) -Os -Wall -Wextra -std=gnu99 \
+              -ffunction-sections -fdata-sections -Wl,--gc-sections \
+              -DSOAK_H=$(MULE_SOAK_H) -DPERIOD_H=$(MULE_PERIOD_H) \
+              -DTICKS_PER_HOUR=$(MULE_TICKS_H)U
+
+mule: mule.hex
+
+# The compressed schedule arrives as -D flags, and make cannot see a flag change the
+# way it sees a file change -- so `make mule-flash MULE_SOAK_H=1` would happily flash a
+# stale hex built with the old numbers and leave you watching a board that is doing
+# exactly what you told it to six minutes ago. Stamping the flags into a file makes
+# them a dependency like anything else. (Ask how this comment came to be written.)
+.mule-flags: FORCE
+	@echo '$(MULE_CFLAGS)' | cmp -s - $@ || echo '$(MULE_CFLAGS)' > $@
+FORCE:
+
+mule.elf: calibrator.c bench.c hal.h bench.h .mule-flags
+	avr-gcc $(MULE_CFLAGS) -o $@ calibrator.c bench.c
+	avr-size $@
+
+mule.hex: mule.elf
+	avr-objcopy -O ihex -R .eeprom $< $@
+
+mule-flash: mule.hex
+	@test -n "$(MULE_PORT)" || { echo "no /dev/cu.usbmodem* -- is the Uno plugged in?"; exit 1; }
+	avrdude -c $(MULE_PROG) -p $(MULE_PART) -P $(MULE_PORT) -b $(MULE_BAUD) -U flash:w:$<:i
+
+# Opening the port resets the board (DTR), so this always catches it from power-up --
+# which is what you want, since the state machine starts in the soak.
+mule-watch:
+	@test -n "$(MULE_PORT)" || { echo "no /dev/cu.usbmodem* -- is the Uno plugged in?"; exit 1; }
+	@echo "watching $(MULE_PORT) at $(MULE_BAUD) -- ^C to stop"
+	@python3 -c "import serial,sys; p=serial.Serial('$(MULE_PORT)',$(MULE_BAUD)); \
+	  [sys.stdout.write(p.readline().decode('ascii','replace')) or sys.stdout.flush() for _ in iter(int,1)]" \
+	  2>/dev/null || screen $(MULE_PORT) $(MULE_BAUD)
 
 # The factory defaults are already what this design wants, so the normal answer here
 # is to READ them and change nothing:
@@ -63,6 +135,6 @@ writefuses:
 	  -U lfuse:w:0x62:m -U hfuse:w:0xDF:m -U efuse:w:0xFF:m
 
 clean:
-	rm -f calibrator.elf calibrator.hex
+	rm -f calibrator.elf calibrator.hex mule.elf mule.hex .mule-flags
 
-.PHONY: all flash fuses writefuses clean
+.PHONY: all flash fuses writefuses clean mule mule-flash mule-watch FORCE

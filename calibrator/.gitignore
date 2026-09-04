@@ -1,2 +1,5 @@
 calibrator.elf
 calibrator.hex
+mule.elf
+mule.hex
+.mule-flags

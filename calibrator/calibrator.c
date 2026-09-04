@@ -28,7 +28,9 @@
  *   make flash      program via USBasp
  *   make fuses      READ the fuses and check them (factory defaults are correct)
  */
-#define F_CPU 1000000UL
+#include "hal.h"      /* F_CPU, the pin map, and the few registers that are named
+                       * differently on the bench mule -- see hal.h for why */
+#include "bench.h"    /* instrumentation; every macro is empty on the flight build */
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -43,12 +45,24 @@
 #define SPACING_MS  2000    /* leaves >= 1.5 s of quiet after each release to fit in */
 
 /* ---- schedule ---- */
+#ifndef SOAK_H
 #define SOAK_H      48      /* silence after power-up. Two full diurnal cycles of
                              * "off" before the first burst, so the archive holds a
                              * clean before-picture to compare every later burst
                              * against. Enforced here rather than by remembering not
                              * to install it yet. */
+#endif
+#ifndef PERIOD_H
 #define PERIOD_H    6       /* four bursts a day */
+#endif
+
+/* SOAK_H, PERIOD_H and TICKS_PER_HOUR (below) are the only overridable numbers here,
+ * and they exist so the bench mule can run this state machine in minutes instead of
+ * days -- see the `mule` target in the Makefile. The FLIGHT build must never define
+ * them: the whole point of SOAK_H is that it is enforced in firmware rather than by
+ * remembering. The PROTOCOL constants above are deliberately NOT overridable, because
+ * analysis/calfinder.py reads them straight out of this file and a mule that fired a
+ * different signature would be testing something we are not going to ship. */
 
 /* The button is two commands, told apart by how long it is held. A SHORT press
  * RESTARTS the soak; a LONG press fires a burst immediately.
@@ -60,16 +74,11 @@
 #define LONG_PRESS_MS  2000
 
 /* ---- pins ----
- * PB0/PB1/PB2 are MOSI/MISO/SCK and belong to the ISP header, so the injector and the
- * button take PB3 and PB4 and the LED has to share one of the programming pins. It
- * goes on MISO, not MOSI: MISO is driven by the ATTINY and merely read by the
- * programmer, so the extra few mA come out of a driver we control. On MOSI the load
- * would hang off the PROGRAMMER's output instead. PB5 is RESET and is left alone --
- * see the fuse note in doc/BOM-calibrator.md about never setting RSTDISBL.
+ * PIN_INJ, PIN_BTN and PIN_LED live in hal.h, because which pin is which is exactly
+ * the sort of thing that differs between the tiny85 and the mule. The reasoning
+ * behind the flight assignment -- why the LED is on MISO and not MOSI, and why PB5 is
+ * left alone -- is in the comment there.
  */
-#define PIN_INJ     PB3
-#define PIN_BTN     PB4     /* panel button, to ground, internal pull-up */
-#define PIN_LED     PB1
 
 /* Invariants the compiler can enforce, so a bad edit fails the build rather than the
  * experiment. The first one is not hypothetical: burst() computes
@@ -81,24 +90,26 @@ _Static_assert(PULSE_MS < SPACING_MS,
 _Static_assert(N_PULSES >= 2, "a single pulse is not a recognisable signature");
 _Static_assert(PIN_INJ != PIN_LED && PIN_INJ != PIN_BTN && PIN_LED != PIN_BTN,
                "the three pins must be distinct");
-_Static_assert(PIN_BTN != PB5, "PB5 is RESET -- see the RSTDISBL note in the BOM");
+ASSERT_BTN_NOT_RESET();
 _Static_assert(SOAK_H > 0 && PERIOD_H > 0, "zero-length schedule");
 
 static volatile uint8_t button_hit;
 
-ISR(WDT_vect) { }                    /* wake only */
+ISR(WDT_vect) { BENCH_WDT_TICK(); }  /* wake only (the hook is empty on flight) */
 ISR(PCINT0_vect) { button_hit = 1; }
 
 /* One watchdog period is 8 s, the longest available. Everything else is counted. */
+#ifndef TICKS_PER_HOUR
 #define TICKS_PER_HOUR  450U         /* 3600 / 8 */
+#endif
 
 static void wdt_8s(void)
 {
     cli();
     wdt_reset();
     MCUSR = 0;
-    WDTCR = (1 << WDCE) | (1 << WDE);            /* timed sequence to change it */
-    WDTCR = (1 << WDIE) | (1 << WDP3) | (1 << WDP0);   /* interrupt, no reset, 8 s */
+    WDT_CTRL = (1 << WDCE) | (1 << WDE);            /* timed sequence to change it */
+    WDT_CTRL = (1 << WDIE) | (1 << WDP3) | (1 << WDP0);   /* interrupt, no reset, 8 s */
     sei();
 }
 
@@ -108,8 +119,10 @@ static uint8_t nap(uint16_t ticks)
 {
     while (ticks--) {
         wdt_8s();
+        BENCH_SLEEP_ENTER();
         set_sleep_mode(SLEEP_MODE_PWR_DOWN);
         sleep_mode();
+        BENCH_SLEEP_EXIT();
         if (button_hit)
             return 1;
     }
@@ -164,13 +177,17 @@ static uint8_t held_long(void)
  */
 static void burst(void)
 {
+    BENCH_BURST_BEGIN();
     for (uint8_t i = 0; i < N_PULSES; i++) {
         PORTB |= (1 << PIN_INJ) | (1 << PIN_LED);
+        BENCH_MARK(1);
         delay_ms_n(PULSE_MS);
         PORTB &= (uint8_t) ~((1 << PIN_INJ) | (1 << PIN_LED));
+        BENCH_MARK(0);
         if (i + 1 < N_PULSES)
             delay_ms_n(SPACING_MS - PULSE_MS);
     }
+    BENCH_BURST_END(N_PULSES, PULSE_MS, SPACING_MS);
 }
 
 int main(void)
@@ -178,16 +195,16 @@ int main(void)
     /* Everything off and quiet. Unused pins get pull-ups so no input floats and
      * oscillates, which would cost more standby current than the CPU does. */
     DDRB = (1 << PIN_INJ) | (1 << PIN_LED);
-    PORTB = (1 << PIN_BTN) | (1 << PB0) | (1 << PB2);
+    PORTB = (1 << PIN_BTN) | PIN_IDLE_PULLUPS;
 
     ADCSRA &= (uint8_t) ~(1 << ADEN);       /* the ADC alone is ~200 uA if left on */
     ACSR |= (1 << ACD);                     /* analogue comparator off too */
-    /* no power_all_off() on the tiny85 -- PRR is the whole story */
-    PRR = (1 << PRTIM1) | (1 << PRTIM0) | (1 << PRUSI) | (1 << PRADC);
+    PRR_SETUP();                            /* every peripheral we do not need, off */
 
-    GIMSK |= (1 << PCIE);                   /* wake on the button */
-    PCMSK |= (1 << PIN_BTN);
+    PCINT_ENABLE();                         /* wake on the button */
     sei();
+
+    BENCH_INIT();
 
     /* The soak is firmware-enforced because "just leave it unpowered for two days" is
      * the sort of instruction that gets skipped on the day the box is finished. */
@@ -195,12 +212,17 @@ int main(void)
 
     for (;;) {
         if (soaking) {
+            BENCH_NOTE("soaking");
             if (nap_hours(SOAK_H)) {          /* button cut the soak short */
                 button_hit = 0;
-                if (!held_long())
+                if (!held_long()) {
+                    BENCH_NOTE("short press: soak restarts");
                     continue;                 /* short press: soak starts over */
+                }
+                BENCH_NOTE("long press: fire now");
                 soaking = 0;                  /* long press: begin firing now */
             } else {
+                BENCH_NOTE("soak completed");
                 soaking = 0;                  /* soak completed on its own */
             }
         }
@@ -209,8 +231,12 @@ int main(void)
 
         if (nap_hours(PERIOD_H)) {            /* button during the wait */
             button_hit = 0;
-            if (!held_long())
+            if (!held_long()) {
+                BENCH_NOTE("short press: back into the soak");
                 soaking = 1;                  /* short press: back into the soak */
+            } else {
+                BENCH_NOTE("long press: burst again now");
+            }
             /* long press: fall through and burst again immediately */
         }
     }
