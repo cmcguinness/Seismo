@@ -1,0 +1,12 @@
+This directory is EMPTY in the repository and populated at deploy time.
+
+deploy.sh rsyncs readme/*.md in here, because the Docker build context is dashboard/
+and the Markdown lives at the repo root -- the same reason analysis/epochs.py is copied
+in. dashboard/docpage.py renders whatever lands here as the /how/* pages.
+
+It is tracked (via this file) only so `COPY docs/ /app/docs/` in the Dockerfile does not
+fail on a build from a clean checkout. The .md files themselves are gitignored: they
+would be a second copy of readme/, which is the exact drift this whole arrangement
+exists to prevent.
+
+Running locally, this stays empty and docpage.py falls back to ../readme/ directly.

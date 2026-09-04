@@ -65,6 +65,7 @@ do_status() {
   say "drift (repo -> pi5; content differences only)"
   rsync -rinc "${RSYNC_EXCLUDES[@]}" dashboard/ "$HOST":seismo-dashboard/ | sed 's/^/  dashboard  /'
   rsync -inc analysis/epochs.py "$HOST":seismo-dashboard/ | sed 's/^/  dashboard  /'
+  rsync -rinc readme/*.md "$HOST":seismo-dashboard/docs/ | sed 's/^/  dashboard  /'
   rsync -rinc "${RSYNC_EXCLUDES[@]}" server/seismo_server.py server/store.py \
         "$HOST":seismo-server/ | sed 's/^/  server     /'
   rsync -rinc "${RSYNC_EXCLUDES[@]}" server/udp_collector.py server/detector.py \
@@ -83,6 +84,11 @@ do_dashboard() {
   # activity.py draws from it, so it has to be in the build context -- copied rather
   # than duplicated in git, because a forked epoch table is worse than none.
   rsync -lv analysis/epochs.py "$HOST":seismo-dashboard/
+  # readme/*.md are rendered as the /how/* pages by dashboard/docpage.py, so the
+  # site and the repo are ONE source. Same reason as epochs.py: the Docker build
+  # context is dashboard/, so anything from elsewhere in the repo is copied in.
+  ssh -n "$HOST" "mkdir -p seismo-dashboard/docs"
+  rsync -rlv readme/*.md "$HOST":seismo-dashboard/docs/
   # Tag by SHA as well as :latest. With ONLY :latest, `dokku git:from-image` sees an
   # unchanged reference, prints "No changes detected, skipping git commit", exits
   # non-zero and deploys NOTHING -- the app keeps running the old image while the
@@ -102,6 +108,11 @@ do_public() {
   say "sync dashboard/ -> $PUBLIC_HOST:~/seismo-dashboard/"
   rsync -rlv "${RSYNC_EXCLUDES[@]}" dashboard/ "$PUBLIC_HOST":seismo-dashboard/
   rsync -lv analysis/epochs.py "$PUBLIC_HOST":seismo-dashboard/
+  # readme/*.md are rendered as the /how/* pages by dashboard/docpage.py, so the
+  # site and the repo are ONE source. Same reason as epochs.py: the Docker build
+  # context is dashboard/, so anything from elsewhere in the repo is copied in.
+  ssh -n "$PUBLIC_HOST" "mkdir -p seismo-dashboard/docs"
+  rsync -rlv readme/*.md "$PUBLIC_HOST":seismo-dashboard/docs/
   say "build seismo-dash:$SHA on $PUBLIC_HOST"
   ssh -n "$PUBLIC_HOST" "cd ~/seismo-dashboard && docker build --build-arg GIT_SHA='$SHA' -t 'seismo-dash:$SHA' -t $IMAGE ."
   say "dokku git:from-image $APP seismo-dash:$SHA on $PUBLIC_HOST   (restarts the app)"

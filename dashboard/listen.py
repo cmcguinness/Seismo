@@ -290,6 +290,31 @@ tr:hover .spark{opacity:1}
 .cx-wave .cx-mark b{position:absolute;top:2px;left:4px;font:600 .62rem/1 var(--mono);
   color:var(--ink-dim);letter-spacing:.06em}
 .cx-wave .cx-mark.cx-s{background:none;width:0;border-left:1px dashed var(--ink-dim)}
+/* Long-form repo documentation (/how/*), rendered from Markdown by docpage.py. The site
+   is otherwise built from cards; a 400-line explanation is not a card, so this is the one
+   place with ordinary document typography: a measure that stays readable, real spacing
+   between sections, and tables and code that scroll inside themselves rather than pushing
+   the page sideways on a phone. */
+.doc{max-width:44rem;line-height:1.65}
+.doc h2{margin:2.4rem 0 .6rem;font-size:1.25rem;letter-spacing:.01em;
+  padding-top:1.2rem;border-top:1px solid var(--rule)}
+.doc h3{margin:1.8rem 0 .5rem;font-size:1.02rem;color:var(--copper)}
+.doc p,.doc li{font-size:.95rem}
+.doc ul,.doc ol{padding-left:1.2rem}
+.doc li{margin:.3rem 0}
+.doc blockquote{margin:1rem 0;padding:.2rem 0 .2rem 1rem;border-left:2px solid var(--copper);
+  color:var(--ink-dim)}
+.doc code{font-family:var(--mono);font-size:.86em}
+.doc pre{overflow-x:auto;padding:.8rem 1rem;border:1px solid var(--rule);border-radius:4px}
+.doc pre.mermaid{border:none;padding:1.2rem 0;text-align:center;background:none}
+.doc table{width:100%;margin:1rem 0;border-collapse:collapse;font-size:.88rem}
+.doc th,.doc td{padding:.35rem .6rem;border-bottom:1px solid var(--rule);text-align:left}
+.doc th{font-weight:600;color:var(--ink-dim)}
+.doc .footnote{margin-top:2.4rem;padding-top:1rem;border-top:1px solid var(--rule);
+  font-size:.85rem;color:var(--ink-dim)}
+.doc hr{border:0;border-top:1px solid var(--rule);margin:2rem 0}
+@media (max-width:640px){.doc table{display:block;overflow-x:auto}}
+
 /* "Hear the real thing" -- the one catch that needed no pitch-shifting. Set apart with
    a copper rule rather than a box, because it is a sibling of the play button above it,
    not a different kind of thing. The browser's own audio control is left native on purpose:

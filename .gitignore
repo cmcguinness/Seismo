@@ -52,3 +52,6 @@ analysis/templates.npz
 # reharvest.py leaves this when the gates block a publish -- a transient candidate
 # for inspection, not a tracked artefact
 analysis/reharvest-rejected.csv
+
+# Populated at deploy time from readme/ -- see dashboard/docs/.gitkeep
+dashboard/docs/*.md

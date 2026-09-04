@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini build-esse
 
 # requests: dc_watch publishes to ntfy. It arrives as an obspy dep anyway, but
 # something that imports it directly should ask for it directly.
-RUN pip install --no-cache-dir obspy python-fasthtml requests
+# markdown: docpage.py renders the repo's own readme/*.md as site pages.
+RUN pip install --no-cache-dir obspy python-fasthtml requests markdown
 
 # Which commit this image was built from. deploy.sh passes it; a manual `docker build`
 # leaves it "unknown". Visible via `docker image inspect` and to the app as
@@ -34,7 +35,11 @@ COPY activity.py content.py epochs.py /app/
 # image builds cleanly and then the container dies on import. That is what
 # happened to listen.py on 2026-09-02: build green, `ModuleNotFoundError: listen`
 # at startup, dokku kept the old container, and the only symptom was a 404.
-COPY catches.py listen.py sound.py /app/
+COPY catches.py listen.py sound.py docpage.py /app/
+# The repo's readme/*.md, rsync'd into the build context by deploy.sh (same trick as
+# epochs.py above). docpage.py renders them at /how/<slug>, so the website and the
+# repository are one source and cannot drift apart.
+COPY docs/ /app/docs/
 COPY catches/ /app/catches/
 COPY signatures.json /app/
 COPY station.jpg /app/

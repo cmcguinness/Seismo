@@ -19,6 +19,7 @@ from starlette.responses import JSONResponse, Response
 
 import activity
 import catches
+import docpage
 import listen
 import sound
 import content
@@ -525,7 +526,8 @@ def _rail(active):
                             ("/env", "Environment", "env"),
                             ("/about", "About this station", "about")]),
         ("Background", [("/learn", "Seismology 101", "learn"),
-                        ("/sound", "How the sound is made", "sound")]),
+                        ("/sound", "How the sound is made", "sound"),
+                        ("/how/classifier", "The trigger classifier", "how")]),
     ]
     # Framed on us and out past anything this station is likely to hear, so the catalogue
     # view and the drum answer the same question. Opens out of the site, hence the marker.
@@ -1062,6 +1064,43 @@ def sound_page():
               'Catches. No audio background assumed.</p>'
             + cards + '</div></div>')
     return Response(_shell(f"How the sound is made — {BRAND}", "sound", body, narrow=True),
+                    media_type="text/html")
+
+
+# --- repo documents, rendered ------------------------------------------------
+#
+# These pages are NOT written here. They are the Markdown files in readme/, rendered on
+# demand by docpage.py, so the website and the repository cannot disagree -- see the long
+# note at the top of that module for why a second hand-formatted copy was rejected.
+#
+# The path is /how/<name> rather than /docs/<name> because "docs" on a website promises
+# a manual, and this is one long explanation.
+DOC_PAGES = {
+    "classifier": ("classifier.md", "how the station tells an earthquake from a truck"),
+}
+
+
+@app.get("/how/{slug}")
+def how(slug: str):
+    entry = DOC_PAGES.get(slug)
+    if not entry:
+        return Response("not found", status_code=404)
+    name, sub = entry
+    html, title = docpage.render_doc(name)
+    if html is None:
+        # The Markdown is rsync'd into the image by deploy.sh. If that step is ever
+        # dropped, say so plainly instead of serving an empty page.
+        return Response("document not available in this build", status_code=503)
+    body = (_titleblock(title, sub)
+            + '<div class="row"><div class="col-12">'
+            + '<p class="text-muted">This page is the repository\'s own documentation, '
+              'rendered here from the same file GitHub shows &mdash; there is no second '
+              'copy to fall out of date. '
+              f'<a href="https://github.com/cmcguinness/Seismo/blob/main/readme/{name}" '
+              'rel="noopener">Read it on GitHub</a>.</p>'
+            + f'<div class="doc">{html}</div></div></div>')
+    return Response(_shell(f"{title} — {BRAND}", "how", body,
+                           script=docpage.MERMAID_TAG, narrow=True),
                     media_type="text/html")
 
 

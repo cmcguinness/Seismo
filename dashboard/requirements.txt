@@ -6,3 +6,4 @@ python-fasthtml
 obspy>=1.4
 scipy          # imported directly by render._build_character (welch); also an obspy dep
 requests       # imported directly by dc_watch (ntfy publish); also an obspy dep
+markdown        # docpage.py renders readme/*.md into the /how/* pages
