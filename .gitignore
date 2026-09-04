@@ -9,6 +9,15 @@ stl/
 
 # quake_share.py output images (regenerate from the archive via the tool)
 eq_*.png
+# Working comparisons that live in reports/ but are not reports. reports/README.md
+# defines that directory as CURATED, COMMITTED examples of what the station recorded;
+# these are the throwaway renders behind a rendering decision, and the decision itself
+# is recorded in the code (see specgram.py's colour-axis note and dashboard/HELICORDER.md)
+# where it belongs. Ignored rather than deleted so they stay usable, and so `git status`
+# stops listing them forever.
+reports/heli-*.png
+reports/spec-pw/
+reports/spec65/
 
 # IDE
 .idea/
@@ -55,3 +64,6 @@ analysis/reharvest-rejected.csv
 
 # Populated at deploy time from readme/ -- see dashboard/docs/.gitkeep
 dashboard/docs/*.md
+
+# Local dashboard run output at the repo root; never wanted in the repo.
+.dash.log

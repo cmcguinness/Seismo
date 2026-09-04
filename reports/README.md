@@ -8,6 +8,21 @@ generated from the archive by [`analysis/quake_share.py`](../analysis/quake_shar
 name is `eq_*.png`, which is gitignored (scratch outputs) — so a curated example
 kept here gets a descriptive name and is committed.
 
+**What does NOT belong here.** Working comparisons — the three renders behind a
+choice of colour axis, the two spectrogram parameter sweeps — are not reports, even
+though they are pictures and they came from the archive. The *decision* those images
+informed belongs in the code that implements it (`analysis/specgram.py`'s colour-axis
+note, `dashboard/HELICORDER.md`), where the next person will actually meet it; the
+renders themselves are scratch. `reports/heli-*.png`, `reports/spec-pw/` and
+`reports/spec65/` are gitignored for that reason. If a comparison is worth keeping,
+give it a descriptive name and a paragraph here saying what it settled.
+
+**Audio.** Not every artefact is an image. `audible-m3.5-larkfield-*.wav` are
+real-time clips of the M3.5 that people around Santa Rosa actually *heard* — see
+[`analysis/audible.py`](../analysis/audible.py) and the write-up at
+[/how/classifier](https://seismo.mcguinness.ai)'s sibling page. They are 20–50 Hz and
+need a subwoofer or over-ear headphones; laptop speakers reproduce none of it.
+
 ## Detection range map
 
 ![detection range](detection-range-map.png)

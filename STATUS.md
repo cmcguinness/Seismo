@@ -1346,7 +1346,7 @@ All on both copies (`./deploy.sh public` + `./deploy.sh dashboard`), all pushed.
   Pi 5 pushes the charts, outbound only, to a cloud host; LAN copy says it serves the
   page. Also mentions the C reader.
 - **"What does a real earthquake look like?"** (13160b5 → 42a6f5a). Charles's screenshot
-  of the 2026-07-29 drum (`doc/20260729 Cloverdale M4-2.png`; web crop
+  of the 2026-07-29 drum (`doc/drum-2026-07-29-cloverdale-m4.2-full.png`; web crop
   `dashboard/catches/drum-2026-07-29-cloverdale-m4.2.png`, 61 KB) sits under every drum
   (Live, History) inside a `<details>` whose summary is now a **full-width button:
   "Click here to see what a REAL earthquake looks like on this drum"**, and expanded in
