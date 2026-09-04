@@ -131,6 +131,10 @@ our own first breaks come in ~1 s AFTER the harvest's straight-line prediction a
 intercept plus the AIC pick landing on the first strong swing rather than the emergent
 break — worth a look before anyone quotes those residuals.
 
+Charles replied to the NSMP thread today, briefly and with no open items: the M3.5 as a
+same-day example, the setup in a paragraph, and the link to `readme/reproducing.md`. Next
+contact after the injector has a result.
+
 Also today: the helicorder lost its ±3-row clip and gained an asinh knee at one row, so
 the M3.5 draws four rows tall with its shape instead of a bar off the page; the standard
 spectrogram gained headroom (−25..+25 dB on the lower 70 % of the colormap, +25..+70 on
