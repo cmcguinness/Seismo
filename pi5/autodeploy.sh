@@ -47,6 +47,9 @@ if want "server/" || want "analysis/models/"; then
           "$HOME/seismo-collector/"
   # the trigger classifier: features + the Mac-trained model (analysis/models/)
   install -m644 server/trigger_features.py analysis/models/trigger_gbm.joblib "$HOME/seismo-collector/"
+  # env node -> SS.OAKM1.20.LDO. No restart: it is a oneshot behind a timer, which
+  # picks up the new file on its next fire.
+  install -m644 server/env_mseed.py "$HOME/seismo-collector/"
   sudo systemctl restart seismo-server seismo-collector seismo-detector
   sleep 3
   if ! systemctl is-active --quiet seismo-server; then
