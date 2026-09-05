@@ -115,7 +115,7 @@ the *electrical* risk (nothing loads the programmer's outputs), and the empty so
 removes the *functional* one (nothing is switched across the coil while MISO chatters).
 Neither alone is sufficient.
 
-## Changing the shunt — a jack on the wall, and resistors as plug-in modules
+## Changing the shunt — a 1/4" jack on the wall, and resistors as plug-in modules
 
 **Decided 2026-09-04 (Charles): a connector on the outside of the box.** "I don't have to
 open and fiddle with a circuit (which I'd stress to breaking)." That is also the existing
@@ -127,21 +127,38 @@ immediately before a campaign whose whole premise is that nothing else changed.
 **Do not put a resistor socket on the wall. Put a jack, and make each value a module.**
 A bare resistor in an external screw terminal is fiddly with cold fingers, easy to fit
 crookedly, and gives no record of what is in there. Instead solder each resistor inside
-a **3.5 mm mono (TS) plug**, label the barrel with its value, and keep the set in a bag.
+a **1/4" mono (TS) plug**, label the barrel with its value, and keep the set in a bag.
 Swapping is then: unplug, plug, write the value in `analysis/epochs.py`. No tools, no
 bare leads, no ambiguity about what is fitted.
 
 | Qty | Part | Notes |
 |-----|------|-------|
-| 1 | 3.5 mm mono **panel** jack, non-switched | 6 mm cutout — far smaller than the XLR's 24 mm, which matters on a box whose width is already set by the XLR body depth |
-| n | 3.5 mm mono plugs, plastic barrel | One per shunt value. Solder the resistor tip-to-sleeve inside |
+| 1 | **1/4" mono panel jack**, non-switched | ~9.5 mm (3/8"-32) threaded bushing. Goes on a side or the lid, not an end face — the two XLRs take those, and the XLR's 32 mm body depth sets the box's internal *width*, not its panel area. **Print a coupon first:** `parts/panel_coupon.py` validated a *12 mm* barrel bore; 9.5 mm is close enough to be reassuring but not identical. The calibrator box is not modelled yet (`parts/` has no `calibrator_case.py`), so this goes in from the start rather than being retrofitted |
+| n | **1/4" mono plugs**, screw-off barrel | One per shunt value. Solder the resistor tip-to-sleeve inside |
 | n | metal-film resistors, 5 % E24 | See below on why 5 % is already finer than the measurement |
 
-**Why 3.5 mm and not something bigger.** It cannot be confused with the XLRs — the box
-carries an `NC3FD-L-B` and an `NC3MD-L-B`, and plugging a shunt module into the signal
-path would be a bad afternoon. It is mechanically distinct, physically far too small to
-fit, and nothing else in this system uses 3.5 mm. Its contacts also *wipe* on insertion,
-which self-cleans a connection that will sit in a garage between uses.
+**Why 1/4" and not 3.5 mm.** 3.5 mm was the first choice, for the smaller cutout, and
+that reasoning does not hold: the jack goes on a face that is not the constrained one.
+1/4" wins on everything else that matters here.
+
+- **The barrel actually fits the part.** A 1/4 W axial resistor drops into a 1/4" barrel
+  with room to spare; 3.5 mm plugs are tight enough to need a warning. When a choice
+  needs a caveat about whether the next component fits, it was marginal.
+- **It survives repeated cycling.** 3.5 mm jacks are built for occasional consumer use
+  and are famous for going intermittent. This one gets plugged and unplugged through a
+  tuning campaign, in a garage.
+- **Cold fingers.** The whole point was not fiddling with small things; a 1/4" plug is
+  chunky and positive.
+- **Room to label legibly**, which is the entire reason for modules over a bare socket.
+- **A bigger printed bore is more forgiving** — 9.5 mm sits nearer the validated 12 mm
+  coupon than 6 mm does.
+
+The property that drove the choice is unchanged: it **cannot be confused with the XLRs**.
+The box carries an `NC3FD-L-B` and an `NC3MD-L-B`, and putting a shunt module into the
+signal path would be a bad afternoon; a 1/4" plug is mechanically incapable of it, and
+nothing else in this system uses one. Its contacts also *wipe* on insertion, which
+self-cleans a connection that sits unused between campaigns. Neutrik make chassis 1/4"
+jacks, so it is the same sourcing as the XLRs already on the list.
 
 **Empty is the correct default.** No plug fitted = no shunt = open circuit, which is both
 the unshunted baseline and the state wanted while flashing (MISO chatters during ISP and
