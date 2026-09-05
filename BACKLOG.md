@@ -249,6 +249,31 @@ constant for the digitiser. obspy `Response.from_paz()` -> `Inventory.write(form
 real response could extend the usable band toward ~1 Hz — exactly where the far-field Lg
 energy lives that made Petrolia read 16x below textbook.
 
+## calfinder: recognise that bursts now arrive in PAIRS — required before the injector runs
+
+The firmware fires **two** bursts per calibration from 2026-09-04: unshunted, a ~16 s
+gap, then shunted. `calfinder.py` finds each independently and is correct to — each is
+three matched pulses and passes `AMP_TOL` at any shunt value, which a combined six-pulse
+burst would not (a 1 kΩ shunt costs 27 % of the signal against a 1.30 tolerance).
+
+**What is missing** is the pairing: something must recognise two bursts ~16 s apart as
+one measurement, decide which is which (unshunted first, always — the firmware fires it
+that way so an interrupted run still leaves a usable open-circuit value), and hand the
+pair to `ringdown.py solve` in the right order along with the shunt value from
+`analysis/epochs.py`.
+
+Two things to be careful about, both already visible in the finder:
+
+- **`amp_out`** probes one unit before onset and `N_PULSES * u` after (2 s and 6 s). The
+  16 s gap clears it, but the check should be re-run against a synthetic pair rather than
+  assumed — that margin is 10 s and nobody has measured it on real noise.
+- **The mask windows** must cover both bursts of a pair, or the second leaks into the
+  classifier's training data as a mystery transient four times a day.
+
+`selftest` should grow a synthetic PAIRED burst before any of this is trusted. The
+existing decoy suite is what earned the 0-false-positives-over-749-hours result and it
+only tests single bursts today.
+
 ## Shunt tuning: automatic vs manual, and what V1 should carry
 
 Charles, 2026-09-04, from amateur radio: an automatic antenna tuner switches L/C values

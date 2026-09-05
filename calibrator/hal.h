@@ -35,7 +35,11 @@
  * see the fuse note in doc/BOM-calibrator.md about never setting RSTDISBL. */
 #define PIN_INJ     PB3
 #define PIN_BTN     PB4     /* panel button, to ground, internal pull-up */
-#define PIN_LED     PB1
+#define PIN_SHUNT   PB1     /* was the status LED, dropped 2026-09-04. Closes a socketed
+                             * shunt across the coil for the SECOND burst of each pair.
+                             * MISO on purpose: driven by the ATtiny, so the load is on a
+                             * driver we control, not the programmer's output. It toggles
+                             * during ISP -- keep the shunt socket EMPTY when flashing. */
 
 /* Unused inputs get pull-ups so nothing floats and oscillates, which would cost more
  * standby current than the sleeping CPU does. */
@@ -71,7 +75,8 @@
  * pin to put a probe on, and the one bench.c watches. */
 #define PIN_INJ     PB3
 #define PIN_BTN     PB4     /* button to ground, internal pull-up -- or a jumper to GND */
-#define PIN_LED     PB5     /* onboard */
+#define PIN_SHUNT   PB5     /* the mule puts it on the onboard D13 LED, so the shunt state
+                             * is visible on the bench -- lit means shunt closed */
 
 /* PB0 is ICP1, left free for the input-capture upgrade noted in bench.c. */
 #define PIN_IDLE_PULLUPS  ((1 << PB2))

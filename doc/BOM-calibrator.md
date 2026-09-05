@@ -91,30 +91,29 @@ still a small perturbation) and re-check. Headroom is the limit at the other end
 ADS1256 at PGA 64 saturates at ±2·VREF/64 ≈ ±78 mV — so there is a wide range to work
 in, and no reason to sit near the bottom of it.
 
-## ⚠️ The switched shunt needs a pin the ATtiny85 does not have
+## The status LED is gone, and the shunt drive takes MISO
 
-Read this before ordering anything for the section below. **The chip is out of I/O.**
-PB3 is the injector, PB4 the button, PB1 the status LED, PB5 is RESET and untouchable
-(see the RSTDISBL note), and PB0/PB2 are MOSI/SCK — *driven by the programmer* during
-ISP. The pin table below already argues that a load belongs on MISO rather than MOSI
-because on MOSI it hangs off the programmer's output, "the one end of the link we cannot
-specify — USBasp clones vary." A second PhotoMOS LED on PB0 or PB2 walks straight into
-that.
+**Decided 2026-09-04 (Charles): drop the status LED.** "I'm not in the room when it's
+deployed." The LED existed so the box visibly does something during the acceptance test,
+but the acceptance test that matters is `calfinder.py` finding the burst in the archive —
+which is the only evidence that survives the walk back from the garage.
 
-Three ways out, none free, unresolved as of 2026-09-04:
+That frees **PB1**, and PB1 is the pin this design wants. The ATtiny85 was out of I/O:
+PB3 injector, PB4 button, PB5 RESET (untouchable), and PB0/PB2 are MOSI/SCK — *driven by
+the programmer* during ISP. A PhotoMOS LED there would hang ~5 mA on the programmer's
+output, which is the load this document already argues against putting on MOSI: "the one
+end of the link we cannot specify — USBasp clones vary." **MISO is driven by the ATtiny
+itself**, so the shunt drive on PB1 loads a driver we control, exactly as the old LED did.
 
-1. **Accept PB2 (SCK) with the caveat.** During ISP the programmer drives a 330 Ω + LED
-   load, and the shunt closes for the duration of programming. Functionally harmless —
-   programming happens on the bench, not during recording — but it is the drive-strength
-   risk the doc already identified, now taken deliberately rather than by accident.
-2. **Drop the status LED**, freeing PB1, which is the one ISP line the ATtiny drives
-   itself. Costs the visible acceptance test the LED exists for.
-3. **A bigger part.** An ATtiny841 or similar brings enough I/O that none of this
-   arbitration is needed, at the price of re-doing the BOM, the fuses and the pinout for
-   a box that is otherwise ready to build.
+**And the shunt socket stays empty during programming.** During ISP the ATtiny toggles
+MISO as it answers the programmer, so the shunt PhotoMOS will flicker closed. With no
+resistor in the socket that does nothing whatsoever. Removing the resistor is a
+one-second step in the flashing procedure and it removes the only functional consequence.
 
-Option 1 is the cheapest and option 3 is the cleanest. Decide before the board is
-soldered, not after.
+Note what each half fixes, because they are different problems: dropping the LED removes
+the *electrical* risk (nothing loads the programmer's outputs), and the empty socket
+removes the *functional* one (nothing is switched across the coil while MISO chatters).
+Neither alone is sufficient.
 
 ## The switched shunt — a second PhotoMOS that measures the generator constant
 
@@ -202,7 +201,7 @@ assignment is not free:
 |---|---|---|
 | PB3 | **PhotoMOS LED drive** | The actual function. Must never share a line with ISP |
 | PB4 | **Button** | Input, internal pull-up, pin-change wake |
-| PB1 (MISO) | Status LED | Flickers while programming — harmless, and useful feedback. **MISO, not MOSI:** MISO is driven by the *ATtiny* and only read by the programmer, so the LED's few mA come out of a driver we control. Hung on MOSI the same load sits on the *programmer's* output instead, which is the one end of the link we cannot specify — USBasp clones vary |
+| PB1 (MISO) | **Shunt PhotoMOS LED drive** | Was the status LED, dropped 2026-09-04 to free this pin. **MISO, not MOSI:** MISO is driven by the *ATtiny* and only read by the programmer, so the few mA come out of a driver we control. Hung on MOSI the same load sits on the *programmer's* output instead, which is the one end of the link we cannot specify — USBasp clones vary. Flickers while programming; keep the shunt socket **empty** when flashing and that is harmless |
 
 - **No low-impedance load on MOSI/MISO/SCK.** The programmer must drive those lines; the
   status LED at 1 kΩ (~3 mA) is fine, the PhotoMOS drive at 330 Ω would fight it. That is

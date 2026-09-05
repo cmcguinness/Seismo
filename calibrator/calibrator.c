@@ -44,6 +44,18 @@
                              * before the step-off releases */
 #define SPACING_MS  2000    /* leaves >= 1.5 s of quiet after each release to fit in */
 
+/* Each calibration is a PAIR of bursts: unshunted, a gap, then shunted. The pair is the
+ * measurement -- ringdown.py solves for the generator constant from two zeta values, one
+ * of each, and taking them 16 s apart rather than days apart means ground conditions,
+ * temperature and background noise are common to both and cancel.
+ *
+ * The gap is TWO WATCHDOG PERIODS, not a busy-wait: 16 s of _delay_ms would hold the CPU
+ * awake at ~300 uA where sleeping costs ~5 uA, and this box is built to last years on a
+ * coin cell. It must clear calfinder.py's amp_out probe (2 s before onset, N_PULSES*u
+ * after = 6 s) and leave the first ring-down fully dead before the second starts, or the
+ * second decay is fitted on the tail of the first. 16 s does both with room to spare. */
+#define GAP_TICKS   2       /* watchdog periods between the two bursts of a pair */
+
 /* ---- schedule ---- */
 #ifndef SOAK_H
 #define SOAK_H      48      /* silence after power-up. Two full diurnal cycles of
@@ -88,7 +100,7 @@
 _Static_assert(PULSE_MS < SPACING_MS,
                "PULSE_MS must be shorter than SPACING_MS or burst() underflows");
 _Static_assert(N_PULSES >= 2, "a single pulse is not a recognisable signature");
-_Static_assert(PIN_INJ != PIN_LED && PIN_INJ != PIN_BTN && PIN_LED != PIN_BTN,
+_Static_assert(PIN_INJ != PIN_SHUNT && PIN_INJ != PIN_BTN && PIN_SHUNT != PIN_BTN,
                "the three pins must be distinct");
 ASSERT_BTN_NOT_RESET();
 _Static_assert(SOAK_H > 0 && PERIOD_H > 0, "zero-length schedule");
@@ -156,10 +168,12 @@ static uint8_t held_long(void)
         delay_ms_n(10);
         ms += 10;
         if (ms >= LONG_PRESS_MS) {
-            PORTB |= (1 << PIN_LED);                 /* long press registered */
+            /* The old status LED gave feedback here and its pin is now the shunt, which
+             * must not be closed just because somebody held the button. No feedback:
+             * the acceptance test is calfinder finding the burst in the archive, which
+             * is the only evidence that survives the walk back from the garage. */
             while (!(PINB & (1 << PIN_BTN)))
                 delay_ms_n(10);                      /* wait for release */
-            PORTB &= (uint8_t) ~(1 << PIN_LED);
             return 1;
         }
     }
@@ -175,26 +189,45 @@ static uint8_t held_long(void)
  * is what it fits. The LED is on only while the switch is closed, so the box visibly
  * does something during the acceptance test and is dark the rest of the time.
  */
-static void burst(void)
+static void burst(uint8_t shunt)
 {
+    /* The shunt closes BEFORE the first pulse and opens AFTER the last, so it loads the
+     * coil for the whole burst and for nothing else. It must never be driven together
+     * with PIN_INJ the way the old status LED was -- that would short the coil through
+     * the shunt during the injection pulse itself. */
+    if (shunt)
+        PORTB |= (1 << PIN_SHUNT);
     BENCH_BURST_BEGIN();
     for (uint8_t i = 0; i < N_PULSES; i++) {
-        PORTB |= (1 << PIN_INJ) | (1 << PIN_LED);
+        PORTB |= (1 << PIN_INJ);
         BENCH_MARK(1);
         delay_ms_n(PULSE_MS);
-        PORTB &= (uint8_t) ~((1 << PIN_INJ) | (1 << PIN_LED));
+        PORTB &= (uint8_t) ~(1 << PIN_INJ);
         BENCH_MARK(0);
         if (i + 1 < N_PULSES)
             delay_ms_n(SPACING_MS - PULSE_MS);
     }
     BENCH_BURST_END(N_PULSES, PULSE_MS, SPACING_MS);
+    PORTB &= (uint8_t) ~(1 << PIN_SHUNT);
+}
+
+
+/* One calibration = the pair. Unshunted first, so a run that is interrupted after the
+ * first burst still leaves a usable open-circuit measurement rather than a shunted one
+ * of unknown provenance. */
+static void calibrate_pair(void)
+{
+    burst(0);
+    BENCH_NOTE("gap, then the shunted burst");
+    nap(GAP_TICKS);
+    burst(1);
 }
 
 int main(void)
 {
     /* Everything off and quiet. Unused pins get pull-ups so no input floats and
      * oscillates, which would cost more standby current than the CPU does. */
-    DDRB = (1 << PIN_INJ) | (1 << PIN_LED);
+    DDRB = (1 << PIN_INJ) | (1 << PIN_SHUNT);
     PORTB = (1 << PIN_BTN) | PIN_IDLE_PULLUPS;
 
     ADCSRA &= (uint8_t) ~(1 << ADEN);       /* the ADC alone is ~200 uA if left on */
@@ -227,7 +260,7 @@ int main(void)
             }
         }
 
-        burst();
+        calibrate_pair();
 
         if (nap_hours(PERIOD_H)) {            /* button during the wait */
             button_hit = 0;
