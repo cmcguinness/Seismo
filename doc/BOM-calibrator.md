@@ -115,6 +115,61 @@ the *electrical* risk (nothing loads the programmer's outputs), and the empty so
 removes the *functional* one (nothing is switched across the coil while MISO chatters).
 Neither alone is sufficient.
 
+## Changing the shunt — a jack on the wall, and resistors as plug-in modules
+
+**Decided 2026-09-04 (Charles): a connector on the outside of the box.** "I don't have to
+open and fiddle with a circuit (which I'd stress to breaking)." That is also the existing
+rule — `doc/rev2-frontend.md` makes *"the source must be swappable without a soldering
+iron"* a **requirement**, because a test you have to open the box for is a test that does
+not get run. And opening this box means disturbing the injector and the coin cell
+immediately before a campaign whose whole premise is that nothing else changed.
+
+**Do not put a resistor socket on the wall. Put a jack, and make each value a module.**
+A bare resistor in an external screw terminal is fiddly with cold fingers, easy to fit
+crookedly, and gives no record of what is in there. Instead solder each resistor inside
+a **3.5 mm mono (TS) plug**, label the barrel with its value, and keep the set in a bag.
+Swapping is then: unplug, plug, write the value in `analysis/epochs.py`. No tools, no
+bare leads, no ambiguity about what is fitted.
+
+| Qty | Part | Notes |
+|-----|------|-------|
+| 1 | 3.5 mm mono **panel** jack, non-switched | 6 mm cutout — far smaller than the XLR's 24 mm, which matters on a box whose width is already set by the XLR body depth |
+| n | 3.5 mm mono plugs, plastic barrel | One per shunt value. Solder the resistor tip-to-sleeve inside |
+| n | metal-film resistors, 5 % E24 | See below on why 5 % is already finer than the measurement |
+
+**Why 3.5 mm and not something bigger.** It cannot be confused with the XLRs — the box
+carries an `NC3FD-L-B` and an `NC3MD-L-B`, and plugging a shunt module into the signal
+path would be a bad afternoon. It is mechanically distinct, physically far too small to
+fit, and nothing else in this system uses 3.5 mm. Its contacts also *wipe* on insertion,
+which self-cleans a connection that will sit in a garage between uses.
+
+**Empty is the correct default.** No plug fitted = no shunt = open circuit, which is both
+the unshunted baseline and the state wanted while flashing (MISO chatters during ISP and
+will toggle the shunt PhotoMOS; with nothing plugged in that does nothing).
+
+**Wiring: PhotoMOS on the coil side of the jack.** Then when the shunt is open, the jack
+and its module are disconnected from the coil rather than hanging across it. A single
+SPST can only isolate one leg, so the other remains a short stub — keep the internal run
+from PhotoMOS to jack as short as the layout allows, because it sits across a source
+producing microvolts.
+
+**5 % E24 parts are already finer than the instrument that judges them.** `ζ_e =
+k/(Rc+Rs)`, so `dζ/ζ = −dRs/(Rc+Rs)`: a 5 % part moves ζ by about 4 %, while the
+ring-down fit carries a **−0.066 systematic residual at ζ = 0.85** (STATUS open thread 2)
+and `calfinder`'s self-test says ζ = 0.85 needs SNR ≥ 40 to be reliable at all. Buying
+1 % parts would be measuring the resistor with a ruler and the damping with a thumb.
+
+**The low end is bounded by signal, not by the part.** The shunt keeps `Rs/(Rc+Rs)` of
+the output, so at `Rs = Rc = 375 Ω` half the signal is gone and at 100 Ω only 21 %
+remains — and the shunted burst still has to carry enough amplitude for `ringdown.py` to
+fit a decay. A short is useless: maximum damping, zero signal, nothing to measure. Treat
+a few hundred ohms as the practical floor.
+
+**A multiturn trimmer is fine for the campaign and wrong for the finish.** It walks the
+value continuously while ζ is watched, but a cermet trimmer has real excess (1/f) noise
+and a wiper that can go intermittent, sitting across a microvolt coil. Find the value
+with it, measure it, then fit a metal-film part of that value.
+
 ## The switched shunt — a second PhotoMOS that measures the generator constant
 
 **Decided 2026-09-04 (Charles).** A second AQY212EH, identical to the injection one,
