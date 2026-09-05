@@ -98,6 +98,56 @@
           </Stage>
         </Response>
       </Channel>
+      <Channel code="LDO" startDate="2026-09-05T10:08:00.000000Z" locationCode="20">
+        <Comment>
+          <Value>Environmental node, location 20: Adafruit CLUE (BMP280) on the garage floor near the geophone, its own power and its own USB host (pi4env). Samples are placed on the 1 sps grid by fitting host UTC against the CLUE's monotonic clock in 10-minute windows -- the crystal wanders +6..+59 ppm with board temperature, so a single linear fit leaves ~60 ms of curvature; windowed, the residual jitter is ~5 ms. See server/env_mseed.py.</Value>
+        </Comment>
+        <Latitude unit="DEGREES">38.451817</Latitude>
+        <Longitude unit="DEGREES">-122.621049</Longitude>
+        <Elevation unit="METERS">128.3</Elevation>
+        <Depth unit="METERS">0.0</Depth>
+        <Azimuth unit="DEGREES">0.0</Azimuth>
+        <Dip unit="DEGREES">0.0</Dip>
+        <SampleRate>1.0</SampleRate>
+        <Sensor>
+          <Type>Barometer</Type>
+          <Description>Bosch BMP280 on an Adafruit CLUE, x16 pressure oversampling, on-chip IIR filter DISABLED. Each 1 sps sample is the mean of ~12 chip readings, i.e. a ~1 s boxcar: the response is flat well below 0.1 Hz, where this channel's purpose (the 0.02-0.12 Hz band) lies, and rolls off approaching Nyquist. Unlike EHZ, the sensitivity here is NOT provisional -- the BMP280 is factory-calibrated in absolute Pa. Measured per-reading scatter 1.2-1.6 Pa, so the averaged sample is good to ~0.35 Pa.</Description>
+        </Sensor>
+        <DataLogger>
+          <Type>Digitizer</Type>
+          <Description>Adafruit CLUE (nRF52840) over USB serial to pi4env; UTC stamped on the host, regridded by server/env_mseed.py</Description>
+        </DataLogger>
+        <Response>
+          <InstrumentSensitivity>
+            <Value>100.0</Value>
+            <Frequency>0.05</Frequency>
+            <InputUnits>
+              <Name>PA</Name>
+              <Description>Pressure in Pascals</Description>
+            </InputUnits>
+            <OutputUnits>
+              <Name>COUNTS</Name>
+            </OutputUnits>
+          </InstrumentSensitivity>
+          <Stage number="1">
+            <PolesZeros name="BMP280 flat">
+              <InputUnits>
+                <Name>PA</Name>
+              </InputUnits>
+              <OutputUnits>
+                <Name>COUNTS</Name>
+              </OutputUnits>
+              <PzTransferFunctionType>LAPLACE (RADIANS/SECOND)</PzTransferFunctionType>
+              <NormalizationFactor>1.0</NormalizationFactor>
+              <NormalizationFrequency unit="HERTZ">0.05</NormalizationFrequency>
+            </PolesZeros>
+            <StageGain>
+              <Value>100.0</Value>
+              <Frequency>0.05</Frequency>
+            </StageGain>
+          </Stage>
+        </Response>
+      </Channel>
     </Station>
   </Network>
 </FDSNStationXML>

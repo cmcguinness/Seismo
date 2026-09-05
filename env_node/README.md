@@ -170,9 +170,59 @@ and a fresh one started. That happened once, on 2026-09-05. Runs as the
 Deploy on pi4env: venv at `~/env_node/.venv` (`pip install pyserial`), copy `env_logger.py`
 + `env-logger.service` (install commands in the service file's header).
 
-## TODO — pull to the pi5 + analyze
+## In the feed: `SS.OAKM1.20.LDO`
 
-- A pi5-side rsync (like the seismic mirror) pulls `pi4env:~/env-data/` next to the seismic
-  data, so the pressure/tilt series sits UTC-aligned beside the stream.
+Since **2026-09-05** the pressure channel is published as real miniSEED beside the
+geophone, so pressure and ground motion open in one ObsPy `Stream` with one set of time
+handling. `server/env_mseed.py` builds it, `seismo-env-mseed.timer` runs every 10 min,
+and the whole 43-day history is backfilled (28 s for the lot).
+
+- **Location `20`** — location codes distinguish co-located acquisition *packages*, not
+  sensors: `00` geophone + ADS1256, `10` reserved for the ADXL355, `20` this node. That
+  is NSMP's own convention at NP.1835 1.6 km away, where a second digitizer package sits
+  under location `2C` carrying its accelerometers **plus system temperature, voltage,
+  current and clock quality, all at 1 sps**. Environmental and SOH channels in the feed
+  is professional practice.
+- **Channel `LDO`** — band `L` = 1 sps, instrument `D` = pressure, orientation `O` =
+  outside. The standard microbarograph code; nothing invented.
+- **Counts are centi-Pascals** (100 counts/Pa). Whole Pa would have thrown away the
+  resolution the ×16 oversampling was turned on to get.
+- **The response is not provisional.** The BMP280 is factory-calibrated in absolute Pa,
+  so `LDO` is the first channel at this station with a *known* sensitivity — while
+  `EHZ`'s f0 and ζ are still guesses waiting on the injector.
+
+### The clock fit is piecewise, and the reason is measurable
+
+miniSEED wants a regular grid; these samples are stamped by the host when USB bytes
+arrive. So host-UTC is fitted against the CLUE's own monotonic clock, with the offset
+taken from a **low percentile** of the residuals rather than the mean — USB delay is
+one-sided, a row can only arrive *after* it was measured, and least squares would chase
+that tail and put every sample systematically late.
+
+A single straight line over one 7.2-hour run appeared to have **112 ms of jitter**.
+Almost all of it was curvature: the crystal wandered **+6 to +59 ppm within the run**
+(temperature-driven, on a board that measurably self-heats) and the residuals traced a
+smooth +105/−7 ms arc rather than scattering. Refitted in 10-minute windows, the same
+data gives **p95 jitter of 5 ms**. Every record is stamped from the resulting chain of
+local anchors, so within one 100-second record the crystal cannot drift more than ~6 ms.
+
+Verified against the raw CSV: **270 spot checks, zero unmatched** — every value appears
+in the stream, and the host stamp slides cleanly from 0 to −1 samples across 7 hours as
+the +35 ppm crystal is absorbed. The per-window ppm spread is logged rather than hidden;
+it is a thermometer for the node.
+
+This only became possible on 2026-09-05. Before the firmware fix, `time.monotonic()` had
+decayed to 0.25 s resolution and 3.9 % of samples were being dropped — there was no clock
+to fit. Those days convert too, and it shows: a pre-fix day lands in **~3,300 fragments**
+with 866 ms of jitter, against **one unbroken 26,000-sample block** after. The backfill is
+kept anyway; the fragmentation is the honest shape of that data.
+
+## TODO — the rest of the channels
+
+- Temperature and humidity as their own channels under `20`, following NSMP's lead —
+  they belong in the feed, they just weren't the one with a question attached.
+- The accelerometer: mean (tilt) and the new RMS envelope. Needs a decision about how to
+  express a derived envelope as a SEED channel, which pressure didn't force.
 - Then the actual question: **does pressure or tilt explain the 0.02–0.12 Hz undulation?**
-  (and the slow DC-bias drift vs temperature). This is why the node exists.
+  (and the slow DC-bias drift vs temperature). This is why the node exists — and now the
+  pressure half of it is a `Stream` away.

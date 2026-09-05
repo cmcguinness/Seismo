@@ -1,0 +1,26 @@
+[Unit]
+Description=Seismo env node -> SS.OAKM1.20.LDO miniSEED (barometric pressure, 1 sps)
+Documentation=https://github.com/cmcguinness/Seismo
+# Oneshot, driven by seismo-env-mseed.timer. Rebuilds recent day-files from scratch
+# rather than appending, so re-running after a backfill or a repaired CSV is always
+# safe and never doubles a sample.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=charles
+Group=charles
+WorkingDirectory=/home/charles/seismo-collector
+Environment=SEISMO_ARCHIVE=/home/charles/seismo-archive
+Environment=SEISMO_ENV_DIR=/home/charles/seismo-data/env
+Environment=SEISMO_ENV_LOCATION=20
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/charles/seismo-collector/.venv/bin/python env_mseed.py --days 2
+
+# Deploy on pi5 (shares the collector venv):
+#   cp env_mseed.py ~/seismo-collector/
+#   sudo cp seismo-env-mseed.service seismo-env-mseed.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now seismo-env-mseed.timer
+# Rebuild the whole history (safe, idempotent):
+#   ~/seismo-collector/.venv/bin/python ~/seismo-collector/env_mseed.py --all

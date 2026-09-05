@@ -1,0 +1,15 @@
+[Unit]
+Description=Rebuild the env node's LDO day-files every 10 minutes
+Documentation=https://github.com/cmcguinness/Seismo
+
+[Timer]
+# 10 minutes is a compromise, not a measurement: the env CSVs arrive from pi4env on
+# their own schedule, and a day-file rebuild is cheap (a few seconds), so this is
+# frequent enough that the archive is never far behind and rare enough to be invisible.
+OnBootSec=3min
+OnUnitActiveSec=10min
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
