@@ -249,6 +249,49 @@ constant for the digitiser. obspy `Response.from_paz()` -> `Inventory.write(form
 real response could extend the usable band toward ~1 Hz — exactly where the far-field Lg
 energy lives that made Petrolia read 16x below textbook.
 
+## Microbaroms: hear the ocean through the AIR — deploy before October 2026
+
+**Seasonal. The window opens with the North Pacific storm season (Oct–Mar, peaking
+Dec–Feb) and the baseline has to be recorded before it.**
+
+The secondary microseism is *not reachable* with a 4.5 Hz element — STATUS: "not reachable
+with this element in any season; still 3–7× under" — and that failure is structural, not
+marginal: the geophone is ~8,000× down at 0.05 Hz and ~50,000× down at 0.02 Hz. No amount
+of patience fixes a response curve.
+
+But the ocean makes an **acoustic** counterpart at the same frequencies. Microbaroms,
+0.12–0.35 Hz, same Longuet-Higgins mechanism, radiated into the atmosphere instead of the
+crust. Nothing about the geophone's failure says anything about whether a pressure sensor
+can hear them.
+
+**The numbers say it should be audible to the part already on order.** The BME280 at
+24 sps, P ×16, is 0.2 Pa RMS per sample; band-limited to 0.12–0.35 Hz that is **0.028 Pa**,
+against microbarom amplitudes usually quoted at 0.1–1 Pa. That is 4–36× before any
+averaging, and microbaroms are persistent, so median-Welch over an hour buys much more.
+
+**And the correlation apparatus already exists and has already been used.**
+`analysis/buoy_join.py` joins NDBC buoy 46013 (Bodega Bay, ~35 km W) to the station's `ms`
+band, which it defines as 0.12–0.5 Hz — the microbarom band. Same script, same theory
+(twice the swell frequency, amplitude ~ wave height squared), pointed at the pressure
+channel instead of the seismic one.
+
+**WHAT TO DO NOW, and why it is time-critical:** get the BME280 logging at 24 sps before
+October even if everything downstream is provisional. **The quiet-season baseline is half
+the measurement.** A bump at 0.2 Hz in January proves nothing; a bump in January that was
+absent in September and tracks WVHT² is a detection. Same reasoning as the injector's
+48 h soak — record the before-picture first, because it cannot be recorded later.
+
+**The real risk is ambient, not sensor.** Bosch's own datasheet note says air-pressure
+fluctuation exceeds the part's noise at low frequency, and IMS infrasound stations build
+18 m rosette pipe arrays precisely to average out wind. The garage helps against local
+turbulence but a building is *transparent* at these wavelengths (1,715 m at 0.2 Hz), so
+the signal arrives unattenuated and so does everything else. The HVAC is inside our
+pressure field, which is why the 24 sps rate was chosen to keep its lines from aliasing
+into the band (see the sampling note in `doc/BOM-accelerometer.md`).
+
+If it works, it is the first thing this station has detected that it currently cannot
+reach by any other route.
+
 ## calfinder: recognise that bursts now arrive in PAIRS — required before the injector runs
 
 The firmware fires **two** bursts per calibration from 2026-09-04: unshunted, a ~16 s
