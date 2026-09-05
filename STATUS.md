@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-04 (UTC)_
+_Last updated: 2026-09-05 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -104,6 +104,73 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🌡️ THE WEATHER STATION CAUGHT THE EARTHQUAKE (2026-09-05)
+
+**The finding.** The environmental node — the CLUE weather board on the garage floor,
+1 sps, there to chase the sub-Hz undulation — recorded the M3.3 under Larkfield-Wikiup.
+Five consecutive large changes on `ay`, alternating sign and decaying, starting +3.7 s
+after origin (+3.3 s after our P pick), peaking at **0.069 m/s² at +5.9 s**. Alternating
+sign at 1 sps is what 3–10 Hz ground motion looks like when it aliases. It is a
+horizontal axis, and S at 13 km is horizontal-dominant.
+
+**How much to believe it.** It is the largest `ay` excursion of the entire 43-day
+archive outside the five days somebody was handling the rig (those run 0.128–15.5 m/s²
+in minutes-long bursts); every one of the 37 undisturbed days caps at 0.040–0.062.
+Landing inside the S window by chance is ~1.4×10⁻⁴. Pressure saw nothing at all — 1.75σ,
+beaten by 81 % of that day's own 30 s windows.
+
+**And the honest counterweight:** across the 54 catalogue events the geophone saw, 2
+exceeded the null's p95. That is exactly the 5 % chance gives you. This is not a
+detector with a population-level effect; it is one event clearing a threshold that sits
+somewhere between M2.6 at 36 km (0.030, indistinguishable from an ordinary daily
+maximum) and M3.3 at 13 km. n = 1.
+
+**What was done about it.** Each 1 s tick now *bursts* the sensors — ~250 accelerometer
+reads, ~12 barometer reads — and reports mean + per-axis RMS + peak, plus the pressure
+scatter. Six new columns; the host logger accepts both schemas. That converts an
+accident into an envelope detector: the amplitude estimate's noise falls as √N instead
+of one sample having to land on the shaking.
+
+**The node is still ~1000× less sensitive than the geophone** — LSM6DS33 per-sample noise
+measured at 0.0070 m/s² on `ay`, within 10 % of its datasheet 90 µg/√Hz, so there is
+nothing to tune away, against ~8×10⁻⁶ m/s² equivalent for the geophone. It detects what
+you can feel. The **ADXL355 node is the real accelerometer**; this is a weather station
+that got lucky once, now arranged to be lucky more often.
+
+**Barometer:** ×16 oversampling, free-running, ~12 reads averaged per tick, on-chip IIR
+deliberately **off** (coefficient 16 puts a 0.08 Hz corner inside the 0.02–0.12 Hz band
+the node exists to measure). Logged pressure had been quantised at exactly 1 Pa by the
+format string against a ~2.3 Pa/√Hz sensor floor. Per-read scatter now measures
+1.2–1.6 Pa → ~0.35 Pa on the mean. **Predicted** ~4.7× improvement in the 0.02–0.12 Hz
+band (0.943 Pa → ~0.20 Pa); **not yet confirmed** — needs a day of new data. If it
+doesn't drop that far, the remainder is real atmosphere, which is the better outcome.
+
+**Three bugs the first flash surfaced, each invisible to reading and obvious in the data.**
+Kept in `env_node/README.md` in full:
+
+1. Five BMP280 settings in one `try`; the fourth constant name didn't exist, so the chip
+   stayed in FORCED mode where every read blocks ~40 ms. Half the tick gone, `n_acc` ~40
+   instead of ~250, intervals wandering to 1.43 s. A partial config that looks like a
+   working one is worse than a loud failure.
+2. **float32 catastrophic cancellation.** Σp² on raw pressure is ~10⁶ and the variance
+   lives in the seventh digit, so the board reported 0.5 hPa of scatter on a signal
+   moving 0.002 hPa, quantised to the float32 ulp. Accumulators now run on deviations.
+3. **`time.monotonic()` had run out of resolution** — 0.25 s ulp at 40 days uptime — so
+   the self-correcting sleep paced off a dead clock: mean interval 1.040 s, **3,334
+   samples lost per day (3.9 %)**, host dt 0.46–1.53 s. Every environmental series before
+   2026-09-05 carries that jitter. Now `monotonic_ns` on an absolute schedule,
+   1.000–1.004 s.
+
+**A negative result worth keeping.** Raising the accelerometer ODR so every read is a
+fresh sample — the obvious move — is wrong. Noise density is flat, so σ grows as √ODR
+while usable samples are capped by the read loop. Swept live, 91 ticks each, on `ay`:
+52 Hz → 53k relative detectability, **104 Hz → 70k**, 208 Hz → 46k, 416 Hz → 25k. 52 Hz
+wins on `az` and ties on `ax`, so the axes disagree at the 1.3× level; 104 Hz breaks the
+tie by keeping the 35–50 Hz energy `audible.py` found in this same M3.3 out of the alias.
+**Net: the ODR is unchanged at the driver's own default** — it is simply no longer an
+accident. Measured on this chip, this loop, this siting, over these five rates; that says
+nothing about what a differently-built node could do.
 
 ## 🧠 THE RETRAIN, AND TWO NETWORKS MEASURED AGAINST IT (2026-09-04)
 

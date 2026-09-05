@@ -1425,3 +1425,18 @@ above the geophone's ~4 mm/s saturation, and PGA/PGV/instrumental intensity line
 line against NP.1835's ShakeMap entry. Noise ~1 mm/s^2 RMS in 1-15 Hz: M3+ within 20 km
 is clean, M2.5 at 40 km is at the floor. After the injector build; both want the bench.
 
+## Environmental node — confirm the pressure improvement (opened 2026-09-05)
+
+The ×16 oversampling + 12-read averaging went live 2026-09-05 ~10:00 UTC. **Predicted**
+0.02–0.12 Hz band RMS 0.943 Pa → ~0.20 Pa. Re-measure once a full day of wide-schema
+data exists and write the *measured* number into `env_node/README.md`, replacing the
+prediction. If it doesn't drop that far, the residual is real atmosphere, not sensor
+floor — which is the more interesting answer and points straight at the microbarom work.
+
+## Environmental node — use the new envelope columns (opened 2026-09-05)
+
+`ax_rms_ms2 / ay_rms_ms2 / az_rms_ms2 / a_pk_ms2` are being logged but nothing reads
+them. Wanted: a check that runs the envelope against the catalogue the way
+`analysis/` does for the geophone, to find where the node's threshold actually sits now
+rather than inferring it from one event. Needs a few weeks and at least one more felt
+quake before it can say anything.
