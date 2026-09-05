@@ -249,6 +249,44 @@ constant for the digitiser. obspy `Response.from_paz()` -> `Inventory.write(form
 real response could extend the usable band toward ~1 Hz — exactly where the far-field Lg
 energy lives that made Petrolia read 16x below textbook.
 
+## Shunt tuning: automatic vs manual, and what V1 should carry
+
+Charles, 2026-09-04, from amateur radio: an automatic antenna tuner switches L/C values
+by relay, measures SWR and optimises. Could the injector do the same with shunt values —
+binary-weighted combinations for fine resolution — and "tune up" the geophone?
+
+**The method transfers and the measurement half already exists.** The injector fires a
+known step and `ringdown.py` fits ζ from the decay: that is the SWR meter. And the shunt
+sits in PARALLEL, not in series like a radio tuner, so relay contact resistance lands on
+a 10 kΩ shunt (0.0005%) instead of on the signal. The binary instinct is right for a
+real reason: parallel resistors add in *conductance*, and ζ_e ≈ k·G_s when Rs ≫ Rc, so
+binary-weighted conductances give evenly-spaced damping steps. Four latching relays of
+15k/7.5k/3.75k/1.88k span open-circuit to 1 kΩ in sixteen near-even steps, and latching
+coils cost ~8e-5 mAh per switch against a 220 mAh cell — power is a non-issue.
+
+**But it is not impedance matching, and there is no free optimum.** `shunt-damping.md`:
+"the fraction of the maximum possible damping you gain is exactly the fraction of signal
+you lose." You are picking a point on a strict trade, not finding a peak.
+
+**And it needs a command channel the box has no room for.** All three XLR conductors are
+used (2/3 coil, 1 shield to star ground). RF inside a box inline on the coil is the
+WiFi-dongle failure again, and an always-listening receiver ends the coin cell. The
+autonomous answer — cycle the ladder and encode the code in the burst signature, preamble
+for detection plus timing-coded payload, never using pulse ABSENCE as a symbol — works,
+but it triples the charge per burst and needs new protocol constants.
+
+**SUPERSEDED FOR V1 by Charles's simpler proposal**, now in `doc/BOM-calibrator.md`: one
+extra PhotoMOS switching a *socketed* shunt, changed by hand and logged in `epochs.py`,
+with every calibration firing two bursts — unshunted, 15 s gap, shunted. That is a PAIRED
+measurement fifteen seconds apart rather than days, it needs no command channel at all,
+and it separates measuring from committing because the shunt only loads the coil for a
+few seconds a day.
+
+**Revisit the ladder if** the manual sweep shows ζ genuinely worth tuning, or if the
+value turns out to drift with temperature enough to want re-optimising per season. The
+arithmetic above is done; only the pin shortage (see the BOM's ⚠️ section) and the
+command channel would need solving.
+
 ## Write-up: applying Yeck et al. (2020) at hobby scale — long-term
 
 Charles, 2026-08-30, framing it as a medical-style **case report** rather than novel

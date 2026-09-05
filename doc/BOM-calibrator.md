@@ -91,6 +91,88 @@ still a small perturbation) and re-check. Headroom is the limit at the other end
 ADS1256 at PGA 64 saturates at ±2·VREF/64 ≈ ±78 mV — so there is a wide range to work
 in, and no reason to sit near the bottom of it.
 
+## ⚠️ The switched shunt needs a pin the ATtiny85 does not have
+
+Read this before ordering anything for the section below. **The chip is out of I/O.**
+PB3 is the injector, PB4 the button, PB1 the status LED, PB5 is RESET and untouchable
+(see the RSTDISBL note), and PB0/PB2 are MOSI/SCK — *driven by the programmer* during
+ISP. The pin table below already argues that a load belongs on MISO rather than MOSI
+because on MOSI it hangs off the programmer's output, "the one end of the link we cannot
+specify — USBasp clones vary." A second PhotoMOS LED on PB0 or PB2 walks straight into
+that.
+
+Three ways out, none free, unresolved as of 2026-09-04:
+
+1. **Accept PB2 (SCK) with the caveat.** During ISP the programmer drives a 330 Ω + LED
+   load, and the shunt closes for the duration of programming. Functionally harmless —
+   programming happens on the bench, not during recording — but it is the drive-strength
+   risk the doc already identified, now taken deliberately rather than by accident.
+2. **Drop the status LED**, freeing PB1, which is the one ISP line the ATtiny drives
+   itself. Costs the visible acceptance test the LED exists for.
+3. **A bigger part.** An ATtiny841 or similar brings enough I/O that none of this
+   arbitration is needed, at the price of re-doing the BOM, the fuses and the pinout for
+   a box that is otherwise ready to build.
+
+Option 1 is the cheapest and option 3 is the cleanest. Decide before the board is
+soldered, not after.
+
+## The switched shunt — a second PhotoMOS that measures the generator constant
+
+**Decided 2026-09-04 (Charles).** A second AQY212EH, identical to the injection one,
+switches a **socketed** shunt resistor across the coil. Each calibration then fires
+**two bursts**: three pulses with the shunt open, a 15 s gap, three pulses with it
+closed. You change the resistor by hand every so often and record it in
+`analysis/epochs.py`; the schedule needs no command channel, no relay ladder and no
+telemetry to say which value is fitted.
+
+**Why it is worth one extra part.** `doc/shunt-damping.md` calls measuring the generator
+constant "the real prize", and G is the biggest disputed number in the instrument — the
+datasheet says 28.8 V/(m/s), the effective measurement says nearer 3.8, and the whole
+question of whether a shunt does anything at all hinges on which. `ringdown.py solve`
+gets G from exactly two ζ measurements, one unshunted and one with a known resistor.
+This produces that pair **four times a day, fifteen seconds apart**.
+
+Fifteen seconds apart is the point, not a detail. ζ estimates drift with ground
+conditions, temperature and background noise, so a Tuesday measurement against a Friday
+one buries the shunt's effect under everything that changed in between. Inside one burst
+pair, all of that is common and cancels — the same reason a paired test beat a pooled one
+when the coda features were evaluated on 2026-09-04.
+
+**And it separates measuring from committing.** The shunt is connected only during the
+second half of each burst, so the station keeps its full open-circuit sensitivity for
+actual recording while the damping curve is characterised. You learn what a value *would*
+do before deciding to live with it — which is the bind shunt-damping.md is stuck in.
+
+**Two bursts, not one six-pulse burst.** `calfinder.py`'s `AMP_TOL` is 1.30: pulses
+within one burst must match in amplitude to 30%. A shunt costs `Rc/(Rc+Rs)` of the
+signal, so a combined burst passes down to about 2.2 kΩ and is **rejected at 1 kΩ** —
+precisely the low end where the damping is. Two bursts of three matched pulses are
+internally consistent at any value, and the finder's 749-hour zero-false-positive result
+carries over untouched. The gap must clear `amp_out`, which probes 2 s before onset and
+6 s after; 15 s also lets the first ring-down die completely so the second is not fitted
+on a contaminated decay.
+
+**Open on power-up, and open on reset.** The shunt loads the coil, so a stuck-closed
+PhotoMOS costs sensitivity 24/7 and silently changes the instrument. Drive it from a pin
+that idles low, and leave the socket empty until the first sweep says a value is wanted.
+
+| qty | part | why |
+|---|---|---|
+| 1 | **Panasonic AQY212EH** PhotoMOS (a second one) | switches the shunt across the coil |
+| 1 | 330 Ω axial | its LED drive, same as the injector's |
+| 1 | 2-way screw terminal or turned-pin socket | the shunt itself, changed by hand |
+
+**Still to settle before the build:** `doc/rev2-frontend.md` says keep the shunt at the
+**board** end, not the sensor, and the interface board already has an empty socket across
+AIN0/AIN1. If the injector sits mid-cable, its switched shunt is not at the board end —
+either move the injector, or accept the cable in parallel for the few seconds of the
+measurement. Probably negligible for a ζ fit, but it should be a decision.
+
+**`calfinder.py` needs to learn about pairs.** It currently finds independent bursts;
+something must recognise that two bursts 15 s apart are a matched pair and hand them to
+`ringdown.py solve` in the right order. Its self-test should grow a synthetic paired
+burst before any of this is trusted.
+
 ## Why the LM4040 goes in from day one
 
 Injection current is I = V/R. A bare coin cell starts near 3.0 V, sags toward 2.7 V over
