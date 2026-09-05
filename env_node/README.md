@@ -39,12 +39,97 @@ from the temp/humidity sensors as a self-heat source (a sealed-case test plateau
 °C above ambient). Liveness = the blue NeoPixel heartbeat + the serial stream itself:
 
 ```
-# seismo-env  mono_s,temp_C,press_hPa,humid_pct,ax_ms2,ay_ms2,az_ms2
-741.06,29.33,1002.19,39.3,-0.863,5.250,-7.959
+# seismo-env  mono_s,temp_C,press_hPa,humid_pct,ax_ms2,ay_ms2,az_ms2,n_acc,ax_rms_ms2,ay_rms_ms2,az_rms_ms2,a_pk_ms2,n_press,p_sd_Pa
+3584486.863,27.41,1000.8110,41.2,-0.1082,-0.3561,9.9720,244,0.0141,0.0096,0.0167,0.0469,11,1.336
 ```
 
-Self-correcting loop → even 1 Hz. Sensor reads are wrapped so one bad read can't kill the
-loop. Blue NeoPixel blinks = alive.
+Since **2026-09-05** each tick *bursts* the sensors instead of taking one reading: ~250
+accelerometer reads and ~12 barometer reads per second, reported as a mean plus a
+scatter. Sensor reads are wrapped so one bad read can't kill the loop. Blue NeoPixel
+blinks = alive.
+
+### Why it bursts — the node accidentally recorded an earthquake
+
+On **2026-09-03** the M3.3 under Larkfield-Wikiup (13.3 km) appeared in this node as five
+consecutive large sample-to-sample changes on `ay`: the alternating-sign signature of
+3–10 Hz ground motion aliased onto a 1 sps sampler. It was **the largest `ay` excursion
+in the whole 43-day archive** outside of days somebody was handling the rig (0.069 m/s²;
+every undisturbed day otherwise caps at 0.040–0.062), and it landed **5.9 s after origin**,
+in the S window, on a horizontal axis. Landing there by chance is ~1.4×10⁻⁴.
+
+That was luck — one sample happened to fall during the shaking. Bursting makes it
+deliberate: averaging N reads pulls the *amplitude estimate's* noise down by √N, so the
+tick reports a genuine envelope instead of one aliased sample.
+
+**This is not a seismometer and must not be read as one.** The LSM6DS33's measured
+per-sample noise is 0.0070 m/s² on `ay` — within 10% of its 90 µg/√Hz datasheet figure,
+so there is nothing to recover by tuning — against roughly 8×10⁻⁶ m/s² equivalent for
+the geophone. It is ~1000× less sensitive; it detects what you can feel. Across 54
+catalogue events the geophone saw, only 2 exceeded the null's p95 — exactly the 5% you
+get from chance. Only the M3.3 cleared the threshold. **The ADXL355 strong-motion node
+is the real accelerometer;** this is a weather station that got lucky once.
+
+### Three things the first flash got wrong, all visible in the data
+
+Kept here because each was invisible to inspection and obvious in the numbers:
+
+1. **A partial config that looked like a working one.** All five BMP280 settings were
+   applied in one `try` block; the fourth used a constant name that doesn't exist
+   (`STANDBY_TC_1` — it's `STANDBY_TC_0_5`), so the chip kept `MODE_FORCE`, where every
+   read *blocks* for a full ~40 ms conversion. That ate half the tick: `n_acc` ~40
+   instead of ~250, and intervals wandering to 1.43 s. Each setting now reports itself.
+2. **float32 catastrophic cancellation.** CircuitPython's floats here are 32-bit (~7
+   digits). Accumulating Σp² on raw pressure (p² ≈ 1.0×10⁶) and then taking
+   `Σp²/n − mean²` subtracts two numbers agreeing to seven digits — the variance is
+   annihilated. The board printed a "scatter" of 0.5 hPa on a signal moving 0.002 hPa,
+   quantised to multiples of the float32 ulp. Both accumulators now run on deviations
+   from the previous tick's mean, where the squares are ~10⁻⁴ and nothing cancels.
+3. **`time.monotonic()` had run out of resolution.** Same 32-bit floats: at 40 days
+   uptime the ulp is **0.25 s**, so `clue_mono_s` was quantised to whole seconds and the
+   self-correcting sleep was computing its delta from a dead clock. Cost: mean interval
+   1.040 s, **3,334 samples lost per day (3.9%)**, host dt ranging 0.46–1.53 s. Now paced
+   on `time.monotonic_ns()` against an absolute schedule, and printed from integer
+   arithmetic. Ticks land within 1.000–1.004 s.
+
+### The ODR sweep — where the obvious move was the wrong one
+
+The instinct was to raise the accelerometer's output data rate so all ~250 reads/s are
+fresh samples. Backwards: the noise is flat in density, so per-sample σ grows as √ODR
+while the usable sample count is capped by the read loop. What matters is how far a
+small added signal moves the reported RMS out of its own tick-to-tick scatter,
+∝ 1/(2·level·scatter). Swept live, 91 ticks each, on `ay`:
+
+| ODR | level (m/s²) | tick scatter | relative detectability |
+|---|---|---|---|
+| 52 Hz | 0.00863 | 0.00109 | 53k |
+| **104 Hz** | 0.00926 | 0.00077 | **70k** |
+| 208 Hz | 0.01283 | 0.00084 | 46k |
+| 416 Hz | 0.01792 | 0.00110 | 25k |
+
+52 Hz wins on `az` and ties on `ax`, so the axes disagree at the 1.3× level; **104 Hz**
+breaks the tie because Nyquist 52 Hz keeps the 35–50 Hz energy `analysis/audible.py`
+found in this same M3.3 rather than folding it back into the band. Both extremes are
+clearly worse — 416 Hz costs a factor of ~3.
+
+**Net result: the ODR is unchanged.** 104 Hz is what the driver defaulted to all along.
+It is now set explicitly, so it is a measured choice rather than an inherited one.
+
+### Pressure oversampling
+
+The barometer now runs **×16 pressure / ×2 temperature oversampling, free-running**, and
+the tick averages ~12 reads. The on-chip IIR filter is deliberately **off**: coefficient
+16 would put a ~0.08 Hz corner right inside the 0.02–0.12 Hz undulation band this node
+exists to measure. Averaging in software is a boxcar — it anti-aliases the HVAC lines
+without eating the signal.
+
+Two things were being thrown away before. The log wrote `press_hPa` with two decimals,
+quantising at **exactly 1 Pa**, while the sensor floor measured ~2.3 Pa/√Hz — the format
+string was discarding real resolution. And the oversampling sat at the driver default.
+Measured now: per-read scatter (`p_sd_Pa`) ~1.2–1.6 Pa, so the mean of 12 has a standard
+error of ~0.35 Pa, against ~2.3 Pa/√Hz before. **Predicted** ~4.7× reduction in the
+0.02–0.12 Hz band RMS (0.943 Pa → ~0.20 Pa) — *predicted, not yet confirmed*; it needs a
+day of the new data to measure, and if the band doesn't drop that far, what's left is
+real atmosphere rather than sensor floor. Which would be the more interesting outcome.
 
 **Deploy:** copy `clue/code.py` to the CLUE's `CLUEPY/code.py` (CircuitPython auto-runs it).
 On Linux the CLUE's serial is `/dev/ttyACM0`; on macOS `/dev/cu.usbmodem*`.
@@ -71,7 +156,15 @@ a temp probe on a short lead, *off* the board in the airstream (DS18B20 / remote
 
 Reads the CLUE's stable by-id serial, drops `#` lines, prepends **NTP-UTC** (millisecond),
 appends to a daily CSV `~/env-data/env-YYYY-MM-DD.csv` (schema above, raw values). A
-reconnect loop survives unplug/reset; malformed lines are dropped. Runs as the
+reconnect loop survives unplug/reset; malformed lines are dropped.
+
+It accepts **both** the original 7-field row and the wide 14-field one, writing either
+under the wide header and padding short rows with empty trailing fields — the two
+firmwares can alternate across a CLUE reset or a rollback, and a superset schema keeps
+every row in one file readable by one parser. A day-file carries exactly one header, so
+if the schema changes part-way through a UTC day the old file is renamed
+`env-YYYY-MM-DD.v1.csv` (still matched by the `env-*.csv` glob, still self-describing)
+and a fresh one started. That happened once, on 2026-09-05. Runs as the
 **`env-logger`** systemd service (`enabled`, `Restart=always`).
 
 Deploy on pi4env: venv at `~/env_node/.venv` (`pip install pyserial`), copy `env_logger.py`
