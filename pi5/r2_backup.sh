@@ -34,17 +34,33 @@ ARCHIVE="${SEISMO_ARCHIVE:-$HOME/seismo-archive}"
 PREFIX="${SEISMO_R2_PREFIX:-archive}"
 BWLIMIT="${SEISMO_R2_BWLIMIT:-2M}"
 LOCK="/tmp/seismo-r2-backup.lock"
-NTFY_ENV="$HOME/.config/seismo/ntfy.env"
+# Two conventions in this project and they disagree: pi5's services read
+# /etc/seismo/ntfy.env (root:charles 640, see seismo-detector.service), while
+# reharvest.py on the Mac reads ~/.config/seismo/ntfy.env. Search both, pi5 first --
+# guessing one would have left this script silently unable to alert on the very host it
+# runs on, which is the exact failure mode the alerting exists to prevent.
+NTFY_ENV="${SEISMO_NTFY_ENV:-}"
+if [ -z "$NTFY_ENV" ]; then
+  for c in /etc/seismo/ntfy.env "$HOME/.config/seismo/ntfy.env"; do
+    [ -r "$c" ] && { NTFY_ENV="$c"; break; }
+  done
+fi
+# Backup chatter arguably does not belong on the earthquake channel, but the ntfy token
+# is topic-scoped: seismo-ops returns 403, seismo-alerts 200 (checked at deploy, 09-07).
+# So default to whatever the env file says and leave the override for later -- moving it
+# needs a token grant on the ntfy side first, and a notifier that 403s silently is worse
+# than one on a slightly wrong channel.
+R2_TOPIC="${SEISMO_R2_NTFY_TOPIC:-}"
 
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
 # ntfy.mcguinness.ai sits behind Cloudflare, whose browser-integrity check rejects
 # requests without a named User-Agent -- same reason reharvest.py sets one.
 notify() {   # notify <title> <body> [priority] [tags]
-  [ -f "$NTFY_ENV" ] || { log "[ntfy skipped] $1: $2"; return 0; }
+  [ -n "$NTFY_ENV" ] && [ -r "$NTFY_ENV" ] || { log "[ntfy skipped] $1: $2"; return 0; }
   # shellcheck disable=SC1090
   set +u; . "$NTFY_ENV"; set -u
-  local url="${SEISMO_NTFY_URL:-}" topic="${SEISMO_NTFY_TOPIC:-}" tok="${SEISMO_NTFY_TOKEN:-}"
+  local url="${SEISMO_NTFY_URL:-}" topic="${R2_TOPIC:-${SEISMO_NTFY_TOPIC:-}}" tok="${SEISMO_NTFY_TOKEN:-}"
   [ -n "$url" ] && [ -n "$topic" ] || { log "[ntfy unconfigured] $1: $2"; return 0; }
   curl -fsS -m 20 -X POST "$url/$topic" \
     -H "User-Agent: seismo-r2-backup/1.0" \
