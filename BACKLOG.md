@@ -1425,13 +1425,22 @@ above the geophone's ~4 mm/s saturation, and PGA/PGV/instrumental intensity line
 line against NP.1835's ShakeMap entry. Noise ~1 mm/s^2 RMS in 1-15 Hz: M3+ within 20 km
 is clean, M2.5 at 40 km is at the floor. After the injector build; both want the bench.
 
-## Environmental node — confirm the pressure improvement (opened 2026-09-05)
+## Environmental node — pressure improvement CONFIRMED, and it was the interesting outcome (closed 2026-09-07)
 
-The ×16 oversampling + 12-read averaging went live 2026-09-05 ~10:00 UTC. **Predicted**
-0.02–0.12 Hz band RMS 0.943 Pa → ~0.20 Pa. Re-measure once a full day of wide-schema
-data exists and write the *measured* number into `env_node/README.md`, replacing the
-prediction. If it doesn't drop that far, the residual is real atmosphere, not sensor
-floor — which is the more interesting answer and points straight at the microbarom work.
+Measured: 1.76× on the white floor, 1.31× in the 0.02–0.12 Hz band, against a predicted
+4.7×. Real (below all 41 pre-fix days) but a third of the claim. The residual **is** real
+atmosphere: ~0.77 Pa of the 0.86 Pa per-sample noise is correlated fluctuation that
+averaging cannot reduce, against ~0.38 Pa of sensor. Written up in `env_node/README.md`.
+
+Two things fell out of it:
+
+- **Two barometers side by side** would settle the 0.38/0.77 split properly — coherent
+  between them is atmosphere, incoherent is sensor. Currently an inference, not a
+  measurement. A second BMP280/BMP581 is a few dollars.
+- **The BMP280 is in FORCED mode, not the MODE_NORMAL the firmware sets**, and the boot
+  log claims the assignment succeeded. Registers confirm oversampling and IIR took, so
+  only `mode` failed. Costs read throughput (~12 press/s, ~250 accel/s) but not
+  correctness. Cause unknown.
 
 ## Environmental node — use the new envelope columns (opened 2026-09-05)
 

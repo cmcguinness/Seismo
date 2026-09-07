@@ -125,50 +125,48 @@ without eating the signal.
 Two things were being thrown away before. The log wrote `press_hPa` with two decimals,
 quantising at **exactly 1 Pa**, while the sensor floor measured ~2.3 Pa/√Hz — the format
 string was discarding real resolution. And the oversampling sat at the driver default.
-Measured now: per-read scatter (`p_sd_Pa`) ~1.2–1.6 Pa, so the mean of 12 has a standard
-error of ~0.35 Pa, against ~2.3 Pa/√Hz before. **Predicted** ~4.7× reduction in the
-0.02–0.12 Hz band RMS (0.943 Pa → ~0.20 Pa) — *predicted, not yet confirmed*; it needs a
-day of the new data to measure, and if the band doesn't drop that far, what's left is
-real atmosphere rather than sensor floor. Which would be the more interesting outcome.
 
-**Deploy:** copy `clue/code.py` to the CLUE's `CLUEPY/code.py` (CircuitPython auto-runs it).
-On Linux the CLUE's serial is `/dev/ttyACM0`; on macOS `/dev/cu.usbmodem*`.
+### MEASURED 2026-09-07, replacing the prediction — and the prediction was wrong
 
-### Temperature is self-heated — use DELTAS, not the absolute value
+I predicted ~4.7× in the 0.02–0.12 Hz band (0.943 → ~0.20 Pa). Measured on a full
+post-fix day against 41 pre-fix days:
 
-The `temp_C` channel (BMP280, **on the CLUE PCB**) reads the board's own self-heat,
-conducted from the nRF52840 + regulators through the copper — **not** ambient air.
-Measured 2026-07-25 on the desk: it holds a steady **~31.7 °C** equilibrium (was
-~32.4 °C sealed; backlight-off + face-down bought ~1 °C; a case redesign putting the
-Pi 4 inside and the CLUE on top *in moving air* changed it essentially not at all,
-~31.7 °C). Conduction across the PCB dominates; airflow over the top can't beat it,
-so no enclosure geometry fixes the absolute reading — the board simply feels warm to
-the touch.
+| | pre-fix (41 days) | post-fix | gain |
+|---|---|---|---|
+| white floor near Nyquist | median 2.10 Pa/√Hz (1.58–2.24) | **1.22** | 1.76× |
+| 0.02–0.12 Hz band RMS | median 0.938 Pa (0.891–1.065) | **0.746** | 1.31× |
 
-The offset is roughly **constant**, so it subtracts out: **for the thermal-settling
-correlation (does temperature swing track the 0.02–0.12 Hz undulation) only the
-deltas matter, and those are valid.** The absolute number is *not* garage temperature
-and should not be used as such. Pinning the offset to a real °C would need a reference
-thermometer beside the board (not done — we don't need it). True ambient would require
-a temp probe on a short lead, *off* the board in the airstream (DS18B20 / remote SHT31).
+The improvement is real — the post-fix day is below **all 41** pre-fix days on both
+measures — but it is a third of what I claimed. The control matters here: pre-fix band
+RMS varied only ±8 % across six weeks of different weather, and a quantity that barely
+moves while the weather does was dominated by a constant, i.e. the floor.
 
-## `host/env_logger.py` — the Pi 4 host logger (DONE, running on pi4env)
+**Why it stopped at 1.76×, measured rather than guessed.** Querying the chip over the
+CircuitPython REPL: `ctrl_meas` = 0x54 (osrs_t ×2, osrs_p ×16, both as set) and `config`
+= 0x00 (0.5 ms standby, IIR off, both as set). So the oversampling is real. Per-sample
+noise is now 1.22 × √0.5 = **0.86 Pa**, but ~12 reads of ~1.3 Pa scatter should give
+1.3/√12 = **0.38 Pa**. The missing part is not sensor noise:
 
-Reads the CLUE's stable by-id serial, drops `#` lines, prepends **NTP-UTC** (millisecond),
-appends to a daily CSV `~/env-data/env-YYYY-MM-DD.csv` (schema above, raw values). A
-reconnect loop survives unplug/reset; malformed lines are dropped.
+    sqrt(0.86^2 - 0.38^2) = 0.77 Pa of REAL pressure fluctuation
 
-It accepts **both** the original 7-field row and the wide 14-field one, writing either
-under the wide header and padding short rows with empty trailing fields — the two
-firmwares can alternate across a CLUE reset or a rollback, and a superset schema keeps
-every row in one file readable by one parser. A day-file carries exactly one header, so
-if the schema changes part-way through a UTC day the old file is renamed
-`env-YYYY-MM-DD.v1.csv` (still matched by the `env-*.csv` glob, still self-describing)
-and a fresh one started. That happened once, on 2026-09-05. Runs as the
-**`env-logger`** systemd service (`enabled`, `Restart=always`).
+correlated across the reads inside one tick, because it is genuine physics below 0.5 Hz,
+so averaging cannot touch it. **The channel is now atmosphere-limited, not
+sensor-limited** — the BMP280 contributes about 20 % of the remaining variance, and more
+oversampling would buy almost nothing. Going lower means attacking the fluctuation
+itself, which is exactly what real microbarographs do with a sealed reference volume and
+a slow leak.
 
-Deploy on pi4env: venv at `~/env_node/.venv` (`pip install pyserial`), copy `env_logger.py`
-+ `env-logger.service` (install commands in the service file's header).
+**Caveat on that split:** one barometer cannot prove which part is real. The definitive
+test is two sensors side by side — coherent between them is atmosphere, incoherent is
+sensor noise. Until that is run, the 0.38/0.77 division is an inference from the reported
+within-tick scatter, not a measurement.
+
+**An open bug found in the same query:** the driver reports `mode` = 1 (MODE_FORCE), not
+the MODE_NORMAL the firmware sets, and the boot log said the assignment succeeded. In
+FORCED mode every read triggers its own conversion and blocks ~43 ms, which is why
+`n_press` sits at ~12/s and `n_acc` at ~250 rather than higher. It does NOT invalidate
+the noise result — forced reads are independent conversions, which is what the
+arithmetic above assumes — but the cause is not yet understood.
 
 ## In the feed: `SS.OAKM1.20.LDO`
 
