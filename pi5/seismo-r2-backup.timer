@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily off-site archive backup to R2
+Documentation=https://github.com/cmcguinness/Seismo
+
+[Timer]
+# 11:20 UTC = 04:20 PDT. Well after the UTC day-file closes at 00:00Z, and in the
+# quiet hours so the upload does not compete with the apps02 feed during the day.
+OnCalendar=*-*-* 11:20:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+Unit=seismo-r2-backup.service
+
+[Install]
+WantedBy=timers.target

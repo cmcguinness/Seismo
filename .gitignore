@@ -28,6 +28,18 @@ reports/spec65/
 # FastHTML session-signing secret (auto-generated at runtime; never commit)
 .sesskey
 
+# Credentials. THIS REPO IS PUBLIC (since 2026-09-02) -- .env holds the R2 access key
+# and secret, and was untracked-but-unignored until 2026-09-07, i.e. one `git add -A`
+# away from being published. Anything matching these patterns must never be committed;
+# if one ever is, rotate the key first and rewrite history second -- in that order,
+# because the push is what leaks it.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
 # Pixelmator source for doc images (large; JPEG export is the tracked asset)
 *.pxd
 

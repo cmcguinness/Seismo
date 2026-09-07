@@ -1,0 +1,15 @@
+[Unit]
+Description=Seismo off-site archive backup to Cloudflare R2
+Documentation=https://github.com/cmcguinness/Seismo
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=charles
+WorkingDirectory=/home/charles/seismo-src
+ExecStart=/home/charles/seismo-src/pi5/r2_backup.sh
+# The first run backfills ~10 GB at 2 MB/s (~80 min); leave room for a slow night.
+TimeoutStartSec=21600
+Nice=10
+IOSchedulingClass=idle
