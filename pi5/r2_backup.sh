@@ -107,17 +107,24 @@ dest="R2:${R2_BUCKET_NAME}/${PREFIX}"
 log "copy $ARCHIVE -> $dest (bwlimit $BWLIMIT)"
 
 # --min-age 25h: the current UTC day's file is still being written, and a file that
-#   closed at 00:00Z is only hours old. 25h guarantees we only ship closed days.
-# --immutable: error out if a file already uploaded has changed locally. Day-files are
-#   append-then-frozen, so a change means something is wrong and we want to hear about
-#   it rather than quietly overwrite the good copy.
+#   closed at 00:00Z is only hours old. 25h guarantees we only ship closed days. In
+#   practice a day-file's last write IS the 00:00Z close and the timer runs at 11:20Z,
+#   so each file goes up ~35 h after closing -- a day later than you would guess.
+# --ignore-existing, NOT --immutable: the bucket lock (180 d retention on archive/,
+#   verified 2026-09-07 returning ObjectLockedByBucketPolicy 409) means an overwrite is
+#   refused by the server. If the station is offline for two days and the collector's
+#   hourly backfill later merges records into a day-file we have ALREADY uploaded,
+#   rclone would retry that overwrite every night and fail every night -- a red light
+#   that can never clear, for a file the lock will not release for 180 days. Skipping
+#   existing objects makes the copy idempotent against the lock. The divergence that
+#   would have caused is caught below instead, and reported rather than retried.
 # --ignore-checksum is NOT set: R2 returns MD5 etags for single-part uploads, so let
 #   rclone verify. The archive is small enough that correctness beats speed.
 set +e
 out=$(rclone copy "$ARCHIVE" "$dest" \
         --include "*.mseed" \
         --min-age 25h \
-        --immutable \
+        --ignore-existing \
         --transfers 2 --checkers 4 \
         --bwlimit "$BWLIMIT" \
         --retries 3 --low-level-retries 10 \
@@ -131,6 +138,24 @@ set -e
 remote_n=$(rclone size "$dest" --json 2>/dev/null | sed -n 's/.*"count":\([0-9]*\).*/\1/p' || echo "?")
 local_n=$(find "$ARCHIVE" -name '*.mseed' -mmin +1500 | wc -l | tr -d ' ')
 log "ok: $remote_n objects at $dest, $local_n closed day-files local"
+
+# --ignore-existing means a locally-grown day-file is silently NOT re-uploaded, so the
+# remote copy of that day would be quietly stale. Check for it explicitly: any closed
+# file whose local size exceeds the backed-up one is a day we hold more of than R2 does.
+# Nothing can be done about it while the lock holds -- that is the deliberate trade --
+# but it must be visible, because "the backup is incomplete for 2026-09-05" is exactly
+# the kind of thing you want to learn now rather than during a restore.
+set +e
+diverged=$(rclone check "$ARCHIVE" "$dest" \
+             --include "*.mseed" --min-age 25h --size-only --one-way \
+             --log-level ERROR 2>&1 | grep -c "sizes differ")
+set -e
+if [ "${diverged:-0}" -gt 0 ]; then
+  log "WARNING: $diverged day-file(s) larger locally than in R2 (lock prevents update)"
+  notify "R2 backup stale for $diverged day(s)" \
+    "Local day-files grew after upload; the 180 d lock refuses the overwrite. Those days are backed up in their earlier, shorter form." \
+    default warning
+fi
 
 # Silence means healthy, so the two ways this can fail quietly both have to speak up.
 # A new day-file appears every day; if the remote count stops tracking the local count
