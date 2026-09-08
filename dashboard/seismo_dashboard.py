@@ -615,6 +615,34 @@ BFCACHE_JS = r"""<script>
 </script>"""
 
 
+# Cloudflare Web Analytics, PUBLIC COPY ONLY. The beacon is browser-executed JS, so it
+# counts renders rather than requests -- bots that do not run JS never appear at all,
+# which is the structural version of the reader/crawler heuristics in the log pipeline.
+#
+# Deliberately NOT on the LAN copy: pi5 is reachable only from the house, so every hit
+# there would be Charles, and separating exactly that traffic out of the visitor numbers
+# was the whole point of the 2026-09-08 rewrite. Poisoning a fresh dataset with it on
+# day one would be a poor start.
+#
+# It REPLACES nothing. The nginx-log pipeline (Seismo-private/apps02/visitors.py) keeps
+# running: the beacon UNDERcounts, because ad blockers list cloudflareinsights.com and
+# this audience is technical, while the log OVERcounts because bots are in it. Floor and
+# ceiling; the gap between them is the interesting number.
+#
+# The token is a site identifier, not a credential -- it sits in the page source of every
+# site using Web Analytics, so it is public by construction and fine in a public repo.
+#
+# Verbatim from Cloudflare, type='module' and all. I had swapped in `defer`, which is
+# equivalent for a classic script and NOT equivalent if the beacon ships as an ES
+# module -- it would have failed silently, and a silently dead beacon reads exactly
+# like a site nobody visits.
+CF_BEACON = (
+    "<!-- Cloudflare Web Analytics -->"
+    "<script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' "
+    "data-cf-beacon='{\"token\": \"3551f2a70a4e42ee93d40c896771e6d7\"}'></script>"
+    "<!-- End Cloudflare Web Analytics -->") if _PUBLIC_COPY else ""
+
+
 def _shell(title, active, body, script="", narrow=False):
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
@@ -623,7 +651,7 @@ def _shell(title, active, body, script="", narrow=False):
         + '<div class="frame">' + _rail(active)
         + f'<main class="stage{" stage-narrow" if narrow else ""}">'
         + body + STAGE_FOOT + '</main></div>'
-        + script + VITALS_JS + BFCACHE_JS + '</body></html>'
+        + script + VITALS_JS + BFCACHE_JS + CF_BEACON + '</body></html>'
     )
 
 
