@@ -374,7 +374,7 @@ def main():
             # cost ~2 s each -- 14 minutes of CPU for 367 events, because every copy
             # duplicates a 26 MB trace to use 2 minutes of it. Same lesson as
             # heli_build: decode the span you need, not the file it lives in.
-            st = obspy.read(path, starttime=o - 95, endtime=o + ts + 27)
+            st = obspy.read(path, starttime=o - 305, endtime=o + ts + 27)
             if not len(st):
                 continue
             st.merge(method=1, fill_value="interpolate")
@@ -400,8 +400,41 @@ def main():
             s = band_rms(sig[0], lo, hi, uvpc, sigmask)
             m[f"pre_{name}"], m[f"sig_{name}"] = n, s
             m[f"r_{name}"] = s / n if n and np.isfinite(n) and n > 0 else float("nan")
-        # 1-15 Hz combined excess = the "did we see it" number
-        pre15 = band_rms(pre[0], 1.0, 15.0, uvpc)
+        # 1-15 Hz combined excess = the "did we see it" number.
+        #
+        # THE NOISE LEVEL IS A MEDIAN OVER MANY WINDOWS, not one window (2026-09-08).
+        # It used to be a single 75 s stretch at o-90..o-15, and cultural noise here is
+        # non-stationary enough that a quiet minute before an event inflated snr for
+        # reasons having nothing to do with the ground. Found via eventcheck.py calling
+        # a 252 km non-detection "AMBIGUOUS p = 0.011" in four bands at once, because
+        # its null was drawn from one such lull; audited across every catch in
+        # analysis/catch_audit.py, which reproduces the old numbers to 0.3% median error
+        # and then re-decides them. Effect: 46 of 54 auditable catches survive, 2 of the
+        # 36 published confirmed drop, validated reach unchanged at 88.6 km.
+        #
+        # Deliberately surgical. ONLY the 1-15 Hz level feeding snr/snr_rms/seen moves;
+        # the per-band pre_lo/pre_mid/pre_hi and the r_* ratios are left on the single
+        # window because they are the trigger classifier's inputs, and shifting a
+        # feature definition is a retrain, not a bug fix. pre_1_15_win keeps the old
+        # value so the two are comparable in the same row.
+        #
+        # This does NOT touch resid_log10, which is peak-vs-prediction and never saw the
+        # noise level -- the calibration's amplitudes are unchanged. What does change is
+        # WHICH events are confirmed, and so which ones the calibration averages over.
+        pre15_win = band_rms(pre[0], 1.0, 15.0, uvpc)
+        _lv = []
+        _t = -300.0
+        while _t + 75.0 <= -15.0:
+            try:
+                _w = st.slice(o + _t, o + _t + 75.0)
+                if len(_w) and _w[0].stats.npts > 1024:
+                    _v = band_rms(_w[0], 1.0, 15.0, uvpc)
+                    if np.isfinite(_v) and _v > 0:
+                        _lv.append(_v)
+            except Exception:
+                pass
+            _t += 75.0
+        pre15 = float(np.median(_lv)) if len(_lv) >= 3 else pre15_win
         sig15 = band_rms(sig[0], 1.0, 15.0, uvpc, sigmask)
         # PEAK-based SNR is the detection number. RMS over the whole 32 s signal
         # window dilutes a ~10 s burst by ~2x and made an M1.2 at 18 km score 1.33.
@@ -434,7 +467,8 @@ def main():
             "origin": iso, "mag": round(float(p["mag"]), 2),
             "place": p.get("place", ""), "dist_km": round(dist, 1),
             "depth_km": round(float(c[2] or 0), 1), "fs": fs, "epoch": ep,
-            "pre_1_15": round(pre15, 3), "sig_1_15": round(sig15, 3),
+            "pre_1_15": round(pre15, 3), "pre_1_15_win": round(pre15_win, 3),
+            "sig_1_15": round(sig15, 3),
             "snr": round(snr, 2), "snr_rms": round(snr_rms, 2),
             "peak_1_15": round(peak15, 3),
             "az_deg": round(az, 1), "az": COMPASS[int((az + 11.25) % 360 // 22.5)],
