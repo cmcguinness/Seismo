@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-05 (UTC)_
+_Last updated: 2026-09-06 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -20,13 +20,14 @@ all counted. Noise floor 1–15 Hz ~0.8 µV RMS on a quiet night, ~3.5 µV after
 
 **Calibration.** Reads ~3.2× quieter than the 28.8 V/(m/s) nameplate (five anchors vs
 USGS NP.1835 1.6 km away, median 3.26×, fixed-path scatter ~1.4×). Vp 5.19 km/s
-measured. **35 catalog-confirmed events, validated range 88.8 km** (M3.8 San Leandro);
+measured. **36 catalog-confirmed events, validated range 88.6 km** (M3.8 San Leandro);
 biggest earthquake M4.2 Cloverdale (07-29); **biggest signal the M3.3 under
 Larkfield-Wikiup at 13.3 km (09-03), 6,843 µV in 1–15 Hz, felt in the house**
 (USGS revised it from M3.54/12.4 km/7.4 km on 09-04; the closest M2.5+ by 3×, though
-four smaller catches are nearer); furthest
-recorded (but deliberately **not fitted** — enforced by `EXCLUDE_FROM_FIT`, not left to a
-filter a magnitude revision can flip) the M4.8 off Petrolia at 319 km (08-29). Closest:
+four smaller catches are nearer); **furthest recorded the M4.4 184 km W of Ferndale at
+402 km (08-31)**, then the M4.8 off Petrolia at 319 km (08-29) — both deliberately **not
+fitted**, enforced by `EXCLUDE_FROM_FIT` rather than left to a filter a magnitude
+revision can flip. Closest:
 the M1.8 at 2.8 km (08-29). Felt reports: Middletown M2.6 (09-02) and Larkfield-Wikiup,
 both DYFI MMI II. Detection map:
 `dashboard/catches/detection-range-map.png`, with its headline numbers in the `.json`
@@ -104,6 +105,191 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 📡 THE FURTHEST CATCH SAT 1.5 km OUTSIDE THE NET (event 2026-08-31, found 09-06)
+
+**The finding.** The M4.4 184 km W of Ferndale, 2026-08-31 08:36:48Z, **402.1 km NW — the
+furthest thing this station has recorded**, beating Petrolia's 319 km with a magnitude
+0.4 units smaller. Pn onset lands at **+55.8 to +57.8 s against an iasp91 prediction of
++56.0 s** at low detection thresholds. (Swept across 12 noise-window/percentile choices
+the estimate spans +55.8 to +63.3 s: the p99.9 thresholds do not cross until the Lg at
+~62 s. A first pass quoted "+56.2 s, a 0.2 s residual" from one configuration — that was
+cherry-picked precision and the honest figure is ±2 s.) The envelope holds above p99 from
+continuously to ~+132 s, restructuring at ~+100 s where S arrives, and peaks at
+**+109.7 s at 4.29×** the floor — 3.66 km/s apparent, i.e. Sg/Lg. Sustain 11.0 s, longer
+than any fitted catch (those run 3.4–7.9 s). Origin was 01:36 PDT, cultural noise at its
+overnight minimum. Figures: `analysis/2026-08-31-ferndale-m4.4.png` and
+`…-spectrogram.png`.
+
+**Why nothing found it.** Two independent reasons, both fixed-parameter blindness rather
+than anything about the event. First, `reharvest.py` searched a **400 km** radius and the
+event is at 402.1 — it was never in `event_harvest.csv` at all, and had it been appended
+by hand the weekly run would have deleted it again. Radius is now 450, with the rule
+written down: *the search radius must always exceed the furthest catch.* Second, the
+harvest scores every event in a fixed **1–15 Hz** band; at this distance the 5–15 Hz half
+is pure noise and dilutes it to **snr 2.04**, below the 3.0 the calibration set wants.
+`eventcheck.py` has the identical defect — it reports NOT DETECTED at its default 2–15 Hz
+and LIKELY DETECTED at 2–5 Hz on the same waveform.
+
+**Did the low frequencies survive 402 km?** Partly, and the limit is the sensor rather
+than the path. Time-median-normalised spectrogram, peak vs the pre-event p99 in the same
+band: 2–5 Hz **59.5× vs 7.2×**, 1–2 Hz **23.2× vs 2.1×**, 0.5–1 Hz **4.4× vs 2.3×**,
+0.2–0.5 Hz **3.0× vs 3.1× — nothing**. So there is signal down to about 0.5 Hz and none
+below it. But a 4.5 Hz geophone rolls off as f² below corner: ~20× down at 1 Hz, ~81× at
+0.5 Hz. Over 402 km the earth attenuates the highs and preserves the lows, so the ground
+almost certainly delivered more energy at 1 Hz than at 4 Hz and the instrument discarded
+most of it. **The band that looks best in that table is the band the geophone is good at,
+not the band the earthquake delivered.** Recovering the rest means deconvolving the
+response — which is exactly the thing `f0` and `zeta` control and exactly the thing still
+guessed. First event where the missing calibration has cost data rather than precision.
+
+**The honest counterweight.** The automatic detector does not see this in its own band,
+and its residual is **−1.43 dex** — 27× below textbook, worse than Petrolia's −1.12. The
+identification rests on arrival time, sustain and the spectrogram, not on amplitude —
+the same epistemology as Petrolia, which is why it joins it in `EXCLUDE_FROM_FIT` rather
+than the calibration set. A single far-field point would reshape every ring on the map.
+
+**What was done.** Radius 400 → 450 in `reharvest.py`; origin added to `EXCLUDE_FROM_FIT`
+with the reasoning inline; the harvested row appended to `event_harvest.csv`;
+`catches_data.py` re-run, so it appears on the catches page flagged *not in fit*
+(38 rows now). The fit itself is untouched — still 36 confirmed, 88.6 km. (That pair was
+already stale in this file as 35 / 88.8; corrected above.)
+
+**The obvious follow-up, run the same day: are there other far catches hidden by the same
+fixed band? No — zero.** `r_lo` (the harvest's 1–5 Hz ratio) is already computed for every
+row, so this needed no new data. Over the 496 far rows (>150 km) the far-field null is
+r_lo p99 = 2.11; at that threshold plus sustain ≥ 2 and lo_hi ≥ 1 exactly **one** row
+changes verdict, and it is an **M0.7 at 253 km reading +3.07 dex — 1,170× LOUDER than
+predicted**, i.e. a cultural transient that happened to fall in the arrival box. Worse,
+**Ferndale itself (r_lo 2.08) falls below that threshold**: the re-score does not recover
+the event that motivated it. Dropping to p97 to catch it admits 10 candidates; testing
+all 10 against their predicted Pn (2–5 Hz, 2 s RMS envelope) kills 8 outright (|Δt|
+21–45 s), and the ninth — an M2.1 at 394 km — matches to +7.0 s but reads +1.27 dex,
+which for an M2.1 at 394 km is impossible and is consistent with the ~8 % chance a random
+transient lands within ±8 s of a prediction inside a 200 s search window. **Net: no
+hidden far catches.** (A first pass concluded from this that "the band was never the
+binding constraint." That was wrong, and the next section is why: `r_lo` is a *window
+mean* over the whole arrival box, which is not the statistic that found Ferndale.)
+
+**But the sweep handed over a free discriminator.** All 8 noise candidates read
+**resid > +1.1**; both genuine far catches read negative (Ferndale −1.43, Petrolia −1.12).
+A real far-field detection must read *quieter* than textbook — the geophone's rolloff
+guarantees it — so anything at range reading louder than predicted is by construction not
+the earthquake. That single rule kills 8 of 10 with no waveform access at all. Their
+sustain is the same tell: 17–25 s against 3.4–7.9 s for every real catch, because long
+sustain at distance is background, not an arrival. Worth encoding in
+`harvest_events.py` as a far-field sanity gate.
+
+**THE DETECTION BAND IS WRONG EVERYWHERE, NOT JUST AT RANGE — AND BY 4.6×.** Scored with
+the right statistic (peak of a 2 s RMS envelope over the arrival box, vs the pre-event
+p99) across the 38 confirmed events with a local day-file, against a 300-window empirical
+null drawn from the same archive and scored identically:
+
+| band | null p99 | median event SNR | discrimination |
+|---|---|---|---|
+| 2–15 Hz *(current)* | 5.12 | 2.1 | **0.41×** |
+| 1–15 Hz | 5.07 | 2.1 | 0.41× |
+| **2–5 Hz** | **3.41** | **6.5** | **1.90×** |
+| 1–5 Hz | 3.36 | 5.5 | 1.64× |
+| 1–8 Hz | 4.42 | 5.5 | 1.25× |
+
+**In the current band the median confirmed catch scores below the null's 99th
+percentile** — the detector's own statistic cannot separate the typical catch from an
+empty window. 5–15 Hz carries almost no earthquake and a lot of cultural noise, so
+dropping it *lowers the false-positive ceiling* (5.12 → 3.41) at the same time as it
+raises the signal; the gain is real on both ends and is not an artifact of a quieter
+floor. 2–5 Hz wins outright on 18 of 38 events (1–8 Hz on 12, 1–5 on 4, the current band
+on one) and has the best median at every distance. Independent confirmation from
+`eventcheck.py`'s own same-shape null, which already corrects for band noise: Ferndale
+scores 13/75 (p = 0.18) at 2–15 Hz and 0/75 (p = 0.013) at 2–5 Hz.
+
+**Changed so far:** `eventcheck.py`'s default band, 2–15 → 2–5, with the table inline.
+That tool self-calibrates its null, so the change is self-contained.
+
+**How much of this is overfitting?** Asked and measured, because five bands were chosen
+on the same 38 events they were then reported on. Split-half over 400 draws — band picked
+on one half, scored on the other, null also split — puts the selection optimism at
+**3.4 pp mean, 10.5 pp p90**, against a 42 pp effect. It survives **dropping Ferndale**
+(the event that motivated the hypothesis): 62.2 %. It survives **dropping every far
+event**: 61.1 % near-field-only. So the effect is not selection noise and not a far-field
+artifact. **But the band EDGES are overfit** — split-half picks 2–5 only 51 % of the time,
+and 3–6 / 1.5–4 / 1–5 all sit inside the optimism gap. The honest claim is *"something
+narrow in ~1.5–6 Hz"*; 2–5 is a representative of that region, not a fitted optimum.
+
+**And the whole winning region lies below the 4.5 Hz corner** — which reframes it. The
+win is very likely **noise rejection, not signal capture**: the floor falls 4.77 → 0.55 µV
+because the geophone's f² rolloff suppresses the cultural noise that owns 5–15 Hz. We are
+not finding more earthquake, we are hearing less traffic. Below corner the response varies
+6.25× across the band and its shape is set by `f0` and `zeta`, so this band is right for
+**detection** and wrong for **amplitude**. `resid_log10` feeds the site deficit, the corner
+penalty and the validated range; re-banding *those* would put the calibration at the mercy
+of the response we have not measured. **The shorted-input floor test is what separates a
+genuinely quiet band from an instrument that is simply deaf there** — and the calibrator's
+1/4" jack and plug-in shunt modules exist precisely to make it runnable without a
+soldering iron (`doc/BOM-calibrator.md`, satisfying `rev2-frontend.md`'s design-for-test
+rule). That test now settles a detection question as well as a front-end one.
+
+**Step taken instead of a re-band: instrument the harvest, act on nothing.**
+`harvest_events.py` now emits `pre_det` / `peak_det` / `snr_det` / `sustain_det_s` in
+`DET_BAND` (2–5 Hz) plus a `far_implausible` flag, alongside the existing 1–15 Hz numbers.
+**No verdict changes**; `seen` and `likely` are untouched. Verified gate-safe: `diff_rows`
+compares only mag/dist/depth/seen and `check_gates` only row counts, `n_conf`, reach and
+deficit, so new columns are invisible to the weekly run. On Ferndale the new columns read
+**snr_det 5.31 against snr 2.04** — the detection band clears the `seen` threshold of 5.0
+that the current band misses by 2.5×; `sustain_det_s` 6.38 sits inside the 3.4–7.9 s range
+of real catches where `sustain_s` read 10.97. Revisit the re-band when there are months of
+these rather than one afternoon's 38 events, **and** after the floor test.
+
+**AND THEN THE BAND ARGUMENT WAS THE WRONG ARGUMENT.** Charles, looking at the
+time-median-normalised spectrogram above: *"visually, it's stunningly obvious."* It is —
+and that normalisation is a detector, not a plotting choice. Per-frequency-bin division by
+a running order statistic is **OS-CFAR** in radar/sonar and **spectral whitening** in
+ambient-noise seismology: the frequency-domain cousin of STA/LTA. Scored on the same 38
+events and a 300-window null, same 1 % FPR:
+
+| detector | detection @ 1 % FPR |
+|---|---|
+| current pipeline, 1–15 Hz single-band | 18.4 % |
+| **CFAR, 1–15 Hz — *band-matched, no band choice at all*** | **34.2 %** |
+| best single-band peak-envelope, 2–5 Hz | 60.5 % |
+| CFAR, 2–5 Hz | 71.1 % |
+| **CFAR, 1–8 Hz** | **73.7 %** |
+| CFAR, 0.5–20 Hz | 34.2 % |
+
+**The band-matched row is the one that matters: normalisation alone, band held fixed at
+our own 1–15 Hz, nearly doubles the detector** — and that comparison involves no band
+selection, so none of the overfitting caveats touch it. Integrating too wide hurts
+(0.5–20 Hz collapses to 34 %), so there is a genuine optimum rather than "more frequency
+is better."
+
+**Why it beats everything above on principle, not just on score:** the instrument response
+is a fixed multiplier per frequency and constant in time, so dividing each bin by its own
+time-median **divides the response out exactly. `f0` and `zeta` cancel.** It also deletes
+every persistent line for free — HVAC at 19.3/20/37.65/40.6/41 Hz, the 1.05 Hz
+instrumental line, the 0.1 Hz recorder comb are all in the median. So it is immune to the
+below-corner objection that makes the 2–5 Hz result only provisional, needs no notch
+filters, and needs no calibration we do not have.
+
+**Caveats, honestly:** four spans tried on the same 38 events, so 73.7 % carries the usual
+~3–10 pp selection optimism (34.2 % does not); the null used a fixed 79 s arrival box
+while most event boxes are shorter, which makes these rates *conservative* but is still
+sloppy; and no split-half yet. A live version needs a **trailing** median with a gap so an
+event cannot set its own reference, and bins are correlated so any p-value needs the
+empirical null, not a chi-square.
+
+**This reorders the plan.** CFAR is a better next step than promoting `snr_det`, because it
+is response-agnostic and cannot be wrong for the reason the band result might be. It does
+*not* retire the shorted-input floor test — that still answers whether the front end
+deserves an LNA — it just stops that test from blocking the detection work.
+
+**Still untested, and cheap:** whether either statistic surfaces *near-field* catches
+currently scoring below threshold. The far-field re-score found nothing but used the wrong
+statistic. Given the median known catch sits under the null p99 in the band we detect in,
+it very plausibly does.
+
+**Still open.** `FAR_CONFIRMED` in `detection_map.py` is
+still a singleton dict drawing only Petrolia; the map's far marker is no longer the
+furthest catch.
 
 ## 🌡️ THE WEATHER STATION CAUGHT THE EARTHQUAKE (2026-09-05)
 

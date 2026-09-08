@@ -59,7 +59,45 @@ def main() -> None:
     ap.add_argument("--stalat", type=float, default=STA_LAT)
     ap.add_argument("--stalon", type=float, default=STA_LON)
     ap.add_argument("--gain", type=int, default=64)
-    ap.add_argument("--band", default="2,15", help="bandpass 'fmin,fmax' Hz")
+    # 2-5, not the old 2-15. MEASURED, 2026-09-07, on the 38 confirmed events with a
+    # local day-file plus a 300-window empirical null drawn from the same archive, all
+    # scored with the same statistic (peak of a 2 s RMS envelope over the arrival box,
+    # against the pre-event p99):
+    #
+    #        band     null p99   median event SNR   discrimination
+    #      2-15 Hz      5.12           2.1              0.41x
+    #       2-5 Hz      3.41           6.5              1.90x
+    #       1-8 Hz      4.42           5.5              1.25x
+    #
+    # In 2-15 Hz the MEDIAN CONFIRMED CATCH scores below the null's 99th percentile --
+    # the band was throwing away the events it exists to find. 5-15 Hz carries almost no
+    # earthquake and a great deal of cultural noise, so dropping it lowers the false-
+    # positive ceiling (5.12 -> 3.41) at the same time as it raises the signal. 2-5 Hz
+    # wins on 18 of the 38 events outright and has the best median at every distance.
+    # The effect is dramatic at range -- Petrolia 4.01x -> 28.21x, Ferndale 1.30x ->
+    # 4.78x -- but it is NOT a far-field fix: the near-field median improves 3.1x too.
+    #
+    # ⚠️ THIS BAND IS ALMOST ENTIRELY BELOW THE 4.5 Hz CORNER. Know what that means:
+    #   - The win is NOISE REJECTION, not signal capture. The floor falls 4.77 -> 0.55 uV
+    #     because the geophone's f^2 rolloff suppresses the cultural noise that owns
+    #     5-15 Hz. We are not finding more earthquake; we are hearing less traffic.
+    #   - Response varies 6.25x across 2->5 Hz on that f^2 slope, and its shape near
+    #     corner is set by f0 and zeta -- both still GUESSES in SS.OAKM1.xml. This band
+    #     is therefore fine for DETECTION (is it there, yes/no) and wrong for AMPLITUDE.
+    #     Do NOT re-band harvest_events.py on this evidence: resid_log10 is an amplitude
+    #     comparison feeding the deficit, the corner penalty and the validated range, and
+    #     below corner all of those become hostage to two unmeasured numbers.
+    #   - Whether 2-5 Hz is quiet because the ground is quiet or because the INSTRUMENT
+    #     IS DEAF there is not established. The 1-15 Hz floor is site-limited by ~10x
+    #     (electronics ~0.12 uV vs 1.17-1.5 uV measured, doc/rev2-frontend.md), but the
+    #     ADS1256's 1/f noise rises exactly here and the geophone's noise-equivalent
+    #     GROUND MOTION climbs steeply below f0 even while its output voltage looks
+    #     quiet. The shorted-input floor test is the clean separator; the calibrator's
+    #     1/4" jack + plug-in shunt modules exist to make it runnable without a soldering
+    #     iron (doc/BOM-calibrator.md, satisfying rev2-frontend.md's design-for-test
+    #     rule), and station/capture_raw.py is the capture tool. When it runs, it now
+    #     settles a detection-band question as well as a front-end one.
+    ap.add_argument("--band", default="2,5", help="bandpass 'fmin,fmax' Hz")
     ap.add_argument("--pre", type=float, default=20.0, help="seconds before origin (plot)")
     ap.add_argument("--noise-s", type=float, default=300.0,
                     help="length of the pre-origin window the noise stats come from")

@@ -794,7 +794,10 @@ def _table_row(e):
     key = e["origin"][:19]
     feat = _FEATURED.get(key)
     when = e["origin"][:16].replace("T", "&nbsp;")
-    place = e["place"].replace(", CA", "")
+    # ", California" first: it is not matched by the ", CA" strip (case-sensitive, and
+    # the next char is a lowercase 'l'), so the far-field rows kept their state name
+    # while every local row lost it.
+    place = e["place"].replace(", California", "").replace(", CA", "")
     slug = slug_for(e["origin"])
     # every row links to its own page -- that URL is the shareable thing, and it exists
     # for all 35 whether or not the event has been written up

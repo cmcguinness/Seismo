@@ -78,6 +78,24 @@
    }
   },
   {
+   "origin": "2026-08-31T08:36:48Z",
+   "place": "184 km W of Ferndale, California",
+   "az": "NW",
+   "triggered": false,
+   "in_fit": false,
+   "mag": 4.4,
+   "dist_km": 402.1,
+   "depth_km": 10.0,
+   "peak_uv": 2.3,
+   "floor_uv": 1.11,
+   "snr": 2.0,
+   "tp_s": 56.04,
+   "ts_s": 99.71,
+   "sustain_s": 11.0,
+   "lo_hi": 2.18,
+   "resid_log10": -1.43
+  },
+  {
    "origin": "2026-08-30T08:35:54Z",
    "place": "6 km NW of The Geysers, CA",
    "az": "NNW",

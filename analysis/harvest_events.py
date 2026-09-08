@@ -54,6 +54,56 @@ STA_ELEV_M = 128.3
 # placed the window ~1.4 s early at 45 km.
 VP, VS = 5.19, 3.00
 BANDS = [("lo", 1.0, 5.0), ("mid", 5.0, 15.0), ("hi", 15.0, 45.0)]
+
+# MEASURED, NOT ACTED ON (2026-09-07). Scored as detection rate at a fixed 1 %
+# false-positive rate -- threshold from a 400-window empirical null drawn from this
+# archive, null split so the threshold is not set on the windows it is measured against
+# -- over the 38 confirmed events with a local day-file:
+#
+#     2-5 Hz  60.5 %      3-6 Hz  57.9 %      1.5-4 Hz  57.9 %      1-5 Hz  55.3 %
+#     1-8 Hz  42.1 %      2-8 Hz  39.5 %      1-15 Hz  18.4 %  <-- what we score on now
+#
+# The band we detect in finds 18 % of our own known catches at 1 % FPR. Split-half over
+# 400 draws puts the selection optimism at 3.4 pp mean / 10.5 pp p90, against a 42 pp
+# effect; it survives dropping Ferndale (the event that motivated it) and survives
+# dropping every far event, so it is not selection noise and not a far-field artifact.
+# The precise EDGES are not resolved -- split-half picks 2-5 only 51 % of the time and
+# the top four bands sit inside the optimism gap -- so the honest claim is "something
+# narrow in ~1.5-6 Hz", and 2-5 is a representative of that region, not a fitted optimum.
+#
+# WHY THIS IS ONLY A MEASUREMENT SO FAR. The whole winning region lies at or below the
+# 4.5 Hz corner, where response goes as f^2 and its shape is set by f0 and zeta -- both
+# still guesses in SS.OAKM1.xml. So the win may be NOISE REJECTION (the geophone is deaf
+# to the cultural noise owning 5-15 Hz) rather than signal capture, and below corner an
+# amplitude is scaled by two unmeasured numbers. resid_log10 feeds the site deficit, the
+# corner penalty and the validated range: re-banding THOSE on this evidence would put the
+# calibration at the mercy of the response we have not measured. The shorted-input floor
+# test separates deafness from a genuinely quiet band; the calibrator's 1/4" jack and
+# plug-in shunts exist to make it runnable (doc/BOM-calibrator.md).
+#
+# So: emit the detection-band numbers as columns every week, change no verdict, and
+# revisit once (a) there are months of them rather than one afternoon's 38 events, and
+# (b) the floor test has said which mechanism we are exploiting.
+#
+# PRE-REGISTERED DECISION RULE, written 2026-09-07 BEFORE the data exists, because every
+# metric used to justify this band was chosen after seeing the result it would give.
+# Re-open no earlier than 2026-12-07, and judge ONLY on events with origin > 2026-09-07 --
+# the 38 that formed this hypothesis are spent and may not be reused.
+#
+#   PROMOTE snr_det into the `seen` criterion only if ALL of:
+#     1. held-out detection rate at 1 % FPR >= 45 %, null re-drawn from the same period
+#        (in-sample was 60.5 %, split-half optimism p90 10.5 pp; 45 % is "at least half
+#        the gain survived out of sample");
+#     2. the shorted-input floor test has run and says the sub-corner band is quiet
+#        rather than deaf;
+#     3. the resulting n_conf change clears reharvest.py's existing gate untouched --
+#        if the gate has to be widened to admit it, the answer is no.
+#   ABANDON the band hypothesis if held-out detection < 30 %.
+#   Between 30 % and 45 %: keep measuring, promote nothing.
+#
+# Nothing here licenses touching resid_log10 or anything the calibration reads. That
+# needs f0 and zeta measured, not a detection result.
+DET_BAND = (2.0, 5.0)
 USGS = "https://earthquake.usgs.gov/fdsnws/event/1/query"
 
 # Acquisition epochs — a fit must not straddle these. (start_iso, label, nominal fs)
@@ -360,6 +410,11 @@ def main():
         sustain = band_sustain(sig[0], 1.0, 15.0, uvpc, 0.5 * peak15, mask=sigmask)
         snr = peak15 / pre15 if pre15 > 0 else float("nan")
         snr_rms = sig15 / pre15 if pre15 > 0 else float("nan")
+        # The same three numbers in DET_BAND -- recorded, never acted on. See DET_BAND.
+        pre_det = band_rms(pre[0], *DET_BAND, uvpc)
+        peak_det = band_peak(sig[0], *DET_BAND, uvpc, smooth_s=1.0, mask=sigmask)
+        sustain_det = band_sustain(sig[0], *DET_BAND, uvpc, 0.5 * peak_det, mask=sigmask)
+        snr_det = peak_det / pre_det if pre_det > 0 else float("nan")
         lohi = (m["r_lo"] / m["r_hi"]
                 if m["r_hi"] and np.isfinite(m["r_hi"]) and m["r_hi"] > 0 else float("nan"))
         az = back_azimuth(c[1], c[0])
@@ -399,6 +454,18 @@ def main():
             "triggered": int(triggered),
             **{k: round(v, 3) for k, v in m.items() if np.isfinite(v)},
             "lo_hi": round(lohi, 3) if np.isfinite(lohi) else "",
+            # Unconditional (never omitted on a nan) because `cols` below is taken from
+            # the FIRST row's keys -- a conditional field missing there is missing from
+            # the header, and every later row silently loses it to extrasaction="ignore".
+            "pre_det": round(pre_det, 3) if np.isfinite(pre_det) else "",
+            "peak_det": round(peak_det, 3) if np.isfinite(peak_det) else "",
+            "snr_det": round(snr_det, 3) if np.isfinite(snr_det) else "",
+            "sustain_det_s": round(sustain_det, 2) if np.isfinite(sustain_det) else "",
+            # dist>150 km AND reading LOUDER than textbook is, by construction, not the
+            # earthquake: the f^2 rolloff guarantees a real far catch reads quiet. This
+            # killed 8 of 10 false far candidates on 2026-09-07 with no waveform access
+            # (both real ones: Ferndale -1.43, Petrolia -1.12). A flag, not a filter.
+            "far_implausible": int(dist > 150 and np.isfinite(resid) and resid > 0),
         })
 
     if not rows:

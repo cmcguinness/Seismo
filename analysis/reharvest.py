@@ -217,7 +217,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=30,
                     help="rolling window; every event is re-examined until it ages out")
-    ap.add_argument("--radius", type=float, default=400.0)
+    # 450, not 400: the M4.4 off Ferndale of 2026-08-31 is a catch at 402.1 km and sat
+    # 1.5 km outside the old net, so the weekly run would have deleted it from the CSV
+    # every time it ran. The search radius must always exceed the furthest catch.
+    ap.add_argument("--radius", type=float, default=450.0)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 

@@ -101,7 +101,15 @@ FAR_CONFIRMED = dict(lat=40.450, lon=-125.272, mag=4.84, dist=318.6,
 # the textbook amplitude, it is identified by arrival time rather than amplitude, and a
 # single far-field point would reshape every ring on the map. It is still DRAWN -- see
 # FAR_CONFIRMED above -- just not fitted.
-EXCLUDE_FROM_FIT = {"2026-08-29T02:41:11"}
+# 2026-08-31T08:36:48Z, M4.4, 184 km W of Ferndale, 402.1 km NW, joins it for the same
+# reason and more strongly: Pn onset measured at +56.2 s against an iasp91 prediction of
+# +56.0 s, 11.0 s of sustain (longer than any fitted catch, which run 3.4-7.9 s), and a
+# time-median-normalised spectrogram showing the arrival at 1-5 Hz and nothing below
+# 0.5 Hz. Its residual is -1.43 dex -- 27x below textbook, further proof that beyond
+# ~300 km what survives is Lg in the band this geophone discards. It is not currently
+# in event_harvest.csv at all: it sat 1.5 km outside reharvest.py's 400 km search
+# radius, now widened to 450.
+EXCLUDE_FROM_FIT = {"2026-08-29T02:41:11", "2026-08-31T08:36:48"}
 
 CITIES = [
     ("San Francisco", 37.775, -122.419), ("Sacramento", 38.582, -121.494),
