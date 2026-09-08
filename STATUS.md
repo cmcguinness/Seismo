@@ -291,6 +291,56 @@ it very plausibly does.
 still a singleton dict drawing only Petrolia; the map's far marker is no longer the
 furthest catch.
 
+## 📏 FIXING THE RULER: THE VERDICT MACHINERY AUDITED (2026-09-08)
+
+Prompted by a non-detection. The M3.7 Hydesville (2026-09-07, 252 km) was not recorded,
+but `eventcheck.py` called it "AMBIGUOUS, p = 0.011" in **four different bands** —
+identical p in every band, which was the tell. Chasing it found **three** defects, and
+it is worth separating them because only one produced the wrong verdict:
+
+1. **The null only looked back 300 s.** The genuinely loud stretches that afternoon were
+   five to ten minutes back. Measured: at 300 s the null gives p = 0.002; at 900 s the
+   same data gives **p = 0.131**. The old default was sampling one lull, not the
+   neighbourhood. *(This cuts against an older comment in the file that treated a
+   longer window as instability — right observation, wrong conclusion: the cure for a
+   statistic that moves when you look longer is to look longer still.)*
+2. **The null never looked forward.** Now brackets the event, starting a coda-length
+   after S so it cannot compare the earthquake against its own coda.
+3. **`weak` was an `OR`** — a p-value with *zero* seconds of sustained envelope was
+   enough to print AMBIGUOUS. **This is the one that produced the wrong verdict.** It is
+   now an AND requiring ≥ 1 s, matching what `harvest_events.py` has always demanded.
+
+**Then the audit, `analysis/catch_audit.py`.** The harvest does NOT use eventcheck's
+null — it uses `seen = snr ≥ 5 AND sustain ≥ 2 s`, and that AND is exactly what protects
+it: a quiet lull inflates a ratio but cannot manufacture two seconds of wavetrain. But
+`snr` still divides by a single 75 s pre-origin window, so the exposure was real and
+unmeasured. Re-decided every catch against the **median of windows tiled across
+o−300…o−15** — coda-safe by construction, unlike a bracketing estimate, which can catch
+the event's own coda and drop a real event for being too energetic.
+
+- **Self-check first:** reproducing the harvest's own number with the harvest's own
+  window gives a median error of **0.3 %**; one event of 55 differs by >15 % and is
+  excluded as not auditable. Without this the audit would be measuring my
+  reimplementation rather than the noise level.
+- **46 of 54 survive.** Under the stricter bracketing estimate, 42 — the gap is largely
+  coda self-contamination, which is why the median-pre-origin number is the one quoted.
+- **Of the 36 published confirmed catches, 2 drop:** the M2.83 at 87.9 km (San Leandro,
+  snr 5.09 → 2.28; its pre-origin window read 3.29 µV against a median of 7.35) and the
+  M1.53 at 15.6 km (Larkfield, 6.49 → 4.53).
+- **The validated reach does not move.** It is set by the M2.29 Alameda at 88.6 km, which
+  survives comfortably at 5.16. Confirmed count would go **36 → 34**.
+
+**The audit is measured but NOT applied.** Changing the headline catch count is a
+decision, not a side effect of a bug fix; `harvest_events.py` still uses the single
+pre-origin window. What is fixed is `eventcheck.py`, the diagnostic tool, where the
+wrong verdict actually appeared.
+
+**The general lesson, worth more than the two events.** A p-value from a max-statistic
+can be extreme while the effect is trivial: Hydesville's arrival box genuinely *was* the
+largest same-shape window within ±11 minutes, at a ratio of 1.4× with zero sustain. Rank
+is not effect size. The guard that worked was never the p-value — it was insisting on a
+physical property of an earthquake, that it lasts.
+
 ## 🌡️ THE WEATHER STATION CAUGHT THE EARTHQUAKE (2026-09-05)
 
 **The finding.** The environmental node — the CLUE weather board on the garage floor,

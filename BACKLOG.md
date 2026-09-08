@@ -1450,7 +1450,7 @@ them. Wanted: a check that runs the envelope against the catalogue the way
 rather than inferring it from one event. Needs a few weeks and at least one more felt
 quake before it can say anything.
 
-## eventcheck's empirical null can fire on a quiet lull (opened 2026-09-08)
+## eventcheck's empirical null can fire on a quiet lull (FIXED 2026-09-08)
 
 Found on the M3.7 Hydesville (2026-09-07, 252 km), which we did **not** record.
 `eventcheck.py` returned "AMBIGUOUS, 0/93 noise windows reach it, p=0.011" in **four
@@ -1467,10 +1467,15 @@ This is a false-positive mechanism in the tool every catch decision runs through
 matters more than one event. Cultural noise is strongly non-stationary on a weekday
 afternoon and the current null assumes it is not.
 
-Fix worth doing: draw the null from a window that BRACKETS the arrival (before *and*
-after) rather than only before, or normalise by a running noise level so a lull cannot
-manufacture a ratio. Then re-run the harvest and see whether any existing catch was
-admitted this way — that is the part that actually needs checking.
+**Done.** Null now brackets the arrival, the lookback default went 300 s → 900 s (which
+is what actually fixed the p-value: 0.002 → 0.131 on the offending event), and `weak`
+became an AND requiring ≥1 s sustain (which is what fixed the verdict). Audited with
+`analysis/catch_audit.py`: 46/54 catches survive a median pre-origin noise level, 2 of
+the 36 published confirmed drop, reach unchanged at 88.6 km.
+
+**Still open, deliberately:** `harvest_events.py` has NOT been changed. Applying the
+median noise level would take the confirmed count 36 → 34. That is a decision about the
+headline number, not a bug fix, and it needs Charles.
 
 ## >200 km predictions need their own calibration (opened 2026-09-08)
 

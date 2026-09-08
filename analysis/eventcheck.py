@@ -99,8 +99,14 @@ def main() -> None:
     #     settles a detection-band question as well as a front-end one.
     ap.add_argument("--band", default="2,5", help="bandpass 'fmin,fmax' Hz")
     ap.add_argument("--pre", type=float, default=20.0, help="seconds before origin (plot)")
-    ap.add_argument("--noise-s", type=float, default=300.0,
-                    help="length of the pre-origin window the noise stats come from")
+    ap.add_argument("--noise-s", type=float, default=900.0,
+                    help="how far before origin the null samples (default 900 s; 300 "
+                         "was too short -- see the null comment)")
+    ap.add_argument("--null-post", type=float, default=600.0,
+                    help="seconds after S to keep for the forward half of the null")
+    ap.add_argument("--null-pad", type=float, default=60.0,
+                    help="seconds after the signal boxes before forward null windows "
+                         "start, so the null does not sit on the event's own coda")
     ap.add_argument("--post", type=float, default=0.0, help="seconds after origin (0=auto)")
     ap.add_argument("--no-pull", action="store_true")
     args = ap.parse_args()
@@ -140,7 +146,8 @@ def main() -> None:
     if not matches:
         raise SystemExit(f"no day-file for {origin.year}.{origin.julday:03d} in {LOCAL_DATA}")
     st = read(str(matches[-1]))
-    win = st.slice(origin - max(args.pre, args.noise_s + 20), origin + post)
+    win = st.slice(origin - max(args.pre, args.noise_s + 20),
+                   origin + max(post, tS + args.null_post))
     if not len(win):
         raise SystemExit("NO DATA in the event window (recorder gap at that time?)")
     # The archive is fragmented into many short segments by sub-second timing
@@ -201,6 +208,29 @@ def main() -> None:
     # produces a peak as large. That is a p-value against the null "this is just a
     # quiet-ish stretch of the same noise", it needs no threshold, and it is robust to
     # whatever the neighbourhood happens to be doing.
+    # ...AND THE NULL MUST BRACKET THE EVENT, NOT ONLY PRECEDE IT. Sliding the mask
+    # only BACKWARDS asks "was the last few minutes quieter than this?", and on a
+    # weekday afternoon the answer is often yes for reasons that have nothing to do with
+    # an earthquake. Caught in the wild on 2026-09-07: the M3.7 Hydesville at 252 km,
+    # which we did not record, returned p = 0.011 in FOUR different bands -- identical p
+    # in every band, because the 300 s before origin were the quietest run of the whole
+    # record. Widened to +-15 minutes the arrival ranked 11th of 64 windows. So the null
+    # now slides FORWARD past the coda as well, and a pre-event lull can no longer carry
+    # a verdict on its own.
+    #
+    # The forward windows start a full coda-length after S for the same reason the
+    # backward ones start after the mask: a null window sitting on the event's own coda
+    # is being compared against the earthquake, which is the mirror of the bug above.
+    #
+    # AND THE LOOKBACK HAD TO GROW. Measured on that same Hydesville non-detection: at
+    # the old 300 s default the null gave p = 0.002, and at 900 s it gives p = 0.131,
+    # because the genuinely loud stretches were five to ten minutes back. The old
+    # default was not sampling the neighbourhood's noise, it was sampling one lull.
+    # Note this cuts against a comment above: a longer window was once treated as
+    # INSTABILITY because p99 moved 0.78 -> 2.70 uV between 170 s and 270 s. That was
+    # the right observation and the wrong conclusion -- the short window was the
+    # unrepresentative one, and the cure for a statistic that moves when you look
+    # longer is to look longer still, not to look less.
     idx = np.flatnonzero(smask)
     # The smallest shift that clears the event entirely. For a NEARBY event P lands a
     # second or two after origin, so a fixed 20 s shift leaves the "null" window still
@@ -211,19 +241,31 @@ def main() -> None:
     step = max(1, int(2 * sr))
     off = np.arange(max(k_min, step), int((args.noise_s - 20) * sr), step)
     null = [float(env[idx - k].max()) for k in off if (idx - k).min() >= 0]
+    n_back = len(null)
+    fwd0 = int((args.null_pad) * sr)                       # clear the coda
+    off_f = np.arange(max(k_min, fwd0), int(args.null_post * sr), step)
+    null += [float(env[idx + k].max()) for k in off_f if (idx + k).max() < len(env)]
     n_ge = sum(v >= speak for v in null)
     # With N null windows the smallest reachable p is 1/(N+1), so N must be big enough
     # that a real detection can actually clear the threshold: 18 windows floored p at
     # 0.105 and made "LIKELY DETECTED" unreachable by construction.
     pval = (n_ge + 1) / (len(null) + 1) if null else float("nan")
 
+    # SUSTAIN IS REQUIRED FOR BOTH VERDICTS, not offered as an alternative to the
+    # p-value. The old `weak` was an OR, so a p-value alone -- with the envelope holding
+    # for literally zero seconds -- was enough to print AMBIGUOUS. That is precisely how
+    # the Hydesville non-detection got dressed up as a maybe. harvest_events.py has
+    # always required snr AND sustain together, and the audit in catch_audit.py is why:
+    # a quiet lull inflates a ratio, but nothing except an actual wavetrain produces
+    # seconds of sustained envelope.
     strong = pval <= 0.02 and sustain >= 2.0
-    weak = pval <= 0.10 or sustain >= 2.0
+    weak = pval <= 0.10 and sustain >= 1.0
     verdict = ("LIKELY DETECTED" if strong else
                "AMBIGUOUS" if weak else "NOT DETECTED (signal below floor)")
     print(f"  band {fmin}-{fmax} Hz: noise p99 {n99:.2f} uV, arrival-box peak "
           f"{speak:.2f} uV, ratio {ratio:.2f}x, sustain {sustain:.1f}s")
-    print(f"    empirical null: {n_ge}/{len(null)} same-shape noise windows reach it, "
+    print(f"    empirical null: {n_ge}/{len(null)} same-shape noise windows reach it "
+          f"({n_back} before, {len(null) - n_back} after), "
           f"p={pval:.3f} -> {verdict}")
 
     fig, (a1, a2) = plt.subplots(2, 1, sharex=True, figsize=(11, 7))
