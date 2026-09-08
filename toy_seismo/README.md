@@ -195,3 +195,45 @@ positions) and failed every time with `Corrupt data, expected 0x1000 bytes but r
 board sits behind a Thunderbolt dock's hub tree; macOS's built-in CH34x driver is the
 likely culprit. **Reads corrupt; writes do not** — every `write_flash` passed its
 on-device MD5 check at 460800. So flashing is reliable here and bulk reads are not.
+
+## Live helicorder (`src/main.cpp`)
+
+Polls `/v1/live` on pi5 and scrolls the ground motion. Credentials live in
+`include/wifi_secrets.h`, which is **gitignored** — this repo is public. Copy
+`wifi_secrets.h.example` and fill in SSID/password.
+
+- **One pixel column = `COL_PERIOD_S` seconds**, drawn as a **min/max envelope**, not a
+  decimation: 100 samples share a column at 1 s/col and picking one would alias away
+  exactly the spikes worth seeing. This single constant decides whether the display reads
+  as live (0.05 → 20 px/s, 40 s across) or as a chart recorder (1.0 → 1 px/s, 13.3 min
+  across, which looks *frozen*).
+- **Columns are binned by absolute sample time** from `t_end`, so a Wi-Fi dropout leaves a
+  correct blank gap rather than silently compressing time.
+- **Auto-scale tracks a slow envelope average, not the peak** (`doc/toy-seismometer.md`'s
+  `ENV_FRAC` trick), so a quiet night still shows life and one door slam does not flatten
+  the next ten minutes. Columns that would clip render **red** rather than truncating
+  silently.
+- **Adaptive polling.** pi5 refreshes the window in ~5.5 s blocks; a fixed 2 s poll spent
+  half its fetches pulling 20 KB to learn nothing had changed.
+
+### Four bugs worth not repeating
+
+1. **`http.setReuse(false)` is mandatory.** `seismo_server.py` is a
+   `BaseHTTPRequestHandler` — HTTP/1.0, closes after every response — while HTTPClient
+   defaults to keep-alive and reuses the dead socket, giving an endless `-1 connection
+   refused` cascade.
+2. **Don't hand-roll the body reader.** The first version stream-parsed the array off the
+   socket "to keep memory O(1)". 20 KB against ~130 KB of free internal heap was never
+   the constraint, and the optimisation cost three bugs — a byte-matcher that assumed
+   `"uv":[` when Python's `json.dumps` writes `"uv": [` **with a space**; a non-blocking
+   tail read that missed `t_end` because it arrives *after* the array; and abandoned
+   half-read sockets that pinned server threads against seismo_server's listen backlog
+   of **5**, wedging it for every client. `http.getString()` then parse.
+3. **Use pi5's IP, not its hostname.** The ESP32 resolves via the router's DNS, which does
+   not necessarily know a bare LAN name that the Mac resolves fine.
+4. **The board is 2.4 GHz only** and lands on `192.168.4.x/22` — same subnet as pi5's
+   `192.168.5.30`, but check `mask` before assuming a routing problem.
+
+⚠️ **The radio must never come up near the geophone.** See `BACKLOG.md` — an ESP32's
+transmitter recreates the Wi-Fi dongle noise that corrupted ADS1256 reads. This panel is
+a house display; that rule binds if it ever moves to the garage.

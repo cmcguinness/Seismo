@@ -1,3 +1,4 @@
 .pio/
 boards/
 factory-demo-backup.bin
+include/wifi_secrets.h
