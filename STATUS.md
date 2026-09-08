@@ -291,6 +291,48 @@ it very plausibly does.
 still a singleton dict drawing only Petrolia; the map's far marker is no longer the
 furthest catch.
 
+## 🎚️ THE DETECTION BAND IS WRONG, AND IT IS WORTH 2× (2026-09-08)
+
+**Headline: moving the detection band from 1–15 Hz to 3–7 Hz roughly doubles detections
+at the same measured false-positive rate.** Chance-corrected, 45 real detections against
+20, i.e. **2.21×**, and 3–7 Hz achieves it at a *lower* FPR than the incumbent (0.62 % vs
+0.70 %). Held out on two time splits, the band is picked on the earlier half and still
+wins on the later half: 26 detections at 0.50 % FPR against the incumbent's 20 at 0.96 %,
+and on the tighter split 16 against 8 at an identical 0.52 %.
+
+**The idea I started with was wrong.** The plan was a *distance-dependent* band — narrow
+and low at 250 km, wide and high at 10 km, because attenuation is frequency-dependent.
+Measured (`analysis/band_scan.py`), that trend does not exist in our data: best-band
+centre is 4.6 Hz under 50 km, 4.6 Hz at 50–150 km, and 9.2 Hz beyond 150 km, while the
+**noise control** — the identical argmax statistic computed on pure noise windows — sits
+at 6.3 Hz, in the middle of all three. The apparent trend is the argmax bias, not
+physics. What actually helps is much duller: **one fixed, narrower band for everything.**
+
+**Two traps on the way, both of which would have produced a fake result:**
+
+- **Selection circularity.** Choosing which events "count" by their best-of-10-bands SNR
+  made 3–7 Hz look 1.51× better than the incumbent, and flipping the selector to the
+  incumbent band alone changed the answer. Selection must not depend on the quantity
+  under test. `band_scan.py --select` keeps both so the size of that effect is visible.
+- **Comparing SNR between bands at all.** A narrower band raises the signal's SNR *and*
+  the noise distribution's tail. Every band is now thresholded at a percentile of its
+  **own** null, so the comparison happens at a matched, measured false-positive rate —
+  and counts are corrected for chance, because at 0.6 % FPR about 14 of 2,230 catalogue
+  events pass with nothing there.
+
+Sustain (≥ 2 s) is required throughout, per the ruler audit earlier today. `2.0–5.0 Hz`
+is statistically tied with `3.0–7.0`, so the exact edges do not matter much; what matters
+is that **1–15 Hz is the worst of the four bands tested, everywhere on the curve.**
+
+Machinery: `band_scan.py` (where the signal is), `band_detect.py` (sweeps all 2,230
+catalogue events × 11 bands + 4 null draws each → `analysis/data/band_scan.csv`),
+`band_verdict.py` (matched-FPR scoring, held-out splits, the curve). Figures:
+`reports/band-vs-distance.png`, `reports/band-verdict.png`.
+
+**NOT deployed.** `server/detector.py` and `harvest_events.py` still run 1–15 Hz. Changing
+the detection band changes the catch count, the classifier's training set and every
+published number, so it is a decision, not a bug fix. The evidence says take it.
+
 ## 📏 FIXING THE RULER: THE VERDICT MACHINERY AUDITED (2026-09-08)
 
 Prompted by a non-detection. The M3.7 Hydesville (2026-09-07, 252 km) was not recorded,
