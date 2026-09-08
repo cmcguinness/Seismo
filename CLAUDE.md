@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A DIY Raspberry Pi seismometer — a *sensitivity-first* (not precision-first) instrument to detect local earthquakes, sited in Oakmont / Santa Rosa, Sonoma County, atop the Rodgers Creek / Maacama fault system.
 
-**Current state (as of 2026-09-02):** the station has been **recording 24/7 since
-2026-07-20**, with 34 catalog-confirmed earthquakes inside a validated range of 88.8 km,
+**Current state (as of 2026-09-08):** the station has been **recording 24/7 since
+2026-07-20**, with 38 catalog-confirmed earthquakes inside a validated range of 88.6 km,
 plus an M4.8 recorded at 319 km that is verified by arrival time but deliberately left
 out of the range fit (enforced by `EXCLUDE_FROM_FIT` in `analysis/detection_map.py` —
 a magnitude revision made it *qualify* on 2026-09-02 and the re-harvest gate had to stop
@@ -45,6 +45,16 @@ C file and fails if they drift apart.
 - `deploy.sh` refuses a dirty tree; commit first. Dashboard changes need BOTH
   `./deploy.sh dashboard` and `./deploy.sh public` (autodeploy covers pi5 only).
 - Every hardware/siting/timing change gets a row in `analysis/epochs.py` the same day.
+- **The detection band is pre-registered, not open.** `harvest_events.py` reserves the
+  1–15 Hz → ~3–7 Hz change until **2026-12-07**, judged only on events after 2026-09-07,
+  and gated on the shorted-input floor test. Re-measuring it on the existing events keeps
+  giving the same 2× answer — that is a replication, not new evidence, and shipping it on
+  that basis is exactly what the rule exists to prevent. Read the block before touching
+  `DET_BAND`.
+- **`snr` divides by a MEDIAN of pre-origin noise windows** (o−300…o−15), not one window,
+  and the **validated range requires the `seen` bar** (snr ≥ 5), not `conf`'s snr ≥ 3.
+  Both landed 2026-09-08 after a single quiet minute inflated a non-detection and a
+  Nevada M3.4 at 324 km nearly quadrupled the published range.
 - The 41 / 40.6 / 37.65 / 19.3 / 20 Hz spectral lines are the house's heat-pump AC, not
   the electronics; 40.0 Hz is the 60 Hz mains alias. Only 1.05 Hz is unexplained.
 

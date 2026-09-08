@@ -1487,3 +1487,73 @@ Applying Petrolia's residual to the Hydesville M3.7 gives ~1 µV against a ~1.5 
 afternoon floor, which matches the non-detection exactly. One calibration point is not a
 distance term, but quoting the uncorrected number is worse: it made a hopeless event look
 like a near miss.
+
+## Shorted-input floor test — the gating item for the band decision (opened 2026-09-08)
+
+**Why it is now the critical path.** The 3–7 Hz detection band measures ~2× better than
+the incumbent 1–15 Hz at matched false-positive rate, replicated twice by different
+statistics. It cannot ship until 2026-12-07 per the pre-registered rule in
+`harvest_events.py`, and one of that rule's three conditions is unblockable by waiting:
+the floor test has to say whether the sub-corner band is **quiet or deaf**. The winning
+band sits at or below the 4.5 Hz corner, where response goes as f² and its shape is set
+by f0 and ζ — both still guesses — so the 2× may be *noise rejection* (the geophone is
+deaf to the cultural noise owning 5–15 Hz) rather than *signal capture*. Those look
+identical in the detection curves and have opposite implications for calibration.
+
+**The whole apparatus is a $5 plug.** A male XLR (NC3MX or any male cable connector,
+matching the Pi enclosure's NC3FD-L-B chassis jack) with **pins 2–3 bridged**. Pin 1 is
+shield and stays unconnected.
+
+- **No 375 Ω termination needed.** Johnson noise of the coil is √(4kTR) = 2.46 nV/√Hz
+  against a measured quiet-night floor of 0.8 µV RMS over 1–15 Hz = 214 nV/√Hz — 87×
+  below, 0.013 % of the noise power. A dead short and a resistor give indistinguishable
+  answers.
+- **The same plug does a second test**: the cable's free end is female, so plugging it in
+  there measures electronics + 10 m of cable, and the difference isolates cable pickup.
+
+**Protocol — two trips, not a vigil.** In at bedtime, out in the morning. The electronics
+floor does not drift with the hour, and 44 days of quiet-night live data already exist to
+compare against, so there is nothing to interleave. Leave the recorder running (no ADC
+tool, no contention); discard ~10 min after each swap for the DC settle, and watch the
+first minute for railing — bridging 2–3 fixes the differential at zero but leaves
+common-mode to the board's bias network, so if it rails, link the pair to pin 1 too.
+
+**MUST be masked.** An artificially silent stretch in the archive is now a *noise window*
+for the median estimator, so any event within ~5 minutes gets a deflated denominator and
+an inflated SNR — precisely the artifact removed on 2026-09-08. `analysis/epochs.py` row
+the same day, with exact start/stop.
+
+**Verdict rule:** compare the shorted PSD against the archive's quiet-night live PSDs,
+0.5–45 Hz. Live 3–7 Hz well above the shorted floor → genuinely quiet ground, the band
+gain is real signal capture. Live 3–7 Hz sitting on the floor → instrument-limited, and
+the gain is an artifact of deafness.
+
+## Inline switch box for the mule — automated shorting + injector control (opened 2026-09-08)
+
+Not on the critical path (the floor test above needs none of it), but it turns a one-shot
+measurement into a repeatable paired one and gives ζ at two known loads on demand.
+
+- **Uno R3 in a printed box**, inline on the geophone cable. `calibrator/hal.h` already
+  has the ATmega328P path, so the firmware is written; the Uno also has 20 I/O and no ISP
+  pin-sharing, which is why the ATtiny85's pin pressure does not apply.
+- **Panel:** NC3FD-L-B (in, from the geophone cable) + NC3MD-L-B (out, short patch to the
+  Pi) — `xlr_coupon.py` already validated that cutout. Plus **one** USB for power *and*
+  control from pi4env; a second connector only buys a ground loop. The Uno is USB-**B**.
+- **USB pass-through needs its own coupon** — the D-shape part on order is 26 × 31 mm
+  flange / 21.6 mm barrel / 3.6 mm screws, which is NOT the Neutrik D-series footprint
+  (30 × 25 / 24 / 3.4, screws on a 30 mm diagonal). Measure the vertical screw pitch off
+  the part — the listing does not give it — then a `usb_*` block in `dimensions.py`.
+- **Opening the serial port resets an Uno** (DTR). The `env_logger.py` reconnect-loop
+  pattern would restart the toggle schedule mid-experiment: cut RESET-EN / 10 µF across
+  RESET→GND, or hold the port open.
+- **Signal hygiene:** pin 1 straight through, bonded to nothing (shield grounded at the
+  Pi only); pins 2/3 a twisted pair jack-to-jack tapped by the PhotoMOS, physically away
+  from the Uno and the USB cable.
+- **AQY212EH is normally-OPEN**, so an unpowered or absent controller leaves the geophone
+  connected exactly as today. Keep that property in any substitute.
+- **Injector control needs no new firmware**: a PhotoMOS across the injector's button
+  (short press = restart soak, long = fire now, `calibrator.c:79`). Opto-isolated, no
+  galvanic path, no standby cost, no new ATtiny pin — and an electronic press has no
+  contact chatter, which finally makes the untested `held_long()` debounce testable.
+  Needs a 2-pin link between the two boxes: decide the connector before modelling.
+

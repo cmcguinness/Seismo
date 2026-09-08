@@ -20,7 +20,7 @@ all counted. Noise floor 1–15 Hz ~0.8 µV RMS on a quiet night, ~3.5 µV after
 
 **Calibration.** Reads ~3.2× quieter than the 28.8 V/(m/s) nameplate (five anchors vs
 USGS NP.1835 1.6 km away, median 3.26×, fixed-path scatter ~1.4×). Vp 5.19 km/s
-measured. **36 catalog-confirmed events, validated range 88.6 km** (M3.8 San Leandro);
+measured. **38 catalog-confirmed events, validated range 88.6 km** (M3.8 San Leandro);
 biggest earthquake M4.2 Cloverdale (07-29); **biggest signal the M3.3 under
 Larkfield-Wikiup at 13.3 km (09-03), 6,843 µV in 1–15 Hz, felt in the house**
 (USGS revised it from M3.54/12.4 km/7.4 km on 09-04; the closest M2.5+ by 3×, though
