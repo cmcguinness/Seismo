@@ -304,6 +304,29 @@ void bench_burst_end(uint8_t n_pulses, uint16_t pulse_ms, uint16_t spacing_ms)
     bench_drain();
 }
 
+/* THE INVARIANT THAT MATTERS, checked on the real pins rather than trusted.
+ *
+ * PIN_INJ and PIN_SHUNT both live on PORTB, and PINB reads the physical pin whatever the
+ * data direction says, so the mule can watch its own outputs with no jumper at all. The
+ * bug this exists to catch is the shunt being closed during the UNSHUNTED burst -- which
+ * would load the coil through the shunt while injecting, produce a perfectly plausible
+ * ring-down, and quietly corrupt the generator-constant solve rather than failing. The
+ * old status LED shared this pin and WAS driven together with PIN_INJ, so the wrong
+ * behaviour is one careless edit away.
+ */
+void bench_check_shunt(uint8_t want_closed)
+{
+    uint8_t closed = (PINB & (1 << PIN_SHUNT)) ? 1 : 0;
+    if (closed == (want_closed ? 1 : 0))
+        return;
+    uart_puts("  FAIL  shunt is ");
+    uart_puts(closed ? "CLOSED" : "OPEN");
+    uart_puts(" during a burst that wants it ");
+    uart_puts(want_closed ? "CLOSED\n" : "OPEN\n");
+    bench_drain();
+}
+
+
 void bench_note(const char *msg)
 {
     /* The tick count is 16-bit and incremented in an ISR, so it is not atomic to read

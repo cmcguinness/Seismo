@@ -26,6 +26,7 @@ void bench_drain(void);             /* let the UART finish before power-down */
 void bench_sleep_enter(void);
 void bench_sleep_exit(void);
 void bench_wdt_tick(void);
+void bench_check_shunt(uint8_t want_closed);
 
 #define BENCH_INIT()          bench_init()
 #define BENCH_BURST_BEGIN()   bench_burst_begin()
@@ -36,6 +37,7 @@ void bench_wdt_tick(void);
 #define BENCH_SLEEP_ENTER()   bench_sleep_enter()
 #define BENCH_SLEEP_EXIT()    bench_sleep_exit()
 #define BENCH_WDT_TICK()      bench_wdt_tick()
+#define BENCH_CHECK_SHUNT(w)  bench_check_shunt(w)
 
 #else
 
@@ -48,6 +50,7 @@ void bench_wdt_tick(void);
 #define BENCH_SLEEP_ENTER()       ((void) 0)
 #define BENCH_SLEEP_EXIT()        ((void) 0)
 #define BENCH_WDT_TICK()          ((void) 0)
+#define BENCH_CHECK_SHUNT(w)      ((void) 0)
 
 #endif
 

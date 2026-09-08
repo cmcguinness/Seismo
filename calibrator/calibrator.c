@@ -199,6 +199,7 @@ static void burst(uint8_t shunt)
         PORTB |= (1 << PIN_SHUNT);
     BENCH_BURST_BEGIN();
     for (uint8_t i = 0; i < N_PULSES; i++) {
+        BENCH_CHECK_SHUNT(shunt);       /* read the real pin, every pulse */
         PORTB |= (1 << PIN_INJ);
         BENCH_MARK(1);
         delay_ms_n(PULSE_MS);
