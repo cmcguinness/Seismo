@@ -121,21 +121,45 @@ the touched column fixed it outright:
 **135×.** The tell was that mean ≈ worst and both were near-constant — a fixed cost, so
 a full-screen repaint, not work proportional to what changed.
 
-**This fixed most of it, but not all of it.** After the fix the panel is *far* better and
-briefly looked perfect, but **mild glitching remains**, and it remains even with drawing
-throttled to 30 columns/s — about 70x slower than this test ran, and ~4000x faster than
-a real helicorder's 0.44 px/s. So the residual is not a workload problem, and no further
-reduction in what we draw will remove it.
+**That fixed most of it. A second change fixed the rest** — see "Cutting scanout
+bandwidth" below. Throttling the drawing rate did *not* help, which was the clue: the
+residual survived at 30 columns/s, ~4000x faster than a helicorder's 0.44 px/s, so it was
+never about how much we drew. It was about what the *panel* was drawing.
 
-### Where that leaves the platform — measured, not assumed
+### Cutting scanout bandwidth — frame rate and pixel clock are separable
 
-Of Espressif's mitigations, IDF 4.4 gives us only two, and **both are now spent**:
+**This is the fix for the residual glitching, and it is the non-obvious one.**
+
+The RGB peripheral fetches framebuffer bytes *only during active pixels* — during
+blanking it fetches nothing. So the continuous PSRAM read rate is set by the **frame
+rate**, while the panel's timing controller locks to the **pixel clock**. Those are
+independent, and lengthening the vertical blanking separates them:
+
+```
+before:  16 MHz / (820 x 500) = 39 fps  ->  800*480*39*2 = 29.9 MB/s
+after:   16 MHz / (820 x 976) = 20 fps  ->  800*480*20*2 = 15.4 MB/s
+```
+
+One flag: `ST7262_PANEL_CONFIG_TIMINGS_VSYNC_FRONT_PORCH` 8 -> 484. **Halves the traffic
+the display forces onto the PSRAM bus, at 16 MHz PCLK, with the panel still locked.**
+
+⚠️ Do NOT get here by lowering PCLK instead. 8.2 MHz for the same 20 Hz made the panel
+free-run and cycle colour — the ST7262 has a minimum pixel clock around 10-14 MHz.
+Espressif's docs say "reduce the pixel clock"; on this panel the correct move is to
+reduce the *frame rate* and leave the pixel clock alone.
+
+### Where that leaves the platform
+
+Of Espressif's listed mitigations, IDF 4.4 gives us two — but the list is not exhaustive,
+and the blanking trick above is not on it:
 
 | mitigation | available on IDF 4.4? | result |
 |---|---|---|
 | reduce PSRAM traffic | yes | done — 135x, most of the problem |
+| **longer vertical blanking** | yes | **done — 29.9 -> 15.4 MB/s scanout; this fixed the residual** |
 | lower the pixel clock | yes | **counter-productive**: below ~10-14 MHz the ST7262 free-runs |
 | draw buffer in internal SRAM | yes | done — worst case 4610 -> 4150 us, marginal |
+| throttle the drawing rate | yes | no effect — the residual was never workload |
 | `bounce_buffer_size_px` | **no** | IDF 5.x only |
 | `CONFIG_LCD_RGB_RESTART_IN_VSYNC` | **no** | IDF 5.x only |
 | `esp_lcd_rgb_panel_restart()` | **no** | IDF 5.x only |
@@ -143,17 +167,17 @@ Of Espressif's mitigations, IDF 4.4 gives us only two, and **both are now spent*
 Absence of the last three is verified in
 `framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_lcd/`, not inferred.
 
-**The residual glitching is therefore a property of this stack, not of the hardware.**
-The board's own factory firmware ran visibly clean, and Sunton build these against
-ESP-IDF 5.x where bounce buffers exist. (We cannot diff against it: the factory image
-was erased before flashing and the backup could not be taken — see below.)
+**The display is now stable on this stack, and no platform migration is needed.** That
+conclusion replaces an earlier one in this file's git history which said the residual was
+structural and that removing it required IDF 5.x and a different graphics layer. That was
+wrong — written after declaring the available mitigations "spent" when one had simply not
+been thought of. Recorded here because the wrong version was committed first.
 
-**The open fork.** Removing the residual means IDF 5.x, and `esp32_smartdisplay` will
-not compile there (that combination is what failed on 2026-09-08). That means a
-different graphics layer — LovyanGFX supports this panel, the GT911, and bounce buffers.
-It is a real piece of work and it is NOT yet justified: nothing establishes that mild
-glitching matters for a wall display showing a slow helicorder. Decide it against the
-actual application, not against this test.
+If a much heavier UI ever does hit the wall, the untried levers in rough order are:
+draw the trace straight into the framebuffer with `esp_lcd_panel_draw_bitmap()` (skipping
+the canvas, draw buffer and LVGL invalidation entirely — ~560 bytes per column), then
+IDF 5.x for bounce buffers, which would mean replacing `esp32_smartdisplay` with
+LovyanGFX.
 
 ⚠️ **Do not lower the pixel clock below the board default 16 MHz.** 8.2 MHz (for a 20 Hz
 refresh) made the panel free-run and cycle colours — the ST7262 has a *minimum* pclk of

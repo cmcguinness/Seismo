@@ -146,16 +146,27 @@ panels tear on this stack and need an IDF 5.x migration — a false structural c
 would have outlived the session and sent the next reader down a platform port they do not
 need. It was a 448 KB invalidate.
 
-**What is still true, measured not assumed: mild glitching remains**, and it remains with
-drawing throttled to 30 columns/s — ~70× slower than the test ran and ~4000× faster than
-a helicorder's 0.44 px/s. So the residual is not a workload problem. Of Espressif's
-mitigations, IDF 4.4 gives us only two and both are spent; `bounce_buffer_size_px`,
-`CONFIG_LCD_RGB_RESTART_IN_VSYNC` and `esp_lcd_rgb_panel_restart()` are **absent from the
-IDF 4.4 headers** (checked, not inferred), and reaching them means IDF 5.x, which
-`esp32_smartdisplay` will not compile against. **Open fork:** stay and accept mild
-glitching, or move to LovyanGFX for bounce buffers. Not yet justified — decide it against
-the real application, not this test. Dropping PCLK for a 20 Hz refresh is a dead end: below
-~10–14 MHz the ST7262 free-runs and cycles colour.
+**The residual took a second, non-obvious fix, and the display is now stable.** Throttling
+the drawing rate did nothing — the residual survived at ~4000× slower than the test — which
+was the clue that it was never about how much *we* drew, but about what the *panel* drew.
+The RGB peripheral fetches framebuffer bytes only during active pixels, never during
+blanking, so the continuous PSRAM read rate is set by the **frame rate** while the panel's
+lock is set by the **pixel clock**. Those are separable. Lengthening the vertical front
+porch (8 → 484) drops 39 fps to 20 and scanout from **29.9 to 15.4 MB/s**, at an unchanged
+16 MHz PCLK with the panel still locked. One flag.
+
+⚠️ Do *not* reach 20 Hz by lowering PCLK — 8.2 MHz made the panel free-run and cycle
+colour; the ST7262 has a minimum pixel clock ~10–14 MHz. Espressif's docs say "reduce the
+pixel clock"; on this panel the right move is to reduce the frame *rate* and leave the
+clock alone.
+
+**I had declared this structural before finding it.** The first version of this entry said
+IDF 4.4's mitigations were exhausted and that removing the glitching required an IDF 5.x
+port and a new graphics layer. That was wrong, and it was committed before Charles said
+"try harder to fix the glitching". Two false structural claims in one evening, both of the
+same shape: treating *"everything I thought of"* as *"everything there is"* — which is
+precisely what the "Failure is never proof of impossibility" section of `CLAUDE.md` exists
+to catch. Kept here rather than quietly corrected.
 
 **Cost noted:** the factory demo was erased and the backup failed four times (every baud,
 two USB positions) with a few bytes short per 4 KB block. Reads corrupt over this CH340;
