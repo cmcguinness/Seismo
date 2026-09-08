@@ -326,6 +326,14 @@ def main():
     # cultural spike that briefly promoted the Toms Place M3.4 held for 1.35 s.
     ap.add_argument("--sustain-seen", type=float, default=2.0,
                     help="seconds the envelope must hold above half its peak to count as seen")
+    ap.add_argument("--noise-window", choices=("median", "single"), default="median",
+                    help="how the 1-15 Hz noise level feeding snr/seen is measured. "
+                         "'median' = median of 75 s windows tiled over o-300..o-15 "
+                         "(default since 2026-09-08). 'single' = the old lone o-90..o-15 "
+                         "window. Kept switchable so the change can be A/B'd against ONE "
+                         "catalogue -- the weekly reharvest also refetches USGS, so a "
+                         "before/after across two runs confounds this with new events, "
+                         "withdrawn events and magnitude revisions.")
     ap.add_argument("--snr-seen", type=float, default=5.0,
                     help="peak 1-15 Hz excess counted as 'seen'. Default 5.0 is the "
                          "MEASURED 99th percentile of the null -- 3.0 was the 95th, "
@@ -434,7 +442,8 @@ def main():
             except Exception:
                 pass
             _t += 75.0
-        pre15 = float(np.median(_lv)) if len(_lv) >= 3 else pre15_win
+        pre15 = (float(np.median(_lv)) if (args.noise_window == "median" and len(_lv) >= 3)
+                 else pre15_win)
         sig15 = band_rms(sig[0], 1.0, 15.0, uvpc, sigmask)
         # PEAK-based SNR is the detection number. RMS over the whole 32 s signal
         # window dilutes a ~10 s burst by ~2x and made an M1.2 at 18 km score 1.33.
