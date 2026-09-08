@@ -152,6 +152,11 @@ def circle(lat0, lon0, km, n=361):
 
 
 # ------------------------------------------------------- calibration from data
+# The snr a confirmed event must also clear to SET the validated range. Matches
+# harvest_events.py's --snr-seen default; if that moves, this must move with it.
+REACH_SNR = 5.0
+
+
 def calibrate():
     """Derive the deficit, the corner penalty and the noise floors from the archive."""
     rows = [r for r in csv.DictReader(open(CSV)) if r["epoch"] == "100sps"]
@@ -182,11 +187,35 @@ def calibrate():
     # Floor: the weakest confirmed detection, as a multiple of its own noise.
     k = min(float(r["peak_1_15"]) / float(r["pre_1_15"]) for r in conf)
     noise = np.percentile([float(r["pre_1_15"]) for r in rows], [10, 50, 90])
-    reach = max(float(r["dist_km"]) for r in conf)
+
+    # REACH USES THE `seen` BAR, NOT THE `conf` BAR (2026-09-08).
+    #
+    # This is the single most fragile number the station publishes: it is a MAXIMUM over
+    # events, so one marginal detection at any distance sets the headline, and it is
+    # drawn on the map as the boundary of what is measured. `conf` admits snr >= 3, which
+    # is a reasonable bar for "belongs in the calibration average" -- an average is
+    # robust to one weak member -- and a bad bar for "the furthest thing we can prove we
+    # heard", where a single weak member IS the answer.
+    #
+    # The failure is not hypothetical and this is its second occurrence. The comment
+    # above records the first: a Toms Place M3.4 at 348 km whose 1.35 s spike nearly
+    # became the furthest confirmed event, stopped by adding sustain >= 2 to `conf`. On
+    # 2026-09-08 an M3.4 at 324 km in Nevada did it again WITH sustain 3.74, walking
+    # straight through that guard at snr 3.54. For scale: beyond 200 km the catalogue
+    # holds 584 events and we flag 11, and we demonstrably could not see an M3.7 at
+    # 252 km the day before. Believing a 324 km detection requires more than snr 3.5.
+    #
+    # So reach now requires the same bar the harvest uses for `seen` -- snr >= 5 with
+    # sustain >= 2, already enforced above. Deliberately NOT applied to `conf` itself:
+    # resid_med, the corner penalty and the noise floors are unchanged, so no amplitude
+    # the calibration reads moves. Only the claim "validated to X km" gets stricter.
+    strong = [r for r in conf if float(r["snr"]) >= REACH_SNR]
+    reach = max(float(r["dist_km"]) for r in strong) if strong else 0.0
 
     return dict(resid_med=resid_med, resid_sd=resid_sd, n_small=len(small),
                 corner_slope=corner_slope, m_big=m_big, r_big=r_big, k=k,
-                noise=noise, floors=k * noise, reach=reach, conf=conf, n_conf=len(conf))
+                noise=noise, floors=k * noise, reach=reach, conf=conf, n_conf=len(conf),
+                n_strong=len(strong))
 
 
 def deficit(mag, cal):
