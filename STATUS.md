@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-06 (UTC)_
+_Last updated: 2026-09-08 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -105,6 +105,61 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🖥️ THE 5" TOUCHSCREEN IS RUNNING, AND THE GLITCH WAS MOSTLY MINE (2026-09-08)
+
+A **Sunton/DIYmalls ESP32-8048S050C-I** arrived — 5.0" 800×480 IPS, GT911 capacitive
+touch, ESP32-S3-N16R8. `toy_seismo/` builds and flashes for it. First target is a **wall
+display for the live station** off `/v1/live` and `/v1/events`, which needs no GPIO and so
+is not blocked by the pin budget.
+
+**The pin budget, since it governs both seismometer variants.** The RGB565 parallel panel
+eats 21 GPIOs; what survives on headers is **11, 12, 13, 17, 18**. Enough for an ADS1220
+(MOSI/SCK/MISO/CS/DRDY) with the microSD still on its own CS at GPIO10. Two corrections
+to earlier notes: **GPIO18 is free** — the board definition lists it as the GT911
+interrupt but that line is *not connected* without bridging **R17**, so the definition
+names a pin, not a wiring; and **GPIO33/34 are not free**, they belong to the octal PSRAM.
+
+**Four toolchain traps, all now pinned in `toy_seismo/platformio.ini` with the reasons.**
+`~/.zshrc` exports `CPLUS_INCLUDE_PATH`, which GCC applies to *every* target, so the
+xtensa cross-compiler ate macOS libc++ headers (`scripts/clean_host_env.py` strips it —
+this breaks any C++ cross-build on the Mac, not just this one). pioarduino installs under
+the *same platform name* as the registry package, so a bare `platform = espressif32`
+silently resolves to whichever is installed. The registry's `esp32_smartdisplay` "3.0.0"
+is a bad publish that disagrees with its own board definitions; 2.1.1 is vendored instead.
+LVGL must be exactly 9.2.2.
+
+**The display "lost sync" — the image shifted and stayed shifted.** That is Espressif's
+documented RGB failure: DMA arrives late, the peripheral emits filler, and the scan
+address desyncs permanently. **The cause was a bug in my own test code**, not the
+hardware: drawing via `lv_canvas_finish_layer()` invalidates the *whole* canvas whatever
+changed — 448 KB PSRAM→PSRAM every frame, against a scanout already reading ~30 MB/s.
+Direct RGB565 writes plus a one-column invalidate:
+
+| | before | after |
+|---|---|---|
+| `lv_timer_handler` | 74,528 µs | ~500 µs |
+| loop rate | 11 fps | 177 fps |
+
+**135×, and I nearly wrote the opposite into the repo.** The pessimistic draft said RGB
+panels tear on this stack and need an IDF 5.x migration — a false structural claim that
+would have outlived the session and sent the next reader down a platform port they do not
+need. It was a 448 KB invalidate.
+
+**What is still true, measured not assumed: mild glitching remains**, and it remains with
+drawing throttled to 30 columns/s — ~70× slower than the test ran and ~4000× faster than
+a helicorder's 0.44 px/s. So the residual is not a workload problem. Of Espressif's
+mitigations, IDF 4.4 gives us only two and both are spent; `bounce_buffer_size_px`,
+`CONFIG_LCD_RGB_RESTART_IN_VSYNC` and `esp_lcd_rgb_panel_restart()` are **absent from the
+IDF 4.4 headers** (checked, not inferred), and reaching them means IDF 5.x, which
+`esp32_smartdisplay` will not compile against. **Open fork:** stay and accept mild
+glitching, or move to LovyanGFX for bounce buffers. Not yet justified — decide it against
+the real application, not this test. Dropping PCLK for a 20 Hz refresh is a dead end: below
+~10–14 MHz the ST7262 free-runs and cycles colour.
+
+**Cost noted:** the factory demo was erased and the backup failed four times (every baud,
+two USB positions) with a few bytes short per 4 KB block. Reads corrupt over this CH340;
+writes verify clean. So we cannot diff our glitching against the vendor's firmware.
 
 ## 📡 THE FURTHEST CATCH SAT 1.5 km OUTSIDE THE NET (event 2026-08-31, found 09-06)
 
