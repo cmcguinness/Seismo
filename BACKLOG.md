@@ -1449,3 +1449,36 @@ them. Wanted: a check that runs the envelope against the catalogue the way
 `analysis/` does for the geophone, to find where the node's threshold actually sits now
 rather than inferring it from one event. Needs a few weeks and at least one more felt
 quake before it can say anything.
+
+## eventcheck's empirical null can fire on a quiet lull (opened 2026-09-08)
+
+Found on the M3.7 Hydesville (2026-09-07, 252 km), which we did **not** record.
+`eventcheck.py` returned "AMBIGUOUS, 0/93 noise windows reach it, p=0.011" in **four
+different bands** — identical p in all of them, which was the tell.
+
+The cause: the null is built from the stretch immediately before the origin, and on that
+afternoon that stretch was the quietest run of the whole record (1.37 µV against a
+1.4–2.9 µV surround). Any window afterwards beats it. Widening to ±15 min, the arrival
+box ranks **11th of 64** windows with fourteen *pre-origin* windows louder — plainly
+nothing. The 1–15 Hz band, where the amplitude model is calibrated, correctly said
+NOT DETECTED (64/93).
+
+This is a false-positive mechanism in the tool every catch decision runs through, so it
+matters more than one event. Cultural noise is strongly non-stationary on a weekday
+afternoon and the current null assumes it is not.
+
+Fix worth doing: draw the null from a window that BRACKETS the arrival (before *and*
+after) rather than only before, or normalise by a running noise level so a lull cannot
+manufacture a ratio. Then re-run the harvest and see whether any existing catch was
+admitted this way — that is the part that actually needs checking.
+
+## >200 km predictions need their own calibration (opened 2026-09-08)
+
+`predict_uv` over-predicts badly outside the fitted range. The single >200 km event we
+have recorded, the M4.74 Petrolia at 318.6 km, was predicted at 250 µV and measured
+19.2 µV — 13× low, resid −1.12 dex. Our record beyond 200 km is **1 for 39**.
+
+Applying Petrolia's residual to the Hydesville M3.7 gives ~1 µV against a ~1.5 µV
+afternoon floor, which matches the non-detection exactly. One calibration point is not a
+distance term, but quoting the uncorrected number is worse: it made a hopeless event look
+like a near miss.
