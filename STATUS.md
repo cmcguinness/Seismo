@@ -291,6 +291,57 @@ it very plausibly does.
 still a singleton dict drawing only Petrolia; the map's far marker is no longer the
 furthest catch.
 
+## 🧮 THE NOISE FIX LANDED, AND THE RANGE RULE CHANGED WITH IT (2026-09-08)
+
+**Published.** `snr` now divides by the MEDIAN of 75 s noise windows tiled across
+o−300…o−15 instead of one window at o−90…o−15, and the validated range now requires the
+`seen` bar (snr ≥ 5) rather than `conf`'s snr ≥ 3. **38 confirmed, reach 88.6 km**, site
+deficit unchanged at −0.240 dex.
+
+**Three things I got wrong on the way, all caught by measurement or by the gates:**
+
+1. **The audit only looked at losses.** It re-decided events already marked `seen=1`, so
+   it saw the 9 that drop and missed the symmetric half entirely: the median also
+   **rescues** events whose single window happened to catch a transient. 29 flips from
+   the estimator alone, **+20 gained / −9 lost**. An M3.05 at 46.7 km goes snr 0.19 →
+   14.23 because its lone noise window read 179.94 µV against a median of 2.45 — we were
+   missing a real catch because of one loud minute. At the other tail an M1.05 at 220 km
+   with snr **110** collapses to 1.31: its "noise" window read 0.04 µV, a flat segment,
+   so that catch was pure artifact.
+2. **My A/B used the wrong radius.** `harvest_events.py --radius` defaults to 300 km but
+   `reharvest.py` publishes at 450, so my clean comparison never saw the event that
+   mattered and I wrongly reported the change as safe.
+3. **`conf` is not `seen`.** The audit governed `seen`; the published range comes from
+   `detection_map`'s looser snr ≥ 3. So the audit never touched the number that moved.
+
+**The event that forced the range rule.** With the new estimator an **M3.4 at 324 km in
+Nevada** became the furthest confirmed detection — snr 3.54, sustain 3.74, walking
+straight through the sustain guard added after the Toms Place incident did the same thing
+at 348 km. Checked directly with the fixed `eventcheck`: **ratio 0.90×, sustain 0.0 s,
+464 of 615 noise windows beat it, p = 0.755.** The arrival window is *quieter* than
+typical background. It is not there.
+
+**Why reach specifically gets a stricter bar.** It is a MAXIMUM, not an average — every
+other published number survives one bad member, while reach is *defined by* its most
+marginal one. And beyond 200 km the catalogue holds **584 events and we flag 11** (1.9 %)
+against a measured false-positive rate of 0.6–1 % (~6 expected), so roughly half of the
+far flags are coincidences. Taking the maximum over a set that is ~50 % false all but
+guarantees publishing a false one. Far detections are real — the **M4.8 Petrolia at
+319 km** is verified by arrival time — but "furthest" selects the least reliable member
+of the least reliable set, and the old rule could not tell them apart.
+
+**Published by hand, not by `reharvest.py`.** Every gate passes except `seen_flip_frac`
+(25 flips against 55 rows, limit 15 %), and that gate is doing its job: it exists to catch
+pipeline faults in an *unattended weekly* run, and a deliberate estimator change
+legitimately flips many. Widening it to admit this would be exactly the move the
+pre-registered rule forbids. Next week's automatic run compares against this new baseline
+and the flip count returns to normal.
+
+**Still not applied: the 3–7 Hz detection band.** Reserved until 2026-12-07 by the
+pre-registered rule in `harvest_events.py`, judged only on events after 2026-09-07, and
+gated on the shorted-input floor test — the winning band sits below the 4.5 Hz corner, so
+it may be noise rejection rather than signal capture.
+
 ## 🎚️ THE DETECTION BAND IS WRONG, AND IT IS WORTH 2× (2026-09-08)
 
 **Headline: moving the detection band from 1–15 Hz to 3–7 Hz roughly doubles detections
