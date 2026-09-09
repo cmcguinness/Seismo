@@ -1445,15 +1445,15 @@ a table entry rather than a fork.
 EVAL-ADXL355Z ordered from Mouser 2026-09-03. The Pi 2 is not touched: an ESP32-S3 reads
 the chip over SPI at 250 sps, decimates to 100, SNTP against the stratum-1 host, stamps
 the first sample of each UDP packet and counts from there; pi5's collector grows one
-packet format and three day-files (`SS.OAKM1.10.HNZ/HNN/HNE`). Bolted to an aluminium
-printed case standing on the slab a few metres from the geophone — **no plate, no epoxy,
-no putty**, three-point contact underneath and mass in the base, exactly as the geophone
-rests in its cup (`doc/BOM-accelerometer.md` is the authority; an earlier revision of this
-line said "aluminium plate epoxied to the slab" and was wrong. Nothing gets glued to the
-house. Bonding buys coupling fidelity only at frequencies and amplitudes far above ours —
-below ~50 Hz at milli-g, a mass resting flat on a clean slab cannot slide or rock, and
-static friction already exceeds what is needed by orders of magnitude) — (same point
-seismically at
+packet format and three day-files (`SS.OAKM1.10.HNZ/HNN/HNE`). The sensor board screws to the floor of a printed case, and the case simply **stands on
+the slab** a few metres from the geophone — no plate, no epoxy, no putty — with
+three-point contact underneath and mass in the base, exactly as the geophone rests in its
+cup. `doc/BOM-accelerometer.md` is the authority here; an earlier revision of this line
+said "bolted to an aluminium plate epoxied to the slab" and was wrong. **Nothing gets
+glued to the house.** Bonding would buy coupling fidelity only at frequencies and
+amplitudes far above anything this records: below ~50 Hz at milli-g a mass resting flat on
+a clean slab cannot slide or rock, and static friction exceeds the requirement by orders
+of magnitude. Sited (same point seismically at
 10 Hz, out of the ESP32's radiated field), oriented N/E by compass and recorded in the
 StationXML, static tilt logged from the DC output. Separate wall supply, no ground strap
 to the Pi box: inverse square helps only with what travels through the air. Response
