@@ -585,7 +585,7 @@ void setup()
     lv_obj_align(lbl_stats, LV_ALIGN_BOTTOM_LEFT, 6, -10);
 
     // ---- page 2: information ----
-    pg_info = ui_shell_add_page(ICON_INFO, "info");
+    pg_info = ui_shell_add_page(ICON_INFO, "info", /*dock_bottom=*/true);
     lbl_info = lv_label_create(pg_info);
     lv_label_set_text(lbl_info, "waiting for pi5...");
     lv_obj_set_style_text_color(lbl_info, lv_color_hex(0xC8D2DA), LV_PART_MAIN);

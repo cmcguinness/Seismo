@@ -26,6 +26,7 @@ struct Page {
 
 static Page        pages[UI_MAX_PAGES];
 static int         n_pages = 0, cur = -1;
+static int         n_top = 0, n_bottom = 0;
 static lv_obj_t   *bar, *rail, *lbl_station, *wifi_canvas;
 static lv_obj_t   *help_btn, *help_icon, *help_panel, *help_label;
 static const char *help_text[UI_MAX_PAGES];
@@ -209,7 +210,7 @@ bool ui_shell_help_visible(void) { return help_on; }
 int16_t ui_content_w(void) { return (int16_t)(LV_HOR_RES - UI_RAIL_W); }
 int16_t ui_content_h(void) { return (int16_t)(LV_VER_RES - UI_BAR_H); }
 
-lv_obj_t *ui_shell_add_page(icon_kind_t icon, const char *a11y_name)
+lv_obj_t *ui_shell_add_page(icon_kind_t icon, const char *a11y_name, bool dock_bottom)
 {
     if (n_pages >= UI_MAX_PAGES) return NULL;
     const int i = n_pages++;
@@ -229,7 +230,20 @@ lv_obj_t *ui_shell_add_page(icon_kind_t icon, const char *a11y_name)
 
     p.btn = lv_obj_create(rail);
     lv_obj_set_size(p.btn, UI_ICON_PX + 8, UI_ICON_PX + 8);
-    lv_obj_set_pos(p.btn, (UI_RAIL_W - UI_ICON_PX - 8) / 2, 14 + i * (UI_ICON_PX + 22));
+    const int slot_pitch = UI_ICON_PX + 22;
+    if (dock_bottom)
+    {
+        // stack upward from just above the "?" button
+        lv_obj_align(p.btn, LV_ALIGN_BOTTOM_MID, 0,
+                     -(14 + (n_bottom + 1) * slot_pitch));
+        n_bottom++;
+    }
+    else
+    {
+        lv_obj_set_pos(p.btn, (UI_RAIL_W - UI_ICON_PX - 8) / 2,
+                       14 + n_top * slot_pitch);
+        n_top++;
+    }
     lv_obj_set_style_bg_opa(p.btn, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(p.btn, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(p.btn, 0, LV_PART_MAIN);

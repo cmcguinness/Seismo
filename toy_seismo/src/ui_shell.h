@@ -28,7 +28,13 @@
 void      ui_shell_init(lv_obj_t *screen);
 
 // Returns the page's content container, or NULL if full. Fill it with anything.
-lv_obj_t *ui_shell_add_page(icon_kind_t icon, const char *a11y_name);
+//
+// dock_bottom stacks the icon upward from just above the "?" instead of down
+// from the top -- the conventional nav-rail split of primary views at the top
+// and secondary/meta ones at the bottom. Page INDEX is still creation order, so
+// help text and ui_shell_select() are unaffected by where an icon sits.
+lv_obj_t *ui_shell_add_page(icon_kind_t icon, const char *a11y_name,
+                            bool dock_bottom = false);
 
 void      ui_shell_select(int index);
 
