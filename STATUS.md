@@ -106,6 +106,49 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 🖼️ THE PANEL PORTED TO IDF 5, AND DRAWING BECAME A QUEUE (2026-09-08, late)
+
+The 5" ESP32-8048S050C now runs a **live helicorder off `/v1/live`**, with a live 0-50 Hz
+spectrum, the three newest detections, a UTC clock and peak-since-boot. Getting there
+needed a platform port and an architecture change, and produced numbers worth keeping.
+
+**The IDF 4.4 build could not be saved.** It degraded as panels were added and ended in a
+*dead scanout*: firmware still fetching and advancing its cursor in the logs while the
+panel showed a stale frame. IDF 4.4 has no recovery API. Ported to Arduino 3.3.11 /
+IDF 5.5.5 (pioarduino) driving `esp_lcd` directly — **no LovyanGFX needed**, ~150 lines of
+display init, application untouched. Both envs coexist; `display_backend.h` picks one.
+
+**Four things had to be true together**, none sufficient alone: bounce buffers at **30**
+lines (Espressif's suggested 10 left stripe noise in the top ~100 rows); the 20 fps timing
+**kept** (bounce buffers are not a licence to return to 39 fps); paced drawing retained;
+and the periodic `esp_lcd_rgb_panel_restart()` **removed** — restarting DMA disrupts a
+frame, so calling it on a timer injects a glitch by design.
+
+**Then Charles named the right architecture** and it replaced all the ad-hoc pacing: a
+**write-at-will paint queue**. Application code enqueues primitives and never blocks; a
+drainer executes them inside the vertical blanking interval — where the RGB peripheral
+fetches nothing and the bus is entirely free — up to a per-frame pixel budget. Overflow
+lands next frame. No drawing site knows anything about bandwidth any more, which is what
+kept breaking: every new panel re-broke the display because the constraint was spread
+across every call site instead of owned in one place.
+
+**Measured on the board, panel running:** PSRAM read 25.3 / write 35.5 MB/s, SRAM read
+47.8, SRAM→PSRAM 28.6 MB/s, scanout 15.4 MB/s continuous at 20 fps (29.9 at 39 fps).
+**The SoC is under-provisioned for this panel** — at native refresh the scanout alone
+takes 75% of a ~40 MB/s bus. But the binding constraint is *latency*: the panel needs a
+line every ~104 µs while a full framebuffer write is 27 ms, ~250× too long. That is why
+pacing fixed what reducing could not. And **PSRAM is 7 MB and irrelevant while internal
+SRAM is ~86 KB and decides everything** — a leftover 48 KB benchmark array in `.bss` was
+enough to stop WiFi associating, silently, with no allocation error anywhere.
+
+**Two bugs only a photograph could find.** LVGL's bundled printf has **no float support**,
+so `%.1f` emitted a literal `f` and shifted every later argument: every number on the
+display was wrong while the serial logs were perfectly correct. And
+`lv_obj_invalidate_area()` takes **absolute** screen coordinates, not canvas-local ones —
+the spectrum at y=284 never repainted at all (blank panel, pixels computed correctly),
+while the trace at y=52 partially overlapped and *looked* fine with a stale bottom
+quarter. The partial failure hid the total one.
+
 ## 🖥️ THE 5" TOUCHSCREEN IS RUNNING, AND THE GLITCH WAS MOSTLY MINE (2026-09-08)
 
 A **Sunton/DIYmalls ESP32-8048S050C-I** arrived — 5.0" 800×480 IPS, GT911 capacitive

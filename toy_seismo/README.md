@@ -237,3 +237,121 @@ Polls `/v1/live` on pi5 and scrolls the ground motion. Credentials live in
 ⚠️ **The radio must never come up near the geophone.** See `BACKLOG.md` — an ESP32's
 transmitter recreates the Wi-Fi dongle noise that corrupted ADS1256 reads. This panel is
 a house display; that rule binds if it ever moves to the garage.
+
+## The IDF 5.x port (env `s050-idf5`) — what finally made the display stable
+
+The IDF 4.4 build degraded as the display got richer and ended in a **dead scanout**:
+firmware still fetching and advancing its cursor in the logs while the panel showed a
+stale frame. IDF 4.4 has no recovery API, so only a reboot cleared it.
+
+**No LovyanGFX was needed.** On IDF 5.x, `esp_lcd` exposes what we came for directly, so
+the port is ~150 lines of display init (`src/display_esp_lcd.cpp`) and the entire
+application — helicorder, spectrum, events, Wi-Fi — was untouched. Both environments
+coexist; `display_backend.h` picks one.
+
+### The four things that had to be true together
+
+Each was necessary; none alone was sufficient, which is why this took so long.
+
+1. **Bounce buffers** (`bounce_buffer_size_px`, IDF 5.x only). The LCD scans out of two
+   internal-SRAM buffers refilled by interrupt from the PSRAM framebuffer. **30 lines**,
+   not Espressif's suggested 10 — 10 left visible horizontal stripe noise in the top
+   ~100 rows. Must divide the frame evenly: 800x480 = 384000 px, 800x30 = 24000,
+   384000/24000 = 16 exactly. Paid for by shrinking the LVGL draw buffer 40 -> 20 lines;
+   internal SRAM does more good feeding the scanout than making render strips bigger.
+2. **The 20 fps timing, kept.** Bounce buffers are NOT a licence to return to the board's
+   default 39 fps. That scanout rate was measured glitchy on this panel; running it here
+   just spends the bounce buffers' margin on nothing. `VSYNC_FRONT_PORCH=484`, PCLK
+   untouched at 16 MHz.
+3. **Paced drawing, still.** Nothing about IDF 5 removes the rule that a large single
+   invalidate desyncs the scanout. The column queue and the spectrum strips stay.
+4. **NO periodic `esp_lcd_rgb_panel_restart()`.** Restarting DMA disrupts a frame, so
+   calling it on a timer injects a glitch every interval *by design* — it made things
+   visibly worse. `CONFIG_LCD_RGB_RESTART_IN_VSYNC` is already `1` in this framework and
+   restarts automatically, only when the hardware has actually desynced. The manual call
+   stays available as a lever, unused.
+
+### `CONFIG_LCD_RGB_ISR_IRAM_SAFE` is NOT set
+
+Verified absent from the precompiled Arduino libs' sdkconfig. The bounce-buffer refill
+ISR therefore stalls whenever the flash cache is disabled. Larger bounce buffers buy
+tolerance for that, not immunity. Flipping it means building ESP-IDF from source instead
+of using the Arduino framework — a much bigger change, not currently justified.
+
+## ⚠️ LVGL's printf has NO float support
+
+`lv_label_set_text_fmt(lbl, "%.1f uV", x)` emits a literal **`f`** and shifts every later
+argument, so `"rms %.1f uV  age %.1fs  +%u"` rendered as `rms 1 uV age fs +1/1/98692`.
+Every number on the display was wrong while the serial logs were perfectly correct —
+the values were right in the program and wrong only on the glass.
+
+**Use `snprintf` into a buffer, then `lv_label_set_text()`.** newlib's snprintf does not
+depend on LVGL's build configuration. Found only from a photograph; no amount of log
+reading would have shown it.
+
+## The paint queue (`src/paint.h` / `paint.cpp`)
+
+Charles's design, and it is the right shape: **application code enqueues drawing
+primitives whenever it likes and never blocks; a drainer executes them inside the
+vertical blanking interval, as fast as possible but no faster.** Work that does not fit
+in one frame lands in the next. Nothing bursts, nothing is lost, and no drawing site has
+to know anything about bandwidth.
+
+That inversion matters because the constraint is genuinely awkward to distribute: the
+panel scans an 800x480x2 framebuffer out of PSRAM continuously, the bus measures ~40 MB/s
+total, and a single operation holding it beyond ~1 ms starves the LCD FIFO and desyncs
+the scanout permanently. Before the queue, *every* drawing site had to be individually
+careful, and every new panel re-broke the display.
+
+- `paint_rect()` / `paint_vline()` — enqueue, non-blocking. Overflow drops the **oldest**
+  command: on a scrolling display the freshest pixels are the ones worth keeping, and
+  dropping newest would freeze the trace.
+- `paint_drain(budget_px)` — called once per frame from inside the blanking window.
+  800 x 60 px = 96 KB, about 3.4 ms of flush at the measured 28.6 MB/s, comfortably
+  inside the ~25 ms of blanking.
+- One coalesced invalidate per target per drain; LVGL then renders that bbox in
+  10-line strips, each sized to the latency budget.
+
+Text and widgets stay with LVGL — they redraw rarely and were never the problem. The
+queue owns the high-rate pixel traffic: helicorder and spectrum.
+
+## ⚠️ lv_obj_invalidate_area() takes ABSOLUTE screen coordinates
+
+Not canvas-local ones. This cost an hour and hid as two different bugs:
+
+- the **spectrum canvas at y=284** had local rows 0..103 mapped to absolute rows 0..103,
+  which do not intersect it at all -> it never repainted and rendered permanently blank,
+  while every pixel was being computed and written correctly;
+- the **trace canvas at y=52** partially overlapped, so it appeared to work while its
+  bottom quarter was almost certainly never refreshing.
+
+The partial failure hid the total one. Offset by `lv_obj_get_coords()` before invalidating.
+
+## Measured memory bandwidth (this board, panel running)
+
+```
+PSRAM  read :   25.3 MB/s      SRAM   read :   47.8 MB/s
+PSRAM  write:   35.5 MB/s      SRAM->PSRAM :   28.6 MB/s   (the LVGL flush path)
+scanout     :   15.4 MB/s continuous at 20 fps  (29.9 at the board default 39 fps)
+internal heap: ~86 KB free, ~32 KB largest block
+```
+
+**The SoC is under-provisioned for this panel.** At the native 39 fps the scanout alone
+wants 29.9 of ~40 MB/s -- 75% of memory bandwidth just to keep the screen lit. Dropping
+to 20 fps leaves ~25 MB/s for the application, a 2.5x increase in headroom.
+
+But the binding constraint is **latency, not throughput**: at 20 fps the panel needs a
+line every ~104 us, while a full framebuffer write is 768 KB / 28.6 MB/s = **27 ms**.
+A single full-frame repaint blocks the bus ~250x longer than the panel tolerates. That
+is why *pacing* fixed what *reducing* could not.
+
+**PSRAM is 7 MB and irrelevant; internal SRAM is ~86 KB and decides everything.** Bounce
+buffers, the LVGL draw buffer, the paint queue and WiFi's own buffers all compete for it.
+A leftover 48 KB benchmark array in `.bss` was enough to stop the radio associating --
+silently, with no allocation error anywhere.
+
+## Live UTC clock without an RTC
+
+The board has no RTC, but `/v1/live`'s `t_end` **is** Unix epoch, so pi5's clock arrives
+on every fetch; `millis()` carries it between. Good to a few hundred ms of poll latency:
+fine for reading a detection list, not for picking arrivals.
