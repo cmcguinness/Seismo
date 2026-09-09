@@ -21,8 +21,24 @@
   // frame -- roughly 25 ms at 20 fps. Drawing inside that window never competes
   // with the scanout at all.
   bool  display_wait_vsync(uint32_t timeout_ms);
+
+  // GLITCH METER. The vsync callback and the bounce-buffer refill ISR both run
+  // from flash (CONFIG_LCD_RGB_ISR_IRAM_SAFE is unset), so both are delayed by
+  // the same contention. Jitter in vsync arrival is therefore a measurable proxy
+  // for the condition that starves the refill and stripes the frame -- which the
+  // pixels themselves are not, from inside the firmware.
+  //
+  // "late" = a frame interval more than 20% past nominal.
+  uint32_t display_late_frames(void);   // cumulative
+  uint32_t display_total_frames(void);
+  uint32_t display_worst_us(void);      // worst interval seen
+  void     display_reset_stats(void);
 #else
   #include <esp32_smartdisplay.h>
   static inline void display_restart_panel(void) {}   // no such API on IDF 4.4
   static inline bool display_wait_vsync(uint32_t) { return false; }
+  static inline uint32_t display_late_frames(void)  { return 0; }
+  static inline uint32_t display_total_frames(void) { return 0; }
+  static inline uint32_t display_worst_us(void)     { return 0; }
+  static inline void     display_reset_stats(void)  {}
 #endif

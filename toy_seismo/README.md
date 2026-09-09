@@ -553,3 +553,49 @@ UTC comes from **SNTP** (`pool.ntp.org`, `time.cloudflare.com`), with the seismi
 The feed-derived clock was fine while pi5 was the only source, but it stopped whenever
 pi5 did, and the standalone IMU instrument has no feed at all. SNTP costs a few hundred
 bytes an hour against the 19 KB every 4 s the display already survives.
+
+## The intermittent glitch: what has been eliminated
+
+Still unsolved at the end of 2026-09-09, but the elimination list is solid and every entry
+was killed by measurement rather than argument. Recorded so nobody repeats the work.
+
+**Symptom:** horizontal stripe noise in the top ~100 rows. Comes in EPISODES lasting
+minutes, with clean stretches between. Only ever with network traffic running.
+
+| Ruled out | By what |
+|---|---|
+| drawing / paint load | glitching observed at `colq_depth 191` -- *below* the 300 target, i.e. drawing slower than nominal; `paint dropped = 0` throughout |
+| desync-and-restart | 0 late frames in 3,600 consecutive (frame timing is exact: 1200/min at 20 fps, worst == nominal) |
+| raw bandwidth | throttling reads to 1 KB/8 ms (~125 KB/s, a 19 KB body spread over ~150 ms) changed **nothing** |
+| memory fragmentation / leaks | it *recovers*, and memory does not spontaneously defragment (Charles); corroborated by `largest_free_block` staying **constant** at 18,420 rather than shrinking |
+| spectrum rendering | page removed entirely (~430 KB/5 s of repaint gone); no change |
+| scratch buffer placement | identical behaviour in PSRAM and in internal SRAM |
+| WiFi buffers in PSRAM | `CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP` unset -- they are internal |
+
+**What survives:** flash-contention from radio *activity*. The bounce-buffer refill ISR
+runs from flash (`CONFIG_LCD_RGB_ISR_IRAM_SAFE` unset) and so do the WiFi driver and lwIP.
+The cost is not bytes but retransmissions and driver work, which vary with channel
+conditions on exactly the minutes-long timescale observed -- and an idle network task is
+perfectly clean at any memory placement.
+
+**How it is being tested:** the minute report now logs RSSI and per-fetch DURATION.
+Duration is the proxy for channel quality -- the same bytes taking 2 s instead of 200 ms
+means retransmission. If episodes coincide with slow fetches, that is the mechanism. If
+fetch timings stay flat through an episode, the radio is exonerated too and everything
+under our control has been eliminated.
+
+## Two instrument lessons
+
+**The measurement was destroying the state.** Opening the serial port asserts DTR/RTS and
+reboots the ESP32, so every check erased the episode being measured and reset uptime to
+zero -- "the software version of Heisenberg uncertainty". Clearing DTR/RTS *after* open()
+does not help; the pulse has already happened, and on this CH340 setting them before open
+does not help either. The fix is `tools/monitor.py` run **once** as a long-lived logger
+writing to a file, with the file read instead of the port. Flashing still requires
+stopping it first -- upload and monitor cannot share the port.
+
+**Match the instrument to the observer.** Marking episode start/stop needs continuous
+attention. Once Charles was glancing over occasionally, that instrument could only produce
+bad data, so a tap became a POINT observation -- "glitching right now" -- which is all a
+glance can honestly report. Positives are evidence; absence of a tap is not evidence of
+clean.

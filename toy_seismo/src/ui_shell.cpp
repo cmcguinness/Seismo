@@ -30,6 +30,9 @@ static lv_obj_t   *bar, *rail, *lbl_station, *wifi_canvas;
 static lv_obj_t   *help_btn, *help_icon, *help_panel, *help_label;
 static const char *help_text[UI_MAX_PAGES];
 static bool        help_on = false;
+static void      (*mark_cb)(void) = NULL;
+
+static void on_bar_click(lv_event_t *e) { if (mark_cb) mark_cb(); }
 
 // The clock is EIGHT fixed-width cells, not one label. Montserrat is
 // proportional -- "1" is much narrower than "8" -- so a single label reflows on
@@ -109,6 +112,8 @@ void ui_shell_init(lv_obj_t *screen)
     lv_obj_set_style_radius(bar, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(bar, 0, LV_PART_MAIN);
     lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(bar, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(bar, on_bar_click, LV_EVENT_CLICKED, NULL);
 
     lbl_station = lv_label_create(bar);
     lv_label_set_text(lbl_station, "");
@@ -265,6 +270,7 @@ void ui_shell_select(int index)
 
 int ui_shell_current(void) { return cur; }
 
+void ui_shell_set_mark_cb(void (*cb)(void)) { mark_cb = cb; }
 void ui_shell_set_station(const char *s) { lv_label_set_text(lbl_station, s); }
 
 // Expects at least 8 chars of "HH:MM:SS". Only cells whose character actually

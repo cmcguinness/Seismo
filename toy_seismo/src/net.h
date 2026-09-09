@@ -34,5 +34,14 @@ void net_release(void);
 // samples, so it can back off when the feed has not moved.
 void net_live_productive(bool yes);
 
+// Fetch DURATION is our proxy for channel quality: the same bytes taking much
+// longer means retransmissions, which cost far more radio and driver work (and
+// therefore far more flash contention with the LCD refill ISR) than the byte
+// count suggests.
+uint32_t net_last_ms(void);
+uint32_t net_worst_ms(void);
+uint32_t net_mean_ms(void);
+void     net_reset_timing(void);
+
 uint32_t net_fetch_count(void);
 uint32_t net_fail_count(void);

@@ -23,6 +23,7 @@
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_rgb.h>
 #include <esp_heap_caps.h>
+#include <esp_timer.h>
 #include <Wire.h>
 #include "display_backend.h"
 #include <freertos/FreeRTOS.h>
@@ -31,13 +32,35 @@
 static esp_lcd_panel_handle_t panel = NULL;
 static SemaphoreHandle_t vsync_sem = NULL;
 
+// Nominal frame interval: 820 total px x 976 total lines / 16 MHz = 50.0 ms.
+#define FRAME_US_NOMINAL 50000
+#define FRAME_US_LATE    (FRAME_US_NOMINAL + FRAME_US_NOMINAL / 5)   // +20%
+
+static volatile uint32_t v_total = 0, v_late = 0, v_worst = 0;
+static volatile int64_t  v_last  = 0;
+
 static bool IRAM_ATTR on_vsync(esp_lcd_panel_handle_t p,
                                const esp_lcd_rgb_panel_event_data_t *ev, void *ctx)
 {
+    const int64_t now = esp_timer_get_time();
+    if (v_last)
+    {
+        const uint32_t dt = (uint32_t)(now - v_last);
+        v_total++;
+        if (dt > FRAME_US_LATE) v_late++;
+        if (dt > v_worst) v_worst = dt;
+    }
+    v_last = now;
+
     BaseType_t hp = pdFALSE;
     if (vsync_sem) xSemaphoreGiveFromISR(vsync_sem, &hp);
     return hp == pdTRUE;
 }
+
+uint32_t display_late_frames(void)  { return v_late; }
+uint32_t display_total_frames(void) { return v_total; }
+uint32_t display_worst_us(void)     { return v_worst; }
+void     display_reset_stats(void)  { v_total = v_late = v_worst = 0; }
 
 bool display_wait_vsync(uint32_t timeout_ms)
 {

@@ -15,6 +15,7 @@ static volatile NetKind  r_kind = NET_NONE;
 static volatile int      r_len  = 0;
 static volatile bool     live_ok = true;
 static volatile uint32_t n_fetch = 0, n_fail = 0;
+static volatile uint32_t t_last = 0, t_worst = 0, t_sum = 0, t_n = 0;
 
 // Chunk size and pause are a BANDWIDTH THROTTLE, not a buffer size. 1 KB every
 // 8 ms is ~125 KB/s, far more than the ~5 KB/s this display actually needs, but
@@ -96,6 +97,7 @@ static void net_task(void *)
         // Wait for the UI to release the shared buffer before overwriting it.
         if (xSemaphoreTake(sem_free, pdMS_TO_TICKS(200)) != pdTRUE) continue;
 
+        const uint32_t t_begin = millis();
         int len = -1;
         switch (want)
         {
@@ -116,6 +118,11 @@ static void net_task(void *)
             break;
         default: break;
         }
+
+        const uint32_t took = millis() - t_begin;
+        t_last = took;
+        if (took > t_worst) t_worst = took;
+        t_sum += took; t_n++;
 
         if (len > 32)
         {
@@ -159,5 +166,10 @@ NetKind net_poll(const char **body, int *len)
 
 void net_release(void) { xSemaphoreGive(sem_free); }
 void net_live_productive(bool yes) { live_ok = yes; }
+uint32_t net_last_ms(void)  { return t_last; }
+uint32_t net_worst_ms(void) { return t_worst; }
+uint32_t net_mean_ms(void)  { return t_n ? t_sum / t_n : 0; }
+void     net_reset_timing(void) { t_worst = 0; t_sum = 0; t_n = 0; }
+
 uint32_t net_fetch_count(void) { return n_fetch; }
 uint32_t net_fail_count(void)  { return n_fail; }

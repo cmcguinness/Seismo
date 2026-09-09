@@ -39,6 +39,10 @@ void      ui_shell_set_help(int page_index, const char *text);
 bool      ui_shell_help_visible(void);
 int       ui_shell_current(void);
 
+// Tap the title bar to fire this. Generic on purpose -- the shell knows nothing
+// about what the mark means.
+void      ui_shell_set_mark_cb(void (*cb)(void));
+
 void      ui_shell_set_station(const char *s);
 void      ui_shell_set_clock(const char *s);
 // rssi_dbm, or 1 for "no link". Mapped to 0..3 bars.

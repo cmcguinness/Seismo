@@ -93,6 +93,7 @@ static inline void colq_push(float mn, float mx)
 static float  peak_uv_boot = 0.0f;   // "biggest since you plugged it in"
 static float  last_rms = 0, last_age = 0;
 
+
 // There is no RTC on this board, but /v1/live's t_end IS Unix epoch, so the
 // server's clock is delivered on every fetch. Hold it and tick forward with
 // millis() in between. Accuracy is pi5's clock plus a few hundred ms of poll
@@ -301,6 +302,48 @@ static void feed(double t, float uv)
 // A blocking socket read inside loop() used to stall the vsync wait and the
 // paint drain for seconds, freezing the trace and touch; it looked like a hang
 // and it defeated the playout buffer entirely.
+// GLITCH EPISODES. The artefact cannot be detected from firmware -- the
+// framebuffer is correct and the frame timing is exact (0 late frames in 3600
+// consecutive frames), because the corruption happens between PSRAM and the
+// panel while the timing generator is hardware. The observer is the instrument.
+//
+// It arrives in EPISODES -- non-stop for a while, then clean for a while -- so
+// this marks START and STOP rather than individual glitches. Duty cycle and
+// episode length are what tell us whether we are inside the "one per ten
+// minutes is acceptable" tolerance, and give us something to A/B changes with.
+static uint32_t marks = 0;
+static uint32_t mark_shown_ms = 0;
+
+static void on_glitch_mark(void)
+{
+    // A POINT OBSERVATION -- "glitching right now" -- not an episode boundary.
+    // Precise start/stop cannot be obtained from someone glancing over
+    // occasionally, and an instrument that demands more attention than the
+    // observer has will simply produce bad data. Positives are evidence;
+    // absence of a tap is not evidence of clean.
+    marks++;
+    const double u = utc_now();
+    char ts[16] = "--:--:--";
+    if (u > 0)
+    {
+        const time_t tt = (time_t)u;
+        struct tm g; gmtime_r(&tt, &g);
+        snprintf(ts, sizeof ts, "%02d:%02d:%02d", g.tm_hour, g.tm_min, g.tm_sec);
+    }
+    log_w("GLITCH SEEN #%lu at %s UTC | rssi %d dBm | fetch last %lu ms worst %lu mean %lu"
+          " | colq %u",
+          (unsigned long)marks, ts, (int)WiFi.RSSI(),
+          (unsigned long)net_last_ms(), (unsigned long)net_worst_ms(),
+          (unsigned long)net_mean_ms(), (unsigned)colq_depth);
+
+    char b[64];
+    snprintf(b, sizeof b, "logged #%lu   %d dBm   fetch %lu ms",
+             (unsigned long)marks, (int)WiFi.RSSI(), (unsigned long)net_last_ms());
+    lv_label_set_text(lbl_stats, b);
+    mark_shown_ms = millis();
+}
+
+
 static bool parse_live(const char *body)
 {
     double t_end = 0, fs = 100.0, rms = 0, age = 0;
@@ -323,7 +366,15 @@ static bool parse_live(const char *body)
     for (const char *k = p + 1; k < q; k++) if (*k == ',') n++;
     n += 1;
 
+    // Never ingest more history than the screen can hold. /v1/live carries 30 s
+    // = 1500 columns at COL_PERIOD_S, into a 663-column display: on the first
+    // fetch that overflowed the queue (colq hit 1023 of 1024) and left the
+    // playout servo running above nominal for tens of seconds working off a
+    // backlog of columns that were drawn and immediately overwritten. More than
+    // one screen of backlog is waste by definition.
     const double t0 = t_end - (double)(n - 1) / fs;
+    const double oldest_useful = t_end - (double)TRACE_W * COL_PERIOD_S;
+    if (last_sample_t < oldest_useful) last_sample_t = oldest_useful;
     size_t used = 0, idx = 0;
     const char *c = p + 1;
     const char *stop = q;
@@ -353,7 +404,7 @@ static bool parse_live(const char *body)
                  rms, age + (double)colq_depth * COL_PERIOD_S,
                  (double)TRACE_W * COL_PERIOD_S);
         (void)used;
-        lv_label_set_text(lbl_stats, buf);
+        if (millis() - mark_shown_ms > 2500) lv_label_set_text(lbl_stats, buf);
     }
     // Anchor to NOW, not to the last sample. t_end is the timestamp of the
     // final sample in the window and the feed runs ~4 s behind real time, which
@@ -463,6 +514,7 @@ void setup()
     lv_obj_t *scr = lv_screen_active();
     ui_shell_init(scr);
     ui_shell_set_station("SS.OAKM1.00.EHZ");
+    ui_shell_set_mark_cb(on_glitch_mark);
 
     // ---- page 1: the helicorder ----
     pg_trace = ui_shell_add_page(ICON_TRACE, "trace");
@@ -857,15 +909,41 @@ void loop()
                      "  %d dBm\n\n"
                      "DISPLAY\n"
                      "  clock %s\n"
+                     "  late frames %lu/%lu  worst %lu ms\n"
+                     "  glitches seen %lu  (tap the title bar)\n"
                      "  up %luh %02lum\n"
                      "  heap %u free\n"
                      "  paint queue %u",
                      WiFi.localIP().toString().c_str(), (int)WiFi.RSSI(),
                      ntp_ok() ? "NTP" : (epoch_ref > 0 ? "pi5 feed" : "unset"),
+                     (unsigned long)display_late_frames(),
+                     (unsigned long)display_total_frames(),
+                     (unsigned long)(display_worst_us() / 1000),
+                     (unsigned long)marks,
                      (unsigned long)(up / 3600), (unsigned long)((up / 60) % 60),
                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
                      (unsigned)paint_pending());
             lv_label_set_text(lbl_link, lb);
+        }
+    }
+
+    // Glitch meter: a rate, not a sighting. The artefact is intermittent enough
+    // that "looks fine" and "it's glitching" are both single samples of
+    // something with a duty cycle -- neither settles anything.
+    {
+        static uint32_t last_rep = 0;
+        if (now - last_rep >= 60000)
+        {
+            last_rep = now;
+            const uint32_t tot = display_total_frames(), late = display_late_frames();
+            log_i("frames %lu/%lu late | colq %u | rssi %d dBm | fetch mean %lu worst %lu ms"
+                  " | fails %lu | marks %lu",
+                  (unsigned long)late, (unsigned long)tot,
+                  (unsigned)colq_depth, (int)WiFi.RSSI(),
+                  (unsigned long)net_mean_ms(), (unsigned long)net_worst_ms(),
+                  (unsigned long)net_fail_count(), (unsigned long)marks);
+            net_reset_timing();
+            display_reset_stats();
         }
     }
 
@@ -941,7 +1019,12 @@ void loop()
         float rate = dt / COL_PERIOD_S;                       // columns of real time
         rate *= 1.0f + COLQ_SERVO * ((float)depth - COLQ_TARGET) / COLQ_TARGET;
         if (rate < 0.0f) rate = 0.0f;
-        const float cap = 4.0f * dt / COL_PERIOD_S;           // never sprint
+        // Cap the catch-up at 1.5x nominal, not 4x. The point of the buffer is
+        // steady motion; sprinting to clear a backlog quadruples the drawing
+        // work per frame for as long as the backlog lasts, which is exactly the
+        // sustained-load condition the display cannot absorb. Converging slowly
+        // is invisible; converging fast is not.
+        const float cap = 1.5f * dt / COL_PERIOD_S;
         if (rate > cap) rate = cap;
 
         credit += rate;
