@@ -144,8 +144,27 @@ measured — use `toy_seismo/tools/monitor.py` **once** as a long-lived logger a
 file. Tapping the title bar logs a point observation with RSSI, fetch timings and queue
 depth.
 
-**State at hand-off:** 30-line config, ~20 min clean under load (381 fetches, 0 failures),
-past the "one glitch per 10 min is acceptable" tolerance. Three UI changes are committed
+**RESOLVED IN PRACTICE (2026-09-09).** The 30-line configuration has now run clean twice,
+across two different builds, under continuous load:
+
+| run | duration | fetches | failures | late frames | boots |
+|---|---|---|---|---|---|
+| 1 | 93 min | 1,954 | 0 | 0 | 1 |
+| 2 | 167 min | 3,499 | 0 | **0 of 199,197** | 1 |
+
+That is a replication, not a repeat of one observation, and it is far past the "one glitch
+per ten minutes is acceptable" tolerance. The working set — **do not change one piece
+believing the others carry it**, since which are load-bearing was never isolated:
+`BOUNCE_LINES 30`, PCLK 16 MHz with `VSYNC_FRONT_PORCH 484` (20 fps), all drawing through
+the paint queue drained in vertical blanking, networking on core 0 with reads throttled to
+1 KB/8 ms, history ingest capped at one screenful, and the playout servo capped at 1.5×.
+
+The underlying cause was never proven — the flash-contention hypothesis still has no
+direct confirmation, and its one apparent supporting datum (a periodic 9.6 s fetch) turned
+out to be a bug in our own read loop. What is established is the elimination list and a
+configuration that works.
+
+**Earlier state at hand-off:** ~20 min clean under load (381 fetches, 0 failures). Three UI changes are committed
 but **not flashed** (help text, Uptime H:MM:SS, Info icon docked next to `?`) so as not to
 reset the clean run. **The part in hand is the EVAL-ADXL355-PMDZ**, not the -Z that `BACKLOG.md` records as
 ordered — and `doc/toy-seismometer.md`'s warning against the -PMDZ ("which is a Pmod
