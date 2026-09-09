@@ -913,7 +913,7 @@ void loop()
                      "  clock %s\n"
                      "  late frames %lu/%lu  worst %lu ms\n"
                      "  glitches seen %lu  (tap the title bar)\n"
-                     "  up %luh %02lum\n"
+                     "  Uptime %lu:%02lu:%02lu\n"
                      "  heap %u free\n"
                      "  paint queue %u",
                      WiFi.localIP().toString().c_str(), (int)WiFi.RSSI(),
@@ -923,6 +923,7 @@ void loop()
                      (unsigned long)(display_worst_us() / 1000),
                      (unsigned long)marks,
                      (unsigned long)(up / 3600), (unsigned long)((up / 60) % 60),
+                     (unsigned long)(up % 60),
                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
                      (unsigned)paint_pending());
             lv_label_set_text(lbl_link, lb);
