@@ -1421,8 +1421,22 @@ about catches directly.
   point, so **late September** — well ahead of a Christmas build night.
 
 ⚠️ **The two sensors are not interchangeable and the firmware must not assume either.**
-ADXL355 ~85 µg noise floor vs LSM6DS3 ~1100 µg — a 13x difference that changes the
-auto-scale reference, the amplitude colour bands and any trigger threshold. The display
+Self-noise over 1–15 Hz (density × √14, which reproduces the ADXL355 figure in
+`doc/toy-seismometer.md` exactly):
+
+| sensor | density | 1–15 Hz RMS | vs ADXL355 |
+|---|---|---|---|
+| ADXL355 | 22.5 µg/√Hz | **~85 µg** | — |
+| LSM6DS3 | ~90 µg/√Hz | **~340 µg** | 4× worse |
+| MPU-6050 (GY-521) | ~400 µg/√Hz | ~1100–1500 µg | 13–18× worse |
+
+(Corrected 2026-09-09: an earlier revision of this entry gave the LSM6DS3 as ~1100 µg.
+That is the **MPU-6050's** figure — the LSM6DS3 is about 4× better than stated, and 3–4×
+better than an MPU-6050. Do not use the MPU-6050 for the batch; its accelerometer exists
+to assist a gyroscope we do not need, and the modules are heavily cloned.)
+
+A 4× noise difference still changes the auto-scale reference, the amplitude colour bands
+and any trigger threshold. The display
 code currently hard-codes **µV**, which is a geophone-through-ADC unit meaning nothing for
 either accelerometer. Fix it once at the `feed(t, value)` seam with a sensor descriptor
 (scale factor, units string, noise floor, derived band thresholds) and the LSM6DS3 becomes
