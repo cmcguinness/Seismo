@@ -50,14 +50,28 @@ static int http_get_scratch(const char *url, uint32_t connect_ms, uint32_t read_
     // Reading in small chunks with a yield between spreads the same bytes over
     // ~200 ms and lets the refill interleave. We are in no hurry -- this runs on
     // its own task and /v1/live carries 30 s of history.
+    // Read only what is ALREADY available, so readBytes never blocks waiting for
+    // bytes that are not coming. Asking it for a fixed chunk made every weather
+    // fetch sit on the full 9 s stream timeout -- Content-Length did not match
+    // what actually arrived -- which showed up as a periodic 9.6 s "worst fetch"
+    // exactly every 15 minutes and looked, briefly, like evidence of network
+    // stalls. It was this.
     int got = 0;
     const uint32_t deadline = millis() + read_ms;
     while (got < len && millis() < deadline)
     {
-        int want = len - got;
-        if (want > NET_CHUNK) want = NET_CHUNK;
+        const int avail = st->available();
+        if (avail <= 0)
+        {
+            if (!st->connected()) break;      // server closed: body is complete
+            vTaskDelay(pdMS_TO_TICKS(2));
+            continue;
+        }
+        int want = avail;
+        if (want > len - got)  want = len - got;
+        if (want > NET_CHUNK)  want = NET_CHUNK;
         const int n = st->readBytes(buf + got, want);
-        if (n <= 0) { if (!st->connected()) break; vTaskDelay(1); continue; }
+        if (n <= 0) break;
         got += n;
         vTaskDelay(pdMS_TO_TICKS(NET_CHUNK_PAUSE_MS));
     }
