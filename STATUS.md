@@ -152,8 +152,12 @@ ordered — and `doc/toy-seismometer.md`'s warning against the -PMDZ ("which is 
 plug") is *backwards* for this board: its 12-pin Pmod Type 2A header maps straight onto
 the five free GPIOs with no soldering. Pinout: 1 /CS, 2 MOSI, 3 MISO, 4 SCLK, 5 GND,
 6 VDD(3V3), 7 INT1, 8 NC, 9 INT2, 10 DRDY, 11 GND, 12 VDD. Wiring: MOSI 11, SCK 12,
-MISO 13, CS 17, DRDY 18. A local SPI sensor also removes most of the radio traffic the
-display fault depends on, which is the next real test.
+MISO 13, CS 17, DRDY 18. ⚠️ **Correction:** the ADXL355 is a STATION upgrade, not the display's sensor — three
+strong-motion channels (`SS.OAKM1.10.HNZ/HNN/HNE`) on the slab, read by their own ESP32-S3
+and streamed by UDP to pi5, per `BACKLOG.md`. An earlier revision of this entry said a
+local sensor would remove the radio traffic the display fault depends on; that was a
+misreading. **The display board stays a network client and the traffic does not go away**,
+so the 93-minute clean run has to stand on its own — which it does.
 
 ## 🎛️ THE PANEL GREW A UI, AND THE DISPLAY RULES BECAME A LIBRARY (2026-09-08, late)
 
