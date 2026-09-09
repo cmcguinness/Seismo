@@ -510,8 +510,17 @@ where the LCD FIFO runs dry, however few bytes are actually moving.
 - the spectrum page's ~430 KB/5 s of repaint (removed entirely; no change)
 - raw bandwidth (see the throttle result above)
 
-**Bounce depth was enough.** At **50 lines** (2 x 80 KB of internal SRAM, ~5.2 ms of
-buffered scanout) the display is **clean with networking running**. Depth is how you
+**⚠️ CORRECTION (2026-09-09): the "50 lines" below is FALSE.** Two edits setting
+`BOUNCE_LINES` matched nothing and silently did not apply, so the value was **16** the
+whole time -- including during the clean stretch that was reported as proof that 50
+worked. 50 was never viable in any case: **the bounce buffer must divide 480 exactly**
+(480/50 = 9.6) and the driver rejects it with "frame buffer size must be multiple of
+bounce buffer size", boot-looping the board. Valid: 16, 20, 24, 30, 40, 48, 60, 80.
+Now running **48** (480/48 = 10). The panel prints its real configuration at startup --
+`RGB panel up: ... bounce N px` -- CHECK THAT LINE rather than trusting the source.
+
+The original claim, left for the record: at 50 lines the display is clean with networking
+running. Depth is how you
 survive a late ISR, and ~5.2 ms of slack covers the delay WiFi imposes. Building ESP-IDF
 from source with the refill ISR in IRAM remains the principled fix, but it is not needed.
 
@@ -599,3 +608,28 @@ attention. Once Charles was glancing over occasionally, that instrument could on
 bad data, so a tap became a POINT observation -- "glitching right now" -- which is all a
 glance can honestly report. Positives are evidence; absence of a tap is not evidence of
 clean.
+
+## Direct DMA was tested and is far worse
+
+`BOUNCE_LINES 0` -- GDMA reading the framebuffer straight from PSRAM, no refill ISR at
+all. Result: **tearing mid-refresh and the whole image jumping horizontally**, i.e. the
+DMA failing to get PSRAM bandwidth and the scan address desyncing. Exactly the failure
+Espressif documents for a single PSRAM framebuffer ("EDMA gets half and the CPUs get the
+other half"). The bus cannot feed a 16 MHz RGB panel directly while the CPU works.
+
+**Bounce buffers are load-bearing, not a liability.** Do not set 0.
+
+This also kills an appealing architecture: the plan was to free their internal SRAM and
+spend it on a 32 KB instruction cache (it is 16 KB) and on WiFi/lwIP hot paths in IRAM.
+That funding does not exist -- the SRAM has to stay in bounce buffers.
+
+**Both modes fail under flash contention, in their own way:** direct mode shifts, bounce
+mode stripes the top of the frame. Same root cause, two symptoms.
+
+## Verify what is RUNNING, not what is in the source
+
+Two `BOUNCE_LINES` edits silently matched nothing and the wrong value ran for hours while
+being reported -- and committed -- as something else. A build succeeding proves it
+compiled, not that it contains what you intended.
+
+`smartdisplay_init()` logs the actual panel configuration at startup. Read it.

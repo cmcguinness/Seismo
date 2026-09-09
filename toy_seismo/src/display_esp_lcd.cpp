@@ -97,7 +97,35 @@ bool display_wait_vsync(uint32_t timeout_ms)
 // contiguous internally. At 30 lines the largest free internal block was 18-25
 // KB and HTTPS failed on every fetch after the first. 16 lines frees ~45 KB.
 // If the display glitches again, this is the first thing to put back.
-#define BOUNCE_LINES 16
+// 0 = DIRECT DMA. GDMA reads the framebuffer straight from PSRAM; there is no
+// refill ISR at all, so no interrupt to be delayed by WiFi/lwIP executing from
+// flash -- the mechanism we believe produces the stripes.
+//
+// Trade: direct mode shares the PSRAM bus with the CPU (Espressif: "EDMA gets
+// half and the CPUs get the other half") and its failure mode is a permanently
+// shifted image rather than top-of-frame noise.
+// CONFIG_LCD_RGB_RESTART_IN_VSYNC (=1 here) recovers from that automatically.
+//
+// It also returns internal SRAM -- the scarcest resource on the board, and what
+// currently makes every other fix unaffordable: a 32 KB instruction cache (it is
+// 16 KB now) and WiFi/lwIP hot paths in IRAM both need internal SRAM.
+// DIRECT DMA (0) WAS TESTED AND IS FAR WORSE: tearing mid-refresh and the whole
+// image jumping horizontally -- the DMA failing to get PSRAM bandwidth and the
+// scan address desyncing, exactly the failure Espressif documents for a single
+// PSRAM framebuffer. The bus cannot feed a 16 MHz RGB panel directly while the
+// CPU works. Bounce buffers are load-bearing, not a liability. Do not set 0.
+//
+// 50 lines = 2 x 80 KB internal SRAM, ~5.1 ms of buffered scanout.
+// NOTE: an earlier claim that "50 fixed it" was false -- that edit never applied
+// and the value was 16 the whole time. This is the first real test of 50.
+// ⚠️ MUST DIVIDE 480 EXACTLY. The driver rejects anything else with
+// "frame buffer size must be multiple of bounce buffer size" and the board
+// boot-loops. 50 does not (480/50 = 9.6) -- that mistake bricked it into a
+// reboot cycle. Valid: 16, 20, 24, 30, 40, 48, 60, 80...
+//
+// 48 lines = 2 x 76.8 KB internal SRAM, 480/48 = 10 exactly, ~4.9 ms of
+// buffered scanout.
+#define BOUNCE_LINES 48
 
 static void flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
@@ -221,7 +249,11 @@ void smartdisplay_init(void)
     cfg.clk_src    = (lcd_clock_source_t)ST7262_PANEL_CONFIG_CLK_SRC;
     cfg.data_width = ST7262_PANEL_CONFIG_DATA_WIDTH;
     cfg.num_fbs    = 1;
+#if BOUNCE_LINES > 0
     cfg.bounce_buffer_size_px = ST7262_PANEL_CONFIG_TIMINGS_H_RES * BOUNCE_LINES;
+#else
+    cfg.bounce_buffer_size_px = 0;      // direct DMA from PSRAM
+#endif
     cfg.psram_trans_align = ST7262_PANEL_CONFIG_PSRAM_TRANS_ALIGN;
     cfg.sram_trans_align  = ST7262_PANEL_CONFIG_SRAM_TRANS_ALIGN;
 
