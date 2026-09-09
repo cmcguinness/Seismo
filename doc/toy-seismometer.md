@@ -137,7 +137,7 @@ the touchscreen as the labelling tool, NCEDC strong-motion records as the positi
 |---|---|---|
 | Raspberry Pi 4 Model B, 2 GB | fanless (a fan is a vibration source in the sensor's own box); the Pi 5 wants one and the Zero 2 W has no DSI port | $45 |
 | Raspberry Pi Touch Display 2, 7" | the face of the thing and the labelling tool; DSI, powered from the Pi | $60 |
-| EVAL-ADXL355Z | the sensor, on the board with corner mounting holes (not the -PMDZ, which is a Pmod plug) | $40 |
+| EVAL-ADXL355-PMDZ | the sensor. **Correction (2026-09-09):** this originally said to avoid the -PMDZ "which is a Pmod plug". For the ESP32-8048S050C that advice is backwards — its 12-pin Pmod Type 2A header (1 /CS, 2 MOSI, 3 MISO, 4 SCLK, 5 GND, 6 VDD, 7 INT1, 8 NC, 9 INT2, 10 DRDY, 11 GND, 12 VDD) maps straight onto the only five free GPIOs (11/12/13 SPI, 17 CS, 18 DRDY) with no soldering, and it is 3.3 V native | $40 |
 | BME280 breakout | temperature (the ADXL355's offset drifts with it, and the box should say so when the heater comes on) and pressure, which casual users like more than any of it; I²C, same header | $8 |
 | Raspberry Pi 27 W USB-C supply | the display adds current; cheap adapters brown out | $12 |
 | 32 GB high-endurance microSD | it writes day-files all day; endurance grade, not speed | $12 |

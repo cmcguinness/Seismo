@@ -147,8 +147,13 @@ depth.
 **State at hand-off:** 30-line config, ~20 min clean under load (381 fetches, 0 failures),
 past the "one glitch per 10 min is acceptable" tolerance. Three UI changes are committed
 but **not flashed** (help text, Uptime H:MM:SS, Info icon docked next to `?`) so as not to
-reset the clean run. EVAL-ADXL355-PMDZ due 2026-09-10 — a local SPI sensor removes most of
-the radio traffic this failure depends on, which is the next real test.
+reset the clean run. **The part in hand is the EVAL-ADXL355-PMDZ**, not the -Z that `BACKLOG.md` records as
+ordered — and `doc/toy-seismometer.md`'s warning against the -PMDZ ("which is a Pmod
+plug") is *backwards* for this board: its 12-pin Pmod Type 2A header maps straight onto
+the five free GPIOs with no soldering. Pinout: 1 /CS, 2 MOSI, 3 MISO, 4 SCLK, 5 GND,
+6 VDD(3V3), 7 INT1, 8 NC, 9 INT2, 10 DRDY, 11 GND, 12 VDD. Wiring: MOSI 11, SCK 12,
+MISO 13, CS 17, DRDY 18. A local SPI sensor also removes most of the radio traffic the
+display fault depends on, which is the next real test.
 
 ## 🎛️ THE PANEL GREW A UI, AND THE DISPLAY RULES BECAME A LIBRARY (2026-09-08, late)
 
