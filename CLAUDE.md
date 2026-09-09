@@ -110,7 +110,10 @@ The 3D-printed enclosure is modeled with **build123d** (not CadQuery/OpenSCAD). 
     `case_handle.py` (screws to the cover roof from inside). Three parts on purpose: the
     piece you iterate on is the cheap flat one.
   - **Fit coupons, both validated:** `xlr_coupon.py` (D-series cutout), `panel_coupon.py`
-    (barrel bore = 12 mm; RJ45 feedthrough is D-series too).
+    (barrel bore = 12 mm). **The D-series cutout is shared** — Neutrik's D-shape is a
+    standard, so one bore takes XLR, RJ45 and **USB A-A panel jacks** (the USB feedthrough
+    was test-fitted in the XLR coupon on 2026-09-09 and fits perfectly). Do not print a
+    new coupon per connector type; reuse `xlr_coupon.py`'s cutout in the case parts.
   - **Superseded:** `chassis.py` (open tray, replaced by `case_base` + `geophone_case`).
 - **Shared case envelope lives in `dimensions.py`**, not in the parts: the three case
   parts derive their footprint, bay centres and connector positions from it, with z=0
