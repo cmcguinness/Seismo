@@ -486,3 +486,36 @@ The TLS failure hid for a day because a failed refresh silently left the previou
 screen. The weather stamp now flips to **"STALE - refresh failing"** in red if the last
 success is over 40 minutes old. Any panel that caches a remote value needs this; the
 failure mode of quietly showing old numbers is worse than showing none.
+
+## The limit: an RGB panel and a WiFi radio conflict on this SoC
+
+Measured, not assumed, and the most useful result of the whole exercise.
+
+**The symptom:** constant horizontal stripe noise in the top ~100 rows whenever the
+network is busy. **The A/B that pinned it:** a network task that exists, is pinned to
+core 0, and fetches *nothing* -> display perfectly clean. The same task fetching -> stripes.
+
+**The measurement that identified the mechanism:** throttling reads to 1 KB every 8 ms
+(~125 KB/s, spreading a 19 KB body over ~150 ms instead of a single burst) changed
+**nothing**. If this were PSRAM bandwidth, that would have fixed it. It is not bandwidth.
+
+**It is interrupt latency.** `CONFIG_LCD_RGB_ISR_IRAM_SAFE` is unset in the precompiled
+Arduino libraries, so the bounce-buffer refill ISR executes from flash -- and so do the
+WiFi driver and lwIP. Concurrent flash instruction fetch delays the refill past the point
+where the LCD FIFO runs dry, however few bytes are actually moving.
+
+**Ruled out along the way**, each by measurement rather than argument:
+- WiFi buffers in PSRAM (`CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP` is unset -- they are internal)
+- the scratch buffer's placement (glitches identically in PSRAM or internal SRAM)
+- the spectrum page's ~430 KB/5 s of repaint (removed entirely; no change)
+- raw bandwidth (see the throttle result above)
+
+**The only mitigation inside Arduino is bounce depth** -- 50 lines, 2 x 80 KB of internal
+SRAM, ~5.2 ms of buffered scanout. Depth is how you survive a late ISR. The real fix is
+building ESP-IDF from source with the refill ISR in IRAM.
+
+**Prediction for the standalone instrument:** reading an IMU over SPI with the radio down
+removes the contending flash workload, so the panel should be clean. `DEMO_NO_WIFI` builds
+exactly that case with synthetic samples and is the cheap way to test it before committing
+to hardware. If it glitches even then, the board is not suited to a networked 800x480 UI
+and that is a finding, not a failure.

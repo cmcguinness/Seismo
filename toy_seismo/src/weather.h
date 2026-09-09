@@ -6,6 +6,11 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
+
+// Oakmont, Santa Rosa
+#define WX_LAT  38.4405f
+#define WX_LON  -122.6190f
 
 #define WX_DAYS 5
 
@@ -26,8 +31,11 @@ struct Weather {
     uint32_t fetched_ms;
 };
 
-// Blocking HTTPS fetch, a few hundred ms. Returns true on success.
-bool weather_fetch(Weather *out, float lat, float lon);
+// Build the request URL. Plain HTTP on purpose -- see weather.cpp.
+void weather_url(char *buf, size_t n);
+
+// Parse a fetched body. Runs on the UI task; does no networking.
+bool weather_parse(const char *body, Weather *out);
 
 // Short human description for a WMO code.
 const char *wx_text(int code);

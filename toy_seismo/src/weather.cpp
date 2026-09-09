@@ -1,6 +1,5 @@
 #include "weather.h"
 #include <Arduino.h>
-#include <WiFi.h>
 #include <HTTPClient.h>
 #include "scratch.h"
 #include <time.h>
@@ -66,58 +65,29 @@ static int array_after(const char *s, const char *key, float *dst, int max_n)
     return n;
 }
 
-bool weather_fetch(Weather *out, float lat, float lon)
+// PLAIN HTTP, not HTTPS, and deliberately so. api.open-meteo.com answers on
+// http with no redirect. TLS would cost ~40 KB of CONTIGUOUS INTERNAL SRAM
+// (mbedTLS is built with CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC, so PSRAM cannot help
+// it) on a board whose largest free internal block is ~18-25 KB once the
+// display's bounce buffers are allocated. The first fetch after boot succeeded
+// and every one after it failed, leaving stale weather on screen forever.
+// Nothing secret is sent -- a latitude and a longitude.
+// Do NOT generalise this to anything carrying credentials.
+void weather_url(char *buf, size_t n)
 {
-    if (WiFi.status() != WL_CONNECTED) return false;
-
-    char *body = scratch();
-    if (!body) return false;
-
-    // PLAIN HTTP, not HTTPS, and deliberately so. api.open-meteo.com answers on
-    // http with no redirect. TLS would cost ~40 KB of CONTIGUOUS INTERNAL SRAM
-    // (mbedTLS is built with CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC, so PSRAM cannot
-    // help it) on a board whose largest free internal block is ~18-25 KB once
-    // the display's bounce buffers are allocated. The first fetch after boot
-    // would succeed and every one after it failed, leaving stale weather on
-    // screen forever.
-    //
-    // Nothing secret is sent -- a latitude and a longitude -- and nothing is
-    // trusted back beyond numbers we range-check into a forecast panel. The
-    // alternative was shrinking the bounce buffers and degrading the display to
-    // pay for encryption we do not need.
-    char url[420];
-    snprintf(url, sizeof url,
+    snprintf(buf, n,
         "http://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
         "&current=temperature_2m,relative_humidity_2m,apparent_temperature,"
         "weather_code,wind_speed_10m,surface_pressure"
         "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
         "precipitation_probability_max"
         "&timezone=America%%2FLos_Angeles&forecast_days=%d"
-        "&temperature_unit=celsius&wind_speed_unit=kmh", lat, lon, WX_DAYS);
+        "&temperature_unit=celsius&wind_speed_unit=kmh", WX_LAT, WX_LON, WX_DAYS);
+}
 
-    HTTPClient http;
-    http.setConnectTimeout(6000);
-    http.setTimeout(9000);
-    http.setReuse(false);
-    if (!http.begin(url)) { log_e("weather: begin failed"); return false; }
-
-    const int code = http.GET();
-    if (code != 200) { log_w("weather: HTTP %d", code); http.end(); return false; }
-
-    int len = http.getSize();
-    if (len < 0 || (size_t)len >= scratch_size()) len = scratch_size() - 1;
-    WiFiClient *st = http.getStreamPtr();
-    int got = 0;
-    const uint32_t deadline = millis() + 9000;
-    while (got < len && millis() < deadline)
-    {
-        const int n2 = st->readBytes(body + got, len - got);
-        if (n2 <= 0) { if (!st->connected()) break; delay(1); continue; }
-        got += n2;
-    }
-    body[got] = 0;
-    http.end();
-    if (got < 64) { log_w("weather: short body %d", got); return false; }
+bool weather_parse(const char *body, Weather *out)
+{
+    if (!body || strlen(body) < 64) return false;
 
     float v;
     const char *cur = strstr(body, "\"current\"");

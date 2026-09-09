@@ -17,12 +17,13 @@
 #include <HTTPClient.h>
 #include "display_backend.h"
 #include "wifi_secrets.h"
-#include "spectrum.h"
 #include "paint.h"
 #include "ui_shell.h"
 #include "weather.h"
 #include "scratch.h"
+#include "net.h"
 #include "scratch.h"
+#include "net.h"
 
 // ---------------------------------------------------------------- geometry --
 // Each page owns the whole content area now (720 x 428), so nothing has to
@@ -35,19 +36,6 @@
 #define TRACE_H       340
 #define TRACE_GAP     20           // blank columns ahead of the write head
 
-#define SPEC_X        0
-#define SPEC_Y        284
-// 400 px, not 800: this canvas is fully rewritten every ~5 s, and at 800 wide
-// that was 166 KB of PSRAM churn -- the only thing added since the build that
-// was glitch-free. 0-50 Hz still fits, at 2 px per FFT bin instead of 4.
-#define SPEC_W        715        // ditto -- do not run to the right edge
-#define SPEC_H        300
-// The dB window is ADAPTIVE. A fixed -6..+34 dB re 1 uV was a guess and it was
-// wrong: with rms of a few uV spread over 128 bins, individual bins sit near
-// -30 dB, so every bar clamped to zero height and the panel rendered blank.
-// Track the observed floor and peak instead, slowly, so the display self-tunes
-// to whatever the station is actually doing.
-static float spec_lo = -40.0f, spec_hi = 0.0f;
 // Seconds of ground motion per pixel column. This is the ONE number that decides
 // whether the display reads as live or as a chart recorder:
 //   0.02  -> 50 px/s, 14.3 s across   ~2 samples/px: the envelope IS the waveform
@@ -61,9 +49,9 @@ static float spec_lo = -40.0f, spec_hi = 0.0f;
 // 800 columns immediately instead of drawing a 30 px stub.
 #define COL_PERIOD_S  0.02
 
-static lv_obj_t *canvas, *spec_canvas;
+static lv_obj_t *canvas;
 static lv_obj_t *lbl_stats, *lbl_ev[3];
-static lv_color16_t *canvas_buf, *spec_buf;
+static lv_color16_t *canvas_buf;
 
 // Completed columns wait here instead of being drawn immediately. A fetch
 // delivers ~5 s of samples at once, which at COL_PERIOD_S is ~100 columns --
@@ -100,10 +88,6 @@ static inline void colq_push(float mn, float mx)
     colq_head = nxt;
 }
 
-// rolling window feeding the FFT
-static float  fft_ring[FFT_N];
-static size_t fft_head = 0;
-static bool   fft_ready = false;
 static float  peak_uv_boot = 0.0f;   // "biggest since you plugged it in"
 static float  last_rms = 0, last_age = 0;
 
@@ -141,9 +125,6 @@ static const lv_color16_t COL_GRID = rgb565(0x3E, 0x4C, 0x58);   // decade lines
 static const lv_color16_t COL_AXIS = rgb565(0x5A, 0x6E, 0x7C);   // zero line
 static const lv_color16_t COL_WAVE = rgb565(0x30, 0xE0, 0x60);
 static const lv_color16_t COL_HOT  = rgb565(0xFF, 0x60, 0x40);
-static const lv_color16_t COL_SPEC = rgb565(0x40, 0xB8, 0xFF);
-static const lv_color16_t COL_MARK = rgb565(0x4A, 0x3E, 0x22);   // known-line wash
-static const lv_color16_t COL_TICK = rgb565(0xFF, 0xC0, 0x40);   // known-line tick
 
 // Draw one column. min/max are µV; the column is the helicorder envelope for
 // that second, which is the only honest reduction when 100 samples share one
@@ -258,96 +239,10 @@ static void draw_column(int32_t x, float vmin, float vmax)
     }
 }
 
-// The station's documented spectral lines (CLAUDE.md). Drawn as faint vertical
-// markers so the display teaches what the peaks ARE rather than showing an
-// anonymous forest: 41 / 40.6 / 37.65 Hz are the heat-pump AC, 40.0 Hz is the
-// 60 Hz mains alias at 100 sps, 19.3 / 20 Hz the HVAC's evening high stage, and
-// 1.05 Hz is still unexplained.
-// LOG frequency axis. On a linear 0-50 Hz axis the detection band (1-15 Hz) got
-// the leftmost 30% of the panel while 60% went to 20-50 Hz, which is almost
-// entirely cultural noise -- most of the display spent on the frequencies that
-// matter least. Log gives 1-15 Hz about 60% of the width.
-#define SPEC_F_LO   0.5f
-#define SPEC_F_HI   50.0f
-static inline float spec_x_to_hz(int32_t x)
-{
-    return SPEC_F_LO * powf(SPEC_F_HI / SPEC_F_LO, (float)x / (SPEC_W - 1));
-}
-static inline int32_t spec_hz_to_x(float hz)
-{
-    if (hz <= SPEC_F_LO) return 0;
-    return (int32_t)((SPEC_W - 1) * logf(hz / SPEC_F_LO) / logf(SPEC_F_HI / SPEC_F_LO));
-}
-
-// Marker REGIONS, not seven identical ticks. 37.65/40/40.6/41 Hz span 3.35 Hz
-// and cannot be told apart at any scaling on a 715 px full-range axis -- the FFT
-// resolves them at 0.39 Hz bins, the display cannot. Shown as one labelled band
-// for what they are, which is what a reader actually needs to know.
-struct SpecRegion { float lo, hi; };
-static const SpecRegion KNOWN_BANDS[] = {
-    {1.02f,  1.09f},    // the unexplained instrumental line
-    {19.1f, 20.2f},     // HVAC evening high stage
-    {37.4f, 41.3f},     // heat-pump compressor + the 60 Hz mains alias at 40.0
-};
-
-static void spectrum_compute(float fs)
-{
-    if (!spec_buf || !fft_ready)
-    {
-        log_w("spec: skipped (buf=%p ready=%d)", spec_buf, (int)fft_ready);
-        return;
-    }
-
-    static float win[FFT_N], db[FFT_BINS];
-    for (int i = 0; i < FFT_N; i++)
-        win[i] = fft_ring[(fft_head + i) % FFT_N];
-    spectrum_db(win, db);
-
-    // Observed range this frame, ignoring DC in bin 0.
-    float lo = 1e9f, hi = -1e9f;
-    for (int k = 1; k < FFT_BINS; k++)
-    {
-        if (db[k] < lo) lo = db[k];
-        if (db[k] > hi) hi = db[k];
-    }
-    if (hi - lo < 12.0f) hi = lo + 12.0f;      // never amplify a flat spectrum
-    spec_lo = 0.9f * spec_lo + 0.1f * lo;
-    spec_hi = 0.9f * spec_hi + 0.1f * (hi + 3.0f);
-
-    const float hz_per_bin = fs / FFT_N;
-    const float span       = (spec_hi - spec_lo) > 1.0f ? (spec_hi - spec_lo) : 1.0f;
-
-    for (int32_t x = 0; x < SPEC_W; x++)
-    {
-        const float hz  = spec_x_to_hz(x);
-        const int   bin = (int)(hz / hz_per_bin + 0.5f);
-        const float v   = db[bin < FFT_BINS ? bin : FFT_BINS - 1];
-
-        float frac = (v - spec_lo) / span;
-        if (frac < 0) frac = 0;
-        if (frac > 1) frac = 1;
-        const int16_t top = (int16_t)(SPEC_H - 1 - (int32_t)(frac * (SPEC_H - 1)));
-
-        bool marked = false;
-        for (unsigned m = 0; m < sizeof KNOWN_BANDS / sizeof KNOWN_BANDS[0]; m++)
-            if (hz >= KNOWN_BANDS[m].lo && hz <= KNOWN_BANDS[m].hi) { marked = true; break; }
-
-        // Just enqueue. The drainer decides when this reaches PSRAM.
-        if (top > 0) paint_rect(1, (int16_t)x, 0, 1, top, marked ? COL_MARK : COL_BG);
-        paint_rect(1, (int16_t)x, top, 1, (int16_t)(SPEC_H - top), COL_SPEC);
-        // Tick LAST and along the top edge, so it is drawn over the bar and
-        // stays visible however tall the bar is. Marking only the region above
-        // the bar hid the markers exactly at the peaks worth labelling.
-        if (marked) paint_rect(1, (int16_t)x, 0, 1, 5, COL_TICK);
-    }
-}
 
 // Feed one sample, at absolute time t, into the current column bin.
 static void feed(double t, float uv)
 {
-    fft_ring[fft_head] = uv;
-    fft_head = (fft_head + 1) % FFT_N;
-    if (fft_head == 0) fft_ready = true;
     if (fabsf(uv) > peak_uv_boot) peak_uv_boot = fabsf(uv);
 
     const int64_t sec = (int64_t)(t / COL_PERIOD_S);
@@ -382,49 +277,12 @@ static void feed(double t, float uv)
 // against ~130 KB of free internal heap was never the constraint -- and it cost
 // three bugs, the worst of which abandoned half-read sockets and pinned server
 // threads against seismo_server.py's listen backlog of 5.
-static bool fetch_live()
+// Parsing only -- the HTTP transfer happens on the network task (net.cpp).
+// A blocking socket read inside loop() used to stall the vsync wait and the
+// paint drain for seconds, freezing the trace and touch; it looked like a hang
+// and it defeated the playout buffer entirely.
+static bool parse_live(const char *body)
 {
-    if (WiFi.status() != WL_CONNECTED)
-        return false;
-
-    HTTPClient http;
-    char url[128];
-    snprintf(url, sizeof url, "http://%s:%d/v1/live", SEISMO_HOST, SEISMO_PORT);
-    http.setConnectTimeout(4000);
-    http.setTimeout(8000);
-    // seismo_server.py is BaseHTTPRequestHandler: HTTP/1.0, closes after every
-    // response. HTTPClient defaults to keep-alive and would reuse a dead socket.
-    http.setReuse(false);
-    if (!http.begin(url)) return false;
-
-    const int code = http.GET();
-    if (code != 200) { http.end(); log_w("/v1/live -> HTTP %d", code); return false; }
-
-    // Read into a PSRAM buffer, NOT String/getString(). getString() allocated
-    // ~20 KB of INTERNAL heap every 2-4 s and freed it again; that churn
-    // fragmented the internal heap until the largest free block fell to ~25 KB,
-    // at which point TLS (which needs ~40 KB contiguous) could never start
-    // again. The weather page then displayed its last successful fetch forever.
-    // Internal SRAM is the scarce resource; PSRAM has 7 MB idle.
-    char *body = scratch();
-    const size_t body_cap = scratch_size();
-    if (!body) { http.end(); return false; }
-
-    int len = http.getSize();
-    if (len < 0 || (size_t)len >= body_cap) len = body_cap - 1;
-    WiFiClient *st = http.getStreamPtr();
-    int got = 0;
-    const uint32_t deadline = millis() + 8000;
-    while (got < len && millis() < deadline)
-    {
-        const int n2 = st->readBytes(body + got, len - got);
-        if (n2 <= 0) { if (!st->connected()) break; delay(1); continue; }
-        got += n2;
-    }
-    body[got] = 0;
-    http.end();
-    if (got < 32) { log_w("/v1/live: short body %d", got); return false; }
-
     double t_end = 0, fs = 100.0, rms = 0, age = 0;
     const char *h;
     // atof skips leading whitespace, so `"fs": 100.0` parses as happily as `"fs":100.0`
@@ -505,36 +363,9 @@ static bool fetch_live()
 // /v1/events returns a bare JSON list, newest first. Shown because a helicorder
 // alone cannot tell you whether the station is DOING anything -- the detector's
 // own verdict is the interesting part, and peak_ratio is the STA/LTA that fired.
-static void fetch_events()
+static void parse_events(const char *eb)
 {
-    if (WiFi.status() != WL_CONNECTED) return;
-
-    HTTPClient http;
-    char url[160];
-    snprintf(url, sizeof url, "http://%s:%d/v1/events?limit=3", SEISMO_HOST, SEISMO_PORT);
-    http.setConnectTimeout(4000);
-    http.setTimeout(8000);
-    http.setReuse(false);
-    if (!http.begin(url)) return;
-    if (http.GET() != 200) { http.end(); return; }
-    // Same reasoning as fetch_live: keep the body out of internal heap.
-    char *eb = scratch();          // shared: fetches never overlap
-    if (!eb) { http.end(); return; }
-    int elen = http.getSize();
-    if (elen < 0 || (size_t)elen >= scratch_size()) elen = scratch_size() - 1;
-    WiFiClient *es = http.getStreamPtr();
-    int eg = 0;
-    const uint32_t edl = millis() + 6000;
-    while (eg < elen && millis() < edl)
-    {
-        const int n2 = es->readBytes(eb + eg, elen - eg);
-        if (n2 <= 0) { if (!es->connected()) break; delay(1); continue; }
-        eg += n2;
-    }
-    eb[eg] = 0;
-    http.end();
     String body(eb);
-
     int at = 0;
     for (int row = 0; row < 3; row++)
     {
@@ -572,6 +403,10 @@ static void fetch_events()
 }
 
 // ---------------------------------------------------------------- setup -----
+#define PAGE_TRACE     0
+#define PAGE_INFO      1
+#define PAGE_WEATHER   2
+
 static lv_obj_t *pg_trace, *pg_spec, *pg_info, *pg_wx;
 static lv_obj_t *wx_now, *wx_detail, *wx_stamp;
 static lv_obj_t *wx_day_lbl[WX_DAYS], *wx_day_temp[WX_DAYS], *wx_day_icon[WX_DAYS];
@@ -678,47 +513,7 @@ void setup()
     lv_obj_set_style_text_font(lbl_stats, &lv_font_montserrat_24, LV_PART_MAIN);
     lv_obj_align(lbl_stats, LV_ALIGN_BOTTOM_LEFT, 6, -10);
 
-    // ---- page 2: the spectrum ----
-    pg_spec = ui_shell_add_page(ICON_SPECTRUM, "spectrum");
-    spec_buf = (lv_color16_t *)heap_caps_malloc(
-        SPEC_W * SPEC_H * sizeof(lv_color16_t), MALLOC_CAP_SPIRAM);
-    if (spec_buf)
-    {
-        spec_canvas = lv_canvas_create(pg_spec);
-        lv_canvas_set_buffer(spec_canvas, spec_buf, SPEC_W, SPEC_H, LV_COLOR_FORMAT_RGB565);
-        lv_obj_set_pos(spec_canvas, 0, 8);
-        for (int32_t i = 0; i < SPEC_W * SPEC_H; i++) spec_buf[i] = COL_BG;
-        paint_register(1, spec_canvas, spec_buf, SPEC_W, SPEC_H);
-    }
-    else Serial.println("FATAL: spectrum canvas would not allocate");
-
-    // Frequency axis labels. Without these the panel is a pretty shape with no
-    // meaning -- which is exactly how it read before.
-    {
-        static const float ticks[] = {0.5f, 1, 2, 5, 10, 20, 50};
-        static const char *names[] = {"0.5", "1", "2", "5", "10", "20", "50"};
-        for (unsigned i = 0; i < sizeof ticks / sizeof ticks[0]; i++)
-        {
-            lv_obj_t *t = lv_label_create(pg_spec);
-            lv_label_set_text(t, names[i]);
-            lv_obj_set_style_text_color(t, lv_color_hex(0x8FA0AC), LV_PART_MAIN);
-            int32_t x = spec_hz_to_x(ticks[i]);
-            if (x > SPEC_W - 18) x = SPEC_W - 18;
-            lv_obj_align(t, LV_ALIGN_TOP_LEFT, x, SPEC_H + 12);
-        }
-        lv_obj_t *u = lv_label_create(pg_spec);
-        lv_label_set_text(u, "Hz  (log)");
-        lv_obj_set_style_text_color(u, lv_color_hex(0x5A6871), LV_PART_MAIN);
-        lv_obj_align(u, LV_ALIGN_TOP_LEFT, 6, SPEC_H + 34);
-
-        lv_obj_t *m = lv_label_create(pg_spec);
-        lv_label_set_text(m, "amber ticks = known house noise: 1.05 Hz instrumental,"
-                             " ~19-20 Hz HVAC high stage, ~37-41 Hz heat pump + mains alias");
-        lv_obj_set_style_text_color(m, lv_color_hex(0x6C7A85), LV_PART_MAIN);
-        lv_obj_align(m, LV_ALIGN_TOP_LEFT, 96, SPEC_H + 34);
-    }
-
-    // ---- page 3: information ----
+    // ---- page 2: information ----
     pg_info = ui_shell_add_page(ICON_INFO, "info");
     lbl_info = lv_label_create(pg_info);
     lv_label_set_text(lbl_info, "waiting for pi5...");
@@ -826,7 +621,7 @@ void setup()
         lv_obj_align(wx_day_temp[i], LV_ALIGN_TOP_LEFT, x + 6, 292);
     }
 
-    ui_shell_set_help(3,
+    ui_shell_set_help(2,
         "WEATHER\n\n"
         "Current conditions and a five-day forecast for Oakmont, from Open-Meteo, "
         "refreshed every 15 minutes. Metric throughout.\n\n"
@@ -855,20 +650,6 @@ void setup()
         "under Larkfield-Wikiup on 2026-09-03, 13 km away and felt in the house, "
         "reached 6843 uV. Red means the trace is clipping.");
     ui_shell_set_help(1,
-        "SPECTRUM\n\n"
-        "A 256-point Hann-windowed FFT of the last 2.56 s, 0.39 Hz resolution, "
-        "drawn on a LOGARITHMIC frequency axis from 0.5 to 50 Hz.\n\n"
-        "Log, because the detection band is 1-15 Hz. On a linear axis that band "
-        "gets the leftmost third of the panel while most of the width goes to "
-        "20-50 Hz, which is almost entirely noise from the house.\n\n"
-        "The vertical scale self-tunes to the observed range, so this shows the "
-        "SHAPE of the noise, not its absolute level -- read amplitude from the "
-        "helicorder instead.\n\n"
-        "Amber ticks mark known house noise, so a spike there is not a mystery: "
-        "1.05 Hz is an unexplained instrumental line, 19-20 Hz is the HVAC's "
-        "evening high stage, and 37-41 Hz is the heat-pump compressor together "
-        "with the 60 Hz mains alias at 40.0 Hz.");
-    ui_shell_set_help(2,
         "INFORMATION\n\n"
         "Station identity, live signal level, link and display health, and the "
         "three most recent detections.\n\n"
@@ -887,6 +668,8 @@ void setup()
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    if (!net_start(SEISMO_HOST, SEISMO_PORT))
+        Serial.println("FATAL: network task would not start");
 }
 
 // Render the weather page from the cached fetch. Separate from fetching so the
@@ -1088,23 +871,33 @@ void loop()
         }
     }
 
-    // Adaptive poll. pi5 refreshes the live window in ~5.5 s blocks, so a fixed
-    // 2 s poll spent half its fetches pulling 20 KB (and a server thread) to
-    // learn t_end had not moved. Back off after a productive fetch, close in
-    // after a barren one. /v1/live carries 30 s of history, so being late costs
-    // nothing -- we just consume more samples next time.
-    static uint32_t poll_gap = 2000;
-    if (now - last_poll >= poll_gap)
+    // Results arrive from the network task. Parsing and every lv_* call stay
+    // here on the UI task, because LVGL is not thread safe.
     {
-        last_poll = now;
-        const bool got = fetch_live();
-        poll_gap = got ? 4000 : 1500;
-        if (got)
+        const char *body = NULL;
+        int blen = 0;
+        const NetKind k = net_poll(&body, &blen);
+        if (k != NET_NONE)
         {
-            // Repainting the spectrum is 166 KB. Only ever do it when there is
-            // new data -- ~0.2 Hz -- never per frame. See README on desync.
-            spectrum_compute(100.0f);   // queues the repaint; painting is paced below
-            // peak_uv_boot is still tracked; it is reported on the info page
+            switch (k)
+            {
+            case NET_LIVE:   net_live_productive(parse_live(body)); break;
+            case NET_EVENTS: parse_events(body); break;
+            case NET_WEATHER:
+                if (weather_parse(body, &wx)) wx_render();
+                else if (wx.valid && millis() - wx.fetched_ms > 40UL * 60UL * 1000UL)
+                {
+                    // Never present stale data as current: a silently failing
+                    // refresh is how yesterday's weather sat on screen looking
+                    // authoritative for a day.
+                    lv_label_set_text(wx_stamp, "STALE - refresh failing");
+                    lv_obj_set_style_text_color(wx_stamp, lv_color_hex(0xFF6040),
+                                                LV_PART_MAIN);
+                }
+                break;
+            default: break;
+            }
+            net_release();
         }
     }
 
@@ -1142,36 +935,6 @@ void loop()
     // automatically, and only when the hardware has actually desynced.
     // display_restart_panel() remains available as a manual lever.
 
-
-    // Weather: every 15 minutes. Open-Meteo updates hourly, so anything faster
-    // is pure waste of their bandwidth and ours.
-    {
-        static uint32_t last_wx = 0;
-        if (WiFi.status() == WL_CONNECTED &&
-            (last_wx == 0 || now - last_wx >= 900000UL))
-        {
-            last_wx = now;
-            const uint32_t h0 = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-            const bool okw = weather_fetch(&wx, WX_LAT, WX_LON);
-            log_i("weather: %s  internal heap %u -> %u, largest block %u",
-                  okw ? "OK" : "FAILED", (unsigned)h0,
-                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
-            if (okw) wx_render();
-            else if (wx.valid && millis() - wx.fetched_ms > 40UL * 60UL * 1000UL)
-            {
-                // Never present stale data as current. The TLS failure hid for a
-                // day precisely because a failed refresh left yesterday's
-                // numbers on screen looking authoritative.
-                lv_label_set_text(wx_stamp, "STALE - refresh failing");
-                lv_obj_set_style_text_color(wx_stamp, lv_color_hex(0xFF6040), LV_PART_MAIN);
-            }
-        }
-    }
-
-    // detections change slowly; 20 s is plenty and keeps pi5 quiet
-    static uint32_t last_ev = 0;
-    if (now - last_ev >= 20000) { last_ev = now; fetch_events(); }
 
     // Align all drawing to the vertical blanking interval. The RGB peripheral
     // fetches no framebuffer data during blanking, and our porch is 484 lines

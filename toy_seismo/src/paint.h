@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define PAINT_TARGETS   2      // 0 = trace canvas, 1 = spectrum canvas
+#define PAINT_TARGETS   1      // 0 = trace canvas
 #define PAINT_QUEUE_N   4096   // commands. Allocated in PSRAM, NOT .bss:
                                // internal SRAM is the scarce resource (WiFi
                                // needs it) and PSRAM has megabytes spare.
