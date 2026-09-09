@@ -510,12 +510,23 @@ where the LCD FIFO runs dry, however few bytes are actually moving.
 - the spectrum page's ~430 KB/5 s of repaint (removed entirely; no change)
 - raw bandwidth (see the throttle result above)
 
-**The only mitigation inside Arduino is bounce depth** -- 50 lines, 2 x 80 KB of internal
-SRAM, ~5.2 ms of buffered scanout. Depth is how you survive a late ISR. The real fix is
-building ESP-IDF from source with the refill ISR in IRAM.
+**Bounce depth was enough.** At **50 lines** (2 x 80 KB of internal SRAM, ~5.2 ms of
+buffered scanout) the display is **clean with networking running**. Depth is how you
+survive a late ISR, and ~5.2 ms of slack covers the delay WiFi imposes. Building ESP-IDF
+from source with the refill ISR in IRAM remains the principled fix, but it is not needed.
 
-**Prediction for the standalone instrument:** reading an IMU over SPI with the radio down
-removes the contending flash workload, so the panel should be clean. `DEMO_NO_WIFI` builds
-exactly that case with synthetic samples and is the cheap way to test it before committing
-to hardware. If it glitches even then, the board is not suited to a networked 800x480 UI
-and that is a finding, not a failure.
+⚠️ **What is NOT established:** the final step changed bounce depth 30 -> 50 *and* moved
+the scratch buffer back to PSRAM in one flash, so their individual contributions are
+untested. The paced drawing, 20 fps timing and throttled reads were all already in place
+and may each be load-bearing. What is measured is that **this combination is clean**; do
+not assume any single element can be removed.
+
+The working configuration:
+- `BOUNCE_LINES 50` (2 x 80 KB internal SRAM)
+- 20 fps via `VSYNC_FRONT_PORCH=484`, PCLK unchanged at 16 MHz
+- all drawing paced through the paint queue and drained in vertical blanking
+- network on its own core, reads throttled to 1 KB / 8 ms
+
+**For the standalone instrument** this is all headroom: an IMU read over SPI with the
+radio down removes the contending flash workload entirely, which was the only thing the
+bounce depth had to absorb.
