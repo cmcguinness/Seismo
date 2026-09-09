@@ -1,3 +1,17 @@
+> ⚠️ **Calibration figure corrected 2026-09-09.** This document said **~7.5× low**
+> throughout. That figure came from magnitude inversion and was **superseded on
+> 2026-08-13** by the five-anchor comparison against USGS NP.1835: **median 3.26×,
+> implied ~8.8 V/(m/s)** (`STATUS-ARCHIVE.md`, "PROVISIONAL CALIBRATION ADOPTED").
+>
+> ⚠️ **AND THE CONCLUSIONS MAY CHANGE.** An earlier version of this banner claimed they
+> did not; that was wrong. The effective generator constant below is quoted as
+> **3.8 V/(m/s)**, which is 28.8/7.5 — derived from the superseded figure. At 3.26× it is
+> **~8.8 V/(m/s)**, and since **ζ_e scales as G²** the damping authority is **~5.3×
+> larger** than this document assumes. The stated result "`ζ_e` maxes out at 0.06 and no
+> shunt of any value does anything" becomes roughly **0.32** — still short of a ζ ≈ 0.7
+> target, but no longer nothing. **Re-derive with `ringdown.py solve` before acting on any
+> recommendation here.** These are scaling arguments, not a re-measurement.
+
 # Shunt damping resistor — whether to fit one, and what value
 
 The interface board has an empty screw-down socket across AIN0/AIN1 for a shunt damping
@@ -13,7 +27,7 @@ from numbers we have already caught being wrong.
 A shunt damps by **loading the coil**, so the ADC only sees `Rs/(Rc+Rs)` of the
 open-circuit voltage. With `Rc = 375 Ω`, a 1 kΩ shunt costs **27 %** of your signal.
 
-Absolute calibration already reads **~7.5× low** and this station is explicitly
+Absolute calibration already reads **~3.2× low** and this station is explicitly
 sensitivity-first. So deliberate **under-damping is a legitimate choice here**, not a
 compromise — `ringdown.py solve` prints the sensitivity cost beside every candidate so
 the decision is made with both numbers in view.
@@ -86,16 +100,17 @@ no free lunch in relative terms — but the maximum is large, so a few per cent 
 | 4.7 kΩ | 7.4 % | 0.263 | 0.005 |
 | 1 kΩ | 27.3 % | 0.970 | 0.017 |
 
-**The whole scale hinges on G, which is disputed by a factor of 7.5.** At the datasheet
+**The whole scale hinges on G, which is disputed by a factor of ~3.2.** At the datasheet
 28.8 V/(m/s), `ζ_e` maxes out at 3.6 and 10 kΩ is a sensible working value. At STATUS's
-measured effective 3.8 V/(m/s), `ζ_e` maxes out at 0.06 and *no shunt of any value does
+measured effective 3.8 V/(m/s) — **stale, see the banner: ~8.8 V/(m/s) at the corrected
+calibration, which raises ζ_e by ~5.3×** — `ζ_e` maxes out at 0.06 and *no shunt of any value does
 anything* — the coil cannot damp the mass. 10 kΩ is therefore the safe pick: 3.6 % is
-unmeasurable against a 7.5× calibration error, and it cannot make things worse.
+unmeasurable against a 3.2× calibration error, and it cannot make things worse.
 
 ## 🎯 The real prize: this measures the generator constant
 
 `k = G²/(2·M·ω₀)`, so the two-point measurement **yields k, and hence G**. That is the
-quantity behind the ~7.5×-low absolute calibration open since 2026-07-25. Run this
+quantity behind the ~3.2×-low absolute calibration open since 2026-07-25. Run this
 experiment for the calibration even if the damping answer turns out to be "leave it
 empty" — it is the cheapest handle anyone has found on that question.
 
