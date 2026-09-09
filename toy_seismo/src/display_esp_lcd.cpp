@@ -68,7 +68,13 @@ bool display_wait_vsync(uint32_t timeout_ms)
 //
 // Must divide the frame evenly: 800 x 480 = 384000 px, 800 x 30 = 24000, and
 // 384000 / 24000 = 16 exactly.
-#define BOUNCE_LINES 30
+// EXPERIMENT (2026-09-09): 30 lines costs 2 x 48 KB = 96 KB of INTERNAL SRAM,
+// which is the board's scarce resource -- and mbedTLS is compiled with
+// CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC, so it cannot use PSRAM and needs ~40 KB
+// contiguous internally. At 30 lines the largest free internal block was 18-25
+// KB and HTTPS failed on every fetch after the first. 16 lines frees ~45 KB.
+// If the display glitches again, this is the first thing to put back.
+#define BOUNCE_LINES 16
 
 static void flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {

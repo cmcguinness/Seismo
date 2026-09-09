@@ -21,6 +21,8 @@
 #include "paint.h"
 #include "ui_shell.h"
 #include "weather.h"
+#include "scratch.h"
+#include "scratch.h"
 
 // ---------------------------------------------------------------- geometry --
 // Each page owns the whole content area now (720 x 428), so nothing has to
@@ -398,34 +400,55 @@ static bool fetch_live()
     const int code = http.GET();
     if (code != 200) { http.end(); log_w("/v1/live -> HTTP %d", code); return false; }
 
-    String body = http.getString();   // reads to Content-Length, then closes cleanly
+    // Read into a PSRAM buffer, NOT String/getString(). getString() allocated
+    // ~20 KB of INTERNAL heap every 2-4 s and freed it again; that churn
+    // fragmented the internal heap until the largest free block fell to ~25 KB,
+    // at which point TLS (which needs ~40 KB contiguous) could never start
+    // again. The weather page then displayed its last successful fetch forever.
+    // Internal SRAM is the scarce resource; PSRAM has 7 MB idle.
+    char *body = scratch();
+    const size_t body_cap = scratch_size();
+    if (!body) { http.end(); return false; }
+
+    int len = http.getSize();
+    if (len < 0 || (size_t)len >= body_cap) len = body_cap - 1;
+    WiFiClient *st = http.getStreamPtr();
+    int got = 0;
+    const uint32_t deadline = millis() + 8000;
+    while (got < len && millis() < deadline)
+    {
+        const int n2 = st->readBytes(body + got, len - got);
+        if (n2 <= 0) { if (!st->connected()) break; delay(1); continue; }
+        got += n2;
+    }
+    body[got] = 0;
     http.end();
-    if (body.length() < 32) { log_w("/v1/live: short body %d", body.length()); return false; }
+    if (got < 32) { log_w("/v1/live: short body %d", got); return false; }
 
     double t_end = 0, fs = 100.0, rms = 0, age = 0;
-    int i;
+    const char *h;
     // atof skips leading whitespace, so `"fs": 100.0` parses as happily as `"fs":100.0`
-    if ((i = body.indexOf("\"t_end\":")) >= 0) t_end = atof(body.c_str() + i + 8);
-    if ((i = body.indexOf("\"fs\":"))    >= 0) fs    = atof(body.c_str() + i + 5);
-    if ((i = body.indexOf("\"rms\":"))   >= 0) rms   = atof(body.c_str() + i + 6);
-    if ((i = body.indexOf("\"age\":"))   >= 0) age   = atof(body.c_str() + i + 6);
+    if ((h = strstr(body, "\"t_end\":"))) t_end = atof(h + 8);
+    if ((h = strstr(body, "\"fs\":")))    fs    = atof(h + 5);
+    if ((h = strstr(body, "\"rms\":")))   rms   = atof(h + 6);
+    if ((h = strstr(body, "\"age\":")))   age   = atof(h + 6);
 
-    const int a = body.indexOf("\"uv\":");
-    if (a < 0 || t_end <= 0 || fs <= 0) { log_w("/v1/live: missing uv/t_end/fs"); return false; }
-    int p = body.indexOf('[', a);
-    if (p < 0) return false;
-    const int q = body.indexOf(']', p);
-    if (q < 0) return false;
+    const char *a = strstr(body, "\"uv\":");
+    if (!a || t_end <= 0 || fs <= 0) { log_w("/v1/live: missing uv/t_end/fs"); return false; }
+    const char *p = strchr(a, '[');
+    if (!p) return false;
+    const char *q = strchr(p, ']');
+    if (!q) return false;
 
     // Count first so samples can be timestamped backwards from t_end.
     size_t n = 0;
-    for (int k = p + 1; k < q; k++) if (body[k] == ',') n++;
+    for (const char *k = p + 1; k < q; k++) if (*k == ',') n++;
     n += 1;
 
     const double t0 = t_end - (double)(n - 1) / fs;
     size_t used = 0, idx = 0;
-    const char *c = body.c_str() + p + 1;
-    const char *stop = body.c_str() + q;
+    const char *c = p + 1;
+    const char *stop = q;
     while (c < stop && idx < n)
     {
         char *nxt;
@@ -494,8 +517,23 @@ static void fetch_events()
     http.setReuse(false);
     if (!http.begin(url)) return;
     if (http.GET() != 200) { http.end(); return; }
-    String body = http.getString();
+    // Same reasoning as fetch_live: keep the body out of internal heap.
+    char *eb = scratch();          // shared: fetches never overlap
+    if (!eb) { http.end(); return; }
+    int elen = http.getSize();
+    if (elen < 0 || (size_t)elen >= scratch_size()) elen = scratch_size() - 1;
+    WiFiClient *es = http.getStreamPtr();
+    int eg = 0;
+    const uint32_t edl = millis() + 6000;
+    while (eg < elen && millis() < edl)
+    {
+        const int n2 = es->readBytes(eb + eg, elen - eg);
+        if (n2 <= 0) { if (!es->connected()) break; delay(1); continue; }
+        eg += n2;
+    }
+    eb[eg] = 0;
     http.end();
+    String body(eb);
 
     int at = 0;
     for (int row = 0; row < 3; row++)
@@ -564,6 +602,8 @@ void setup()
     smartdisplay_lcd_set_backlight(1.0f);
 
     if (!paint_init()) Serial.println("FATAL: paint queue would not allocate");
+    if (!scratch_init()) Serial.println("FATAL: scratch buffer would not allocate");
+    if (!scratch_init()) Serial.println("FATAL: scratch buffer would not allocate");
 
     lv_obj_t *scr = lv_screen_active();
     ui_shell_init(scr);
@@ -1111,7 +1151,21 @@ void loop()
             (last_wx == 0 || now - last_wx >= 900000UL))
         {
             last_wx = now;
-            if (weather_fetch(&wx, WX_LAT, WX_LON)) wx_render();
+            const uint32_t h0 = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+            const bool okw = weather_fetch(&wx, WX_LAT, WX_LON);
+            log_i("weather: %s  internal heap %u -> %u, largest block %u",
+                  okw ? "OK" : "FAILED", (unsigned)h0,
+                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+            if (okw) wx_render();
+            else if (wx.valid && millis() - wx.fetched_ms > 40UL * 60UL * 1000UL)
+            {
+                // Never present stale data as current. The TLS failure hid for a
+                // day precisely because a failed refresh left yesterday's
+                // numbers on screen looking authoritative.
+                lv_label_set_text(wx_stamp, "STALE - refresh failing");
+                lv_obj_set_style_text_color(wx_stamp, lv_color_hex(0xFF6040), LV_PART_MAIN);
+            }
         }
     }
 

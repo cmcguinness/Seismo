@@ -445,3 +445,44 @@ problem it was added to solve.
 trying: the servo oscillating against the ~5 s burst period (lower `COLQ_SERVO`); the
 20 fps frame quantisation against a 50 col/s target; or LVGL's own refresh timer beating
 against the vsync wait.
+
+## Weather: plain HTTP, and why TLS was the wrong answer
+
+`api.open-meteo.com` answers on **plain http with no redirect**, so the weather fetch uses
+it. That is not laziness -- it was the difference between working and not:
+
+| | HTTPS | plain HTTP |
+|---|---|---|
+| internal heap free | 62,076 | **105,912** |
+| largest free block | 18,420 | **63,476** |
+| fetches | 1 OK at boot, then failed forever | 3/3 OK |
+
+mbedTLS is built with `CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC`, so it can only allocate from
+INTERNAL SRAM and needs ~40 KB contiguous. Once the display's bounce buffers (2 x 48 KB)
+are allocated, the largest free internal block is ~18-25 KB. The first handshake after
+boot succeeded; every one afterwards failed, and the page kept showing its last good
+fetch -- which is how it came to be displaying **yesterday's weather** while looking
+perfectly current.
+
+**Dropping TLS freed 44 KB of internal SRAM and tripled the largest block**, because
+WiFiClientSecure holds buffers even between fetches. The alternative on the table was
+halving the bounce buffers and degrading the display to pay for encryption on a public
+forecast endpoint that receives nothing but a latitude and a longitude. Charles spotted
+the http option; it is by far the better trade.
+
+⚠️ This reasoning is specific to an unauthenticated public read. **Do not generalise it to
+anything carrying credentials.**
+
+## One shared scratch buffer (`scratch.*`)
+
+`/v1/live` (~20 KB), `/v1/events` and the weather forecast each used to allocate their own
+body buffer. They never overlap, so they share one 40 KB reservation in PSRAM, made once
+at boot: no repeated allocation, no churn on the internal heap, and one place where the
+size is decided instead of three separate guesses.
+
+## Never present stale data as current
+
+The TLS failure hid for a day because a failed refresh silently left the previous fetch on
+screen. The weather stamp now flips to **"STALE - refresh failing"** in red if the last
+success is over 40 minutes old. Any panel that caches a remote value needs this; the
+failure mode of quietly showing old numbers is worse than showing none.
