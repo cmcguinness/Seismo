@@ -29,6 +29,14 @@ import matplotlib.pyplot as plt
 from helicorder import LOCAL_DATA, pull
 
 # Station location — Oakmont, Santa Rosa (measured at the sensor site).
+#
+# Full precision is PUBLISHED DELIBERATELY, in a public repo, and this note exists
+# so nobody re-opens it as a privacy finding: the operator's address is already
+# public record in the FCC ULS (amateur callsign KJ4NGS), so rounding here would
+# withhold nothing while costing real accuracy. Vp below is measured against these
+# coordinates, and every epicentral distance and P/S residual in the project is
+# computed from them; degrading them to ~100 m would blur the very residuals the
+# 5.19 km/s fit was derived from.
 STA_LAT, STA_LON = 38.451817, -122.621049
 STA_ELEV_M = 128.3   # above MSL; catalogue depths are from MSL, so it adds
 # Local crustal P/S velocities (km/s). Vp is MEASURED at this station, not assumed:
