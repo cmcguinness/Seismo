@@ -71,12 +71,24 @@ static lv_color16_t *canvas_buf, *spec_buf;
 struct ColQ { float mn, mx; };
 static ColQ    colq[COLQ_N];
 static uint16_t colq_head = 0, colq_tail = 0;
-#define COLQ_PER_FRAME 8          // A fetch delivers ~263 columns at once at
-                                  // 0.02 s/col. At 4/frame the queue sat at
-                                  // 480 of 512 and discarded its oldest
-                                  // entries; 8/frame drains a burst in ~1.6 s.
-                                  // Still only ~6.4 KB/frame, well inside the
-                                  // 48,000 px paint budget.
+static size_t   colq_depth = 0;
+// PLAYOUT BUFFER. Data arrives in bursts -- ~263 columns every ~5 s -- so
+// draining "as fast as possible" made the trace sprint across the screen and
+// then sit still for four seconds. Smoothness does not come from draining
+// faster; it comes from draining at exactly the rate the data was RECORDED,
+// with a cushion deep enough to ride out the burstiness. Same idea as an audio
+// or video jitter buffer.
+//
+// Nominal rate is one column per COL_PERIOD_S of real time. A slow servo
+// nudges it either side of nominal to hold the buffer near COLQ_TARGET, so a
+// slightly fast or slow feed is absorbed rather than accumulating.
+//
+// The cost is latency, and it is worth stating plainly: the display sits
+// COLQ_TARGET * COL_PERIOD_S behind the feed -- about 6 s here, on top of the
+// ~4 s feed age. For a wall display that is a good trade for smooth motion; it
+// would be the wrong trade for anything you were trying to react to.
+#define COLQ_TARGET   300         // ~6 s of cushion at 0.02 s/column
+#define COLQ_SERVO    0.5f        // how hard to correct toward the target
 
 static inline void colq_push(float mn, float mx)
 {
@@ -435,8 +447,10 @@ static bool fetch_live()
         // productive?) and meant nothing to a viewer. The window span answers a
         // question the display otherwise leaves unanswered -- how much time is
         // on screen.
-        snprintf(buf, sizeof buf, "rms %.1f uV    feed age %.1f s    %.0f s across",
-                 rms, age, (double)TRACE_W * COL_PERIOD_S);
+        snprintf(buf, sizeof buf,
+                 "rms %.1f uV    delay %.0f s    %.0f s across",
+                 rms, age + (double)colq_depth * COL_PERIOD_S,
+                 (double)TRACE_W * COL_PERIOD_S);
         (void)used;
         lv_label_set_text(lbl_stats, buf);
     }
@@ -1054,12 +1068,32 @@ void loop()
         }
     }
 
-    // drain the column queue a few at a time -- never a burst
-    for (int k = 0; k < COLQ_PER_FRAME && colq_tail != colq_head; k++)
+    // Paced drain: real-time rate, servo-corrected toward the target depth.
     {
-        draw_column(col, colq[colq_tail].mn, colq[colq_tail].mx);
-        col = (col + 1) % TRACE_W;
-        colq_tail = (colq_tail + 1) % COLQ_N;
+        static uint32_t last_drain = 0;
+        static float    credit = 0.0f;
+        if (last_drain == 0) last_drain = now;
+        const float dt = (now - last_drain) / 1000.0f;
+        last_drain = now;
+
+        const size_t depth = (colq_head + COLQ_N - colq_tail) % COLQ_N;
+        float rate = dt / COL_PERIOD_S;                       // columns of real time
+        rate *= 1.0f + COLQ_SERVO * ((float)depth - COLQ_TARGET) / COLQ_TARGET;
+        if (rate < 0.0f) rate = 0.0f;
+        const float cap = 4.0f * dt / COL_PERIOD_S;           // never sprint
+        if (rate > cap) rate = cap;
+
+        credit += rate;
+        int n = (int)credit;
+        credit -= n;
+        if (n > 24) n = 24;                                   // hard safety stop
+        for (int k = 0; k < n && colq_tail != colq_head; k++)
+        {
+            draw_column(col, colq[colq_tail].mn, colq[colq_tail].mx);
+            col = (col + 1) % TRACE_W;
+            colq_tail = (colq_tail + 1) % COLQ_N;
+        }
+        colq_depth = depth;
     }
 
     // NO periodic esp_lcd_rgb_panel_restart() here. Restarting DMA disrupts a

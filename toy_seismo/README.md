@@ -420,3 +420,28 @@ allocations so the radio stopped associating — silently, with no allocation er
 raw sample counter (`+557`) sat in the user-facing status line for hours, meaning nothing
 to a viewer. Check `paint_dropped()` / `paint_high_water()` in the serial log; keep
 counters off the glass.
+
+## Smooth scrolling: a playout buffer
+
+Data arrives in bursts -- ~263 columns every ~5 s -- so draining "as fast as possible"
+made the trace sprint across the screen and then sit still for four seconds. **Smoothness
+does not come from draining faster.** It comes from draining at exactly the rate the data
+was recorded, with a cushion deep enough to ride out the burstiness: the same idea as an
+audio or video jitter buffer.
+
+Each frame draws `dt / COL_PERIOD_S` columns -- the columns of real time that just elapsed
+-- with a fractional credit accumulator, so 2.5 columns/frame comes out as an even
+2,3,2,3 instead of truncating to 2 and falling behind. A slow servo nudges the rate +/-50%
+to hold the queue near `COLQ_TARGET`, absorbing a feed that runs slightly fast or slow.
+A hard cap at 4x nominal stops it ever sprinting again.
+
+**The cost is latency, and it is shown on screen rather than hidden**: the status line
+reads `delay`, and it is the total -- pi5's ~4 s feed age plus ~6 s of playout cushion.
+That is the right trade for a wall display and the wrong one for anything you would react
+to. `COLQ_TARGET` is the single knob; near zero it guarantees visible stalls, which is the
+problem it was added to solve.
+
+**Known remaining issue:** a slight stutter persists. Untested guesses, in the order worth
+trying: the servo oscillating against the ~5 s burst period (lower `COLQ_SERVO`); the
+20 fps frame quantisation against a 50 col/s target; or LVGL's own refresh timer beating
+against the vsync wait.

@@ -106,6 +106,42 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 🎛️ THE PANEL GREW A UI, AND THE DISPLAY RULES BECAME A LIBRARY (2026-09-08, late)
+
+The 5" panel now runs a four-page instrument off `/v1/live`: helicorder, spectrum,
+information, weather, with an icon rail, per-page help behind a "?", and working touch.
+`toy_seismo/README.md` carries the detail; the parts worth remembering:
+
+**It is a prototype for the standalone IMU instrument**, not a pi5 accessory. The pi5
+feed is scaffolding, `feed(t, value)` is the seam, and `ui_shell.*` deliberately knows
+nothing about seismometers. The one thing not yet source-agnostic is units — the trace
+hard-codes µV.
+
+**Three honesty decisions, all Charles's calls, all improvements:**
+- The trace is **log and FIXED**, not auto-scaled. Auto-scaling fills the panel whatever
+  is happening, so a truck and a felt earthquake look identical. ~39 px/decade of µV with
+  a labelled y-axis; 0.8 µV floor to the 6843 µV M3.3.
+- **Amplitude colour bands** — green < 10 µV through red > 300 — so a glance reads
+  quiet/hmm/uh-oh. A sixth band splitting green at 3 µV was removed: it made quiet columns
+  dark at the base and bright at the tip and implied a distinction that does not exist.
+  *Colour should mark a change of meaning, not of magnitude within the same meaning.*
+- The **spectrum axis is log in frequency** with Hz labels. Linear gave the 1–15 Hz
+  detection band a third of the width and spent the rest on house noise.
+
+**Smooth scrolling is a playout buffer**, not a faster drain — real-time rate with a
+servo-held cushion, and the resulting ~10 s latency shown on screen rather than hidden.
+
+**Two bugs only a photograph could find**, both invisible to serial: LVGL's printf has no
+float support (every displayed number was wrong while the logs were right), and
+`lv_obj_invalidate_area()` takes absolute, not canvas-local, coordinates — the spectrum
+never repainted at all while the trace at y=52 partially overlapped and *looked* fine with
+a stale bottom quarter.
+
+**Open:** the thin holes in the trace remain unexplained. Two proposed mechanisms were
+killed by measurement (`paint_dropped()` is 0; no gap-fill warnings), so the current guess
+— genuine near-zero bins at a zero crossing — is a guess, not a finding. A slight scroll
+stutter also remains.
+
 ## 🖼️ THE PANEL PORTED TO IDF 5, AND DRAWING BECAME A QUEUE (2026-09-08, late)
 
 The 5" ESP32-8048S050C now runs a **live helicorder off `/v1/live`**, with a live 0-50 Hz
