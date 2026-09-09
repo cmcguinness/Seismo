@@ -22,8 +22,10 @@
 #include "weather.h"
 #include "scratch.h"
 #include "net.h"
+#include <sys/time.h>
 #include "scratch.h"
 #include "net.h"
+#include <sys/time.h>
 
 // ---------------------------------------------------------------- geometry --
 // Each page owns the whole content area now (720 x 428), so nothing has to
@@ -99,8 +101,26 @@ static double   epoch_ref = 0;
 static uint32_t epoch_ref_ms = 0;
 
 
+// Prefer NTP; fall back to the seismic feed's t_end.
+//
+// The feed-derived clock was fine while pi5 was the only data source, but it
+// dies with that feed -- and the standalone IMU instrument has no feed at all.
+// It also stopped whenever pi5 did. SNTP costs a few hundred bytes an hour,
+// which is nothing beside the 19 KB every 4 s the display already survives, and
+// the ESP32's RTC carries the time between syncs.
+static bool ntp_ok(void)
+{
+    return time(NULL) > 1700000000;      // anything past 2023 means SNTP landed
+}
+
 static double utc_now(void)
 {
+    if (ntp_ok())
+    {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return (double)tv.tv_sec + tv.tv_usec / 1e6;
+    }
     if (epoch_ref <= 0) return 0;
     return epoch_ref + (double)(millis() - epoch_ref_ms) / 1000.0;
 }
@@ -668,6 +688,12 @@ void setup()
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    // UTC, no timezone: the display shows UTC and says so, which is what a
+    // seismic instrument should do. Two servers so a single unreachable pool
+    // does not leave the clock dead.
+    configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
+
     if (!net_start(SEISMO_HOST, SEISMO_PORT))
         Serial.println("FATAL: network task would not start");
 }
@@ -830,10 +856,12 @@ void loop()
                      "  %s\n"
                      "  %d dBm\n\n"
                      "DISPLAY\n"
+                     "  clock %s\n"
                      "  up %luh %02lum\n"
                      "  heap %u free\n"
                      "  paint queue %u",
                      WiFi.localIP().toString().c_str(), (int)WiFi.RSSI(),
+                     ntp_ok() ? "NTP" : (epoch_ref > 0 ? "pi5 feed" : "unset"),
                      (unsigned long)(up / 3600), (unsigned long)((up / 60) % 60),
                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
                      (unsigned)paint_pending());

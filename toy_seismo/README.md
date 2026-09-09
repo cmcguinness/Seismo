@@ -530,3 +530,26 @@ The working configuration:
 **For the standalone instrument** this is all headroom: an IMU read over SPI with the
 radio down removes the contending flash workload entirely, which was the only thing the
 bounce depth had to absorb.
+
+## Acceptance criterion for display artefacts
+
+Charles, 2026-09-09: **a glitch once every ten minutes is acceptable; once a second is
+not.** Worth stating because it changes what "done" means -- chasing zero is where the
+expense lives, and a rare artefact on a wall display costs nothing.
+
+Practical consequences:
+- an NTP sync once an hour, or a weather fetch every 15 minutes, are comfortably inside
+  tolerance even if each causes one momentary artefact;
+- the continuous 19 KB/4 s seismic feed was the only traffic frequent enough to matter,
+  and it is the one that had to be made clean;
+- do not spend internal SRAM, latency or complexity buying perfection past this line.
+
+## The clock is independent of pi5
+
+UTC comes from **SNTP** (`pool.ntp.org`, `time.cloudflare.com`), with the seismic feed's
+`t_end + age` as fallback. The info page reports which is in charge -- `clock NTP` or
+`clock pi5 feed` -- so a silent fallback cannot hide.
+
+The feed-derived clock was fine while pi5 was the only source, but it stopped whenever
+pi5 did, and the standalone IMU instrument has no feed at all. SNTP costs a few hundred
+bytes an hour against the 19 KB every 4 s the display already survives.
