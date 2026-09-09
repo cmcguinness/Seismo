@@ -69,7 +69,10 @@ static int http_get_scratch(const char *url, uint32_t connect_ms, uint32_t read_
 static void net_task(void *)
 {
     uint32_t last_live = 0, last_ev = 0, last_wx = 0;
-    char url[440];
+    static char url[440];          // 440 B off the task stack, which is only 6 KB
+
+    log_i("net task running on core %d, stack high water %u",
+          xPortGetCoreID(), (unsigned)uxTaskGetStackHighWaterMark(NULL));
 
     for (;;)
     {
@@ -95,7 +98,17 @@ static void net_task(void *)
         if (want == NET_NONE) { vTaskDelay(pdMS_TO_TICKS(20)); continue; }
 
         // Wait for the UI to release the shared buffer before overwriting it.
-        if (xSemaphoreTake(sem_free, pdMS_TO_TICKS(200)) != pdTRUE) continue;
+        if (xSemaphoreTake(sem_free, pdMS_TO_TICKS(200)) != pdTRUE)
+        {
+            static uint32_t nag = 0;
+            if (millis() - nag > 10000)
+            {
+                nag = millis();
+                log_w("net: waiting for UI to release the buffer (want=%d)", (int)want);
+            }
+            continue;
+        }
+        log_i("net: fetching kind=%d", (int)want);
 
         const uint32_t t_begin = millis();
         int len = -1;
@@ -153,7 +166,12 @@ bool net_start(const char *host, int port)
     // Core 0: the Arduino loop runs on core 1 (ARDUINO_RUNNING_CORE=1), and the
     // WiFi stack already lives on core 0, so this keeps radio work together and
     // leaves the UI core uncontended.
-    return xTaskCreatePinnedToCore(net_task, "net", 6144, NULL, 4, NULL, 0) == pdPASS;
+    // 12 KB, not 6: HTTPClient + WiFiClient + TLS-free HTTP still want several
+    // KB of stack, and a silent stack overflow here would look exactly like a
+    // task that never runs.
+    const BaseType_t ok = xTaskCreatePinnedToCore(net_task, "net", 12288, NULL, 4, NULL, 0);
+    log_i("net_start: task create %s", ok == pdPASS ? "OK" : "FAILED");
+    return ok == pdPASS;
 }
 
 NetKind net_poll(const char **body, int *len)

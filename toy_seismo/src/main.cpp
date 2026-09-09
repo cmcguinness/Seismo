@@ -509,7 +509,6 @@ void setup()
 
     if (!paint_init()) Serial.println("FATAL: paint queue would not allocate");
     if (!scratch_init()) Serial.println("FATAL: scratch buffer would not allocate");
-    if (!scratch_init()) Serial.println("FATAL: scratch buffer would not allocate");
 
     lv_obj_t *scr = lv_screen_active();
     ui_shell_init(scr);
@@ -937,11 +936,13 @@ void loop()
             last_rep = now;
             const uint32_t tot = display_total_frames(), late = display_late_frames();
             log_i("frames %lu/%lu late | colq %u | rssi %d dBm | fetch mean %lu worst %lu ms"
-                  " | fails %lu | marks %lu",
+                  " | fails %lu | marks %lu | heap %u free %u largest",
                   (unsigned long)late, (unsigned long)tot,
                   (unsigned)colq_depth, (int)WiFi.RSSI(),
                   (unsigned long)net_mean_ms(), (unsigned long)net_worst_ms(),
-                  (unsigned long)net_fail_count(), (unsigned long)marks);
+                  (unsigned long)net_fail_count(), (unsigned long)marks,
+                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
             net_reset_timing();
             display_reset_stats();
         }

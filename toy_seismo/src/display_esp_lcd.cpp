@@ -125,7 +125,17 @@ bool display_wait_vsync(uint32_t timeout_ms)
 //
 // 48 lines = 2 x 76.8 KB internal SRAM, 480/48 = 10 exactly, ~4.9 ms of
 // buffered scanout.
-#define BOUNCE_LINES 48
+// 30 lines = 2 x 48 KB internal SRAM, 480/30 = 16 exactly.
+//
+// ⚠️ BOUNCE DEPTH AND THE NETWORK TASK COMPETE FOR THE SAME INTERNAL SRAM.
+// At 48 lines (2 x 76.8 KB = 153.6 KB) xTaskCreatePinnedToCore for the network
+// task FAILED -- no stack available. The result was a display that looked
+// perfect because nothing was fetching: empty trace, no traffic, no contention.
+// Any "clean" observation taken with a dead network task proves nothing.
+//
+// Budget: ~204 KB of heap at boot, minus bounce, minus the 16 KB LVGL draw
+// buffer, minus ~40 KB for WiFi, minus task stacks.
+#define BOUNCE_LINES 30
 
 static void flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {

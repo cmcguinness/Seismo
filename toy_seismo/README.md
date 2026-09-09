@@ -633,3 +633,40 @@ being reported -- and committed -- as something else. A build succeeding proves 
 compiled, not that it contains what you intended.
 
 `smartdisplay_init()` logs the actual panel configuration at startup. Read it.
+
+## Bounce depth and the network task compete for the same SRAM
+
+At **48 lines** (2 x 76.8 KB = 153.6 KB internal) `xTaskCreatePinnedToCore` for the network
+task **failed** -- no stack available. There was no networking at all: empty trace, no
+fetches, and a display that looked flawless *because nothing was contending with it*.
+
+So "more bounce depth is better" has a hard ceiling. Past it you do not get a better
+display, you get a display with nothing to show. And critically:
+
+⚠️ **Any clean observation taken while the network task was dead proves nothing** -- we
+already know an idle radio is clean. Check that fetches are happening before believing a
+clean reading.
+
+Working configuration: **30 lines** (2 x 48 KB, 480/30 = 16 exactly), network task with a
+**12 KB** stack (6 KB was too small; high-water measured at 11,560).
+
+Rough internal budget: ~204 KB heap at boot, minus 96 KB bounce, minus 16 KB LVGL draw
+buffer, minus ~40 KB WiFi, minus task stacks.
+
+## Verify the RUNNING configuration, not the source
+
+Three times in one session I reported a configuration that was not the one on the board:
+two `BOUNCE_LINES` edits silently matched nothing, and once the network task failed to
+start at all. Every one would have been caught instantly by reading a line the firmware
+already printed.
+
+Startup now logs, and these should be checked before trusting any observation:
+
+```
+RGB panel up: 800x480, pclk 16000000 Hz, bounce N px, num_fbs 1
+net_start: task create OK
+net task running on core 0, stack high water NNNNN
+```
+
+and every minute: frames late, colq depth, RSSI, fetch timings, failures, and free/largest
+internal heap.
