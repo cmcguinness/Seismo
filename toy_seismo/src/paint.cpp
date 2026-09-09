@@ -1,11 +1,13 @@
 #include "paint.h"
 #include <string.h>
+#include <esp_heap_caps.h>
 
 struct Cmd { uint8_t target; int16_t x, y, w, h; lv_color16_t c; };
 
-static Cmd      q[PAINT_QUEUE_N];
+static Cmd     *q = NULL;
 static uint16_t q_head = 0, q_tail = 0;
 static uint32_t q_dropped = 0;
+static size_t   q_hi = 0;
 
 struct Target {
     lv_obj_t     *canvas;
@@ -16,6 +18,14 @@ struct Target {
     bool          dirty;
 };
 static Target tg[PAINT_TARGETS];
+
+bool paint_init(void)
+{
+    if (q) return true;
+    q = (Cmd *)heap_caps_malloc(sizeof(Cmd) * PAINT_QUEUE_N, MALLOC_CAP_SPIRAM);
+    q_head = q_tail = 0;
+    return q != NULL;
+}
 
 void paint_register(uint8_t target, lv_obj_t *canvas, lv_color16_t *buf,
                     int16_t w, int16_t h)
@@ -31,7 +41,7 @@ void paint_register(uint8_t target, lv_obj_t *canvas, lv_color16_t *buf,
 void paint_rect(uint8_t target, int16_t x, int16_t y, int16_t w, int16_t h,
                 lv_color16_t c)
 {
-    if (target >= PAINT_TARGETS || w <= 0 || h <= 0) return;
+    if (!q || target >= PAINT_TARGETS || w <= 0 || h <= 0) return;
 
     const uint16_t nxt = (uint16_t)((q_head + 1) % PAINT_QUEUE_N);
     if (nxt == q_tail)
@@ -43,10 +53,16 @@ void paint_rect(uint8_t target, int16_t x, int16_t y, int16_t w, int16_t h,
     }
     q[q_head] = (Cmd){target, x, y, w, h, c};
     q_head = nxt;
+    const size_t pend = (q_head + PAINT_QUEUE_N - q_tail) % PAINT_QUEUE_N;
+    if (pend > q_hi) q_hi = pend;
 }
+
+uint32_t paint_dropped(void) { return q_dropped; }
+size_t   paint_high_water(void) { return q_hi; }
 
 size_t paint_pending(void)
 {
+    if (!q) return 0;
     return (size_t)((q_head + PAINT_QUEUE_N - q_tail) % PAINT_QUEUE_N);
 }
 
@@ -61,6 +77,7 @@ static inline void mark_dirty(Target &t, int16_t x0, int16_t y0, int16_t x1, int
 
 size_t paint_drain(uint32_t budget_px)
 {
+    if (!q) return 0;
     uint32_t spent = 0;
 
     while (q_tail != q_head && spent < budget_px)

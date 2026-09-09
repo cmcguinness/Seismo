@@ -355,3 +355,68 @@ silently, with no allocation error anywhere.
 The board has no RTC, but `/v1/live`'s `t_end` **is** Unix epoch, so pi5's clock arrives
 on every fetch; `millis()` carries it between. Good to a few hundred ms of poll latency:
 fine for reading a detection list, not for picking arrivals.
+
+## The UI shell (`ui_shell.*`, `ui_icons.*`)
+
+A reusable application shell, deliberately knowing nothing about seismometers:
+fixed title bar (station / clock / Wi-Fi strength), a left rail of square icons, and a
+content area. Up to 5 pages plus a "?" pinned at the bottom giving per-page help.
+Geometry derives from `LV_HOR_RES`/`LV_VER_RES`, so it is not nailed to this panel.
+
+**Pages are built once and shown/hidden, never rebuilt** — rebuilding a page's canvases
+on every tap would be a ~610 KB burst and would desync the scanout instantly.
+
+Icons are drawn as pixels (`ui_icons.cpp`), not loaded as images or symbol fonts: no
+asset dependency, and recolouring for the active state is just a redraw. The **help "?"
+is the exception** — it is a real glyph, because a question mark is a *character* and
+looked like a stray arc when reconstructed from primitives.
+
+## Display honesty — three decisions worth keeping
+
+**1. The trace scale is logarithmic and FIXED, not auto-scaled.** Auto-scaling fills the
+panel whatever is happening, so a passing truck and a felt earthquake look identical —
+it tells the viewer that all ground motion is equally dramatic, which is a lie. ~39 px
+per decade of µV, gridlines and a labelled y-axis at 1/10/100/1k either side of zero.
+Range covered: 0.8 µV noise floor to the 6843 µV M3.3 of 2026-09-03.
+
+**2. Amplitude colour bands**, five discrete steps: green < 10 µV (normal), lime to 30,
+yellow to 100, orange to 300, red above. Because row position on a log trace *is*
+amplitude, the bands are fixed horizontal stripes computed once; a column emits one rect
+per band it crosses, usually two or three. Thresholds come from this station's measured
+numbers, not from taste.
+⚠️ There was briefly a sixth band splitting green at 3 µV. It made every quiet column
+dark at the base and bright at the tip — it looked like new growth on a plant and implied
+a distinction that does not exist. **A colour change should mark a change of meaning, not
+a change of magnitude within the same meaning.**
+
+**3. The spectrum axis is logarithmic in frequency, 0.5-50 Hz, with Hz labels.** Linear
+gave the 1-15 Hz detection band the leftmost third while most of the width went to
+20-50 Hz, which is nearly all house noise. Known lines are marked as labelled *regions*,
+not seven ticks: 37.65/40/40.6/41 Hz span 3.35 Hz and cannot be resolved on a 700 px
+full-range axis at any scaling, however well the FFT separates them.
+
+## Trace density is what makes it look alive
+
+The web dashboard draws ~1.5 px per sample and shows individual oscillations. At 5
+samples/px (`COL_PERIOD_S = 0.05`) a min/max fill is the *honest* rendering but adjacent
+columns merge into a featureless slab. `COL_PERIOD_S = 0.02` gives ~2 samples/px, where
+the envelope IS the waveform. Density, not colour, is what made it dull.
+
+## Weather page
+
+Open-Meteo, fetched directly (no key), every 15 minutes, with a °C/°F toggle that also
+flips km/h ↔ mph and re-renders from cache without refetching.
+⚠️ `setInsecure()` is used deliberately — a public, unauthenticated endpoint that receives
+nothing but a lat/lon. **Do not copy that pattern anywhere carrying credentials.**
+
+No earthquake forecast appears, and the help page says why: nobody can predict a specific
+earthquake days ahead. What is real is the background rate and post-event aftershock
+probabilities.
+
+## Debug scaffolding must not ship
+
+Twice this bit us. A 48 KB benchmark array left in `.bss` starved WiFi's internal
+allocations so the radio stopped associating — silently, with no allocation error. And a
+raw sample counter (`+557`) sat in the user-facing status line for hours, meaning nothing
+to a viewer. Check `paint_dropped()` / `paint_high_water()` in the serial log; keep
+counters off the glass.

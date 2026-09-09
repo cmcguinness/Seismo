@@ -21,9 +21,15 @@
 #include <stddef.h>
 
 #define PAINT_TARGETS   2      // 0 = trace canvas, 1 = spectrum canvas
-#define PAINT_QUEUE_N   1024   // commands; ~10 KB. Overflow drops OLDEST.
+#define PAINT_QUEUE_N   4096   // commands. Allocated in PSRAM, NOT .bss:
+                               // internal SRAM is the scarce resource (WiFi
+                               // needs it) and PSRAM has megabytes spare.
+                               // Overflow drops the OLDEST command.
 
 // Register a canvas as a paint target. buf must be LV_COLOR_FORMAT_RGB565.
+// Allocate the command ring. Call once, before any paint_*().
+bool paint_init(void);
+
 void paint_register(uint8_t target, lv_obj_t *canvas, lv_color16_t *buf,
                     int16_t w, int16_t h);
 
@@ -42,3 +48,8 @@ static inline void paint_vline(uint8_t target, int16_t x, int16_t y0, int16_t y1
 size_t paint_drain(uint32_t budget_px);
 
 size_t paint_pending(void);
+// Commands discarded because the ring was full. Non-zero means the display is
+// dropping work, which on a scrolling trace shows up as permanently blank
+// columns: the erase-ahead ran but the redraw was thrown away.
+uint32_t paint_dropped(void);
+size_t   paint_high_water(void);

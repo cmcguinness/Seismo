@@ -23,6 +23,7 @@
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_rgb.h>
 #include <esp_heap_caps.h>
+#include <Wire.h>
 #include "display_backend.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -86,6 +87,99 @@ void smartdisplay_lcd_set_backlight(float duty)
     if (duty < 0) duty = 0;
     if (duty > 1) duty = 1;
     ledcWrite(DISPLAY_BCKL, (uint32_t)(duty * 255.0f));
+}
+
+// ---------------------------------------------------------------- touch -----
+// Minimal GT911 driver. esp32_smartdisplay supplied this on IDF 4.4; the IDF 5
+// backend has to bring its own, and forgetting it is why the panel was blind to
+// touch after the port -- the display worked, so nothing looked wrong.
+//
+// Protocol: 16-bit register addresses, big-endian.
+//   0x814E status: bit7 = data ready, low nibble = number of points
+//   0x8150 point 0: id, x_lo, x_hi, y_lo, y_hi, size_lo, size_hi, reserved
+// The status register MUST be cleared to 0 after reading or the controller
+// never reports another touch.
+#define GT911_ADDR    0x5D
+#define GT911_STATUS  0x814E
+#define GT911_POINT1  0x8150
+
+static bool gt911_rd(uint16_t reg, uint8_t *buf, size_t n)
+{
+    Wire.beginTransmission(GT911_ADDR);
+    Wire.write((uint8_t)(reg >> 8));
+    Wire.write((uint8_t)(reg & 0xFF));
+    if (Wire.endTransmission(true) != 0) return false;   // STOP, not repeated start
+    if (Wire.requestFrom((int)GT911_ADDR, (int)n) != (int)n) return false;
+    for (size_t i = 0; i < n; i++) buf[i] = Wire.read();
+    return true;
+}
+
+static void gt911_wr(uint16_t reg, uint8_t v)
+{
+    Wire.beginTransmission(GT911_ADDR);
+    Wire.write((uint8_t)(reg >> 8));
+    Wire.write((uint8_t)(reg & 0xFF));
+    Wire.write(v);
+    Wire.endTransmission();
+}
+
+static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
+{
+    static int32_t last_x = 0, last_y = 0;
+    uint8_t st = 0;
+
+    data->state = LV_INDEV_STATE_RELEASED;
+    if (!gt911_rd(GT911_STATUS, &st, 1)) return;
+
+    if (st & 0x80)
+    {
+        const uint8_t n = st & 0x0F;
+        if (n > 0)
+        {
+            uint8_t p[10];
+            if (gt911_rd(GT911_POINT1, p, 10))
+            {
+                // MEASURED layout. A read of 0x8150 lands one byte late on this
+                // controller: there is NO leading track-id byte, so
+                //   p[0..1] = x, p[2..3] = y, p[4..5] = touch size
+                // all little-endian. Verified by tapping the four corners.
+                //
+                // Beware the near-miss: touch SIZE reads 80..115, which looks
+                // like a perfectly plausible y coordinate. Taking p[4..5] as y
+                // gives a value that barely moves as you tap top vs bottom --
+                // the tell is a coordinate that is in range but does not track
+                // the finger, not one that is obviously garbage.
+                last_x = (int32_t)(p[0] | (p[1] << 8));
+                last_y = (int32_t)(p[2] | (p[3] << 8));
+                data->state = LV_INDEV_STATE_PRESSED;
+            }
+        }
+        gt911_wr(GT911_STATUS, 0);      // must clear, or no further reports
+    }
+    data->point.x = last_x;
+    data->point.y = last_y;
+}
+
+static void touch_init(void)
+{
+    pinMode(GT911_TOUCH_CONFIG_RST, OUTPUT);
+    digitalWrite(GT911_TOUCH_CONFIG_RST, LOW);
+    delay(12);
+    digitalWrite(GT911_TOUCH_CONFIG_RST, HIGH);
+    delay(60);
+
+    Wire.begin(GT911_I2C_CONFIG_SDA, GT911_I2C_CONFIG_SCL,
+               GT911_I2C_CONFIG_MASTER_CLK_SPEED);
+
+    Wire.beginTransmission(GT911_ADDR);
+    const bool present = (Wire.endTransmission() == 0);
+    log_i("GT911 at 0x%02X on SDA %d / SCL %d: %s", GT911_ADDR,
+          GT911_I2C_CONFIG_SDA, GT911_I2C_CONFIG_SCL,
+          present ? "present" : "NOT FOUND");
+
+    lv_indev_t *indev = lv_indev_create();
+    lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(indev, touch_read_cb);
 }
 
 void smartdisplay_init(void)
@@ -160,6 +254,8 @@ void smartdisplay_init(void)
     if (!buf) { log_e("draw buffer would not allocate"); return; }
     lv_display_set_buffers(disp, buf, NULL, buf_px * 2, LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(disp, flush_cb);
+
+    touch_init();
 }
 
 #endif  // USE_ESP_LCD_DIRECT
