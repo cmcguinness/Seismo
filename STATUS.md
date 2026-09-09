@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-08 (UTC)_
+_Last updated: 2026-09-09 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -105,6 +105,50 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🔍 THE PANEL GLITCH: SIX CAUSES ELIMINATED, ONE LIVE LEAD (2026-09-09)
+
+The 5" display now runs a three-page instrument (trace / weather / info) off `/v1/live`
+with networking on its own core. An intermittent artefact — stripe noise in the top ~100
+rows, in episodes lasting minutes — is **not solved**, but the investigation is in good
+shape and `toy_seismo/README.md` has the detail.
+
+**Eliminated by measurement, not argument:** drawing load (glitching observed at
+`colq 191`, *below* target, `paint dropped 0`); desync-and-restart (0 late frames in 3600,
+frame timing exact); raw bandwidth (throttling reads 10× changed nothing); memory
+fragmentation (it *recovers*, and memory does not spontaneously defragment — Charles;
+`largest_free_block` also stayed constant); the spectrum page (removed entirely, no
+change); buffer placement (identical in PSRAM or SRAM); and **direct DMA** (`BOUNCE_LINES
+0` → tearing and horizontal jumping; the bus cannot feed a 16 MHz RGB panel directly while
+the CPU works — bounce buffers are load-bearing).
+
+**Live hypothesis:** flash-execution contention. The bounce-refill ISR, the WiFi driver
+and lwIP all execute from flash — **none** of `LCD_RGB_ISR_IRAM_SAFE`, `ESP_WIFI_IRAM_OPT`,
+`ESP_WIFI_RX_IRAM_OPT` or `LWIP_IRAM_OPTIMIZATION` is set in the Arduino libs — through a
+**16 KB** instruction cache (the S3 supports 32). First hard supporting evidence: a
+**9.6 s fetch** against a 200 ms steady state. The only remaining lever is an ESP-IDF build
+from source; the plan to fund it by freeing bounce-buffer SRAM is dead, because direct DMA
+does not work.
+
+**Hard constraints learned:** bounce depth and the network task **compete for the same
+internal SRAM** — at 48 lines `xTaskCreatePinnedToCore` failed and the board ran with *no
+networking*, looking flawless because nothing contended. Bounce size **must divide 480
+exactly** (50 boot-loops the board). Working set: 30 lines, 12 KB net task stack, ~50 KB
+free internal heap.
+
+⚠️ **Any clean observation must be checked against whether fetches were actually
+happening.** An idle radio is always clean.
+
+**Instrument notes:** opening the serial port resets the board and destroys the state being
+measured — use `toy_seismo/tools/monitor.py` **once** as a long-lived logger and read the
+file. Tapping the title bar logs a point observation with RSSI, fetch timings and queue
+depth.
+
+**State at hand-off:** 30-line config, ~20 min clean under load (381 fetches, 0 failures),
+past the "one glitch per 10 min is acceptable" tolerance. Three UI changes are committed
+but **not flashed** (help text, Uptime H:MM:SS, Info icon docked next to `?`) so as not to
+reset the clean run. EVAL-ADXL355-PMDZ due 2026-09-10 — a local SPI sensor removes most of
+the radio traffic this failure depends on, which is the next real test.
 
 ## 🎛️ THE PANEL GREW A UI, AND THE DISPLAY RULES BECAME A LIBRARY (2026-09-08, late)
 
