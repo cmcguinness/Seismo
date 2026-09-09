@@ -1410,6 +1410,24 @@ about catches directly.
 
 **BOM and wiring: `doc/BOM-accelerometer.md`.**
 
+**Parts on hand / in transit (updated 2026-09-09):**
+- **EVAL-ADXL355-PMDZ — IN HAND.** Note this is the **-PMDZ**, not the -Z recorded below.
+  `doc/toy-seismometer.md`'s warning against the Pmod version is *backwards* for the
+  ESP32-8048S050C: its 12-pin Pmod Type 2A header maps straight onto the only five free
+  GPIOs (SPI 11/12/13, CS 17, DRDY 18), 3.3 V native, no soldering. Pinout: 1 /CS,
+  2 MOSI, 3 MISO, 4 SCLK, 5 GND, 6 VDD, 7 INT1, 8 NC, 9 INT2, 10 DRDY, 11 GND, 12 VDD.
+- **GY-LSM6DS3 x N+3 (gift batch) — IN TRANSIT.** AliExpress Standard, ordered 2026-09-06,
+  left origin airport 2026-09-08 (GFUS01071833004225). Typically 2-3 weeks from that
+  point, so **late September** — well ahead of a Christmas build night.
+
+⚠️ **The two sensors are not interchangeable and the firmware must not assume either.**
+ADXL355 ~85 µg noise floor vs LSM6DS3 ~1100 µg — a 13x difference that changes the
+auto-scale reference, the amplitude colour bands and any trigger threshold. The display
+code currently hard-codes **µV**, which is a geophone-through-ADC unit meaning nothing for
+either accelerometer. Fix it once at the `feed(t, value)` seam with a sensor descriptor
+(scale factor, units string, noise floor, derived band thresholds) and the LSM6DS3 becomes
+a table entry rather than a fork.
+
 EVAL-ADXL355Z ordered from Mouser 2026-09-03. The Pi 2 is not touched: an ESP32-S3 reads
 the chip over SPI at 250 sps, decimates to 100, SNTP against the stratum-1 host, stamps
 the first sample of each UDP packet and counts from there; pi5's collector grows one
