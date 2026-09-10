@@ -107,6 +107,11 @@ def main() -> None:
     #     settles a detection-band question as well as a front-end one.
     ap.add_argument("--band", default="2,5", help="bandpass 'fmin,fmax' Hz")
     ap.add_argument("--pre", type=float, default=20.0, help="seconds before origin (plot)")
+    ap.add_argument("--plot-post", type=float, default=0.0,
+                    help="seconds after origin to PLOT (0 = auto: S + 40 s). The analysis "
+                         "window is much longer -- the null needs ~900 s before and 600 s "
+                         "after -- but plotting all of it compresses the arrivals into a "
+                         "few pixels and hides the waveform, which is the point of looking")
     ap.add_argument("--noise-s", type=float, default=900.0,
                     help="how far before origin the null samples (default 900 s; 300 "
                          "was too short -- see the null comment)")
@@ -292,8 +297,18 @@ def main() -> None:
     for a in (a1, a2):
         a.axvline(0, color="g", ls="--"); a.axvline(tP, color="r", ls=":")
         a.axvline(tS, color="orange", ls=":"); a.grid(alpha=0.3)
+    # PLOT a human-readable window, not the whole analysis slice. The null samples
+    # -900..-10 s and +pad..+600 s, so drawing all of it squeezed a 15-second P-to-S
+    # into ~20 of 1200 pixels. The verdict still uses every sample; only the view is
+    # cropped, and the caption below says how much the statistic actually saw.
+    _pp = args.plot_post if args.plot_post > 0 else post
+    a1.set_xlim(-args.pre, _pp)
+
     a2.set_xlabel(f"s after origin {origin.strftime('%H:%M:%S')} UTC   "
-                  f"(green=origin  red=P+{tP:.1f}s  orange=S+{tS:.1f}s)")
+                  f"(green=origin  red=P+{tP:.1f}s  orange=S+{tS:.1f}s)\n"
+                  f"view cropped to {-args.pre:.0f}..{_pp:.0f} s   |   "
+                  f"the verdict used {args.noise_s:.0f} s before and "
+                  f"{args.null_post:.0f} s after")
     fig.tight_layout()
     out = LOCAL_DATA.parent / "eventcheck.png"
     fig.savefig(out, dpi=110)
