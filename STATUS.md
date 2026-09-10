@@ -164,7 +164,23 @@ direct confirmation, and its one apparent supporting datum (a periodic 9.6 s fet
 out to be a bug in our own read loop. What is established is the elimination list and a
 configuration that works.
 
-**Earlier state at hand-off:** ~20 min clean under load (381 fetches, 0 failures). Three UI changes are committed
+**Earlier state at hand-off:** ~20 min clean under load (381 fetches, 0 failures).
+
+**PUT ASIDE 2026-09-09.** The ADXL355 is *not* going on this board — it is a station
+upgrade (three strong-motion channels on the slab, its own ESP32-S3, UDP to pi5), so the
+display has no sensor to read and no further experiment pending. It is left working, on
+the configuration above, with `toy_seismo/` complete and pushed.
+
+Candidate next uses, in no order: the **gift-batch prototype** once the GY-LSM6DS3 lands
+(late September) — the shell, paint queue and log-scale trace all transfer, only the
+sensor layer changes; a **wall display** for the station off `/v1/live`, which is what it
+already is; or Charles's **macro pad**, for which 800×480 of touchscreen that never has to
+stream is an ideal fit.
+
+⚠️ Before writing sensor code for it, fix the units at the `feed(t, value)` seam — the
+trace currently hard-codes **µV**, a geophone-through-ADC unit meaningless for any
+accelerometer. A sensor descriptor (scale, units, noise floor, derived colour-band
+thresholds) makes the second sensor a table entry rather than a fork. Three UI changes are committed
 but **not flashed** (help text, Uptime H:MM:SS, Info icon docked next to `?`) so as not to
 reset the clean run. **The part in hand is the EVAL-ADXL355-PMDZ**, not the -Z that `BACKLOG.md` records as
 ordered — and `doc/toy-seismometer.md`'s warning against the -PMDZ ("which is a Pmod
