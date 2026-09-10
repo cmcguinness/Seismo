@@ -175,6 +175,17 @@ written down as "measured, does not work":
 
 ## Environment
 
+- **SSH: use the alias from `~/.ssh/config`, never the resolved hostname.** `ssh pi3chrono`
+  works; `ssh pi3chrono.local` fails with `publickey,password` denied. ssh matches `Host`
+  patterns against the **literal argument you type**, not against the name it resolves to,
+  so `pi3chrono.local` misses the `Host pi3chrono` block and loses its `User` and
+  `IdentityFile`. The same applies to any host whose alias differs from its `HostName`.
+- **`pi3chrono`** is the dedicated GPS stratum-1 clock host (Pi 3B+, Uputronics GPS/RTC
+  HAT, windowsill antenna, NTP only). The station and pi5 sync to it by chrony over the
+  LAN. It has `gpspipe` and `ubxtool` if you need to interrogate the receiver —
+  `gpspipe -w -n 40 | grep TPV` gives `epx`/`epy` (position error, metres) and a `SKY`
+  record gives HDOP and the satellite list.
+
 - Python **3.13+** (see `pyproject.toml`). A project `.venv` exists (uv-managed) and is auto-activated by direnv.
 - **direnv is configured** (`.envrc`). Run environment-sensitive commands through `direnv exec .` — it sets the `cmcguinness` gh account (`GH_TOKEN`), the commit identity (`charles@mcguinness.us`), `CLAUDE_CONFIG_DIR`, and the venv `PATH`. The Bash tool does not fire the direnv hook on its own.
 - **Git:** repo initialized; pushes to the `cmcguinness` GitHub account (private repo `Seismo`). Run git/gh through `direnv exec .` so the right account (`GH_TOKEN`) and commit identity (`charles@mcguinness.us`) apply — the Bash tool doesn't fire the direnv hook.
