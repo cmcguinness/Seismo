@@ -24,7 +24,7 @@ centred at 16 mm) — it clears the handle footprint and still clears the corner
 screws. Cosmetic; the handle is the functional element.
 
 Load path is worth knowing: lifting by the handle puts the whole case weight
-through the four #6 lid screws into their PLA bosses. Fine for ~0.5 kg, but they
+through the four M3 lid screws into their PLA bosses. Fine for ~0.5 kg, but they
 are self-tappers in plastic, so if a boss ever strips, that is why.
 
 5 mm thick rather than 3: the engraving eats 0.8 mm and a 3 mm plate with a
@@ -36,12 +36,13 @@ lid resolves tenths of a degree where a bullseye vial resolves 1-2. Vials that
 size are 7-9 mm tall, so flush-mounting one would double the lid thickness.
 The lid is also the wrong datum: the element seats on the case FLOOR and the
 lid sits on four bosses, so there is an unknown degree or so between the two
-planes. Leveling already exists anyway — the three feet are screws, and #6
+planes. Leveling already exists anyway — the three feet are screws, and M3
 coarse pitch over the 57 mm foot-to-pivot distance is ~1.4 deg per turn.
 Gen 2 does get a real vial (see doc/BOM-geophone-case.md): once it is bedded on
 a paver in the crawl space you cannot iterate and cannot easily read a phone.
 
-Fasteners: 4x #6 x 1/2" sheet-metal screws into the body's corner bosses.
+Fasteners: 4x M3 x 12 self-tapping screws into the body's corner bosses.
+(⚠️ the assembled unit has #6; metric-only from 2026-09-10, next print is M3.)
 """
 from math import atan2, degrees
 
@@ -81,7 +82,7 @@ with BuildPart() as geophone_case_lid:
 
     with Locations((boss_xy, boss_xy, 0), (-boss_xy, boss_xy, 0),
                    (boss_xy, -boss_xy, 0), (-boss_xy, -boss_xy, 0)):
-        Cylinder(clear_6 / 2, lid_th,
+        Cylinder(clear_m3 / 2, lid_th,
                  align=(Align.CENTER, Align.CENTER, Align.MIN),
                  mode=Mode.SUBTRACT)
 

@@ -39,7 +39,9 @@ outdoor use, gaskets/seals, ballast, heat-set inserts, insulation. PLA is fine.
     and a way in for dust and spiders. Pressure equalisation needs no holes — an
     FDM print with a bare screwed-on lid and a 24 mm connector bore leaks freely.
 
-Fasteners: 7x #6 x 1/2" sheet-metal (4 lid, 3 feet) + 2x M3 x 10 countersunk
+Fasteners: 7x M3 x 12 self-tapping (4 lid, 3 feet) + 2x M3 x 10 countersunk
+(⚠️ the unit ON THE SLAB was printed and built with #6; the repo went metric-only
+2026-09-10, so these bores are M3 from the next print onward.)
 + 2x M3 nut (XLR).
 Print floor-down, no supports.
 """
@@ -157,7 +159,7 @@ with BuildPart() as geophone_case:
                  align=(Align.CENTER, Align.CENTER, Align.MIN))
     with Locations((boss_xy, boss_xy, top_z), (-boss_xy, boss_xy, top_z),
                    (boss_xy, -boss_xy, top_z), (-boss_xy, -boss_xy, top_z)):
-        Cylinder(pilot_6 / 2, boss_pilot_depth,
+        Cylinder(pilot_m3 / 2, boss_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MAX),
                  mode=Mode.SUBTRACT)
 
@@ -166,7 +168,7 @@ with BuildPart() as geophone_case:
         Cylinder(clamp_boss_dia / 2, clamp_boss_top - floor_th,
                  align=(Align.CENTER, Align.CENTER, Align.MIN))
     with Locations((clamp_boss_x, 0, clamp_boss_top), (-clamp_boss_x, 0, clamp_boss_top)):
-        Cylinder(pilot_6 / 2, clamp_boss_pilot_depth,
+        Cylinder(pilot_m3 / 2, clamp_boss_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MAX),
                  mode=Mode.SUBTRACT)
 
@@ -176,7 +178,7 @@ with BuildPart() as geophone_case:
             Cylinder(foot_pad_dia / 2, foot_pad_h,
                      align=(Align.CENTER, Align.CENTER, Align.MIN))
     with PolarLocations(foot_r, 3, start_angle=90):
-        Cylinder(pilot_6 / 2, foot_pilot_depth,
+        Cylinder(pilot_m3 / 2, foot_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MIN),
                  mode=Mode.SUBTRACT)
 

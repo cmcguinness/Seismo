@@ -15,7 +15,7 @@ flange so the screws could land outboard of the legs; that solved a problem that
 does not exist. The leg is 24 mm of solid PLA, which is more thread engagement than
 anywhere else on the part.
 
-Load path: lifting hangs the whole case on two #6 screws in tension. The bearing is
+Load path: lifting hangs the whole case on two M3 screws in tension. The bearing is
 on the INSIDE of the roof, which is why case_cover.py thickens it locally there.
 
 Print leg-faces-down, no supports. Use a brim — the part now stands on two small
@@ -46,7 +46,7 @@ with BuildPart() as case_handle:
 
     # blind pilots UP into each leg, from the underside
     with Locations(*[(sx * handle_screw_off, 0, 0) for sx in (1, -1)]):
-        Cylinder(pilot_6 / 2, handle_pilot_depth,
+        Cylinder(pilot_m3 / 2, handle_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
 
 # The bar is modelled along X, then turned to `handle_axis`. Rotating about Z does
@@ -60,8 +60,8 @@ _part = (case_handle.part.rotate(Axis.Z, 90) if handle_axis.upper() == "Y"
 assert side_angle >= 45, f"opening sides overhang at {side_angle:.1f} deg — needs support"
 # each pilot must sit INSIDE a leg, with wall left around it
 _leg_inner, _leg_outer = handle_open_w / 2, handle_span / 2
-assert handle_screw_off - pilot_6 / 2 > _leg_inner + 1.5, "pilot breaks into the opening"
-assert handle_screw_off + pilot_6 / 2 < _leg_outer - 1.5, "pilot breaks out of the leg end"
+assert handle_screw_off - pilot_m3 / 2 > _leg_inner + 1.5, "pilot breaks into the opening"
+assert handle_screw_off + pilot_m3 / 2 < _leg_outer - 1.5, "pilot breaks out of the leg end"
 assert handle_pilot_depth < handle_open_h, \
     "pilot is deeper than the leg is tall before the opening starts"
 assert handle_open_h > 15.0, "not enough finger clearance under the bar"

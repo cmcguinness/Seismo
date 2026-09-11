@@ -4,7 +4,7 @@ One of three parts (Charles, 2026-08-08): BASE + COVER + HANDLE. This is the big
 slow print, which is exactly why the board mounting was moved OUT of it — iterating
 on standoffs must not mean reprinting this.
 
-Open-bottomed shell: its rim lands on the base's top face and four #6 screws pull
+Open-bottomed shell: its rim lands on the base's top face and four M3 screws pull
 the two together, into the bosses in the corners here.
 
 CONNECTORS ARE SPLIT BY MEANING (Charles, 2026-08-08): the sensor comes in one side,
@@ -33,7 +33,7 @@ from dimensions import *
 
 top_z = cav_h + cover_top_th        # local z=0 is the rim, on the base's top face
 
-# handle mount pads, inside the roof, so a #6 pilot has material to bite
+# handle mount pads, inside the roof, so an M3 pilot has material to bite
 handle_pad_dia = 14.0
 handle_pad_h = 8.0
 
@@ -70,18 +70,18 @@ with BuildPart() as case_cover:
     with Locations(*[(sx * asm_x, sy * asm_y, 0) for sx in (1, -1) for sy in (1, -1)]):
         Cylinder(asm_boss_dia / 2, cav_h, align=(Align.CENTER, Align.CENTER, Align.MIN))
     with Locations(*[(sx * asm_x, sy * asm_y, 0) for sx in (1, -1) for sy in (1, -1)]):
-        Cylinder(pilot_6 / 2, asm_pilot_depth,
+        Cylinder(pilot_m3 / 2, asm_pilot_depth,
                  align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
 
     # --- handle mount: bearing pads INSIDE the roof + clearance holes through it ---
     # The handle screws in from inside, so the roof carries the screw HEAD, not a
-    # thread. Thicken it locally: a #6 head bearing on 3 mm of PLA is what lets go
+    # thread. Thicken it locally: an M3 head bearing on 3 mm of PLA is what lets go
     # when the case is lifted.
     with Locations(*[(px, py, cav_h) for px, py in handle_screw_pts]):
         Cylinder(handle_pad_dia / 2, handle_pad_h,
                  align=(Align.CENTER, Align.CENTER, Align.MAX))
     with Locations(*[(px, py, cav_h - handle_pad_h) for px, py in handle_screw_pts]):
-        Cylinder(clear_6 / 2, handle_pad_h + cover_top_th,
+        Cylinder(clear_m3 / 2, handle_pad_h + cover_top_th,
                  align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
 
     # --- D-series seats: XLR on +Y, Ethernet on -Y ---

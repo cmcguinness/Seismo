@@ -720,6 +720,24 @@ when the station layout changes.
 exists to answer (does pressure or tilt explain the 0.02–0.12 Hz undulation?) needs a
 day-plus of undisturbed data first. Swapping the node restarts that clock.**
 
+> ⚠️ **A TIMESCALE PROBLEM WITH "THERMAL SETTLING", noticed 2026-09-11, not yet tested.**
+> The undulation band 0.02–0.12 Hz is **periods of 8 to 50 seconds**. Slab and soil have
+> time constants of hours to weeks — nothing thermal *changes* on a 10-second timescale.
+> So the naive version of the hypothesis (temperature drifts, trace drifts with it) cannot
+> be right. If thermal is the cause the path has to be **creep**: strain accumulating
+> slowly in the mount and releasing as discrete micro-slips, which is what puts energy at
+> seconds-periods.
+>
+> That changes the measurement. Under a creep model the driver is accumulated strain, so
+> the correlate is the slab's **dT/dt** and its recent history, not its temperature — which
+> also rules out a deep soil probe, since burying it to 0.5 m attenuates the diurnal swing
+> to 0.85 % and removes exactly the forcing that would drive creep. The right channel stays
+> a DS18B20 on the slab surface at 1 Hz, in the load path.
+>
+> This is reasoning from the band, not a measurement, and it may simply be implicit in work
+> already done. But it is not written down anywhere else, and "thermal settling" is
+> currently the leading suspect, so it should be checked before the suspect is convicted.
+
 Charles has an **ESP32-S2-N16R8** spare. A 1 GB Pi 4 turning a serial stream into a
 CSV is enormously oversized, and it is the least reliable part of the node — SD card,
 boot time, a Linux userland for a job an MCU does better.
@@ -1416,6 +1434,17 @@ about catches directly.
   ESP32-8048S050C: its 12-pin Pmod Type 2A header maps straight onto the only five free
   GPIOs (SPI 11/12/13, CS 17, DRDY 18), 3.3 V native, no soldering. Pinout: 1 /CS,
   2 MOSI, 3 MISO, 4 SCLK, 5 GND, 6 VDD, 7 INT1, 8 NC, 9 INT2, 10 DRDY, 11 GND, 12 VDD.
+  **It has NO mounting holes** (confirmed 2026-09-10). Decided the same day: it sits in a **printed
+  pocket** in the case floor under a screwed-down clamp tab, not on a perfboard carrier — the pocket
+  couples it to the floor directly, leaves the board unmodified, and fixes the X-axis orientation that
+  the StationXML azimuth depends on. Measure the outline with calipers before modelling the bay, and
+  check whether the 12-pin header is straight or right-angle: right-angle changes which axis is up.
+  **✅ MOUNT SOLVED 2026-09-10**, validated on `parts/adxl_coupon.py` rev 4 after three
+  failed prints: 20.5 mm pocket with corner reliefs (a 0.4 mm nozzle cannot cut a sharp
+  inside corner), floor relieved everywhere except a 2 mm U-rim on the three non-header
+  edges (the back is not flat — 12 solder joints ~1 mm proud, reaching inboard), a
+  U-shaped retainer bearing on 1.5 mm of bare rim, and 3x M1.7 x 5. Header is
+  RIGHT-ANGLE, which is the lucky case: board lies flat, so **Z is vertical = HNZ**.
 - **GY-LSM6DS3 x N+3 (gift batch) — IN TRANSIT.** AliExpress Standard, ordered 2026-09-06,
   left origin airport 2026-09-08 (GFUS01071833004225). Typically 2-3 weeks from that
   point, so **late September** — well ahead of a Christmas build night.

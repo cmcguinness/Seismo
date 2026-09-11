@@ -80,8 +80,14 @@ xlr_bore_centred = True      # assumed; the coupon confirms it
 
 # --- Print / fit tuning ---
 fit_clearance = 0.2       # radial slip-fit gap added to bores (FDM, PLA/PETG)
-pilot_6 = 2.7             # pilot bore for a #6 sheet-metal screw into PLA
-clear_6 = 3.6             # clearance bore for a #6 screw shank
+# METRIC ONLY (Charles, 2026-09-10): "I have no intuition what #6 means, while an
+# M1.5 x 4 is easy easy". #6 was the last imperial thing in this repo. M3 is the
+# nearest common metric self-tapper (#6 is ~3.5 mm major, M3 is 3.0), so every bore
+# gets slightly SMALLER and every boss gains meat -- the change cannot make a part
+# weaker. ⚠️ The geophone case is already PRINTED with #6 holes and keeps them; these
+# numbers apply to the next print of anything, not to the object on the slab.
+pilot_m3 = 2.5            # pilot bore for an M3 self-tapping screw into PLA
+clear_m3 = 3.4            # clearance bore for an M3 shank
 
 # --- Raspberry Pi 2B (mounting) ---
 pi_len = 85.0             # board long dimension
@@ -345,7 +351,7 @@ barrel_cx = -_run_back / 2 + nut_clear
 eth_cx = _run_back / 2 - xlr_pad_w / 2
 barrel_z = panel_z
 
-# --- base <-> cover screws: 4 corners, #6 sheet metal ---
+# --- base <-> cover screws: 4 corners, M3 self-tapping ---
 # Inset only 4 mm so each boss merges into the rounded corner wall (which stiffens
 # both) and stays clear of the Pi, whose corner reaches within ~3 mm otherwise.
 # 6.0, not 4.0. At 4 the boss centre sits 7.07 mm from the outer corner arc centre
@@ -390,6 +396,122 @@ handle_axis = "Y"
 handle_screw_pts = ([(0.0, sy * handle_screw_off) for sy in (1, -1)]
                     if handle_axis.upper() == "Y"
                     else [(sx * handle_screw_off, 0.0) for sx in (1, -1)])
-handle_pilot_depth = 11.0  # up into the leg. A #6 x 1/2in (12.7) through a 3 mm roof
+handle_pilot_depth = 11.0  # up into the leg. An M3 x 12 through a 3 mm roof
                            # plus a 5 mm bearing pad still leaves ~4.7 mm engaged, so
                            # the pilot only has to be deeper than that.
+
+# --- ADXL355 strong-motion sensor: EVAL-ADXL355-PMDZ -------------------------
+# ✅ VALIDATED 2026-09-10 on the printed adxl_coupon (rev 4). The board drops in,
+# sits flat, the pins clear the wall slot and the retainer lands on the plate.
+# Rev 1 bound on the corners, rev 2's trough missed the back pin row, rev 3's
+# centre pad fouled back-side joints. Do not "tidy" these numbers: each one is a
+# print that failed. Carry them into the case unchanged.
+# MEASURED off the part in hand (Charles, 2026-09-10). The board has NO mounting
+# holes -- the two gold pads at diagonal corners are filled vias, not holes, and
+# they photograph convincingly like M2 holes. So it is located by a POCKET and held
+# down by a U-shaped retainer that bears only on the bare rim.
+adxl_board_w = 20.0         # square
+adxl_board_h = 20.0
+adxl_board_th = 1.6         # ⚠️ ASSUMED standard Pmod FR4. The coupon's pocket depth
+                            # depends on it; confirm with calipers before the case.
+adxl_free_rim = 2.0         # bare PCB around the component field, all four edges.
+                            # This is the budget the retainer's rim must fit inside.
+# Right-angle 2x6 header on the component side, at one edge. Because the pins exit
+# PARALLEL to the board, the board lies flat on its clean back face and the ADXL355's
+# Z axis (normal to the package, hence to the PCB) ends up VERTICAL = HNZ. A straight
+# header would have stood the board on edge and put Z horizontal.
+adxl_pin_above = 5.0        # top of the pin field above the board's TOP face
+adxl_pin_out = 7.0          # pins protrude this far past the board edge, into air
+adxl_header_body_w = 15.5   # 6 positions at 2.54 mm pitch, plastic body
+# --- pocket + retainer (the coupon proves these) ---
+adxl_pocket_clear = 0.5     # TOTAL, so 0.25 per side. The number the coupon exists
+                            # to tune: too tight and the board will not seat, too
+                            # loose and the compass azimuth wanders on reassembly.
+# ⚠️ MEASURED ON THE FIRST COUPON, 2026-09-10: at 0.4 total the board would not drop
+# all the way in. The cause is not side clearance, it is CORNER RADIUS -- a 0.4 mm nozzle
+# cannot cut a sharp inside corner, so a square pocket gets ~0.2 mm radiused corners that
+# a sharp-cornered PCB cannot enter. Loosening the sides to cure a corner problem is the
+# wrong lever: it buys entry at the cost of the location repeatability the compass azimuth
+# depends on. So the pocket now has CORNER RELIEFS (the same trick a machinist uses for a
+# square pocket cut with a round end mill) and the sides only went 0.4 -> 0.5.
+adxl_corner_relief = 1.6    # relief circle diameter, centred on each pocket corner
+# ⚠️ THE BACK IS NOT FLAT. MEASURED 2026-09-10 on the board in hand: the 12 header pins
+# are soldered from the back and their joints stand ~1 mm proud, in two rows along the
+# header edge. The pocket floor therefore needs a TROUGH under them or the board rocks on
+# its solder instead of bedding on the floor — which would put a compliant, ill-defined
+# joint in the one load path that has to be rigid. This is the second assumption about
+# this board to fail on contact (no mounting holes was the first).
+adxl_solder_proud = 1.0     # MEASURED, back-side solder joint height above the board
+adxl_solder_span = 14.5     # width of the joint field along the header edge (12.7 mm of
+                            # pin centres + pad). Its INBOARD reach is deliberately NOT a
+                            # constant here — see below.
+# REV 3, 2026-09-10. Rev 2 cut a trough 6 mm inboard from the header edge, sized from my
+# estimate of where the two pin rows sit. It did not reach the back row. Rather than guess
+# a third time, the floor is INVERTED: instead of relieving where the solder is thought to
+# be, DEFINE where the board is supported and relieve everything else. Support is now a
+# U-shaped rim on the three non-header edges plus a pad under the chip; the entire header
+# end of the floor is open, so the joints clear wherever they actually land. This also
+# removes a whole class of future surprise — any back-side component outside the pad is
+# automatically cleared.
+adxl_trough_clear = 0.3     # air under the joints
+adxl_floor_rim = 2.0        # bearing rim on the -X, +Y, -Y edges of the pocket floor.
+# ⛔ REV 4, 2026-09-10: THE CENTRAL SUPPORT PAD IS DELETED. DO NOT PUT IT BACK.
+# Rev 3 kept an 8 x 8 pad under the chip on the argument that the coupling has to be rigid
+# exactly there. It fouled back-side solder joints — this board has through-hole joints
+# reaching the middle, not only along the header edge. Before moving or shrinking it, the
+# arithmetic was run, and it says the pad was never doing anything:
+#
+#   FR4, E~20 GPa, t=1.6 mm, 16 mm span, clamped-plate fundamental  ->  ~35 kHz.
+#   Derate 3x for three-edge support and the chip's mass            ->  ~12 kHz.
+#   That is ~800x the 15 Hz top of the band.
+#
+# The board bridging its own 16 mm unsupported is stiffer than anything else in the load
+# path by three orders of magnitude. Support is the U-rim on three edges, full stop. The
+# instinct to "support the sensor directly" is sound in general and simply does not bind
+# at this size.
+adxl_pocket_over = 0.1      # pocket cut this much deeper than the board, so the
+                            # retainer always lands on the plate and never rocks on
+                            # the board itself
+adxl_rim = 1.5              # retainer bearing width on the board's bare edge
+adxl_slot_clear_w = 1.5     # added to the header body width, total
+adxl_slot_clear_h = 1.0     # added above the pin field
+# FASTENER: M1.7 x 5 pan head, self-tapping into PLA. Chosen 2026-09-10 from what is
+# actually in the drawer (M1 / M1.2 / M1.7 in short lengths, then a gap to #6 pan,
+# which is being retired in favour of M3 — see pilot_m3).
+# M1.7 is ample: the retainer carries no preload -- gravity already holds a 3 g board
+# down at 1 g against micro-g signals -- so this fastener only resists cable pull and
+# lift. #6 would work mechanically but its bosses would crowd a 20 mm pocket.
+adxl_screw_dia = 1.9        # M1.7 clearance
+adxl_pilot_dia = 1.4        # M1.7 self-tapping into PLA (~0.8 x major)
+# 🔜 HEAT-SET INSERTS are in transit from China (2026-09-10). When they land, MEASURE
+# OD and LENGTH before touching this block — those two numbers drive the boss, and
+# `look-up-standard-part-dims` says do not infer them from the listing. Expect the
+# screw to change: assortments run M2/M2.5/M3, and M1.7 inserts effectively do not
+# exist. Two knock-ons when it happens: the boss wall wants ~1.5 mm rather than 1.2
+# (melting stresses it), and an insert is 4-5 mm LONG against a 4 mm pilot in a 5 mm
+# floor — so the floor grows or the boss stands proud. Do not redesign in advance.
+adxl_pilot_depth = 4.0      # 5 mm screw - 1.5 mm retainer = 3.5 mm in; 4.0 so it
+                            # threads rather than bottoming out
+adxl_boss_wall = 1.2        # PLA left between a pilot hole and the pocket wall.
+# ⚠️ The screw offset is DERIVED from the pocket, not chosen. Rev 1 chose it by
+# halving the retainer bar width, which put all three pilots 0.875 mm from the
+# pocket wall with a 1.05 mm pilot radius -- every one of them broke through into
+# the pocket, where the board sits. The assertion in adxl_coupon.py now fails the
+# build if that recurs.
+adxl_retainer_th = 1.5      # thinned from 2.5 to buy thread engagement out of a 5 mm
+                            # screw. It spans a 17 mm opening under no load, so
+                            # stiffness is not the constraint; engagement is
+adxl_wall_th = 3.0          # matches the case walls elsewhere
+adxl_wall_h = 8.0           # above the plate top, on the header side only
+# derived
+adxl_pocket_w = adxl_board_w + adxl_pocket_clear
+adxl_pocket_h = adxl_board_h + adxl_pocket_clear
+adxl_pocket_depth = adxl_board_th + adxl_pocket_over
+adxl_open_w = adxl_board_w - 2 * adxl_rim      # retainer opening
+adxl_open_h = adxl_board_h - 2 * adxl_rim
+adxl_slot_w = adxl_header_body_w + adxl_slot_clear_w
+adxl_slot_h = adxl_pin_above + adxl_slot_clear_h
+adxl_trough_depth = adxl_solder_proud + adxl_trough_clear
+adxl_screw_off = adxl_pocket_w / 2 + adxl_pilot_dia / 2 + adxl_boss_wall
+adxl_retainer_margin = (adxl_screw_off - adxl_pocket_w / 2
+                        + adxl_screw_dia / 2 + 1.2)   # derived from the screw

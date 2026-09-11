@@ -23,7 +23,7 @@ down over the top. That was the other half of the reason for splitting it.
     spacing. FLAT, not on edge — it has screw terminals along both long edges, so
     there is no clear edge to slot into (found 2026-08-08). Use a WASHER: the
     board's holes are an unmeasured 4-5 mm, so the washer is what captures it.
-  - 4 clearance holes at the corners for the #6 screws that pull it up into the
+  - 4 clearance holes at the corners for the M3 screws that pull it up into the
     cover's bosses.
   - NO feet. The underside is flat and takes self-adhesive feet. The geophone case
     uses three screw heads instead, but that is a coupling decision specific to it
@@ -70,7 +70,7 @@ with BuildPart() as case_base:
     # --- 4 clearance holes for the screws that pull the base into the cover ---
     with BuildSketch(Plane.XY):
         with Locations(*[(sx * asm_x, sy * asm_y) for sx in (1, -1) for sy in (1, -1)]):
-            Circle(clear_6 / 2)
+            Circle(clear_m3 / 2)
     extrude(amount=base_th, mode=Mode.SUBTRACT)
 
     chamfer(case_base.faces().sort_by(Axis.Z)[0].outer_wire().edges(), edge_cham)
@@ -82,8 +82,8 @@ for _n, _cx, _cy, _w, _d in (("Pi", pi_cx, pi_cy, pi_len, pi_wid),
                              ("interface", iface_cx, iface_cy, iface_len, iface_wid)):
     for _sx in (1, -1):
         for _sy in (1, -1):
-            assert (abs(_sx * asm_x - _cx) > _w / 2 + clear_6 / 2
-                    or abs(_sy * asm_y - _cy) > _d / 2 + clear_6 / 2), \
+            assert (abs(_sx * asm_x - _cx) > _w / 2 + clear_m3 / 2
+                    or abs(_sy * asm_y - _cy) > _d / 2 + clear_m3 / 2), \
                 f"a corner screw lands under the {_n} board"
 # Orientation is no longer hand-signed -- dimensions.pi_map() applies a ROTATION to
 # the drawing's board-frame hole positions, so "ports +X with GPIO -Y" (a reflection
