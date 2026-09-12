@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-09 (UTC)_
+_Last updated: 2026-09-11 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -105,6 +105,82 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🔩 THE ADXL355 MOUNT, FOUR COUPONS DEEP; AND THE BSL LIST SAID YES (2026-09-11)
+
+**Priorities from here, Charles's own ordering:** (1) the **calibration injector**,
+(2) the **replacement for the CLUE's sensors**. Everything else below is context for when
+those are done.
+
+**The strong-motion mount is solved and validated.** `parts/adxl_coupon.py` + a U-shaped
+retainer, printed four times. The EVAL-ADXL355-PMDZ has **no mounting holes** (the two
+gold pads at diagonal corners are filled vias and photograph exactly like M2 holes), so it
+is located by a pocket and held by a retainer bearing on 1.5 mm of bare rim. What each
+print taught:
+
+- **rev 1 bound on the corners.** A 0.4 mm nozzle cannot cut a sharp inside corner, so a
+  square pocket has ~0.2 mm radiused corners a sharp-cornered PCB cannot enter. Fixed with
+  corner reliefs, *not* by loosening the sides — the sides are what buy azimuth
+  repeatability across reassembly.
+- **rev 2: the back is not flat.** Twelve header pins are soldered from behind and stand
+  ~1 mm proud. A trough for them missed the back row.
+- **rev 3: stopped guessing where the solder is.** Inverted the floor — DEFINE the bearing
+  surface (a 2 mm U-rim on the three non-header edges) and drop everything else away. That
+  design stops caring where the obstructions are.
+- **rev 4: the pad under the chip fouled joints too.** Deleted, after checking the number:
+  20 mm of FR4 bridging its own 16 mm resonates ~800x above the band, so it was never
+  load-bearing. "Support the sensor directly" is a sound instinct that does not bind at
+  this size.
+
+The right-angle header turned out lucky: the board lies flat, so **Z is vertical = HNZ**.
+Fasteners are **3x M1.7 x 5** — chosen from what is in the drawer, after I specified an
+M2.5 that does not exist here. The screw offset is now derived from the pocket, because
+rev 1's hand-picked offsets put all three pilots 0.875 mm from a wall they had a 1.05 mm
+radius to breach.
+
+**The CAD went metric.** `#6` -> `M3` across `dimensions.py` and five parts; it was the last
+imperial thing in the repo. Every bore gets smaller and every boss gains meat, so nothing
+weakens. ⚠️ The geophone case **on the slab** was built with #6 and keeps them; the model
+did not, and that disagreement is flagged in three places.
+
+**Scope decision: the ADXL355 node should absorb the env job.** The CLUE is doing four
+jobs and the accelerometer only beats it at one — but that one is **tilt**, and the gain
+is not the 4x noise, it is the *mount*: BACKLOG already notes the CLUE "reports the tilt of
+a PCB lying in the garage, not of the floor the geophone sits on." Done properly this
+retires the CLUE **and** the Pi 4 — the garage goes from five devices to three, which is
+why it counts as consolidation rather than sensor hoarding. Run both in parallel first:
+loose-PCB tilt against slab-coupled tilt is a one-shot comparison. **BME280 must be 3.3 V**
+(a 5 V breakout's LDO dumps its drop millimetres from the temperature sensor — the exact
+bias we are escaping).
+
+**⚠️ A doubt filed against the leading suspect for the sub-Hz undulation.** The band is
+0.02–0.12 Hz — **periods of 8 to 50 seconds**. Slab and soil have time constants of hours
+to weeks, so "thermal settling" cannot be acting as a direct drift. If thermal is the
+cause the path must be **creep**: strain accumulating and releasing as discrete
+micro-slips. That changes the measurement — the correlate becomes the slab's **dT/dt**,
+not its temperature — and it rules out burying a probe deep enough to filter the diurnal
+swing out. Reasoning from the band, not a measurement; recorded in BACKLOG beside the env
+node.
+
+**BSL seminar list: in, and the reply came from Weiqiang Zhu** — the author of PhaseNet
+and QuakeFlow, 2025 SSA Richter Early Career Award. Details and the follow-up rule live in
+`Seismo-private` (names stay out of this repo). Homework done there too
+(`doc/ml-picking-brief.md`): PhaseNet is 2018 and Zhu is two generations past it; the
+publishable genre is **domain transfer onto instruments the models were not trained for**
+(PickBlue for OBS, borehole microseismicity, volcano-tectonic). A correction I owed:
+**RSDB already exists** — 333k waveforms from 2,400+ Raspberry Shake stations — but its
+arrival times were *produced by PhaseNet*, so it cannot measure whether PhaseNet is right
+on that hardware, and it is **M ≥ 3.5 only**, above nearly our whole catch list. The gap
+that survives is narrow and real: small local events below a 4.5 Hz element's corner.
+Zhong et al. 2024 (GRL) supplies the direction — picker performance degrades as frequency
+content falls — which makes it a hypothesis rather than a fishing trip.
+
+**Long-period sensors: analysed, deferred, arithmetic saved.** See the 2026-09-11 addendum
+under the Lehman item in `BACKLOG.md` — why 1 Hz cannot fit in a can, the folded pendulum
+and force feedback as the modern answers, why the 18 ft entryway pendulum would measure
+the house, and the number that decides it all: **an imperceptible 10 cm/s draught exceeds
+the microseism.**
+
 
 ## 🔍 THE PANEL GLITCH: SIX CAUSES ELIMINATED, ONE LIVE LEAD (2026-09-09)
 

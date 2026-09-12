@@ -1014,6 +1014,70 @@ at 0.05 Hz). A different sensor class is needed to go lower — this is the DIY 
   (e.g. `SS.OAKM1.00.LHZ`/`LH1`) with its own ASD panel; the Welch/helicorder
   code is sensor-agnostic once the channel exists.
 
+
+### Addendum 2026-09-11 — the arithmetic, and two modern alternatives to the Lehman
+
+Charles, on seeing a Lehman: *"looks like something from a plumbing horror show. Surely
+modern technology provides us with something better?"* It does. Recording the numbers so
+this is not re-derived.
+
+**Why low f0 is hard, in one line.** A simple mass-on-spring must sag g/(2*pi*f0)^2 under
+gravity, and a simple pendulum needs length L = g/(2*pi*f0)^2 — the same number:
+
+    f0 = 4.5 Hz -> 12.3 mm      f0 = 1.0 Hz -> 24.8 cm
+    f0 = 2.0 Hz -> 62.1 mm      f0 = 0.1 Hz -> 24.9 m
+
+So 4.5 Hz fits in a can and 1 Hz does not, at any price. Everything below is a way of
+cheating that.
+
+**The Lehman's ugliness is load-bearing.** Tilting the axis theta off vertical makes the
+restoring force g*sin(theta): a 25 cm boom gives 3.4 s at 5 deg, 7.6 s at 1 deg, 10.7 s at
+0.5 deg. The long boom and the near-vertical axis ARE the mechanism.
+
+**Alternative 1 — the folded pendulum (Watts linkage).** A normal pendulum leg and an
+INVERTED leg joined by a rigid bar: the inverted leg's negative stiffness cancels most of
+the normal leg's positive stiffness, so a compact planar frame gets a very long period.
+The UNISA monolithic version spans 1e-7 to 1e2 Hz, cut from one block with flexure hinges
+by wire EDM (Barone et al.; doi 10.1016/j.measurement.2017.08.013). Amateur version uses
+shim-stock flexures. Compact, no knife edges, nothing to wear.
+
+**Alternative 2 — stop sensing velocity, and close a loop.** This is the bigger shift and
+it is an ELECTRONICS problem, which suits this operator far better than machining:
+  - a coil pickup outputs proportional to velocity, so it dies exactly where we want to
+    go; a capacitive displacement sensor (AD7745/7746) is flat to DC;
+  - **force feedback** — servo the mass to stay still and measure the current — linearises
+    the instrument and *electronically extends the period*, so the mechanics need no long
+    natural period at all. A 1 Hz pendulum in a good loop behaves like 30 s. This is how
+    every Trillium and STS works, and it removes the entire reason to build something long.
+
+**Ceiling pendulum, evaluated and NOT recommended as a station channel.** The entryway is
+18 ft:
+
+    18 ft = 5.49 m -> 4.70 s (0.213 Hz)      12 ft = 3.66 m -> 3.84 s (0.261 Hz)
+
+which lands in the microseism band. But period goes as sqrt(L), so 12 -> 18 ft is 50% more
+length for 22% more period; and it would hang from a **wood-framed house**, which is a
+compliant structure wind-loaded at 0.1-1 Hz — the same band. It would measure the house.
+Keep it as what it actually is: a **Foucault pendulum** (9.33 deg/hr at 38.45 N, full turn
+in 38.6 h) that visibly kicks during teleseisms. An excellent demonstration object, not a
+channel.
+
+**Air currents, quantified — this is the real wall.** Draught force on a 1 kg lead bob
+(24.6 cm^2 frontal), against the microseism it would have to beat:
+
+    draught 50 cm/s -> 173.6 um/s^2        microseism 5 um @ 0.15 Hz -> 4.4 um/s^2
+            10 cm/s ->   6.9 um/s^2                   1 um @ 0.15 Hz -> 0.9 um/s^2
+             1 cm/s ->   0.07 um/s^2
+
+**An imperceptible 10 cm/s draught already exceeds the signal.** Air motion at the mass has
+to be under ~1 cm/s, which no room achieves — hence sealed cans, not dust covers. Force
+scales as v^2, so it collapses quickly once enclosed. Two corollaries: prefer a DENSE
+COMPACT mass (force scales with area, signal with mass — another strike against a long
+pendulum), and insulate as well as seal, since a sealed box with a thermal gradient
+convects internally. Sealing then trades draughts for **buoyancy** from barometric
+pressure changes, whose standard fix is a co-located barometer — which the env node
+already provides, and which the ADXL355 box's BME280 would carry forward.
+
 ## Site characterization — H/V (HVSR) microtremor survey
 
 Measure the site's fundamental resonance `f0` directly from ambient noise,
