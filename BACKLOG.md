@@ -1078,6 +1078,126 @@ convects internally. Sealing then trades draughts for **buoyancy** from barometr
 pressure changes, whose standard fix is a co-located barometer — which the env node
 already provides, and which the ADXL355 box's BME280 would carry forward.
 
+### Addendum 2026-09-12 — the 1 Hz plain pendulum, and a phase-0 throwaway
+
+Prompted by a YouTube junk-box "geophone" (magnet on a spring over a scrounged transformer
+coil, sensitive in all axes). That device is a demonstrator, not an instrument — two
+resonators (spring vertical, pendulum horizontal) summed onto one wire have no single
+transfer function to fit, so it is uncalibratable by construction rather than by neglect.
+But two ideas in it are worth keeping, and chasing them turned up a design space we had
+written off.
+
+**The unifying identity we missed: a plain plumb bob IS a Lehman with the axis at 90 deg.**
+
+    T = 2*pi*sqrt( L / (g*sin(alpha)) )        alpha = pivot axis angle from vertical
+
+alpha -> 0 is the garden gate (long period, the horror show). alpha = 90 deg is a bob
+hanging straight down, T = 2*pi*sqrt(L/g). Fractional period sensitivity to tilt goes as
+cot(alpha), so at alpha = 90 deg **cos(alpha) = 0 and the period is first-order insensitive
+to tilt.** The Lehman's levelling nightmare is the price of buying period near alpha = 0.
+At 1 Hz we do not want period, so we get to sit at the one angle where the geometry stops
+fighting us. The addendum above is right that the Lehman's ugliness is load-bearing — for
+the Lehman's target. It is not load-bearing for ours.
+
+**Why 1 Hz-and-up rescues 3D-printed mechanics.** Every failure mode of a printed
+seismometer is a sub-0.1 Hz problem, and our band starts at 1 Hz:
+
+    PLA creep under sustained load    weeks           out of band
+    PLA CTE ~68 ppm/degC              T ~ sqrt(L), so 34 ppm/degC -> 34 uHz at 1 Hz
+    thermal tilt (g*theta)            diurnal, ~1e-5 Hz    six decades below the band
+    draught / convection              largely sub-Hz, unlike the 0.15 Hz case above
+
+Design rules that follow: **put every sustained load through metal** (wire, rod, fastener),
+keep printed parts in compression or non-load-bearing, and high-pass everything.
+
+**The positioning gap is real.** The amateur corpus is almost entirely UNCALIBRATED — it
+publishes counts, not m/s, so the data cannot be stacked, deconvolved, or joined to a
+network.
+
+    Lehman            long period   horiz   uncal    ~$100    open
+    TC1 / slinky      ~1 s          vert    uncal    ~$100    open   (Boise State)
+    Raspberry Shake   4.5 Hz        3C      cal      ~$1000   closed
+    THIS              1 Hz          horiz   CAL      <$100    open
+
+The empty cell is calibrated + horizontal + cheap + open. The contribution is not a better
+sensor; it is **a procedure by which every builder ends up with their own measured G, f0
+and zeta and a StationXML file**, using tools they also printed. NP.1835 (3-component
+strong motion, 1.6 km) is our validation reference — an advantage almost no amateur has.
+
+**Coil design, if wound rather than scrounged.** G = N * Bbar * l_turn. Worked: 20 mm mean
+diameter (l_turn 62.8 mm), 5000 turns, Bbar 0.05 T -> G ~ 16 V/(m/s), 314 m of AWG 40 ->
+~1.1 kOhm, Johnson noise 4.2 nV/rtHz (below the ADS1256 floor at PGA 64, so a preamp is
+needed and the coil is not the limit). Bbar is the soft number, good to 2x — measure with a
+Hall probe or model in FEMM. Two non-obvious results:
+
+  - **SNR is independent of wire gauge** for a fixed window. Signal ~ N, R ~ N^2, so
+    Johnson noise ~ N. They scale together. Choose gauge to match the preamp instead:
+    R_opt = e_n/i_n, which is ~650 Ohm for a bipolar low-noise part, megohms for a JFET
+    input. This is why real geophones sit at 375 Ohm - 4 kOhm.
+  - **Electrical damping is also independent of turns.** zeta_e = G^2/(2*m*w0*R), and with
+    G ~ N and R ~ N^2 the N cancels. It depends on Bbar, geometry, window and MASS.
+    At G = 16, R = 1.1 kOhm, f0 = 1 Hz: a 20 g bob gives zeta ~ 0.9 (shunt damping alone,
+    trimmable by one resistor, exactly like a commercial geophone); a 100 g bob gives
+    zeta ~ 0.18 and needs the eddy plate. NOTE this fights the "dense compact mass" rule
+    above (draught force scales with area, signal with mass) — an unresolved fork, and one
+    the prototype settles.
+
+**Damping trick worth stealing from the video:** an aluminium plate under the magnet gives
+eddy-current damping set by the GAP, independent of the coil circuit. Skin depth in Al at
+10 Hz is ~27 mm, so a 1 mm plate damps without shielding the signal. Better than the
+Lehman corpus's oil-bath fin, whose viscosity tempco drifts zeta with the garage.
+
+**Reciprocity:** the force constant in N/A equals the voltage constant in V/(m/s) —
+numerically the same G. So the calibration injector already being built characterises a
+home-wound coil completely, and `ringdown.py` already does the fit.
+
+---
+
+#### Phase 0 — the crude throwaway (Charles's framing: "who cares if I screw it up?")
+
+Scope the real project only AFTER building one, so the estimates have priors. A throwaway
+is worth building only if it names in advance the unknowns it retires. These:
+
+**The measurement that unlocks everything — G from two ringdowns, no injector, no
+reference station, no shake table.** zeta_total = zeta_mech + zeta_elec:
+
+    1. displace, release, record with the coil OPEN     -> zeta_mech
+    2. repeat with the coil SHORTED (or across known R) -> zeta_mech + zeta_elec
+    3. G = sqrt( delta_zeta * 2 * m * w0 * R )
+
+Needs a scale and an ohmmeter. **Therefore the prototype needs no designed coil at all** —
+rip the primary out of a wall wart and measure what you got. Bbar's 2x uncertainty stops
+mattering; the winder and the coil spec get designed against a measured number.
+
+Also answered free by the same build:
+  - does shunt damping alone reach zeta ~ 0.7 -> settles the light-bob/eddy-plate fork
+  - **envelope SHAPE diagnoses the suspension**: exponential decay = viscous and clean;
+    LINEAR decay = Coulomb friction, i.e. the hinge rubs and that design is dead
+  - f0 vs the 248 mm prediction -> how much stiffness the flexure adds
+  - lid-on vs lid-off zeta_mech -> the air term
+
+Crudest viable build: 20-30 g magnet stack; 248 mm pivot-to-bob for 1.00 Hz; suspension
+BOTH ways (bifilar fine wire in one plane, and feeler-gauge strip) since the suspension is
+the thing worth iterating; scrounged coil, fixed, magnet swinging past; printed brackets on
+rigid stock; cardboard box; readout on ANY junk ADC (ESP32 + ADS1115, ~$5).
+
+**Do not wire it into the station.** Millivolt-scale ringdowns at 1 Hz read fine on junk
+hardware, and every question above is a bench question. Touching `recorder.py` to add a
+channel is production risk for zero prototype value; that decision comes after.
+
+**The winder is third, not first.** It is a tool for making MANY coils and we do not yet
+know which coil. Build one by hand, get one unit end-to-end, then automate.
+
+**What is NOT throwaway:** the numbers and the procedure. Log mass, coil R, wire length,
+every dimension, both ringdown traces, the envelope shape, photos. That is the prior being
+bought, and it is also the first draft of the calibration procedure that IS the
+contribution.
+
+Rough estimate for the full program if phase 0 says go: 3-6 months of hobby weekends,
+<$100/unit plus ~$40 for the winder, and **N >= 3 units** — the scientific content is the
+table of unit-to-unit spread in G, f0 and zeta, which one unit cannot supply. Documentation
+will dominate; every open-hardware project underestimates it by 3x.
+
 ## Site characterization — H/V (HVSR) microtremor survey
 
 Measure the site's fundamental resonance `f0` directly from ambient noise,
