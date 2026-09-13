@@ -180,6 +180,73 @@ works against a hammer blow, not against background.
     coil winder (stepper, driver, printed)            ~$40
     3 units + tooling, all in                         ~$400
 
+## Parts to order (long lead — do this first)
+
+Ordering is the one thing with lead time that carries **no freeze risk**, unlike a PCB.
+Get it out before any bench work starts.
+
+| qty | part | why |
+|---|---|---|
+| 2 | **ESP32-S3-DevKitC-1 (N16R8)** | the DAQ, and the ADXL355 bring-up (STATUS: may not have a bare one) |
+| 2 | **ADS1220 breakout** — ProtoCentral is the best-documented | the DAQ; the second goes to the field rig |
+| 4 | **DPDT latching signal relay, 5 V** (Panasonic TQ2-L2-5V class) + ULN2003 | the resistor bank. **Latching**, so no coil field sits next to the magnet during acquisition |
+| — | **0.1% metal film: 100R, 470R, 2k2, 10k, + 100R sense** | the zeta-vs-1/R bank; this tolerance lands directly in G |
+| — | **N42 discs, assorted** (10x5 mm, 12x3 mm packs) | bob stacks — buy variety, phase 1 is an experiment |
+| 1 ea | **Magnet wire AWG 38 and 40**, 250 g | phase 2, but long lead and cheap |
+| 1 | **Feeler gauge set** | flexure strip stock, and a measuring tool regardless |
+| — | **Plain steel guitar strings .009-.012** | bifilar suspension wire |
+| 1 | **1 mm aluminium sheet** | eddy-damping plate |
+| 5 | **SS49E Hall sensors** | magnet QC jig |
+| 1 | **Fuzion 500 g x 0.01 g scale** — ORDERED 2026-09-12 | NOT optional: **G ~ sqrt(m)**, so bob mass is a calibration input. Chosen because it PUBLISHES a permissible error (+/-0.02 g); nearly nothing in the category does, and "0.01 g accuracy" elsewhere is readability wearing accuracy's clothes. 500 g not 200 g, so the heavy-bob branch of the mass fork still fits |
+| 1 | **Fuzion 9-pc M1 weight set, 1-100 g** — ORDERED 2026-09-12 | Substitution weighing (`m = m_ref * reading/reading_ref`) cancels the scale's span error, so the scale never needs calibrating — but the reference must be CLOSE to the unknown, since cheap load cells are least linear low in range. An independent A&D FX-120i test (Amazon review) put the two 20 g pieces at +3 and -3 mg, i.e. ~7x better than needed; the two 2 g pieces fail M1 at +5/+6 mg and we do not care. 200 g for the scale's own CAL routine is reachable by stacking 100+50+20+20+10 |
+
+**Hardware store, no lead time:** 4" PVC drain pipe, metal stock for the 248 mm span,
+sorbothane pucks or tennis balls, a paving slab.
+
+**Probably in hand:** Neutrik XLR panel jack, perfboard, headers, power bank.
+
+### Weighing gotcha specific to this project
+
+**Neodymium stacks on a stainless pan read heavy.** The magnet attracts to any ferrous mass
+below it — pan, load-cell frame, steel bench — and that force adds to the reading in GRAMS,
+not milligrams. It can also snatch the stack off the pan and chip it.
+
+  - weigh magnets in one of the scale's plastic trays, never on the bare platform;
+  - stand the scale on wood or plastic, never a steel bench;
+  - **self-test: weigh the stack on the pan, then on a 30 mm plastic riser. If the readings
+    differ, magnetic coupling is present and the lower one is closer to true.** Raise it
+    until the reading stops changing.
+  - keep the weight set well away from the magnet bench — cheap "stainless" is often
+    ferromagnetic 400-series.
+
+Handling degrades weights faster than manufacturing does: tweezers every time, back in the
+box, and not stored in the garage where they will pit.
+
+## PCB — the existing rule applies, and it says not yet
+
+`BACKLOG.md` "Custom PCB — do it, but only once Rev-2 is frozen" (2026-07-23) already
+settles this: *prototype on perfboard -> shorted-input floor test -> lock values -> then
+lay out.* A PCB freezes a design and this one is not frozen.
+
+The justification does not transfer anyway. What earns the Rev-2 front end a board is that
+it is a **microvolt** path (ground pour, symmetric pair, star ground, microphonics). **The
+DAQ handles millivolts** — a ringdown starts near 160 mV — so perfboard with modules is
+adequate, not a compromise, and the same shorted-input floor test proves it.
+
+Where a board does earn its place is **phase 3, for replication**: nobody reproduces a
+perfboard, and gerbers are the deliverable. Middle path if wanted sooner: a dumb two-layer
+**carrier** for the modules (headers, ground plane, through-hole passives, no SMT), ~$25
+for five, bodgeable. Residual risk is footprints of modules not yet held — the shape of the
+ADXL355 failure — but a wrong carrier is a $25 lesson.
+
+Vendors: **JLCPCB** cheaper, LCSC/EasyEDA integrated, better for own builds. **PCBWay**
+pricier but has one-click project sharing, which matters at phase 5 for an open-hardware
+release. Same gerbers; use both.
+
+**Layout tooling is still an open question** — `doc/rev2-frontend.md:297` records KiCad
+created and deleted (Charles dislikes schematic capture). Untried alternatives: SKiDL,
+atopile, EasyEDA. The carrier board would be a cheap place to settle it, at phase 3.
+
 ## Rough total
 
 **3-6 months of hobby weekends** to a publishable release, assuming the gates pass.
