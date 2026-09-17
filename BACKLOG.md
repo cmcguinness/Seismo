@@ -1809,3 +1809,56 @@ measurement into a repeatable paired one and gives ζ at two known loads on dema
   contact chatter, which finally makes the untested `held_long()` debounce testable.
   Needs a 2-pin link between the two boxes: decide the connector before modelling.
 
+
+## Earth RNG — a random number generator whose bits provably come from ground motion (opened 2026-09-17)
+
+A separate, dedicated device, not a use of the station. Charles's framing: *"We may not be
+able to predict earthquakes, but we can generate truly random numbers from the earth's
+movements."* The version that survives a seismologist: *the noise a seismologist filters
+out is exactly what a cryptographer wants.* Almost none of the bits would come from
+earthquakes — microseism, wind, traffic.
+
+**The claim has to be measured, not asserted.** A geophone + ADC is random mainly because
+of thermal (Johnson) noise in the coil and the ADC front end — a 375 Ω resistor gives the
+same. So:
+
+- **Attribution test:** capture raw samples with the geophone and again with a dummy
+  375 Ω load, same gain and rate; run NIST SP 800-90B `ea_non_iid`
+  (`usnistgov/SP800-90B_EntropyAssessment`) on both. Credit **only the difference** —
+  that is the entropy that exists because the ground moves. The shorted-input floor test
+  is the same measurement from the seismic side.
+- **Design for the earth, not the electronics:** sensitivity first, sample slowly (ground
+  motion carries information to ~15–20 Hz; Shannon puts it at ~50–100 bps credited for a
+  10–100 in-band SNR — an estimate, to be measured). Faster sampling only adds electronic
+  entropy.
+- **Live "earth share" health test:** in-band power vs. the electronic floor; stop or flag
+  output when it falls to the floor. Should visibly track weather-driven microseism.
+- Keep the standard 90B health tests (repetition count, adaptive proportion — clipping is
+  the one way an attacker kills entropy, so leave headroom), SHA-256 conditioning credited
+  at the measured rate, then a DRBG (SP 800-90A).
+
+**Air-gapped, private output.** Public seismic data is useless for secrets: anyone can
+re-read it (our own day-files and live ring are public too). So:
+
+- **Microcontroller with no radio** — RP2040 Pico (not Pico W); not an ESP32, not a
+  Wi-Fi Pi. ADS1256 over SPI; USB CDC-ACM serial is the only link.
+- **Two modes on the port:** raw (for the 90B attribution test) and conditioned. Host
+  mixes it into the kernel pool with `rngd -r /dev/ttyACM0` — never the sole source.
+- USB power comes from the host: LDO + filtering ahead of the ADC. Shielded twisted-pair
+  geophone cable. Reproducible firmware build, ideally hash readback (OneRNG does this).
+
+**Literature (quick web search, 2026-09-17 — not Scholar/IEEE):**
+
+- `swoonjet/seismic-entropy` (GitHub, tiny): SHA-256 over LSBs from nine public IRIS
+  SeedLink stations. No entropy measurement, no attribution, and public inputs, so it is
+  reproducible by anyone — unusable for secrets.
+- USPTO 11907686 and 12321718, "True random number generation based on instrument data" —
+  PDFs are scanned images and did not extract; **read the claims** before any write-up.
+- Phone/IoT accelerometer entropy is well studied with 90B-style min-entropy (a stationary
+  sensor is effectively the dummy-load case). OneRNG and Infinite Noise TRNG are the USB
+  precedents. Cloudflare LavaRand publishes no rate; the lamps themselves are plausibly
+  ~1–10 bps each (estimate), with the camera's sensor noise doing most of the work.
+
+**Not found:** a 90B estimate for a seismic sensor, a sensor-vs-dummy attribution, or a
+live earth-share readout. That measured attribution is the novel part, not the idea.
+Audiences: Hackaday, Substack/LinkedIn; a smile, not a paper, for seismologists.
