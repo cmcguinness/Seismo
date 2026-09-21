@@ -515,3 +515,61 @@ adxl_trough_depth = adxl_solder_proud + adxl_trough_clear
 adxl_screw_off = adxl_pocket_w / 2 + adxl_pilot_dia / 2 + adxl_boss_wall
 adxl_retainer_margin = (adxl_screw_off - adxl_pocket_w / 2
                         + adxl_screw_dia / 2 + 1.2)   # derived from the screw
+
+# --- Calibration injector box (doc/calibrator-build.md, doc/BOM-calibrator.md) ---
+# Tray + flat lid, chosen 2026-09-21: the piece you reprint while fitting connectors
+# is the cheap flat one, and a D-series cutout wants a straight vertical wall.
+#
+# THE CONNECTOR SETS EVERY MAJOR DIMENSION HERE, so do not read the size as a choice:
+#   - height  <- the 38 mm XLR pad needs a wall it fits on, so 45 mm outside is a FLOOR,
+#                not a preference. A shorter box cannot carry a D-series flange.
+#   - length  <- two XLRs facing each other eat 2 x 32 mm of interior before the board
+#                gets any, so 132 mm of cavity is 64 + the 60 mm board + working gaps.
+#   - width   <- the 1/4" jack and the button intrude ~20 mm from the +Y wall, and the
+#                board has to sit clear of them, which is why it is offset to -Y.
+cal_wall = 3.0
+cal_floor = 3.0
+cal_corner_r = 6.0
+cal_lid_th = 3.0
+# No register lip on the lid: the four corner bosses sit 6 mm in from the cavity edge,
+# which is exactly where a perimeter rim would want to be, and cutting four reliefs
+# into a rim to dodge them buys nothing a flat plate does not already do here.
+
+cal_board_x = 60.0         # perfboard, per doc/calibrator-build.md
+cal_board_y = 40.0
+cal_board_cy = -8.0        # offset to -Y: the +Y wall's jack and button need the room
+cal_board_hole_inset = 4.0
+cal_standoff_h = 6.0       # clears the board's own solder tails
+cal_standoff_dia = 7.0
+
+cal_cav_x = 132.0          # 2 x xlr_body_depth (64) + cal_board_x (60) + working gaps
+cal_cav_y = 72.0
+cal_cav_h = 42.0
+
+# The XLR bore centre, measured from the OUTSIDE bottom face. Centred on the OUTER
+# wall height, not on the cavity, so the 38 mm pad gets even margin top and bottom --
+# 3.5 mm each way, which is what a 45 mm wall has to give.
+cal_xlr_z = (cal_floor + cal_cav_h) / 2
+
+# 1/4" TS panel jack: 3/8"-32 UNS bushing, 9.525 mm nominal thread.
+# NOT coupon-validated yet -- panel_coupon.py proved a 12 mm barrel bore, not this.
+# 10.0 leaves 0.48 mm of clearance for print shrink. If the bushing still will not
+# pass, open it with a 10 or 10.5 mm drill: it is 3 mm of PLA, and the jack's flange
+# and nut are ~14 mm across, so it cannot fall through a hole in that range.
+ts_bore_dia = 10.0
+ts_body_depth = 20.0       # how far the jack and its solder lugs intrude
+ts_nut_clear = 14.0        # flat wall the nut needs
+
+# Panel button: CONFIRM THE THREAD before printing. 12 mm is the common panel-mount
+# size and is also the bore panel_coupon.py already validated, so it is the safe
+# default -- but it is a default, not a measurement.
+cal_button_bore = 12.0
+cal_button_depth = 18.0
+
+# --- derived ---
+cal_case_x = cal_cav_x + 2 * cal_wall
+cal_case_y = cal_cav_y + 2 * cal_wall
+cal_case_h = cal_floor + cal_cav_h
+cal_inner_r = max(cal_corner_r - cal_wall, 0.5)
+cal_boss_dia = 8.0
+cal_boss_inset = 6.0       # boss centre from the cavity corner, both axes

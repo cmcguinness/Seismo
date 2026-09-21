@@ -283,3 +283,64 @@ headroom is far away — the ADS1256 at PGA 64 saturates at ±78 mV.
 
 **And add an `analysis/epochs.py` row the day it goes inline.** It is a signal-path
 hardware change.
+
+---
+
+## The box
+
+![Calibration injector box — panel elevations and tray plan](../parts/calibrator_case.png)
+
+`parts/calibrator_case.py` (tray) and `parts/calibrator_lid.py` (flat plate), with
+`parts/calibrator_case_drawing.py` generating the drawing above from the same
+`dimensions.py` numbers the model uses — so the drawing cannot drift from the part.
+
+    PYTHONPATH=. .venv/bin/python parts/calibrator_case.py
+    PYTHONPATH=. .venv/bin/python parts/calibrator_lid.py
+    PYTHONPATH=. .venv/bin/python parts/calibrator_case_drawing.py
+
+**Tray + flat lid, not base + cover.** Every cutout is in the tray, so the piece you
+reprint when a connector does not fit is never the one you already got right. A
+D-series cutout also wants a straight vertical wall, which a domed cover does not have.
+
+**138 × 78 × 45 mm outside, and none of those three is a preference:**
+
+- **45 mm tall** because a D-series flange needs a 38 mm pad, and a 38 mm pad needs a
+  wall to sit on with a few mm of margin. This box cannot be shorter without changing
+  the connector.
+- **138 mm long** because two XLRs facing each other consume `2 × 32 = 64 mm` of
+  interior before the board gets any: 64 + a 60 mm perfboard + working gaps.
+- **78 mm wide** because the 1/4" jack and the button intrude ~20 mm from the +Y wall.
+  The board is offset 8 mm to −Y to clear them, which conveniently leaves the −Y wall
+  free for the three coin-cell holders — they mount on the wall, so changing a cell
+  never involves the perfboard or lifting the lid onto a tethered board.
+
+The XLR cutout is **the already-validated geometry from `parts/xlr_coupon.py`**, not a
+re-derivation: 24 mm bore, a 38 × 38 pad standing 1.5 mm proud with the flange seat
+recessed 2 mm into it, leaving 2.5 mm of panel under the flange — inside the
+connector's 1–3 mm range. The recess, not the two M3 screws, carries the lateral and
+torsional load every time a latching cable is pulled. Four screw holes (all sign
+combinations) so handedness is a non-issue.
+
+### The two bores that are NOT validated
+
+`ts_bore_dia` (10.0, the 1/4" jack) and `cal_button_bore` (12.0) are derived and
+assumed respectively — `panel_coupon.py` proved a 12 mm *barrel jack* bore, which is
+reassuring but is not this part. Both are flagged in red on the drawing.
+
+**Do not print a coupon for these.** It is 3 mm of PLA and both parts have a ~14 mm
+flange and nut, so nothing can fall through a hole anywhere in the 9.5–11 mm range:
+if the bushing will not pass, open it with a drill. **But confirm the button's actual
+thread before printing** — if it is a 16 mm panel button rather than 12 mm, that is a
+reprint, not a drill.
+
+### Verification
+
+The tray is checked by assertion at build time (pad margin on the wall, connector
+depths against the cavity, jack body against the board, web left beside the bore) and
+then by probing the exported mesh: watertight, 90.6 cm³, and every bore confirmed
+**open** by point-containment rather than inferred from the volume. A watertight solid
+of the right volume can still have a blind hole — ask the geophone case.
+
+Print floor-down, no supports, ~4 h for the tray and ~20 min for the lid. The XLR pads
+stand 1.5 mm off a vertical wall, so check the first one bridges cleanly before
+committing to the whole print.
