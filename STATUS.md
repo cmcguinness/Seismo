@@ -111,10 +111,14 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 The 09-20 re-harvest (`924ef40`) committed the regenerated
 `detection-range-map.png` — 58 confirmed, validated to 98 km — but left
-`detection-range-map.json` uncommitted in the working tree. The Catches page reads its
+`detection-range-map.json` uncommitted in the working tree. The **/range** page reads its
 headline numbers from that JSON at runtime (`dashboard/catches.py:350`), so the deployed
-site showed **"38 confirmed" in prose beside an image saying 58**, which is precisely the
-drift the JSON-beside-the-PNG arrangement exists to prevent. The mechanism works only if
+caption said **"38 of them, out to 88.6 km" directly beneath an image whose own legend
+said 58 confirmed, validated to 98 km.** That is precisely the
+drift the JSON-beside-the-PNG arrangement exists to prevent, and the arrangement only
+works if the two files ship in the same commit. (Note for the next reader: the "38
+confirmed catches" on **/catches** is a different and correct number — `len(EVENTS)`, the
+hand-written catch cards, not the harvest's confirmed count.) The mechanism works only if
 the JSON ships in the same commit as the image; nothing enforces that today.
 
 Re-ran `detection_map.py` to verify before publishing: 58 confirmed, reach 98.2 km, site
