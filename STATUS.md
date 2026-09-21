@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-11 (UTC)_
+_Last updated: 2026-09-21 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -20,7 +20,8 @@ all counted. Noise floor 1–15 Hz ~0.8 µV RMS on a quiet night, ~3.5 µV after
 
 **Calibration.** Reads ~3.2× quieter than the 28.8 V/(m/s) nameplate (five anchors vs
 USGS NP.1835 1.6 km away, median 3.26×, fixed-path scatter ~1.4×). Vp 5.19 km/s
-measured. **38 catalog-confirmed events, validated range 88.6 km** (M3.8 San Leandro);
+measured. **58 catalog-confirmed events, validated range 98.2 km** (the M3.36 9 km SW of
+Brentwood, 2026-09-12, snr 12.2 — it displaced the M2.29 Alameda at 88.6 km);
 biggest earthquake M4.2 Cloverdale (07-29); **biggest signal the M3.3 under
 Larkfield-Wikiup at 13.3 km (09-03), 6,843 µV in 1–15 Hz, felt in the house**
 (USGS revised it from M3.54/12.4 km/7.4 km on 09-04; the closest M2.5+ by 3×, though
@@ -105,6 +106,32 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 📏 THE MAP SAID 58, THE PAGE SAID 38 (2026-09-21)
+
+The 09-20 re-harvest (`924ef40`) committed the regenerated
+`detection-range-map.png` — 58 confirmed, validated to 98 km — but left
+`detection-range-map.json` uncommitted in the working tree. The Catches page reads its
+headline numbers from that JSON at runtime (`dashboard/catches.py:350`), so the deployed
+site showed **"38 confirmed" in prose beside an image saying 58**, which is precisely the
+drift the JSON-beside-the-PNG arrangement exists to prevent. The mechanism works only if
+the JSON ships in the same commit as the image; nothing enforces that today.
+
+Re-ran `detection_map.py` to verify before publishing: 58 confirmed, reach 98.2 km, site
+deficit −0.218 dex — reproduces the committed image exactly.
+
+**The new furthest validated event is the M3.36 9 km SW of Brentwood (2026-09-12) at
+98.2 km, snr 12.2** — a comfortable detection, not a marginal one, which is a change from
+the 88.6 km M2.29 Alameda it displaces. Headline numbers corrected in STATUS.md and
+CLAUDE.md, both of which still said 38 / 88.6.
+
+Station health at the time of writing: mirror age 0.7 s, clock error 0.55 ms, 0 UDP drops
+of 1.908 M sent, 146 filled gaps. Nothing wrong with the instrument; this was a publishing
+bug.
+
+**Still the #1 open item, untouched since 09-04: the calibration injector.** Parts were
+due ~09-09. `calibrator/` has not changed in 17 days, and f0/zeta remain guesses under
+every magnitude this station publishes.
 
 ## 🔩 THE ADXL355 MOUNT, FOUR COUPONS DEEP; AND THE BSL LIST SAID YES (2026-09-11)
 
