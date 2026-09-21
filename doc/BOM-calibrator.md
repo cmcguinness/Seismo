@@ -7,6 +7,13 @@ Nothing has to be touched, so the usual ~35 min settling never applies.
 
     Pi case (female chassis) --short cable-- [ CALIBRATOR ] --long cable-- geophone case
 
+**The schematic, the board layout and the solder order are in
+[`calibrator-build.md`](calibrator-build.md)** — this file is the parts and the
+reasoning. Two things that were open here are settled there: the injector's position
+versus "keep the shunt at the board end" (it is the board end, with the number), and
+R1/R2, which are **180 Ω, not 330 Ω** — at 330 Ω the PhotoMOS falls below its guaranteed
+turn-on current as the cell ages.
+
 **Why this exists:** the response in `station/SS.OAKM1.xml` currently carries f0 = 4.5 Hz
 (nameplate) and zeta = 0.6 (vendor spec) because `analysis/response_fit.py` proved the
 spectral-ratio route cannot constrain them — 1.64 km of site response between here and
