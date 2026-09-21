@@ -118,8 +118,8 @@ said 58 confirmed, validated to 98 km.** That is precisely the
 drift the JSON-beside-the-PNG arrangement exists to prevent, and the arrangement only
 works if the two files ship in the same commit. (Note for the next reader: the "38
 confirmed catches" on **/catches** is a different and correct number — `len(EVENTS)`, the
-hand-written catch cards, not the harvest's confirmed count.) The mechanism works only if
-the JSON ships in the same commit as the image; nothing enforces that today.
+hand-written catch cards, not the harvest's confirmed count.) Nothing enforces the
+same-commit rule today.
 
 Re-ran `detection_map.py` to verify before publishing: 58 confirmed, reach 98.2 km, site
 deficit −0.218 dex — reproduces the committed image exactly.
