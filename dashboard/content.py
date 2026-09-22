@@ -512,4 +512,20 @@ ABOUT_SECTIONS = [
      '<p class="mb-0 prose">{place} &mdash; on valley-margin alluvium at the foot of the '
      'Sonoma/Mayacamas volcanics, essentially atop the active <b>Rodgers Creek fault</b> system. A '
      'sensitive spot for local events, at the cost of a bit more everyday noise.</p>'),
+    ("Privacy &mdash; what this site records",
+     '<p class="mb-0 prose">Ordinary web-server logs, and nothing beyond them: the page '
+     'requested, the time, the requesting IP address, the browser&rsquo;s user-agent string, and '
+     'the page you arrived from. That is what any web server writes down by default. There are '
+     'no advertising trackers, and no cookies used to follow you between sites.</p>'
+     '<p class="mb-0 prose">The public copy also runs <b>Cloudflare Web Analytics</b>, which is '
+     'cookieless and does not fingerprint visitors or follow them across sites; and the site sits '
+     'behind Cloudflare, so their handling of traffic applies as well.</p>'
+     '<p class="mb-0 prose">What it is all for: counting visits and seeing which pages people '
+     'actually read, which is how this station works out what is worth writing next. '
+     '<b>Aggregate figures from those logs may appear in write-ups or talks about the '
+     'project</b> &mdash; for instance, whether visitors spend longer listening to the live audio '
+     'than reading the plots. Only totals and averages are ever reported. No individual visitor '
+     'is identified, and the logs themselves are not published or shared.</p>'
+     '<p class="mb-0 prose">Questions are welcome through the project&rsquo;s public '
+     'repository.</p>'),
 ]
