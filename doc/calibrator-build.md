@@ -213,10 +213,42 @@ when something is wrong you know which step introduced it.
    Check: cells in, U2 forced closed, and the node reads **2.50 V ± 1 %** against cell B−.
    If it reads 6 V the reference is in backwards; if it reads ~0 V, so is something else.
 
-6. **Measure Rinj and the LM4040's actual output with a DMM, and write both on the box.**
-   This is not optional bookkeeping — it is the calibration. A 1 % part measured to your
-   meter's accuracy beats a 0.1 % part you assumed. `I = V_ref / R_inj`, and that current
-   is the known quantity the whole instrument rests on.
+6. **Write Rinj and the reference voltage on the box — the MARKED values, not measured
+   ones. Corrected 2026-09-22; `BOM-calibrator.md` says the opposite and is wrong for the
+   meter on this bench.**
+
+   The BOM's rule was "measure it and the tolerance grade stops mattering, because it turns
+   1 % into your meter's accuracy." That only holds if the meter beats the part. The meter
+   here is an AstroAI DT132A:
+
+   | | spec | at our value | |
+   |---|---|---|---|
+   | resistance, 400 kΩ range | ±(1.5 % + 3), 100 Ω res. | 249 kΩ → ±4.0 kΩ | **±1.6 %** |
+   | DC volts, 4 V range | ±(0.8 % + 3), 1 mV res. | 2.5 V → ±23 mV | **±0.92 %** |
+
+   So measuring a **0.1 % resistor with this meter makes the number 16× worse** than
+   reading the bands, and measuring the reference is no better than the D-grade LM4040's
+   own ±1 % initial tolerance. Measurement here destroys accuracy rather than establishing
+   it.
+
+   **And none of it matters, which is why this is a simplification rather than a problem.**
+   The current has to be *stable*, not accurately *known*:
+
+   - **f0 and zeta come from the decay SHAPE**, not its amplitude. The current could be
+     20 % off and `ringdown.py` would fit exactly the same numbers.
+   - **Drift detection** needs stability over months — the LM4040's and the resistor's
+     tempcos — not absolute accuracy at build time.
+   - **Absolute G** is the only thing that would need a known current, and it is blocked on
+     the untrusted moving mass anyway (see the response entry in BACKLOG).
+
+   If an absolute current is ever wanted, that is a job for a calibrated bench meter or a
+   known reference resistor, not for this one. Until then: marked values, on the box.
+
+   **The same meter IS adequate for the JP1 sleep-current check**, which is the measurement
+   this doc previously implied it could not do: 400 µA range at 0.1 µA resolution,
+   ±(1.2 % + 8), and 40 mV burden at full scale — so under a millivolt of drop at 10 µA,
+   and roughly ±9 % accuracy there. Ample for "is this 5 µA or 50 µA?", which is the only
+   question being asked.
 
 7. **The two XLRs and pin 1 straight through.** Check: pin 1 J1→J2 is a short; pin 1 to
    *everything else in the box* is open. Every other pin pair J1→J2 is a short.
