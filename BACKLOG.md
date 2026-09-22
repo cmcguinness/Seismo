@@ -172,6 +172,58 @@ fed the raw stream is mostly HVAC. Band-pass to 1–15 Hz before the filter bank
 
 Expect it to sound like a slowly shifting chord, with a P arrival as a swell across bands.
 
+## The response as a LIVE reference, not a one-off fit (opened 2026-09-22)
+
+Charles, 2026-09-22: *"isn't the point of the calibrator not just to find nascent faults
+but also to give us an always up-to-date reference to view live data against?"* Yes, and
+that is the **primary** purpose — fault detection is the by-product. `BOM-calibrator.md`
+still frames the series as *detecting change* ("epochs.py records changes you made, a
+calibration series records changes that happened"), which undersells it. The stronger
+claim: **the response stops being a constant with a revision history and becomes a
+measured time series**, and every event is reduced against the response that was true
+when it happened. That is also what makes the metadata defensible to NCEDC — see "Being
+findable" above: "measured four times a day and versioned by epoch" is a different class
+of statement from "fitted once".
+
+**It closes TWO of the three parameters. Be precise about which.**
+
+| parameter | after the injector runs |
+|---|---|
+| **f0** | **measured**, from the ring-down |
+| **zeta** | **measured**, from the ring-down |
+| **S** (= G, V/(m/s)) | **still refstation-derived.** The shunt pair yields `k = G^2/(2*M*w0)`, and unpacking G needs the moving mass — which `ringdown.py:6` says outright is not trustworthy for this element, because the listing was mislabelled |
+
+**That is over-determination, not a gap.** With k measured locally and S measured against
+NP.1835, `M = G^2/(2*k*w0)` falls out. Land near the ~10-15 g typical for a 4.5 Hz element
+and both calibrations corroborate each other; land far away and one of them is wrong, and
+you know which question to ask. In the other direction, an injector-derived G against the
+NP.1835 number is not a discrepancy to resolve — it is a **measurement of the site term**
+over the 1.64 km between here and 1835, which is a local result worth having.
+
+**Architecture: response EPOCHS, selected by event time.** StationXML already versions
+response by `startDate`/`endDate`; `analysis/make_stationxml.py` should emit epochs from
+the calibration series rather than one static block, and anything that deconvolves should
+pick the epoch covering the event rather than "the response".
+
+**⚠️ PRE-REGISTER THE EPOCH-CUTTING RULE BEFORE THE DATA EXISTS.** A single ring-down fit
+is noisy — there is a known -0.066 systematic in zeta at 0.85 (STATUS open thread 2) — so
+cutting an epoch per calibration gives ~1,460 epochs a year and magnitudes that jitter
+with **fit** noise rather than with the instrument. The rule wants:
+
+- a **running median** over the last N calibrations (a week is 28 at four a day), never a
+  single fit;
+- a **hysteresis threshold** expressed in the series' own scatter, not in absolute zeta;
+- **sustained** over N consecutive measurements before a new epoch is cut.
+
+Fix those three numbers before the first burst, for the same reason `harvest_events.py`
+fixed the band rule before the data existed: afterwards, there is always a cut that makes
+the result look better.
+
+**⚠️ THE ARCHIVE SPLITS AT FIRST LIGHT.** Everything before the injector runs keeps the
+provisional response and cannot be retro-fitted — the measurement did not exist. Mark that
+boundary explicitly in the metadata so nobody silently compares an amplitude from before
+it against one from after.
+
 ## Instrument response: PROVISIONAL response now exists; bench ring-down still wanted
 
 `analysis/make_stationxml.py` writes `station/SS.OAKM1.xml` from f0 = 4.5 Hz (nameplate),
