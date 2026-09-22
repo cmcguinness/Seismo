@@ -1935,6 +1935,37 @@ entry, and having to build a response measurement because nothing existed at thi
 point. Same conclusion, earned rather than asserted. The strand exists: the 2024 programme
 carried community preparedness, equity/policy and outreach-toolkit talks.
 
+**RANKING REVISED 2026-09-22, and trees-vs-CNN moves to first.** Charles: *"this is one
+where I have credentials that can carry me forward with no reputation to coast on."*
+Correct, and the reason is **seismological surface area**. Picker transfer forces
+judgements the room can check instantly — what is a good pick, whether degradation comes
+from the corner or the SNR or the single vertical channel (the brief itself names three
+simultaneous distribution shifts). That is where an outsider gets caught, and it needs a
+credential he does not yet have. Trees-vs-CNN has almost none: ground truth is USGS origin
+times, external and unarguable, and every claim is about **model behaviour on a labelled
+dataset**, judged by standards he demonstrably meets — event-wise subsampling, a frozen
+holdout, paired-not-pooled comparison (`coda_ab.py` documents catching exactly that error
+before it manufactured a result). There is also a genre effect: in ML, "here is where the
+fashionable method stops working, measured" is a respected result; in seismology, an
+amateur station's detection statistics is a curiosity.
+
+**The talk is the CROSSOVER NUMBER, not "trees win".** The direction is textbook and the
+room knows it. The unmeasured quantity is *how many events a single station needs before
+deep learning overtakes hand features plus boosting* — unmeasured because nobody
+professional is ever in that regime. **n = 22 then stops being an apology and becomes the
+subject**: the small-data regime cannot be studied from outside it. Pre-register the
+crossover and revisit in a year, same discipline as the band rule and the `dM`
+registration — which gives a four-minute talk something almost none have, a falsifiable
+prediction.
+
+**The one task between here and that talk:** run the GBM through `cnn_learning_curve.py`'s
+existing harness — same event-wise subsampling, same folds, negatives held at full
+strength — so both curves share an axis. Existing code, existing data, no hardware. One
+evening, deliberately scoped, **after the injector**.
+
+**Still name the confound:** it is not trees vs CNN but *hand features + trees* vs
+*learned features + CNN*.
+
 **⚠️ FIVE CANDIDATE TALKS, ZERO SOLDERED JOINTS.** Picker transfer, trees-vs-CNN,
 detection capability, the $100 node, the hackathon. The commitment is a *title* in
 January and four minutes in February; two of the five are already cheap (picker transfer
