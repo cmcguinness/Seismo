@@ -118,7 +118,7 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # plug, write the value in analysis/epochs.py -- no iron, and no opening the
     # box immediately before a campaign whose premise is that nothing else changed.
     d += elm.EncircleBox([tip, sleeve], padx=0.5, pady=0.6).linestyle("--").color("#888")
-    d += elm.Label().at((19.7, u3.O3.y + 1.7)).label(
+    d += elm.Label().at((19.7, u3.O3.y + 1.45)).label(
         "J3  1/4\" TS panel jack  +  shunt module in the plug\n"
         "NO PLUG FITTED = no shunt = the default state",
         fontsize=8, color="#555")
@@ -154,8 +154,9 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     d += elm.Zener().at((NODE_X, BMINUS_Y)).to((NODE_X, u2.O4.y)).label(
         "U4  LM4040-2.5\npin 2 (K) up\npin 1 (A) down\npin 3 NC", loc="left", fontsize=9)
 
-    d += elm.Resistor().at((NODE_X, u2.O4.y)).to((NODE_X, RAIL_P)).label(
-        "Rinj  249k", loc="right", fontsize=9)
+    d += elm.Resistor().at((NODE_X, u2.O4.y)).to((NODE_X, RAIL_P))
+    d += elm.Label().at((NODE_X + 1.35, (u2.O4.y + RAIL_P) / 2)).label(
+        "Rinj\n249k", fontsize=9)
     d += elm.Dot().at((NODE_X, RAIL_P))
 
     # cell B negative: the LM4040 anode, the cell, and the coil return all meet.
@@ -180,7 +181,7 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # CONTROL SIDE
     # ===================================================================
     d += elm.Line().at((0.6, GND_Y)).to((11.3, GND_Y))
-    d += elm.Line().at((0.6, VA_Y)).to((6.4, VA_Y))
+    d += elm.Line().at((0.6, VA_Y)).to((7.4, VA_Y))
     d += elm.Label().at((0.0, VA_Y + 0.4)).label("VA", fontsize=10)
     d += elm.Label().at((0.0, GND_Y - 0.55)).label("0A", fontsize=10)
 
@@ -196,28 +197,28 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     d += elm.Label().at((-0.55, 7.6)).label("JP1", fontsize=9)
     d += elm.Line().at((0.6, 8.4)).to((0.6, VA_Y))
 
-    d += elm.Capacitor().at((2.2, VA_Y)).to((2.2, GND_Y)).label("C1\n100n", loc="left",
+    d += elm.Capacitor().at((1.7, VA_Y)).to((1.7, GND_Y)).label("C1\n100n", loc="left",
                                                                 fontsize=9)
-    d += elm.Dot().at((2.2, VA_Y))
-    d += elm.Dot().at((2.2, GND_Y))
-    d += elm.Capacitor(polar=True).at((3.4, VA_Y)).to((3.4, GND_Y)).label(
+    d += elm.Dot().at((1.7, VA_Y))
+    d += elm.Dot().at((1.7, GND_Y))
+    d += elm.Capacitor(polar=True).at((2.7, VA_Y)).to((2.7, GND_Y)).label(
         "C2\n22u", loc="left", fontsize=9)
-    d += elm.Dot().at((3.4, VA_Y))
-    d += elm.Dot().at((3.4, GND_Y))
+    d += elm.Dot().at((2.7, VA_Y))
+    d += elm.Dot().at((2.7, GND_Y))
 
     u1 = elm.Ic(pins=[elm.IcPin(name="VCC", pin="8", side="top"),
                       elm.IcPin(name="GND", pin="4", side="bottom"),
-                      elm.IcPin(name="RST", pin="1", side="left", slot="3/3"),
-                      elm.IcPin(name="MOSI", pin="5", side="left", slot="2/3"),
-                      elm.IcPin(name="SCK", pin="7", side="left", slot="1/3"),
-                      elm.IcPin(name="PB1", pin="6", side="right", slot="3/3"),
-                      elm.IcPin(name="PB3", pin="2", side="right", slot="2/3"),
-                      elm.IcPin(name="PB4", pin="3", side="right", slot="1/3")],
-                w=4.6, h=5.6, leadlen=1.0, pinspacing=1.7, plblofst=0.1,
-                label="").at((6.4, 7.0)).theta(0)
+                      elm.IcPin(name="RST", pin="1", side="left", slot="4/5"),
+                      elm.IcPin(name="MOSI", pin="5", side="left", slot="3/5"),
+                      elm.IcPin(name="SCK", pin="7", side="left", slot="2/5"),
+                      elm.IcPin(name="PB1", pin="6", side="right", slot="4/5"),
+                      elm.IcPin(name="PB3", pin="2", side="right", slot="3/5"),
+                      elm.IcPin(name="PB4", pin="3", side="right", slot="2/5")],
+                w=4.6, h=6.8, leadlen=1.0, pinspacing=1.7, plblofst=0.1,
+                label="").at((6.4, 5.9)).theta(0)
     d += u1
 
-    d += elm.Label().at((6.4, 12.1)).label("U1  ATtiny85  PDIP-8", fontsize=10)
+    d += elm.Label().at((6.4, 12.4)).label("U1  ATtiny85  PDIP-8", fontsize=10)
     d += elm.Line().at(u1.VCC).to((u1.VCC.x, VA_Y))
     d += elm.Dot().at((u1.VCC.x, VA_Y))
     d += elm.Line().at(u1.GND).to((u1.GND.x, GND_Y))
@@ -227,8 +228,10 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # would cross the sheet twice, so it is named instead. The shunt socket stays
     # EMPTY while flashing: MISO chatters as the ATtiny answers the programmer, so
     # the shunt PhotoMOS flickers closed, and with no plug in J3 that does nothing.
-    for anchor in (u1.RST, u1.MOSI, u1.SCK):
+    for anchor, netname in ((u1.RST, "RESET"), (u1.MOSI, "MOSI"), (u1.SCK, "SCK")):
         d += elm.Dot(open=True).at(anchor)
+        d += elm.Label().at((anchor.x - 0.15, anchor.y + 0.42)).label(
+            netname, fontsize=9, color="#1a6a1a")
 
     # PB3 -> injector LED. Never shares a line with ISP: that is the whole reason
     # the drive sits on PB3 rather than wherever the perfboard made it convenient.
@@ -245,8 +248,7 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     d += elm.Line().at((10.2, u1.PB1.y)).to((11.0, u1.PB1.y))
     d += elm.Line().at((11.0, u1.PB1.y)).to((11.0, u3.A.y))
     d += elm.Line().at((11.0, u3.A.y)).to(u3.A)
-    d += elm.Label().at((10.2, u1.PB1.y + 0.9)).label("PB1 is also MISO", fontsize=8,
-                                                     color="#555")
+    d += elm.Label().at((9.2, u1.PB1.y + 0.45)).label("MISO", fontsize=9, color="#1a6a1a")
 
     # Both LED cathodes return to 0A on one vertical, kept on the control side.
     d += elm.Line().at(u3.K).to((11.3, u3.K.y))
@@ -277,9 +279,10 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
                 label="").at((4.4, 17.2)).theta(0)
     d += j4
     d += elm.Label().at((4.4, 20.9)).label("J4  ISP header, 2x3 0.1\"", fontsize=10)
-    d += elm.Label().at((4.4, 14.9)).label(
-        "VCC and GND go to the VA / 0A rails; the other four\n"
-        "tie by name to the stubs on U1.", fontsize=8, color="#555")
+    d += elm.Label().at((3.0, 14.6)).label(
+        "VCC and GND go to the VA / 0A rails. The other four have NO WIRE drawn:\n"
+        "they connect to the matching green net names on U1's stubs.",
+        fontsize=8, color="#555")
 
     # ===================================================================
     d += elm.Label().at((4.4, 22.3)).label(
