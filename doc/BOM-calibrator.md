@@ -333,17 +333,32 @@ Three stages, each ending in a quiet-night noise floor compared against the docu
 **~0.8 µV RMS in 1–15 Hz**, and each costing a ~35 min settle. Do not merge them: they
 fail for different reasons and a merged test cannot tell you which.
 
-1. **Populated, batteries OUT.** Not a straight-through wire — the whole board, fully
-   assembled, in the run. This is not a preliminary check, it is *the steady-state
-   condition*: the box spends 86,376 s a day doing exactly this, and the pulses are the
-   exception. It exercises the PhotoMOS off-state leakage and output capacitance in
-   series with the 249 kΩ, the board's stray capacitance to the signal pair, the layout,
-   and every joint and ferrule. If the floor moves here, the fault is passive and
-   physical.
-2. **Batteries IN, firmware in its startup soak.** A running microcontroller with its
-   oscillator going, centimetres from a µV differential pair, is its own noise source —
-   and this project's worst-ever event was a *powered* device coupling into this exact
-   analog path. A clean stage 1 says nothing about stage 2.
+1. **Populated, batteries OUT — CONDITIONAL, run it only if stage 2 fails
+   (revised 2026-09-22).** The original text called this "the steady-state condition:
+   the box spends 86,376 s a day doing exactly this". **That is wrong, and it is the
+   reason this stage moved.** In steady state the cells are *in* and the micro is asleep
+   at ~10 µA with the watchdog oscillator running; "not firing" and "unpowered" are
+   different states, and the one that ships is the former. **Cells-out is a state the
+   instrument is never in.**
+
+   The original text also claimed it exercises "the PhotoMOS off-state leakage and output
+   capacitance in series with the 249 kΩ". It does not: with cell B removed that chain is
+   open at the holder (see `calibrator-build.md`). What it genuinely exercises is the
+   board's stray capacitance to the signal pair, the layout and dressing, every joint and
+   ferrule, the two added XLR mating pairs, and the **shunt** PhotoMOS's off state, which
+   sits directly across the coil and needs no battery.
+
+   So its whole product is an *attribution* — passive-and-physical fault versus powered
+   fault, i.e. which half to debug first — and that is worth having only when something
+   has already gone wrong. Charles, 2026-09-22: *"What does cells out tell us that's
+   actionable?"* Run stage 2 first; if the floor moves, pull the cells and run this, and
+   the attribution is available at exactly the moment it becomes worth the handling event,
+   the ~35 min settle and another night with the station deaf.
+2. **Batteries IN, firmware in its startup soak — START HERE.** This is the state the box
+   actually lives in, so it is the one that has to be clean. A running microcontroller
+   with its oscillator going, centimetres from a µV differential pair, is its own noise
+   source — and this project's worst-ever event was a *powered* device coupling into this
+   exact analog path. If this is clean you are done, and stage 1 was never needed.
 
    **The firmware enforces this stage itself: on every power-up it sleeps for
    `SOAK_H = 48` before the first burst.** A spot check is nearly worthless here, because
