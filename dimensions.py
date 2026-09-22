@@ -573,3 +573,35 @@ cal_case_h = cal_floor + cal_cav_h
 cal_inner_r = max(cal_corner_r - cal_wall, 0.5)
 cal_boss_dia = 8.0
 cal_boss_inset = 6.0       # boss centre from the cavity corner, both axes
+
+# --- Shorting / cable-test box (BACKLOG: shorted-input floor test) ----------
+# A five-sided shell that stands in for the geophone at the far end of the run:
+# one chassis MALE with pins 2-3 bridged and pin 1 unconnected. The mic cable is
+# female->male (BOM-geophone-case.md), so the geophone end of it is FEMALE and the
+# thing replacing the geophone must be male, exactly as the sensor case is.
+#
+# It takes the plain indoor NC3MD-L-B, NOT the sensor case's IP65 NC3MDX-TOP: this
+# box lives on the garage slab for a night at a time, and the L-B is the standard
+# D-series cutout that xlr_coupon.py already validated. No new coupon.
+#
+# It is also a CABLE TESTER. Any female->male mic cable plugs into it at one end and
+# into the Pi enclosure at the other, so the archive's own noise floor becomes the
+# measurement and cables can be compared against each other by swapping them.
+short_wall = 3.0
+short_roof = 3.0
+short_corner_r = 6.0
+
+# MATCHED to the geophone case, deliberately: parts/geophone_case.py puts its XLR at
+# floor_th + 24 = 8 + 24 = 32 mm above the slab. Same height here means the last
+# stretch of cable drapes the same way it does in service, so the only thing the test
+# changes is the sensor. If geophone_case.py's xlr_z ever moves, move this with it --
+# that file keeps those two numbers locally, so nothing enforces the link but this note.
+short_xlr_z = 32.0
+
+short_x = 58.0             # along the wall the connector sits on
+short_y = 48.0             # >= xlr_body_depth + wall + working clearance
+short_h = short_xlr_z + xlr_pad_h / 2 + 3.0    # the pad sets the height, as ever
+
+short_label = "SHORT  2-3"
+short_label_h = 6.0
+short_label_depth = 0.6    # engrave, not emboss: no elephant foot on the first layer

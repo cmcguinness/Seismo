@@ -1752,16 +1752,41 @@ by f0 and ζ — both still guesses — so the 2× may be *noise rejection* (the
 deaf to the cultural noise owning 5–15 Hz) rather than *signal capture*. Those look
 identical in the detection curves and have opposite implications for calibration.
 
-**The whole apparatus is a $5 plug.** A male XLR (NC3MX or any male cable connector,
-matching the Pi enclosure's NC3FD-L-B chassis jack) with **pins 2–3 bridged**. Pin 1 is
-shield and stays unconnected.
+**The apparatus is a printed box, not a bare plug (Charles, 2026-09-22).** Originally
+specced as a $5 male cable plug (NC3MX, pins 2–3 bridged, pin 1 unconnected) pushed into
+the Pi enclosure's NC3FD-L-B. That plug measures the electronics *alone*, which is the
+diagnostic half. **What the pre-registered gate actually needs is the operating floor —
+electronics plus the whole installed cable** — so the far end of the run is the right
+place to put the short.
+
+`parts/shorting_box.py`: a five-sided shell, open at the bottom, carrying one
+**NC3MD-L-B chassis MALE** with pins 2–3 bridged. The gender is forced — the mic cable is
+female→male, the sensor case carries a chassis male, so anything replacing the geophone
+is male too. It uses the plain indoor L-B rather than the sensor case's IP65 NC3MDX-TOP,
+which means the standard D-series cutout `xlr_coupon.py` already validated: no new coupon,
+no Neutrik DXF. The connector sits at **32 mm above the slab, matched to
+`geophone_case.py`'s `floor_th + 24`**, so the last stretch of cable drapes exactly as it
+does in service. A dangling plug changes that routing, and cable pickup is the very thing
+being measured.
+
+**And it is a cable tester, which is the reason to build it properly rather than as a
+prop.** Any female→male mic cable plugs into it at one end and the Pi enclosure at the
+other, making the station's own archive the instrument: swap cables, compare quiet-hour
+floors, and the difference is that cable. It is also the fixture that turns injector
+bring-up stage 1 into a paired differential — same box, same electronics, one variable —
+instead of a cross-day comparison of live floors.
+
+**Keep the bare plug as well**, cheap and complementary: box = electronics + cable
+(answers the gate), plug at the Pi = electronics alone (attributes any excess to the
+cable). Neither replaces the other.
 
 - **No 375 Ω termination needed.** Johnson noise of the coil is √(4kTR) = 2.46 nV/√Hz
   against a measured quiet-night floor of 0.8 µV RMS over 1–15 Hz = 214 nV/√Hz — 87×
   below, 0.013 % of the noise power. A dead short and a resistor give indistinguishable
   answers.
-- **The same plug does a second test**: the cable's free end is female, so plugging it in
-  there measures electronics + 10 m of cable, and the difference isolates cable pickup.
+- **The two measurements together isolate cable pickup**: the box at the far end gives
+  electronics + 10 m of cable, the bare plug at the Pi enclosure gives electronics alone,
+  and the difference is the cable.
 
 **Protocol — two trips, not a vigil.** In at bedtime, out in the morning. The electronics
 floor does not drift with the hour, and 44 days of quiet-night live data already exist to

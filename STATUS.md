@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-21 (UTC)_
+_Last updated: 2026-09-22 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -113,6 +113,47 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🔌 THE FLOOR TEST GETS A BOX, AND THE BOX IS ALSO A CABLE TESTER (2026-09-22)
+
+The shorted-input floor test is next, ahead of soldering the injector, for a reason that
+is not convenience: **it is a one-way door.** The test measures the electronics-and-cable
+floor with the geophone removed. Once the injector box is spliced into the run, that state
+stops existing — every future shorted test includes the injector board. It is also
+condition 2 of the pre-registered band rule (`harvest_events.py:97`), so it is the only
+thing on the list with a deadline.
+
+**Charles's call: a printed box, not the BACKLOG's $5 bare plug**, so the installed cable
+is inside the measurement. Correct, and it is the *more* correct instrument for the gate:
+the gate asks whether the sub-corner band is quiet or deaf, which is a question about the
+**operating** floor, and the operating floor includes 10 m of cable. `parts/shorting_box.py`
+— five-sided shell, open bottom, one `NC3MD-L-B` with pins 2–3 bridged, pin 1 unconnected.
+
+Three things fell out of it, none of them choices:
+
+- **The gender is forced.** The mic cable is female→male and the sensor case carries a
+  chassis male, so whatever replaces the geophone is male too. Nearly got this backwards.
+- **The connector is at 32 mm above the slab, matched to `geophone_case.py`'s
+  `floor_th + 24`.** A dangling plug re-routes the last stretch of cable, and cable pickup
+  is the thing being measured. Matching removes that variable for the cost of some plastic.
+- **The plain indoor `NC3MD-L-B`, not the sensor case's IP65 `NC3MDX-TOP`** — so it is the
+  standard D-series cutout `xlr_coupon.py` already validated. No new coupon, no DXF.
+
+**It is also a cable tester**, which is Charles's point and the reason to build it
+properly: any female→male cable plugs into it at one end and the Pi at the other, so the
+archive becomes the instrument and cables can be compared by swapping them. It is
+additionally the fixture that turns injector bring-up stage 1 into a **paired**
+differential — same box, same electronics, one variable — rather than a cross-day
+comparison of live noise floors against weather.
+
+**Keep the bare plug too.** Box = electronics + cable, and answers the gate. Plug at the Pi
+= electronics alone, and attributes any excess to the cable. Complementary, not redundant.
+
+**The hollowing extrude shipped without `Mode.SUBTRACT` and the part came out solid** —
+144 cm³ of PLA in a 150 cm³ bounding box. Caught by probing the exported mesh rather than
+by looking at it, which is the second time that check has earned its place. Now 36.9 cm³,
+watertight, every bore confirmed open by point containment, engraving cut and the roof
+intact beneath it.
 
 ## 🔌 THE INJECTOR HAS A SCHEMATIC, AND THE DATASHEETS MOVED TWO NUMBERS (2026-09-21)
 
