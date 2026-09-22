@@ -50,7 +50,13 @@ import schemdraw.elements as elm
 # ---- the two halves ---------------------------------------------------
 BARRIER = 13.5           # isolation barrier: control left, coil right
 GND_Y = 1.0              # cell A negative rail
-VA_Y = 13.0              # cell A positive rail (ATtiny VCC)
+VA_Y = 15.4              # cell A positive rail. MUST sit ABOVE U1's VCC anchor:
+                         # Ic.at() places by the BOTTOM-LEFT corner, not the centre, so
+                         # with h=6.8 and leadlen=1.0 the VCC pin lands at y=14.7. Put the
+                         # rail below that and the connecting wire runs back down THROUGH
+                         # the package, which is exactly how it looked (Charles, 2026-09-22:
+                         # "VCC runs inside the chip not connecting to the line coming out
+                         # of it"). If U1 moves or grows, re-check this number.
 
 # ---- the signal pair, straight through, along the top ------------------
 RAIL_SHIELD = 18.0       # XLR pin 1 -- carried through, touched by nothing
@@ -218,7 +224,8 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
                 label="").at((6.4, 5.9)).theta(0)
     d += u1
 
-    d += elm.Label().at((6.4, 12.4)).label("U1  ATtiny85  PDIP-8", fontsize=10)
+    # Above the box top (13.7) and below the rail (15.4), left of the VCC lead (x=7.65).
+    d += elm.Label().at((5.2, 14.2)).label("U1  ATtiny85  PDIP-8", fontsize=10)
     d += elm.Line().at(u1.VCC).to((u1.VCC.x, VA_Y))
     d += elm.Dot().at((u1.VCC.x, VA_Y))
     d += elm.Line().at(u1.GND).to((u1.GND.x, GND_Y))
@@ -279,7 +286,7 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
                 label="").at((4.4, 17.2)).theta(0)
     d += j4
     d += elm.Label().at((4.4, 20.9)).label("J4  ISP header, 2x3 0.1\"", fontsize=10)
-    d += elm.Label().at((3.0, 14.6)).label(
+    d += elm.Label().at((5.9, 16.3)).label(
         "VCC and GND go to the VA / 0A rails. The other four have NO WIRE drawn:\n"
         "they connect to the matching green net names on U1's stubs.",
         fontsize=8, color="#555")
