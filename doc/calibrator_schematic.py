@@ -165,8 +165,9 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     d += elm.Dot().at((NODE_X, u2.O4.y))
     d += elm.Label().at((NODE_X + 0.55, u2.O4.y + 0.5)).label("2.5 V", fontsize=9)
 
-    d += elm.Zener().at((NODE_X, BMINUS_Y)).to((NODE_X, u2.O4.y)).label(
-        "U4  LM4040-2.5\npin 2 (K) up\npin 1 (A) down\npin 3 NC", loc="left", fontsize=9)
+    d += elm.Zener().at((NODE_X, BMINUS_Y)).to((NODE_X, u2.O4.y))
+    d += elm.Label().at((21.4, 3.9)).label(
+        "U4  LM4040-2.5\npin 2 (K) up\npin 1 (A) down\npin 3 NC", fontsize=9)
 
     d += elm.Resistor().at((NODE_X, u2.O4.y)).to((NODE_X, RAIL_P))
     d += elm.Label().at((NODE_X + 1.35, (u2.O4.y + RAIL_P) / 2)).label(
@@ -179,8 +180,8 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     d += elm.Dot().at((25.6, RAIL_M))
     d += elm.Dot().at((NODE_X, BMINUS_Y))
     d += elm.Line().at((NODE_X, BMINUS_Y)).to((17.2, BMINUS_Y))
-    d += elm.Battery().at((17.2, BMINUS_Y)).to((17.2, u2.O3.y)).label(
-        "cell B\n2 x CR2032\n6 V", loc="left", fontsize=9)
+    d += elm.Battery().at((17.2, BMINUS_Y)).to((17.2, u2.O3.y))
+    d += elm.Label().at((18.9, 3.6)).label("cell B\n2 x CR2032\n6 V", fontsize=9)
     d += elm.Line().at((17.2, u2.O3.y)).to(u2.O3)
 
     # ===================================================================
@@ -195,31 +196,31 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # ===================================================================
     # CONTROL SIDE
     # ===================================================================
-    d += elm.Line().at((0.6, GND_Y)).to((11.3, GND_Y))
-    d += elm.Line().at((0.6, VA_Y)).to((8.6, VA_Y))   # past u1.VCC.x = 7.65
-    d += elm.Label().at((0.0, VA_Y + 0.4)).label("VA", fontsize=10)
-    d += elm.Label().at((0.0, GND_Y - 0.55)).label("0A", fontsize=10)
+    d += elm.Line().at((-0.6, GND_Y)).to((11.3, GND_Y))
+    d += elm.Line().at((-0.6, VA_Y)).to((8.6, VA_Y))   # past u1.VCC.x = 7.65
+    d += elm.Label().at((-1.3, VA_Y + 0.1)).label("VA", fontsize=10)
+    d += elm.Label().at((-1.3, GND_Y - 0.1)).label("0A", fontsize=10)
 
     # Cell A, behind JP1. Drawn as a GAP because open is a real operating state:
     # most ISP dongles drive 5 V and that must never reach an installed CR2032, so
     # JP1 out is the programming configuration -- and a microammeter across the open
     # header is the only convenient way to check the ~5 uA sleep current.
-    d += elm.Line().at((0.6, GND_Y)).to((0.6, 3.2))
-    d += elm.Battery().at((0.6, 3.2)).to((0.6, 6.8)).label(
-        "cell A\nCR2032\n3 V", loc="left", fontsize=9)
-    d += elm.Dot(open=True).at((0.6, 6.8))
-    d += elm.Dot(open=True).at((0.6, 8.4))
-    d += elm.Label().at((-0.55, 7.6)).label("JP1", fontsize=9)
-    d += elm.Line().at((0.6, 8.4)).to((0.6, VA_Y))
+    d += elm.Line().at((-0.6, GND_Y)).to((-0.6, 3.2))
+    d += elm.Battery().at((-0.6, 3.2)).to((-0.6, 6.8))
+    d += elm.Label().at((-2.0, 5.0)).label("cell A\nCR2032\n3 V", fontsize=9)
+    d += elm.Dot(open=True).at((-0.6, 6.8))
+    d += elm.Dot(open=True).at((-0.6, 8.4))
+    d += elm.Label().at((-1.35, 7.6)).label("JP1", fontsize=9)
+    d += elm.Line().at((-0.6, 8.4)).to((-0.6, VA_Y))
 
-    d += elm.Capacitor().at((1.7, VA_Y)).to((1.7, GND_Y)).label("C1\n100n", loc="left",
-                                                                fontsize=9)
-    d += elm.Dot().at((1.7, VA_Y))
-    d += elm.Dot().at((1.7, GND_Y))
-    d += elm.Capacitor(polar=True).at((2.7, VA_Y)).to((2.7, GND_Y)).label(
-        "C2\n22u", loc="left", fontsize=9)
-    d += elm.Dot().at((2.7, VA_Y))
-    d += elm.Dot().at((2.7, GND_Y))
+    d += elm.Capacitor().at((1.4, VA_Y)).to((1.4, GND_Y))
+    d += elm.Label().at((0.5, 8.2)).label("C1\n100n", fontsize=9)
+    d += elm.Dot().at((1.4, VA_Y))
+    d += elm.Dot().at((1.4, GND_Y))
+    d += elm.Capacitor(polar=True).at((2.8, VA_Y)).to((2.8, GND_Y))
+    d += elm.Label().at((3.75, 8.2)).label("C2\n22u", fontsize=9)
+    d += elm.Dot().at((2.8, VA_Y))
+    d += elm.Dot().at((2.8, GND_Y))
 
     u1 = elm.Ic(pins=[elm.IcPin(name="VCC", pin="8", side="top"),
                       elm.IcPin(name="GND", pin="4", side="bottom"),
@@ -278,11 +279,12 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # (STATUS open thread 1), and a cap here would test the cap instead.
     d += elm.Line().at(u1.PB4).to((9.4, u1.PB4.y))
     d += elm.Button().at((9.4, u1.PB4.y)).to((9.4, GND_Y))
+    d += elm.Label().at((10.35, 4.6)).label("SW1", fontsize=9)
     # Directly BELOW SW1 and below the 0A rail. Beside the switch there is only 1.75
     # units between U1's GND lead and the cathode return -- too narrow for the caption --
     # and parking it in the wide gap to the left divorced it from the switch it labels.
     d += elm.Label().at((9.4, -0.15)).label(
-        "SW1  panel button\nshort press: restart the soak\nlong press: fire a burst now",
+        "SW1 \u2014 short press: restart the soak\nlong press: fire a burst now",
         fontsize=8, color="#555")
     d += elm.Dot().at((9.4, GND_Y))
 
@@ -342,7 +344,31 @@ def _overlap(a, b, pad=0.05):
                 or a[3] < b[1] + pad or b[3] < a[1] + pad)
 
 
+# Attached labels (.label("Rb 22k")) are SegmentText inside an element, not separate
+# Label objects, so the first version of this check could not see them -- and that is
+# exactly where cell A's caption was sitting on its own wire. Estimate their extent from
+# the character count; crude, but gross overlaps are what we are hunting.
+from schemdraw.segments import SegmentText as _SegText
+_CHAR_W, _LINE_H = 0.135, 0.36          # units per character / per line, at fontsize 9
+
+
+def _text_bbox(xy, text, fontsize):
+    _sc = fontsize / 9.0
+    _lines = str(text).split("\n")
+    _w = max(len(ln) for ln in _lines) * _CHAR_W * _sc
+    _h = len(_lines) * _LINE_H * _sc
+    return xy[0] - _w / 2, xy[1] - _h / 2, xy[0] + _w / 2, xy[1] + _h / 2
+
+
 _labels, _wires = [], []
+for _el in drawing.elements:
+    for _seg in getattr(_el, "segments", []):
+        if isinstance(_seg, _SegText) and _seg.text:
+            try:
+                _xy = _el.transform.transform(_seg.xy)
+            except Exception:
+                continue
+            _labels.append((_el, _text_bbox(_xy, _seg.text, _seg.fontsize or 9)))
 for _el in drawing.elements:
     _bb = _bbox(_el)
     if _bb is None:
@@ -381,7 +407,8 @@ if _floating:
         print(f"    dot at ({_cx:.2f}, {_cy:.2f}) is reached by {_n} wire(s), expected >= 2")
     raise SystemExit(1)
 
-_hits = [(lb, wb) for _, lb in _labels for _, wb in _wires if _overlap(lb, wb)]
+_hits = [(lb, wb) for _le, lb in _labels for _we, wb in _wires
+         if _le is not _we and _overlap(lb, wb)]
 if _hits:
     print(f"\n*** {len(_hits)} label/wire overlap(s) -- the drawing is not clean ***")
     for lb, wb in _hits:
