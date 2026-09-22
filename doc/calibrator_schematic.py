@@ -5,6 +5,10 @@ Source of the image embedded in doc/calibrator-build.md. Render with:
     direnv exec . python doc/calibrator_schematic.py
 -> writes doc/calibrator.svg
 
+doc/calibrator.png is the same drawing for the bench -- an SVG is awkward on a phone
+or a tablet next to a soldering iron. Regenerate it by swapping the two lines below
+(drop the schemdraw.use("svg") and change the filename); it is not worth a flag.
+
 Same conventions as doc/rev2_frontend_schematic.py: real component symbols, and
 net labels that tie by name rather than routing every wire across the sheet.
 Junctions are DOTTED; two lines crossing without a dot are not connected.
