@@ -1805,6 +1805,65 @@ the same day, with exact start/stop.
 gain is real signal capture. Live 3–7 Hz sitting on the floor → instrument-limited, and
 the gain is an artifact of deafness.
 
+## Quarterly path check with the shorting box — a second calibration series (opened 2026-09-22)
+
+Charles, 2026-09-22: *"We need to make sure we do period re-calibrations with the short
+box. Maybe quarterly? An eg cold solder joint somewhere could start to fail, etc."*
+
+**Why it is the injector's twin, not a duplicate of it.** The injector's burst travels
+through the coil *and* the whole electronics chain, so a drift in burst amplitude cannot
+say which moved. The shorted run removes the sensor entirely. Read together:
+
+| injector series | shorted series | reading |
+|---|---|---|
+| drifts | drifts | the **path** — a joint, a connector, the cable, the front end |
+| drifts | flat | the **element** — the thing the injector exists to watch |
+| flat | drifts | a noise source that does not affect gain; look for a new line |
+
+Neither answers that alone, which is the argument for keeping both.
+
+**Quarterly is sufficient because the two have different jobs.** The injector fires four
+times a day, so a developing fault surfaces within a day; the quarterly shorted run is not
+the detector, it is the **attribution**. Solstice/equinox timing samples the temperature
+range about evenly instead of clustering it.
+
+**⚠️ LOG THE TEMPERATURE OR RUN 4 IS UNINTERPRETABLE.** A shorted measurement excludes
+ground and weather noise but *not* the front end's own thermal noise, and a Sonoma garage
+swings hard across the year. The first winter run will look like a failing joint unless
+temperature is a column. The env node (`SS.OAKM1.20.LDO`) already records it.
+
+**Four numbers a year is not a series.** The whole value is in the trend, so the runs
+accumulate into one file — `analysis/path_checks.csv`, one row per run:
+
+    date_utc, epoch_row, temp_c, rms_1_15_uv, rms_1_3, rms_3_8, rms_8_15,
+    rms_15_30, rms_30_45, new_lines, notes
+
+`rms_1_15_uv` is the event-robust one (median of 10 s windows). `new_lines` carries
+`night_compare.py`'s largest persistent per-bin excursions against the previous run —
+a new narrow line is how a bad joint announces itself before broadband RMS moves.
+
+**Protocol — comparability is the whole ballgame.** Identical every time, or the trend is
+noise:
+
+- same box, same cable, same position, cable dressed the same (the box's connector height
+  is matched to the geophone case for exactly this reason);
+- same quiet window — `night_compare.py`'s default 00:00–05:00 PDT / 07:00–12:00 UTC;
+- in at bedtime, out in the morning; discard ~35 min after each handling event;
+- `analysis/epochs.py` row with exact start/stop, and **the window MUST be masked** — an
+  artificially silent stretch is a noise window for the median SNR estimator, which is the
+  artifact removed on 2026-09-08;
+- analysis is `night_compare.py` against the *previous* run, not against a fixed
+  reference, plus the row appended to `path_checks.csv` so the long trend survives.
+
+**Make it happen rather than remember it.** A quarterly manual task that depends on memory
+does not occur. An ntfy push on the existing `seismo` topic, same "push, don't discover it
+in the morning" rule as the archive-backup entry above. Set that up once the first run has
+happened and the protocol has survived contact with reality — not before, since there is
+nothing to remind about until the box exists.
+
+**Cost:** four nights a year with the station deaf, eight handling events, eight masked
+windows. Cheap against silently publishing magnitudes through a degrading path.
+
 ## Inline switch box for the mule — automated shorting + injector control (opened 2026-09-08)
 
 Not on the critical path (the floor test above needs none of it), but it turns a one-shot
