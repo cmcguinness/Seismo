@@ -65,6 +65,7 @@ RAIL_M = 15.0            # XLR pin 3 -- coil-
 RAIL_L, RAIL_R = 16.0, 27.5
 
 with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
+    drawing = d
     d.config(unit=2.0, fontsize=11)
 
     # ===================================================================
@@ -124,12 +125,16 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # plug, write the value in analysis/epochs.py -- no iron, and no opening the
     # box immediately before a campaign whose premise is that nothing else changed.
     d += elm.EncircleBox([tip, sleeve], padx=0.5, pady=0.6).linestyle("--").color("#888")
-    # BELOW the module, not above it: above, this caption ran straight through the
-    # wire climbing from U3's O4 to coil+ at x=16.8 (Charles, 2026-09-22). The space
-    # under the jack is empty -- Rb is lower still and Rinj is further right.
-    d += elm.Label().at((19.6, 7.4)).label(
-        "J3  1/4\" TS panel jack  +  shunt module in the plug\n"
-        "NO PLUG FITTED = no shunt = the default state",
+    # BELOW the module, and MEASURED rather than eyeballed (Charles found this twice:
+    # above the jack it crossed the wire from U3's O4 to coil+ at x=16.8, then at
+    # y=7.4 it drifted onto Rb). The clear band runs from the Rb row at y=6.35 to the
+    # jack row at y=10.55, so 8.45 is the middle of it. Three short lines rather than
+    # two long ones, centred at 18.6: the two-line version was ~11 units wide and ran
+    # into Rinj at x=23.0.
+    d += elm.Label().at((18.6, 8.45)).label(
+        "J3  1/4\" TS panel jack\n"
+        "shunt module lives in the plug\n"
+        "NO PLUG = no shunt = the default",
         fontsize=8, color="#555")
 
     # ===================================================================
@@ -181,8 +186,9 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # ===================================================================
     # THE BARRIER
     # ===================================================================
-    d += elm.Line().at((BARRIER, 0.2)).to((BARRIER, 19.6)) \
+    barrier = elm.Line().at((BARRIER, 0.2)).to((BARRIER, 19.6)) \
         .linestyle("--").color("#c0392b").linewidth(1.3)
+    d += barrier
     d += elm.Label().at((BARRIER, 20.1)).label(
         "5 kV isolation\nnothing galvanic crosses", fontsize=9, color="#c0392b")
 
@@ -190,7 +196,7 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # CONTROL SIDE
     # ===================================================================
     d += elm.Line().at((0.6, GND_Y)).to((11.3, GND_Y))
-    d += elm.Line().at((0.6, VA_Y)).to((7.4, VA_Y))
+    d += elm.Line().at((0.6, VA_Y)).to((8.6, VA_Y))   # past u1.VCC.x = 7.65
     d += elm.Label().at((0.0, VA_Y + 0.4)).label("VA", fontsize=10)
     d += elm.Label().at((0.0, GND_Y - 0.55)).label("0A", fontsize=10)
 
@@ -272,7 +278,10 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # (STATUS open thread 1), and a cap here would test the cap instead.
     d += elm.Line().at(u1.PB4).to((9.4, u1.PB4.y))
     d += elm.Button().at((9.4, u1.PB4.y)).to((9.4, GND_Y))
-    d += elm.Label().at((9.4, 1.9)).label(
+    # Directly BELOW SW1 and below the 0A rail. Beside the switch there is only 1.75
+    # units between U1's GND lead and the cathode return -- too narrow for the caption --
+    # and parking it in the wide gap to the left divorced it from the switch it labels.
+    d += elm.Label().at((9.4, -0.15)).label(
         "SW1  panel button\nshort press: restart the soak\nlong press: fire a burst now",
         fontsize=8, color="#555")
     d += elm.Dot().at((9.4, GND_Y))
@@ -299,9 +308,85 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
         "CONTROL — referenced to cell A", fontsize=12, color="#2c3e50")
     d += elm.Label().at((21.0, 22.3)).label(
         "COIL — microvolts live here", fontsize=12, color="#2c3e50")
+    check_labels = True          # see the collision check after the drawing closes
     d += elm.Label().at((14.0, -1.6)).label(
         "Inline calibration injector, SS.OAKM1.   "
         "Junctions are dotted; crossings without a dot are not connections.\n"
         "Rinj and Rs are MEASURED with a DMM at build time and written on the box: "
         "the value that counts is the measured one, not the marked one.",
         fontsize=9, color="#555")
+
+
+# ---------------------------------------------------------------------------
+# COLLISION CHECK -- text over wires
+#
+# Six separate label-over-wire collisions were found by Charles reading the
+# rendered drawing, and none by me looking at it. Eyeballing does not work; a
+# bounding-box test does, because every wire here is axis-aligned, so a Line's
+# bbox IS the wire rather than a loose rectangle around it.
+#
+# Only standalone elm.Label() objects are checked. Labels attached to an element
+# (.label("Rb 22k")) belong to that element and are not separate objects, so this
+# will not catch those -- it catches the free-floating captions, which is where
+# every one of the six actually happened.
+def _bbox(el):
+    try:
+        bb = el.get_bbox(transform=True)
+        return bb.xmin, bb.ymin, bb.xmax, bb.ymax
+    except Exception:
+        return None
+
+
+def _overlap(a, b, pad=0.05):
+    return not (a[2] < b[0] + pad or b[2] < a[0] + pad
+                or a[3] < b[1] + pad or b[3] < a[1] + pad)
+
+
+_labels, _wires = [], []
+for _el in drawing.elements:
+    _bb = _bbox(_el)
+    if _bb is None:
+        continue
+    if isinstance(_el, elm.Label):
+        _labels.append((_el, _bb))
+    elif _el is barrier:
+        continue                 # annotation, not a wire; U2/U3 sit astride it on purpose
+    elif isinstance(_el, (elm.Line, elm.Resistor, elm.Capacitor, elm.Battery,
+                          elm.Zener, elm.Button)):
+        _wires.append((_el, _bb))
+
+# JUNCTION CHECK -- dots that nothing connects to.
+# The VA rail once stopped 0.25 units short of U1's VCC riser, leaving the junction dot
+# floating off the end of it (Charles, 2026-09-22). The drawing looked connected and was
+# not. A solid Dot is a claim that two or more wires meet there; verify the claim.
+# An OPEN dot is a terminal or a net-name stub -- one wire is correct there, and JP1's
+# two ends are meant to have a gap between them. Only SOLID dots claim a junction.
+_dots = [e for e in drawing.elements
+         if isinstance(e, elm.Dot)
+         and not getattr(e, "_userparams", {}).get("open", False)]
+_floating = []
+for _d in _dots:
+    _bb = _bbox(_d)
+    if _bb is None:
+        continue
+    _cx, _cy = (_bb[0] + _bb[2]) / 2, (_bb[1] + _bb[3]) / 2
+    _touch = sum(1 for _, wb in _wires
+                 if wb[0] - 0.12 <= _cx <= wb[2] + 0.12
+                 and wb[1] - 0.12 <= _cy <= wb[3] + 0.12)
+    if _touch < 2:
+        _floating.append((_cx, _cy, _touch))
+if _floating:
+    print(f"\n*** {len(_floating)} junction dot(s) that nothing meets ***")
+    for _cx, _cy, _n in _floating:
+        print(f"    dot at ({_cx:.2f}, {_cy:.2f}) is reached by {_n} wire(s), expected >= 2")
+    raise SystemExit(1)
+
+_hits = [(lb, wb) for _, lb in _labels for _, wb in _wires if _overlap(lb, wb)]
+if _hits:
+    print(f"\n*** {len(_hits)} label/wire overlap(s) -- the drawing is not clean ***")
+    for lb, wb in _hits:
+        print(f"    label at ({(lb[0]+lb[2])/2:.1f}, {(lb[1]+lb[3])/2:.1f}) "
+              f"overlaps a wire spanning x {wb[0]:.1f}-{wb[2]:.1f}, y {wb[1]:.1f}-{wb[3]:.1f}")
+    raise SystemExit(1)
+print(f"checks clean: {len(_labels)} captions vs {len(_wires)} wires, "
+      f"{len(_dots)} junctions all met")
