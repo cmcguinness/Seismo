@@ -1904,6 +1904,43 @@ the same day, with exact start/stop.
 gain is real signal capture. Live 3–7 Hz sitting on the floor → instrument-limited, and
 the gain is an artifact of deafness.
 
+## Two talk ideas worth keeping, neither on the critical path (opened 2026-09-22)
+
+Charles, 2026-09-22, on what an earthquake-hazards audience would actually want:
+*"What Seismology needs is a public Hackathon"* and *"The $100 remote sensor:
+Accelerometers + LoRa + Power"*. Recorded here so they survive; **neither should start
+before the injector is built.**
+
+**The $100 remote sensor is the stronger idea, and the reason is the constraint it
+names.** That audience is not short of cheap sensors. What stops a dense array across the
+Rodgers Creek/Maacama system is **backhaul and power** — getting data off a hillside with
+no mains and no wifi. The one low-cost-instrumentation talk in the 2024 programme
+(Safehub) was sensors *in buildings*, where both problems are already solved.
+
+The technical content is the bandwidth arithmetic: **LoRa cannot carry waveforms.** A few
+hundred bits per second, duty-cycle limited, so a node cannot stream 100 sps and should
+not try. It becomes an **event-parameter reporter** — trigger time, PGA, PGV, perhaps a
+decimated envelope — which is what a shaking map wants anyway. "The bandwidth limit forces
+the right architecture" is the four-minute idea. Parts already relevant: the
+EVAL-ADXL355Z (accelerometer channel, location code 10) and the ESP32/ADS1220 field rig.
+
+**Cost: real hardware.** A talk about hardware you have not built is weak, so this is a
+spring project and a 2028 talk, not a January one.
+
+**The hackathon talk is real but must be testimony, not prescription.** A newcomer telling
+a professional field what it "needs" reads badly however true it is. The version that
+works: what happened when an outsider with an ML background tried to contribute — the
+administrivia being harder than the electronics, metadata being the actual barrier to
+entry, and having to build a response measurement because nothing existed at this price
+point. Same conclusion, earned rather than asserted. The strand exists: the 2024 programme
+carried community preparedness, equity/policy and outreach-toolkit talks.
+
+**⚠️ FIVE CANDIDATE TALKS, ZERO SOLDERED JOINTS.** Picker transfer, trees-vs-CNN,
+detection capability, the $100 node, the hackathon. The commitment is a *title* in
+January and four minutes in February; two of the five are already cheap (picker transfer
+is an afternoon, detection capability is submittable today). **Decide in December from
+what exists by then.** Generating talk ideas is not progress toward the injector.
+
 ## Quarterly path check with the shorting box — a second calibration series (opened 2026-09-22)
 
 Charles, 2026-09-22: *"We need to make sure we do period re-calibrations with the short
