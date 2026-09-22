@@ -38,6 +38,14 @@ Assembly is one joint: bridge pins 2 and 3 on the connector BEFORE screwing it i
 the wall, because once it is in there is no way back inside. That is why there is no
 lid and no fasteners beyond the connector's own two M3s.
 
+PRINT IT IN RED (Charles, 2026-09-22), and treat that as the convention rather than a
+whim: **red means a test fixture that must come out of the run again.** Permanent
+hardware -- the geophone case, the calibrator box -- prints in whatever is loaded.
+There are about to be three boxes with XLRs on one cable, two of which belong there
+permanently and one of which silently turns the station into a dead short, and the
+failure mode is not noticing at 6 a.m. that the sensor never went back on. The
+pre-flight check is then one glance: **is there anything red in the run?**
+
 Print CLOSED FACE DOWN -- i.e. upside-down from how it is used -- so the roof lands
 on the bed and the open face is uppermost. No supports. The XLR pad is a 1.5 mm
 overhang off a vertical wall, which bridges, the same as on the calibrator box.
