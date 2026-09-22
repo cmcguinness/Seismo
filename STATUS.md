@@ -1729,7 +1729,7 @@ Also serving the Mac (`/etc/ntp.conf` -> `server pi3chrono.local`; sntp reports
 
 ## 🪪 SEED IDENTITY CUTOVER: XX.OAKMT.00.SHZ -> SS.OAKM1.00.EHZ (2026-08-30 15:39 UTC)
 
-Decoupled from the ISC wait, which was never a blocker. James (ISC DCO) answered on
+Decoupled from the ISC wait, which was never a blocker. the ISC Data Collection Officer answered on
 2026-08-05 that the ISC is happy to use FDSN-coded stations and there was no reason not to
 have both; Charles replied the same day; the IR confirmation has not come in 25 days. But
 **`SS` needs no assignment** — it is the FDSN code any single-station operator may use — so
@@ -1773,7 +1773,7 @@ so any future identity change has to set it there by hand as well; pi5's dokku a
 identity config at all and takes the code defaults.
 
 **Still outstanding:** the ISC IR confirmation. Nothing depends on it — we are already
-publishing under the identity Charles told James we would use.
+publishing under the identity Charles told the ISC we would use.
 
 ## 🏷️ LABEL GUARD + A FROZEN HOLDOUT (2026-08-30, later)
 

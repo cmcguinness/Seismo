@@ -1462,7 +1462,7 @@ any operator running a single station, with no application to FDSN** — "a gene
 code for any operator that wishes to produce data in FDSN formats, but is not otherwise
 associated with a network."
 
-- ✅ **ISC replied 2026-08-07 (James) and the registration is proceeding under IR** —
+- ✅ **ISC replied 2026-08-07 and the registration is proceeding under IR** —
   Charles confirmed "yes, register under IR" the same day. The ISC explicitly stated it is
   **happy to use stations with FDSN network codes in its operations, and there is no reason
   not to have it in both**. So IR and `SS` are *complementary*, exactly as assumed: IR is the
@@ -1474,7 +1474,7 @@ associated with a network."
   future second station can be `OAKM2`. The cutover is therefore **two fields, not one**:
   `XX.OAKMT` → `SS.OAKM1`. The station code is embedded in every **day-file name**, so this
   is a bigger change than the network flip alone.
-- **Still outstanding:** James's confirmation that `OAKM1` is actually registered. The
+- **Still outstanding:** the ISC's confirmation that `OAKM1` is actually registered. The
   cutover waits on that email, not on the 08-07 reply.
 - **Station codes are not globally unique in FDSN** — the unique key is
   network·station·location·channel. Under `SS` specifically, uniqueness *within* `SS` is
@@ -1567,7 +1567,7 @@ anything undeclared and would delete it. `[tool.uv] package = false` is set so n
 tries to build the repo as a package. Install with
 `uv pip install --python .venv/bin/python <pkg>`.
 
-#### Cutover runbook — run when James confirms `OAKM1` is registered
+#### Cutover runbook — run when the ISC confirms `OAKM1` is registered
 
 1. **Station** (`seismo.local`), `/etc/systemd/system/seismo-recorder.service`:
    `SEISMO_NETWORK=XX` → `SS`, `SEISMO_STATION=OAKMT` → `OAKM1`.
