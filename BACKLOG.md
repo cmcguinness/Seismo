@@ -172,6 +172,53 @@ fed the raw stream is mostly HVAC. Band-pass to 1–15 Hz before the filter bank
 
 Expect it to sound like a slowly shifting chord, with a P arrival as a swell across bands.
 
+## The headline number a write-up would rest on — PRE-REGISTER IT (opened 2026-09-22)
+
+Charles, 2026-09-22: *"When we're done, is this worth publishing a short paper?"* The
+judgement and the human side live in the private repo. This entry is the **technical**
+half, and it has a deadline: one number has to be fixed before the first burst.
+
+**The contribution is not the box.** Signal-coil calibration is decades old and an
+observatory would use a separate coil. What is missing is the citizen-station case:
+thousands of Shake-class instruments publish amplitudes against a **nameplate** response
+nobody has measured. The headline is the answer to *how wrong is that* —
+
+    measured (f0, zeta)  vs  nameplate (4.5 Hz, 0.6)  ->  the resulting shift in magnitude
+
+expressed for this station's own catalogue. That generalises past this garage; the
+injector is the apparatus section.
+
+**⚠️ PRE-REGISTER IT BEFORE THE FIRST BURST.** Choose after seeing the measured response
+and the number is worth much less. Fix now, and change nothing afterwards:
+
+1. **The event set.** The confirmed catalogue as it stands at first light, frozen and
+   recorded by count and date range — not re-selected afterwards.
+2. **The statistic.** Per-event `dM = M(measured response) - M(nameplate response)`,
+   reported as the **median and the interquartile range** over that frozen set. Median
+   because one close event should not carry it, and the IQR because the spread is the
+   honest part of the claim.
+3. **The response used.** The first response epoch the pre-registered epoch-cutting rule
+   emits (see the entry above), not a hand-picked quiet day's fit.
+4. **What would make the result NULL**, stated in advance: |median dM| below the
+   catalogue's own magnitude scatter means the nameplate response was adequate for this
+   element, and that is a publishable answer too. Do not go looking for a band or a subset
+   where it is larger.
+
+**Also worth carrying into a write-up, and already in the repo:**
+
+- `calfinder.py`'s **zero false positives over 749 h** — the archive-hygiene result, and
+  the genuinely novel engineering: injecting four times a day into a running station
+  without poisoning the event log or the classifier's training set.
+- `response_fit.py`'s **failure** to constrain f0/zeta from spectral ratios against a
+  station 1.64 km away. A negative result the citizen community needs and nobody
+  publishes. Keep it stated as "does not work here, yet, like this".
+- The **over-determination**: k from the injector plus S from the reference station yields
+  M; injector-G against the reference-derived G measures the site term rather than
+  conflicting with it.
+
+**Scope honestly: n = 1 station.** Method plus one worked example. Nothing here supports a
+claim about a population of stations, and a write-up should not imply one.
+
 ## The response as a LIVE reference, not a one-off fit (opened 2026-09-22)
 
 Charles, 2026-09-22: *"isn't the point of the calibrator not just to find nascent faults
