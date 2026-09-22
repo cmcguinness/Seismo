@@ -38,6 +38,23 @@ Assembly is one joint: bridge pins 2 and 3 on the connector BEFORE screwing it i
 the wall, because once it is in there is no way back inside. That is why there is no
 lid and no fasteners beyond the connector's own two M3s.
 
+BUILT 2026-09-22, and one thing was harder than it looks. **Threading the remoter of
+the two nuts is awkward** -- this is a five-sided shell open only at the bottom, so the
+nuts sit ~20.5 mm and ~43.5 mm up inside a 52 x 42 mm cavity and you work blind through
+the open face. Charles's fix, which is worth knowing generally: **daub a fingertip with
+a glue stick and the nut sticks to it by tack**, so it can be carried in and held against
+the hole without a third hand.
+
+**Do not "fix" this with a captive hex pocket or a heat-set insert.** There is no room.
+The screw pattern sits hypot(11.5, 10) = 15.24 mm from the bore centre; with a 12.0 mm
+bore radius and a 1.7 mm screw hole that leaves **1.54 mm of web**. An M3 nut's
+circumradius is 3.18 mm, so a pocket would reach 12.07 mm from the centre -- through the
+bore wall. A heat-set insert is barely better. D-series geometry has nothing behind those
+screws, which is also why `dimensions.py` specifies a washer and a plain nut.
+
+The calibrator box does not inherit this: it is an open tray with a removable lid, so its
+four XLR nuts are reachable from directly above.
+
 PRINT IT IN RED (Charles, 2026-09-22), and treat that as the convention rather than a
 whim: **red means a test fixture that must come out of the run again.** Permanent
 hardware -- the geophone case, the calibrator box -- prints in whatever is loaded.
