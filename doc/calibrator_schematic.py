@@ -124,7 +124,10 @@ with schemdraw.Drawing(file="doc/calibrator.svg", show=False) as d:
     # plug, write the value in analysis/epochs.py -- no iron, and no opening the
     # box immediately before a campaign whose premise is that nothing else changed.
     d += elm.EncircleBox([tip, sleeve], padx=0.5, pady=0.6).linestyle("--").color("#888")
-    d += elm.Label().at((19.7, u3.O3.y + 1.45)).label(
+    # BELOW the module, not above it: above, this caption ran straight through the
+    # wire climbing from U3's O4 to coil+ at x=16.8 (Charles, 2026-09-22). The space
+    # under the jack is empty -- Rb is lower still and Rinj is further right.
+    d += elm.Label().at((19.6, 7.4)).label(
         "J3  1/4\" TS panel jack  +  shunt module in the plug\n"
         "NO PLUG FITTED = no shunt = the default state",
         fontsize=8, color="#555")
