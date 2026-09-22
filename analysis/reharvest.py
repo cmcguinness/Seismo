@@ -44,6 +44,14 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 CSV_LIVE = HERE / "event_harvest.csv"
 MAP_OUT = ROOT / "dashboard" / "catches" / "detection-range-map.png"
+# detection_map.py writes this JSON BESIDE the png, and catches_data.py writes the
+# table. Both were missing from the publish step, which is how the same class of bug
+# happened twice: on 2026-09-20 the regenerated png said 58 confirmed while the
+# uncommitted json still said 38, and confirmed.json sat at 2026-09-07 for two weeks
+# with the record-setting event missing from the table. An artifact this script
+# regenerates but does not commit is worse than one it never touches.
+MAP_JSON = MAP_OUT.with_suffix(".json")
+CONF_JSON = ROOT / "dashboard" / "catches" / "confirmed.json"
 DATA = HERE / "data"
 PI5 = os.environ.get("SEISMO_PI5_HOST", "pi5")
 VENV = HERE / ".venv" / "bin" / "python"
@@ -291,6 +299,15 @@ def main():
         ntfy("reharvest FAILED", f"detection_map.py exited {r.returncode}",
              priority="high", tags="rotating_light")
         sys.exit(r.stderr[-2000:])
+    # The table and the map read the same calibrate(), so they can only disagree if
+    # one of them is not rebuilt. Rebuild it here rather than trusting a human to.
+    r = sh([str(VENV), str(HERE / "catches_data.py")])
+    if r.returncode != 0:
+        sh(["git", "checkout", "--", str(CSV_LIVE)])
+        ntfy("reharvest FAILED", f"catches_data.py exited {r.returncode}",
+             priority="high", tags="rotating_light")
+        sys.exit(r.stderr[-2000:])
+
     sh([str(ROOT / ".venv" / "bin" / "python"), "-c",
         f"from PIL import Image; import os; p='{MAP_OUT}';"
         "im=Image.open(p).convert('RGB');w=1400;"
@@ -299,7 +316,8 @@ def main():
 
     msg = (f"harvest: weekly re-harvest picked up catalogue revisions\n\n"
            f"{body}\n\nAutomated by analysis/reharvest.py.")
-    for cmd in (["git", "add", str(CSV_LIVE), str(MAP_OUT)],
+    for cmd in (["git", "add", str(CSV_LIVE), str(MAP_OUT), str(MAP_JSON),
+                 str(CONF_JSON)],
                 ["git", "commit", "-q", "-m", msg],
                 ["git", "push"]):
         r = sh(["direnv", "exec", ".", *cmd])

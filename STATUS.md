@@ -225,6 +225,20 @@ confirmed catches" on **/catches** is a different and correct number — `len(EV
 hand-written catch cards, not the harvest's confirmed count.) Nothing enforces the
 same-commit rule today.
 
+**⚠️ CORRECTION, 2026-09-22: that parenthesis was wrong, and it hid a second instance of
+the same bug.** `EVENTS` is not hand-written — it is `confirmed.json["events"]`, generated
+by `analysis/catches_data.py`. That file had not been rebuilt since **2026-09-07**, so the
+published "Every confirmed event" table carried 38 rows and a summary of 36 / 88.6 km,
+missing two weeks of events **including the M3.36 Brentwood that now sets the validated
+range**. Regenerated: 58 / 98.2 km, 60 rows.
+
+**One root cause for both.** `reharvest.py`'s publish step ran `detection_map.py` and then
+`git add`ed the CSV and the **png only** — not the JSON `detection_map.py` writes beside
+it, and it never ran `catches_data.py` at all. So the weekly job regenerated an artifact
+it did not commit, and left another it never touched. Fixed: the publish step now rebuilds
+`confirmed.json` and adds `MAP_JSON` and `CONF_JSON`. **An artifact a script regenerates
+but does not commit is worse than one it never touches** — the first looks maintained.
+
 Re-ran `detection_map.py` to verify before publishing: 58 confirmed, reach 98.2 km, site
 deficit −0.218 dex — reproduces the committed image exactly.
 
