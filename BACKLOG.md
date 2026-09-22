@@ -1835,12 +1835,62 @@ temperature is a column. The env node (`SS.OAKM1.20.LDO`) already records it.
 **Four numbers a year is not a series.** The whole value is in the trend, so the runs
 accumulate into one file — `analysis/path_checks.csv`, one row per run:
 
-    date_utc, epoch_row, temp_c, rms_1_15_uv, rms_1_3, rms_3_8, rms_8_15,
+    date_utc, state, epoch_row, temp_c, rms_1_15_uv, rms_1_3, rms_3_8, rms_8_15,
     rms_15_30, rms_30_45, new_lines, notes
+
+`state` is one of `live_pre`, `elec`, `elec_cable_cal`, `live_post`, `elec_cable` — so a
+quarter is four or five rows, and the differences between them are computed from the file
+rather than recorded as prose.
 
 `rms_1_15_uv` is the event-robust one (median of 10 s windows). `new_lines` carries
 `night_compare.py`'s largest persistent per-bin excursions against the previous run —
 a new narrow line is how a bad joint announces itself before broadband RMS moves.
+
+**THE PROTOCOL IS A FOUR-STATE LADDER (Charles, 2026-09-22).** Not one shorted run but a
+decomposition, and it localises noise to a stage rather than just detecting that it moved:
+
+| # | state | signal path | isolates |
+|---|---|---|---|
+| 1 | **live baseline** | geophone + long cable + calibrator + short cable + electronics | the site, before anything is touched |
+| 2 | short box at the **Pi** end | short box + short cable + electronics | **Pi + ADC + front end** |
+| 3 | short box **instead of the geophone** | short box + long cable + calibrator + short cable + electronics | adds the **long cable + calibrator** |
+| 4 | **live again**, short box out | as (1) | the site, after |
+
+Reading it: **(3) − (2) = long cable + calibrator**. **(1 or 4) − (3) = the geophone's
+contribution**, which at a quiet site is mostly *real ground motion* — so step 4 against
+step 3 re-answers the quiet-versus-deaf gate every quarter instead of once, for free.
+
+**Both shorted states need ZERO new parts**, which is a property of the connector genders
+rather than luck: the short box is a chassis male, so it takes the short cable's female
+end for (2) and the long cable's female (geophone) end for (3), and each cable's male end
+goes into the Pi's chassis female. (The short box's connector height is matched to the
+geophone case for state **3** specifically — at the Pi end in state 2 it just sits on a
+shelf.)
+
+**It costs 2 deaf nights per quarter, not 4:** states 1 and 4 are ordinary live recording,
+so they are the nights either side rather than extra nights.
+
+**⚠️ THE BRACKET IS THE VALIDITY CHECK, AND IT IS NOT OPTIONAL.** States 1 and 4 exist to
+prove the site did not change while boxes were being swapped. **If 4 does not reproduce 1,
+throw the quarter out rather than interpreting it** — the shorted states in between are
+then not comparable to each other either. It is also the proof the geophone went back
+properly, which matters because:
+
+**⚠️ THE TEST PERTURBS THE THING IT MONITORS.** State 3 means unplugging the geophone and
+therefore disturbing its seating, and this project has already mistaken a settling
+transient for a hardware disaster once (see "settling time after handling"). Four matings
+a year is nothing to an XLR, but the sensor's coupling is the fragile part. **Photograph
+its position before unplugging**, allow the full ~35 min settle, and treat state 4 as the
+evidence it re-seated.
+
+**A fifth state, ON DEMAND only:** (3) − (2) lumps the long cable in with the calibrator.
+To split them, run short box → long cable → **straight into the Pi**, calibrator bypassed
+— which also needs no new parts, since the long cable's male end fits the Pi's chassis
+female. Run it when (3) − (2) moves, not every quarter: localising a fault only pays once
+you know there is one, the same reasoning that made the injector's cells-out stage
+conditional.
+
+**Run the states on CONSECUTIVE nights**, so temperature is close across the ladder.
 
 **Protocol — comparability is the whole ballgame.** Identical every time, or the trend is
 noise:
