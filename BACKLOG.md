@@ -2046,9 +2046,22 @@ properly, which matters because:
 **⚠️ THE TEST PERTURBS THE THING IT MONITORS.** State 3 means unplugging the geophone and
 therefore disturbing its seating, and this project has already mistaken a settling
 transient for a hardware disaster once (see "settling time after handling"). Four matings
-a year is nothing to an XLR, but the sensor's coupling is the fragile part. **Photograph
-its position before unplugging**, allow the full ~35 min settle, and treat state 4 as the
-evidence it re-seated.
+a year is nothing to an XLR, but the sensor's coupling is the fragile part.
+
+**Registration marks on the slab, made once and reused (Charles, 2026-09-22).** Better
+than a photograph: checkable in the dark with a torch and no screen. Two rules —
+**mark ORIENTATION as well as position**, because the case is a rounded square and will
+sit happily inside four corner marks while rotated 90°, which changes how the cable
+dresses (the one thing this test holds constant); and **make them durable enough to
+survive to the next quarter**, since pencil on a swept slab may not. Tape with marks on
+it works and peels off if marking the floor is unwelcome.
+
+**The geophone does NOT move.** Unplug the cable from it and set the shorting box down
+beside it on the same slab — the box senses nothing, so its position affects only the
+drape of the last metre of a ten-metre run. The marks are insurance against nudging the
+case while pulling a latching XLR, not a guide for putting it back somewhere.
+
+Allow the full ~35 min settle, and treat state 4 as the evidence it re-seated.
 
 **A fifth state, ON DEMAND only:** (3) − (2) lumps the long cable in with the calibrator.
 To split them, run short box → long cable → **straight into the Pi**, calibrator bypassed
