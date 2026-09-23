@@ -54,6 +54,13 @@ MAP_JSON = MAP_OUT.with_suffix(".json")
 CONF_JSON = ROOT / "dashboard" / "catches" / "confirmed.json"
 DATA = HERE / "data"
 PI5 = os.environ.get("SEISMO_PI5_HOST", "pi5")
+
+# WHICH rsync. macOS 27's /usr/bin/rsync is openrsync, a rewrite pinned at protocol 29;
+# the real thing lives in MacPorts/Homebrew. launchd does NOT inherit a shell PATH, so
+# the weekly run would silently get the weak one if this were left to resolution.
+RSYNC = next((c for c in ("/opt/local/bin/rsync", "/opt/homebrew/bin/rsync",
+                          "/usr/local/bin/rsync", "/usr/bin/rsync")
+              if os.path.exists(c)), "rsync")
 VENV = HERE / ".venv" / "bin" / "python"
 NTFY_ENV = Path.home() / ".config" / "seismo" / "ntfy.env"
 
@@ -135,23 +142,19 @@ def sync_dayfiles(days):
     DATA.mkdir(exist_ok=True)
     got, failed = 0, []
     for w in missing:
-        # ssh + tar rather than scp. On 2026-09-23 scp and sftp failed against pi5 for a
-        # sustained window -- "Connection closed", and a bogus "connect ... Undefined
-        # error: 0" at the connect stage -- while plain ssh worked throughout. An hour
-        # later scp worked again and the failure has not recurred.
+        # rsync over ssh, not scp. On 2026-09-23 scp and sftp failed against pi5 for a
+        # sustained window ("Connection closed", and a bogus "connect ... Undefined
+        # error: 0") while plain ssh worked throughout; an hour later scp was fine again
+        # and the cause was never found. It was NOT the SFTP subsystem (pi5 has it, with
+        # the binary present), not LAN-vs-public, and not file size -- all tested.
         #
-        # CAUSE UNKNOWN. It was NOT the SFTP subsystem (pi5 has it configured and the
-        # binary present), not LAN-vs-public, and not file size: every one of those
-        # theories was tested and none held. The Mac had just been upgraded to macOS 27,
-        # whose OpenSSH 10 drops the legacy SCP protocol, so scp is SFTP-only now -- that
-        # is a real change but no evidence ties it to this.
-        #
-        # ssh + tar is kept anyway because it has fewer moving parts and no subsystem
-        # dependency, not because it is a proven fix. tar rather than cat because the
-        # glob matches both the seismic channel and the env node's LDO file for a day.
-        # If this recurs, the loud failure below is what will tell you.
-        r = sh(f"ssh -o ConnectTimeout=15 {PI5} "
-               f"'cd seismo-archive && tar cf - *.D.{w}.mseed' | tar xf - -C {DATA}")
+        # rsync is the right tool here regardless of that: it carries its own protocol
+        # over ssh so it does not depend on the SFTP subsystem at all, --partial resumes
+        # an interrupted 31 MB day-file instead of restarting it, and it reports real
+        # errors. Security is ssh's -- never the rsync daemon form (host::module, port
+        # 873), which is unencrypted.
+        r = sh(f"{RSYNC} -e 'ssh -o ConnectTimeout=15' --partial --times "
+               f"'{PI5}:seismo-archive/*.D.{w}.mseed' {DATA}/")
         if r.returncode == 0 and list(DATA.glob(f"*.D.{w}.mseed")):
             got += 1
         else:
