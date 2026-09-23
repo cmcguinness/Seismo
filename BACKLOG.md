@@ -2049,12 +2049,14 @@ transient for a hardware disaster once (see "settling time after handling"). Fou
 a year is nothing to an XLR, but the sensor's coupling is the fragile part.
 
 **Registration marks on the slab, made once and reused (Charles, 2026-09-22).** Better
-than a photograph: checkable in the dark with a torch and no screen. Two rules —
-**mark ORIENTATION as well as position**, because the case is a rounded square and will
-sit happily inside four corner marks while rotated 90°, which changes how the cable
-dresses (the one thing this test holds constant); and **make them durable enough to
-survive to the next quarter**, since pencil on a swept slab may not. Tape with marks on
-it works and peels off if marking the floor is unwelcome.
+than a photograph: checkable in the dark with a torch and no screen. **Position only —
+orientation needs no mark**, because the cable enters from one direction and the
+connector has to face it; a rotated case would need the cable doubled back on itself and
+you would see it instantly. (I originally wrote a rule about marking orientation too.
+Charles: *"The orientation of the geophone is kind of determined by the cable coming
+in."* Correct, and it was ceremony.) **Make the marks durable enough to survive to the
+next quarter**, since pencil on a swept slab may not; tape with marks on it works and
+peels off if marking the floor is unwelcome.
 
 **The geophone does NOT move.** Unplug the cable from it and set the shorting box down
 beside it on the same slab — the box senses nothing, so its position affects only the
