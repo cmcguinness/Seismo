@@ -30,12 +30,36 @@ UV = 2.5 * 2 / (64 * (2 ** 23 - 1)) * 1e6         # counts -> uV at PGA 64
 BANDS = [(1, 3), (3, 8), (8, 15), (15, 30), (30, 45)]
 
 
+# The archive carries BOTH identities on purpose (epochs.py has an `identity` boundary
+# at 2026-08-30): files before the cutover are XX.OAKMT.00.SHZ, after it SS.OAKM1.00.EHZ.
+# This loader asked only for the old one, so it silently stopped working on any day after
+# the cutover -- found 2026-09-22 while building floor_verdict.py.
+SEED_IDS = ("SS.OAKM1.00.EHZ", "XX.OAKMT.00.SHZ")
+
+
+def day_file(jday, year=2026):
+    """The archive path for a day, whichever identity it was written under."""
+    for sid in SEED_IDS:
+        path = os.path.join(DATA, f"{sid}.D.{year}.{jday:03d}.mseed")
+        if os.path.exists(path):
+            return path
+    raise SystemExit(
+        f"no day-file for {year}.{jday:03d} in {DATA}\n"
+        f"  tried: " + ", ".join(f"{s}.D.{year}.{jday:03d}.mseed" for s in SEED_IDS) +
+        "\n  pull it from pi5 first (scp), as eventcheck.py does.")
+
+
 def load_window(jday, start_utc, hours, year=2026):
-    path = os.path.join(DATA, f"XX.OAKMT.00.SHZ.D.{year}.{jday:03d}.mseed")
-    st = obspy.read(path)
+    st = obspy.read(day_file(jday, year))
     t0 = UTCDateTime(year=year, julday=jday, hour=start_utc)
     st = st.trim(t0, t0 + hours * 3600)
     st.merge(method=1, fill_value="interpolate")
+    if len(st) == 0:
+        raise SystemExit(
+            f"{os.path.basename(day_file(jday, year))} has no data in "
+            f"{start_utc:02d}:00-{start_utc + hours:04.1f} UTC.\n"
+            "  A day-file that exists is not a day-file that covers the window -- "
+            "check the pull, or pick another night.")
     tr = st[0]
     tr.detrend("linear")
     return tr, t0
