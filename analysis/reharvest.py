@@ -131,14 +131,22 @@ def sync_dayfiles(days):
     # one silently stops syncing.
     missing = [w for w in want if not list(DATA.glob(f"*.D.{w}.mseed"))]
     if not missing:
-        return 0
+        return 0, []
     DATA.mkdir(exist_ok=True)
-    got = 0
+    got, failed = 0, []
     for w in missing:
-        r = sh(f"scp -q '{PI5}:seismo-archive/*.D.{w}.mseed' {DATA}/")
-        if r.returncode == 0:
+        # ssh + tar, NOT scp. On 2026-09-23 scp and sftp both failed against pi5 with
+        # "Connection closed" while plain ssh was fine -- modern scp rides the SFTP
+        # subsystem, and something about that path does not work here. ssh does, and it
+        # is one connection either way. tar (rather than cat) because the glob matches
+        # both the seismic channel and the environment node's LDO file for a given day.
+        r = sh(f"ssh -o ConnectTimeout=15 {PI5} "
+               f"'cd seismo-archive && tar cf - *.D.{w}.mseed' | tar xf - -C {DATA}")
+        if r.returncode == 0 and list(DATA.glob(f"*.D.{w}.mseed")):
             got += 1
-    return got
+        else:
+            failed.append((w, (r.stderr or "").strip().splitlines()[-1:] or ["no stderr"]))
+    return got, failed
 
 
 def read_csv(path):
@@ -252,8 +260,31 @@ def main():
              "uncommitted work", priority="low", tags="warning")
         sys.exit("working tree dirty -- refusing to publish")
 
-    got = sync_dayfiles(args.days)
-    print(f"day-files pulled: {got}")
+    # A DAY-FILE THAT DID NOT ARRIVE IS NOT A COSMETIC PROBLEM. harvest_events.py
+    # measures amplitudes out of these files; with one absent, every catalogue event on
+    # that day is scored against nothing and comes out `seen=0` -- a real detection
+    # silently recorded as a miss, feeding the calibration and the classifier's labels.
+    # The gates below compare headline numbers and would not notice three quiet days.
+    #
+    # This used to return a bare count and swallow every failure, so a total transfer
+    # failure printed "day-files pulled: 0" -- indistinguishable from "nothing needed".
+    # Charles, 2026-09-23, on exactly that line: "Would have been nice for it to tell me
+    # there was an issue."
+    got, failed = sync_dayfiles(args.days)
+    print(f"day-files pulled: {got}"
+          + (f", FAILED for {len(failed)} day(s)" if failed else ""))
+    if failed:
+        for w, err in failed:
+            print(f"  !! {w}: {err[0]}")
+        msg = (f"{len(failed)} day-file(s) could not be fetched from {PI5}: "
+               + ", ".join(w for w, _ in failed) +
+               "\nEvents on those days would be scored against no waveform and "
+               "recorded as non-detections. Refusing to harvest.")
+        print("\n" + msg, file=sys.stderr)
+        if not args.dry_run:
+            ntfy("reharvest STOPPED: day-files missing", msg,
+                 priority="high", tags="rotating_light")
+        sys.exit(1)
 
     start = (datetime.date.today() - datetime.timedelta(days=args.days)).isoformat()
     end = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
