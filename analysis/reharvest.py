@@ -135,11 +135,21 @@ def sync_dayfiles(days):
     DATA.mkdir(exist_ok=True)
     got, failed = 0, []
     for w in missing:
-        # ssh + tar, NOT scp. On 2026-09-23 scp and sftp both failed against pi5 with
-        # "Connection closed" while plain ssh was fine -- modern scp rides the SFTP
-        # subsystem, and something about that path does not work here. ssh does, and it
-        # is one connection either way. tar (rather than cat) because the glob matches
-        # both the seismic channel and the environment node's LDO file for a given day.
+        # ssh + tar rather than scp. On 2026-09-23 scp and sftp failed against pi5 for a
+        # sustained window -- "Connection closed", and a bogus "connect ... Undefined
+        # error: 0" at the connect stage -- while plain ssh worked throughout. An hour
+        # later scp worked again and the failure has not recurred.
+        #
+        # CAUSE UNKNOWN. It was NOT the SFTP subsystem (pi5 has it configured and the
+        # binary present), not LAN-vs-public, and not file size: every one of those
+        # theories was tested and none held. The Mac had just been upgraded to macOS 27,
+        # whose OpenSSH 10 drops the legacy SCP protocol, so scp is SFTP-only now -- that
+        # is a real change but no evidence ties it to this.
+        #
+        # ssh + tar is kept anyway because it has fewer moving parts and no subsystem
+        # dependency, not because it is a proven fix. tar rather than cat because the
+        # glob matches both the seismic channel and the env node's LDO file for a day.
+        # If this recurs, the loud failure below is what will tell you.
         r = sh(f"ssh -o ConnectTimeout=15 {PI5} "
                f"'cd seismo-archive && tar cf - *.D.{w}.mseed' | tar xf - -C {DATA}")
         if r.returncode == 0 and list(DATA.glob(f"*.D.{w}.mseed")):
