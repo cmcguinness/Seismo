@@ -117,11 +117,18 @@ Weekly-view weighted median (BACKLOG, ~November).
 ## 🔌 THE FLOOR TEST GETS A BOX, AND THE BOX IS ALSO A CABLE TESTER (2026-09-22)
 
 The shorted-input floor test is next, ahead of soldering the injector, for a reason that
-is not convenience: **it is a one-way door.** The test measures the electronics-and-cable
-floor with the geophone removed. Once the injector box is spliced into the run, that state
-stops existing — every future shorted test includes the injector board. It is also
-condition 2 of the pre-registered band rule (`harvest_events.py:97`), so it is the only
-thing on the list with a deadline.
+is condition 2 of the pre-registered band rule (`harvest_events.py:97`) — the only thing
+on the list with a deadline — and it costs a night that was not being used otherwise.
+
+**⚠️ CORRECTION, same day.** This entry first argued the test was urgent because it was
+"a one-way door": once the injector is inline, electronics-and-cable-without-injector
+supposedly stops existing. **That is wrong, and Charles caught it.** The injector is an
+inline box with an XLR at each end; unplug it and the long cable's male end goes straight
+into the Pi's chassis female — a configuration this same session had already worked out as
+the quarterly ladder's optional fifth state. The state is reproducible any night. What
+cannot be reproduced is measuring it *in September*, which is true of every measurement
+and is exactly what a quarterly series is for. The urgency was invented; the real reasons
+are duller and sufficient.
 
 **Charles's call: a printed box, not the BACKLOG's $5 bare plug**, so the installed cable
 is inside the measurement. Correct, and it is the *more* correct instrument for the gate:
