@@ -68,7 +68,11 @@ C file and fails if they drift apart.
 
 - **Sampling:** 100 sps, PGA 64, one vertical channel — **`SS.OAKM1.00.EHZ`** since the
   identity cutover of 2026-08-30 (was `XX.OAKMT.00.SHZ`; `E` because the band code follows
-  the sample rate, and `SS` is self-assigned pending a real FDSN network code from ISC).
+  the sample rate, and `SS` is the FDSN generic single-station code — not an assignment,
+  and NOT something the ISC issues; the ISC runs the station registry, the FDSN owns
+  network codes. FDSN conditions use of `SS` on the station being registered in the ISC's
+  International Registry, so the IR entry is the precondition for the identity we already
+  publish under, not a nicety).
   The ADS1256's crystal runs ~80–90 ppm fast; the recorder tosses one sample every ~2 min
   to hold an exact 100 sps grid (±7.5 ms).
 - **ADC access:** `station/adsreader/adsreader.c` via spidev + GPIO uAPI (no pigpio in

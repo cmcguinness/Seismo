@@ -1753,8 +1753,16 @@ Also serving the Mac (`/etc/ntp.conf` -> `server pi3chrono.local`; sntp reports
 Decoupled from the ISC wait, which was never a blocker. the ISC Data Collection Officer answered on
 2026-08-05 that the ISC is happy to use FDSN-coded stations and there was no reason not to
 have both; Charles replied the same day; the IR confirmation has not come in 25 days. But
-**`SS` needs no assignment** — it is the FDSN code any single-station operator may use — so
-nothing here ever depended on them. The IR entry is a directory record, not a permission.
+**`SS` needs no assignment** — it is the FDSN code any single-station operator may use.
+
+**⚠️ CORRECTED 2026-09-23.** This entry went on to say "nothing here ever depended on them.
+The IR entry is a directory record, not a permission." **That is wrong.** FDSN's own
+reserved-codes documentation says of SS: *"This code may be used by any institution running
+a Single Station, the station should be registered with the International Registry of
+Seismograph Stations. Care must be taken to ensure that the station code is not the same as
+another station using the SS network code."* So IR registration is the **condition** on
+using SS, not an optional directory listing — it is what stops two operators both calling a
+station OAKM1. No assignment is needed; a registration is.
 
 **The band code was a real bug, not a rename.** FDSN sets it by sample rate: **E is
 80–249 sps, S is 10–79**. `SHZ` was correct at 57/60 sps and stopped being correct at the
