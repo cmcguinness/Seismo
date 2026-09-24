@@ -150,17 +150,52 @@ def _ink_on(rgba):
     return "#ffffff" if (1.05 / (l + 0.05)) > ((l + 0.05) / 0.05) else INK
 
 
+def _masked():
+    """`epochs.is_masked`, or a function that masks nothing if epochs is unavailable.
+
+    Same degradation rule as `_boundaries()`: an unfiltered chart is a smaller lie than
+    a crash, but see the warning it prints -- an unfiltered chart during a floor test is
+    a WRONG chart, not merely an unmarked one.
+    """
+    try:
+        import epochs
+    except ImportError:
+        try:
+            import sys
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "analysis"))
+            import epochs
+        except Exception:
+            print("activity: epochs unavailable -- masked spans NOT excluded",
+                  file=__import__("sys").stderr)
+            return lambda t: False
+    return epochs.is_masked
+
+
 def _intervals(heli_dir):
-    """[(utc_epoch, env_uv)] for every interval file that carries a usable envelope."""
-    out = []
+    """[(utc_epoch, env_uv)] for every interval file that carries a usable envelope.
+
+    MASKED SPANS ARE DROPPED, not merely marked. During the instrument floor test the
+    geophone is replaced by a short, so the trace is flat by construction; left in, it
+    paints an empty band on the chart and reads as the neighbourhood having gone silent
+    -- which is exactly the misreading this module's docstring warns about, arriving by
+    a different door. See `MASKED` in analysis/epochs.py.
+    """
+    masked = _masked()
+    out, dropped = [], 0
     for p in sorted(glob.glob(os.path.join(heli_dir, "heli.*.npz"))):
         try:
             with np.load(p) as d:
                 env = float(d["env"])
                 if np.isfinite(env) and env > 0:
-                    out.append((float(d["t0"]), env * UV_PER_COUNT))
+                    t = float(d["t0"])
+                    if masked(dt.datetime.fromtimestamp(t, dt.timezone.utc)):
+                        dropped += 1
+                        continue
+                    out.append((t, env * UV_PER_COUNT))
         except Exception:
             pass                      # a torn file must not take the page down
+    if dropped:
+        print(f"activity: dropped {dropped} interval(s) inside a masked span")
     return out
 
 

@@ -33,6 +33,58 @@ treat a comparison that straddles such a boundary as unsafe, not merely suspect.
 """
 from datetime import datetime, timezone
 
+# ---------------------------------------------------------------------------
+# MASKED INTERVALS -- data that is NOT the station in service.
+#
+# BOUNDARIES above mark instants where data stops being comparable ACROSS them; the
+# data on both sides is still real. This is the other thing: spans during which the
+# recorder was deliberately measuring something that is not the ground, so the samples
+# must be EXCLUDED from statistics rather than merely flagged.
+#
+# The floor test is the case that forced this. With the geophone replaced by a short,
+# the trace is flat by construction, and anything that averages it reads a spectacularly
+# quiet night: the activity heat map paints an empty band (its own docstring warns this
+# "WILL be misread as the neighbourhood going quiet"), and the detector's median
+# pre-event noise -- the denominator of every SNR -- is deflated for events either side.
+#
+# `end=None` means STILL OPEN. That is the safe default while a box is in the run, but
+# an open mask silently swallows everything after it, so `stale_masks()` exists to
+# complain. Close it the same day the hardware comes out.
+#
+# (start_iso_utc, end_iso_utc or None, description)
+MASKED = [
+    ("2026-09-24T05:55", None,
+     "shorting box in place of the geophone -- instrument noise floor test"),
+]
+
+_STALE_H = 36
+
+
+def _mask_bounds(m):
+    return _t(m[0]), (_t(m[1]) if m[1] else None)
+
+
+def is_masked(t):
+    """True if `t` falls inside a masked span. Accepts ISO strings or datetimes."""
+    tt = _t(t)
+    for m in MASKED:
+        a, b = _mask_bounds(m)
+        if tt >= a and (b is None or tt < b):
+            return True
+    return False
+
+
+def stale_masks(now=None):
+    """Open masks older than 36 h -- almost certainly someone forgot to close one."""
+    now = _t(now) if now else datetime.now(timezone.utc)
+    out = []
+    for m in MASKED:
+        a, b = _mask_bounds(m)
+        if b is None and (now - a).total_seconds() > _STALE_H * 3600:
+            out.append(m)
+    return out
+
+
 # (iso_utc, approx?, affects, description)
 BOUNDARIES = [
     ("2026-07-23T00:00", True, {"noise"},
