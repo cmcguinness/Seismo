@@ -68,7 +68,9 @@ Every dynamic image reload is double-buffered (the Safari half-drawn-drum fix).
 programmer 09-03)** — the box that replaces the guessed f0/zeta. **EVAL-ADXL355Z (Mouser, ordered 09-03)** — the strong-motion
 channel on an ESP32, location code 10; plan in BACKLOG. Geophones for the
 ESP32/ADS1220 field rig (`doc/field-seismograph.md`: hammer refraction on the lot and the
-street). FDSN network code from ISC (station currently uses the self-assigned `SS`).
+street). (**No longer pending: the ISC International Registry entry for OAKM1 landed
+2026-09-24.** A dedicated FDSN network code is a separate thing, comes from FDSN not the
+ISC, and is not being pursued — see Open threads 7.)
 Weekly-view weighted median (BACKLOG, ~November).
 
 ## Open threads
@@ -106,7 +108,12 @@ Weekly-view weighted median (BACKLOG, ~November).
    raise it and re-render, but that changes every existing figure, so it wants a
    deliberate pass rather than a drive-by.
 6. The 1.05 Hz line.
-7. Network code cutover (unit `SEISMO_NETWORK`, pi5 config, epochs row) when ISC answers.
+7. ~~Network code cutover when ISC answers.~~ **CLOSED 2026-09-24**: the ISC answered by
+   registering OAKM1 in the International Registry, which is what FDSN conditions use of
+   the generic `SS` code on. There is no cutover to do — `SS.OAKM1.00.EHZ` is the settled
+   identity, and no `SEISMO_NETWORK` change, pi5 config change or epochs row is needed.
+   A *dedicated* network code comes from FDSN, not the ISC, and is only wanted if thread 8
+   ever succeeds.
 8. Serve `fdsnws-station` / `fdsnws-dataselect` (BACKLOG); then ask NCEDC. Do the
    ring-down first — the entry ticket to any archive is metadata you can defend.
 
@@ -1857,7 +1864,9 @@ so any future identity change has to set it there by hand as well; pi5's dokku a
 identity config at all and takes the code defaults.
 
 **Still outstanding:** the ISC IR confirmation. Nothing depends on it — we are already
-publishing under the identity Charles told the ISC we would use.
+publishing under the identity Charles told the ISC we would use. *(Arrived 2026-09-24;
+see the entry at the top of this file. The "nothing depends on it" was itself wrong —
+FDSN conditions use of `SS` on exactly this registration.)*
 
 ## 🏷️ LABEL GUARD + A FROZEN HOLDOUT (2026-08-30, later)
 

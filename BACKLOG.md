@@ -34,8 +34,11 @@ archive-reading glue, and the day someone asks, the answer is a URL rather than 
 
 **Being found (needs other people).** Tools discover data through the FDSN **federator
 (FedCatalog)**, which is what obspy's RoutingClient and Wilber3 consult. That needs an
-assigned network code and registration as a data centre. `SS` is self-assigned and not
-unique enough to archive under.
+assigned network code and registration as a data centre. `SS` is the FDSN *generic*
+single-station code — OAKM1's ISC International Registry entry (2026-09-24) entitles us
+to use it, but it is shared by every such station and so is not unique enough to archive
+under. The IR entry is therefore done; the network code and the data-centre registration
+are the parts still missing.
 
 The realistic route is not the standards committee, it is **NCEDC** -- Berkeley/USGS, the
 regional data centre, which already serves NP.1835, the station we calibrate against.
@@ -506,7 +509,8 @@ change, and it must not reintroduce a radio next to the front end.
 
 ## Channel code is SHZ and should be EHZ
 
-The ISC provisional registration for OAKM1 says **EHZ**. The code says **SHZ**
+The ISC registration for OAKM1 says **EHZ** (provisional when this was written;
+confirmed in the International Registry 2026-09-24). The code says **SHZ**
 (`SEISMO_CHANNEL` default in `station/recorder.py`, `server/store.py`,
 `server/detector.py`). The registration is right and the data is wrong.
 

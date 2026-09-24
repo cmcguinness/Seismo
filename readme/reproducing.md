@@ -10,8 +10,9 @@ archive is not in the repository. Day-files are rsynced from the station (or the
 cd analysis && uv venv && uv pip install -r requirements.txt
 ```
 
-The station metadata is `station/SS.OAKM1.xml` (`SS` is self-assigned pending a network
-code). NP.1835 waveforms and instrument response are fetched from NCEDC's FDSN service at
+The station metadata is `station/SS.OAKM1.xml`. `SS` is the FDSN *generic single-station*
+code, not an assignment; FDSN conditions its use on the station being registered in the
+ISC's International Registry, and OAKM1 was registered there on 2026-09-24. NP.1835 waveforms and instrument response are fetched from NCEDC's FDSN service at
 run time.
 
 ## The comparison against NP.1835

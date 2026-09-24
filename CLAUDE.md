@@ -71,8 +71,11 @@ C file and fails if they drift apart.
   the sample rate, and `SS` is the FDSN generic single-station code — not an assignment,
   and NOT something the ISC issues; the ISC runs the station registry, the FDSN owns
   network codes. FDSN conditions use of `SS` on the station being registered in the ISC's
-  International Registry, so the IR entry is the precondition for the identity we already
-  publish under, not a nicety).
+  International Registry, and **OAKM1 was registered in the IR on 2026-09-24**, so the
+  identity we publish under is now properly grounded rather than provisional. This did
+  NOT grant a dedicated network code and we are not pursuing one: `SS` stays, and a
+  dedicated code only becomes necessary if the station is ever archived by a data centre
+  (BACKLOG, the NCEDC route)).
   The ADS1256's crystal runs ~80–90 ppm fast; the recorder tosses one sample every ~2 min
   to hold an exact 100 sps grid (±7.5 ms).
 - **ADC access:** `station/adsreader/adsreader.c` via spidev + GPIO uAPI (no pigpio in
