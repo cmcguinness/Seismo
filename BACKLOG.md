@@ -32,14 +32,8 @@ which IS what `fdsnws-station` returns. Two endpoints and a query-parameter spec
 Worth doing even with zero external users: our own analysis stops needing bespoke
 archive-reading glue, and the day someone asks, the answer is a URL rather than a project.
 
-**An amateur network of our own?** Asked 2026-09-24, sized in
-`doc/amateur-network-brief.md` rather than started. Two findings worth carrying here: FDSN
-codes are now **1-8 characters**, so the old scarcity argument against a small operator is
-much weaker; and a permanent code obliges the holder to **distribute data in FDSN SEED
-format**, i.e. to run `fdsnws` for other people's data indefinitely -- the code makes you
-the data centre. `AM` (Raspberry Shake) is the exact precedent and runs its own fdsnws.
-The accelerometer version of the idea is priced out in the brief: a 151x noise penalty that
-takes this station's catalogue from 39 events to **0**.
+**An amateur network of our own?** Asked 2026-09-24, sized rather than started. The brief
+lives in `Seismo-private` (`doc/amateur-network-brief.md`), with the outreach material.
 
 **Being found (needs other people).** Tools discover data through the FDSN **federator
 (FedCatalog)**, which is what obspy's RoutingClient and Wilber3 consult. That needs an
