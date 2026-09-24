@@ -206,42 +206,66 @@ def ref_on_hours(ref_spec):
     return [h for h in sorted(ref_spec) if ref_spec[h]["hvac"] >= ON_PROM]
 
 
-def parse_on(specs, day0):
-    """`--on 21:40-22:05` (UTC) -> [(UTCDateTime, UTCDateTime)], operator-declared."""
+def parse_on(specs, t0, t1, local_offset_h=0):
+    """`--on 03:00-03:25` (UTC) or `--on-pdt 20:00-20:25` -> [(label, start, end)].
+
+    Windows are operator-declared: the compressor was deliberately run then. Two traps
+    handled here, both found 2026-09-24 while planning a two-run night:
+
+    - A time-of-day earlier than the span's start belongs to the NEXT UTC day. An evening
+      PDT run is the small hours UTC, so `--on 03:00-03:25` against a span starting
+      05:55Z means tomorrow's 03:00, not a moment ten hours before the box went on.
+    - A window outside the analysed span is a typo, not data. Say so instead of silently
+      returning an empty trim.
+    """
     out = []
     for spec in specs or []:
         try:
             a, b = spec.split("-")
-            ta = UTCDateTime(f"{day0.strftime('%Y-%m-%d')}T{a.strip()}")
-            tb = UTCDateTime(f"{day0.strftime('%Y-%m-%d')}T{b.strip()}")
+            base = t0.strftime("%Y-%m-%d")
+            ta = UTCDateTime(f"{base}T{a.strip()}") - local_offset_h * 3600
+            tb = UTCDateTime(f"{base}T{b.strip()}") - local_offset_h * 3600
         except Exception:
-            raise SystemExit(f"--on wants UTC HH:MM-HH:MM, got {spec!r}")
+            raise SystemExit(f"--on wants HH:MM-HH:MM, got {spec!r}")
         if tb <= ta:
-            tb += 86400                      # crossed midnight UTC
+            tb += 86400                       # crossed midnight
+        while ta < t0:                        # a time-of-day before the span starts
+            ta += 86400                       # is tomorrow's, not yesterday's
+            tb += 86400
         if (tb - ta) / 60.0 < MIN_ON_MIN:
-            raise SystemExit(f"--on {spec}: {(tb-ta)/60:.0f} min is too short to trust; "
-                             f"need >= {MIN_ON_MIN:g} min of compressor time")
-        out.append((ta, tb))
+            raise SystemExit(f"--on {spec}: {(tb - ta) / 60:.0f} min is too short to "
+                             f"trust; need >= {MIN_ON_MIN:g} min of compressor time")
+        if ta >= t1 or tb > t1:
+            raise SystemExit(
+                f"--on {spec} resolves to {ta.strftime('%m-%d %H:%M')}-"
+                f"{tb.strftime('%H:%M')}Z, outside the analysed span "
+                f"({t0.strftime('%m-%d %H:%M')}Z .. {t1.strftime('%m-%d %H:%M')}Z). "
+                f"Extend --hours, or check the time.")
+        out.append((spec, ta, tb))
     return out
 
 
-def declared_spectrum(tr, windows):
-    """Median-Welch over just the operator-declared ON windows, concatenated."""
-    segs = []
-    for ta, tb in windows:
-        x = tr.copy().trim(ta, tb)
-        if x.stats.npts > 60 * x.stats.sampling_rate:
-            x.detrend("linear")
-            segs.append(x.data.astype(float) * UV)
-    if not segs:
+def window_spectrum(tr, ta, tb):
+    """Median-Welch over ONE declared window.
+
+    Deliberately one window at a time. The first version concatenated every declared
+    window into a single median-Welch, which is wrong for exactly the case this is built
+    for: a strong evening run plus a weak afternoon backup. The median across segments
+    would sit BETWEEN the two and wash out a line that is plainly present in one of them.
+    Each window is its own measurement; they are compared, never pooled.
+    """
+    x = tr.copy().trim(ta, tb)
+    if x.stats.npts < 60 * x.stats.sampling_rate:
         return None
-    d = np.concatenate(segs)
-    fs = tr.stats.sampling_rate
-    f, p = signal.welch(d, fs=fs, nperseg=int(30 * fs), average="median")
+    x.detrend("linear")
+    fs = x.stats.sampling_rate
+    f, p = signal.welch(x.data.astype(float) * UV, fs=fs, nperseg=int(30 * fs),
+                        average="median")
+    bg = float(np.median(p[(f >= 15) & (f < 45)]))      # the background the ratio rides on
     return dict(hvac=float(np.mean([line_prom(f, p, z) for z in HVAC_HZ])),
                 hvac_pw=float(np.mean([line_power(f, p, z) for z in HVAC_HZ])),
                 mains=line_prom(f, p, MAINS_HZ), line=line_prom(f, p, LINE_HZ),
-                minutes=len(d) / fs / 60.0)
+                bg=bg, minutes=x.stats.npts / fs / 60.0)
 
 
 # --------------------------------------------------------------------------- report
@@ -253,6 +277,9 @@ def main():
     ap.add_argument("--on", action="append", metavar="HH:MM-HH:MM",
                     help="UTC window(s) when the compressor was DELIBERATELY run. The "
                          "only trustworthy witness; repeatable.")
+    ap.add_argument("--on-pdt", action="append", metavar="HH:MM-HH:MM",
+                    help="same as --on but in local PDT, since that is what a wall "
+                         "clock shows. Converted to UTC internally.")
     ap.add_argument("--ref-jday", type=int, default=266,
                     help="a day with the GEOPHONE ATTACHED, for matched-hour comparison")
     ap.add_argument("--ref-date", default="2026-09-23", help="env CSV date for --ref-jday")
@@ -313,20 +340,38 @@ def main():
           + f"\n    (prominence "
           + ", ".join(f"{ref[h]['hvac']:.0f}x" for h in ref_on) + ")")
 
-    # 1. The operator-declared window, if there is one. Strongest evidence.
-    windows = parse_on(a.on, t0)
-    dec = declared_spectrum(tr, windows) if windows else None
-    if dec:
+    # 1. The operator-declared windows, if any. Strongest evidence, one at a time.
+    windows = parse_on(a.on, t0, t1) + parse_on(a.on_pdt, t0, t1, local_offset_h=-7)
+    if windows:
         r_pw = float(np.median([ref[h]["hvac_pw"] for h in ref_on]))
-        print(f"\n  DECLARED compressor-on window(s): "
-              + ", ".join(f"{x.strftime('%H:%M')}-{y.strftime('%H:%M')}Z"
-                          for x, y in windows)
-              + f"  ({dec['minutes']:.0f} min)")
-        print(f"    shorted prominence {dec['hvac']:.1f}x, peak power {dec['hvac_pw']:.4g} "
-              f"(uV)^2/Hz\n    reference (attached, AC on) {r_pw:.4g} -> "
-              f"{10 * np.log10(dec['hvac_pw'] / r_pw):+.1f} dB")
-        _verdict(dec["hvac"], "a window the compressor was deliberately run in")
-        return _plot(a, rows, temp_at)
+        print(f"\n  DECLARED compressor-on windows, measured SEPARATELY "
+              f"(never pooled -- a\n  weak window would drag a strong one's median):")
+        print(f"  {'window (UTC)':>22} {'PDT':>6} {'min':>5} {'HVACx':>7} "
+              f"{'line pw':>10} {'bg':>10} {'40.0x':>7}")
+        rows_d = []
+        for spec, ta, tb in windows:
+            r = window_spectrum(tr, ta, tb)
+            if not r:
+                print(f"  {spec:>22} -- no data in the archive for this window")
+                continue
+            rows_d.append((spec, ta, r))
+            print(f"  {ta.strftime('%m-%d %H:%M')}-{tb.strftime('%H:%M'):>5} "
+                  f"{(ta - 7*3600).strftime('%H:%M'):>6} {r['minutes']:5.0f} "
+                  f"{r['hvac']:7.1f} {r['hvac_pw']:10.4g} {r['bg']:10.4g} {r['mains']:7.1f}")
+        if rows_d:
+            best = max(rows_d, key=lambda t: t[2]["hvac"])
+            print(f"\n  reference (geophone attached, AC demonstrably on): "
+                  f"{r_pw:.4g} (uV)^2/Hz")
+            print(f"  strongest declared window: {best[0]} at {best[2]['hvac']:.1f}x, "
+                  f"{10 * np.log10(best[2]['hvac_pw'] / r_pw):+.1f} dB vs reference")
+            if len(rows_d) > 1:
+                print(f"  background across windows: "
+                      + ", ".join(f"{r['bg']:.4g}" for _, _, r in rows_d)
+                      + "  -- a higher background SUPPRESSES prominence, so compare "
+                        "power too")
+            _verdict(best[2]["hvac"],
+                     f"the strongest of {len(rows_d)} declared compressor-on window(s)")
+            return _plot(a, rows, temp_at)
 
     # 2. Fall back to matched clock hours. Contingent, and says so.
     both = [r for r in rows if r["utc"].hour in ref_on]
