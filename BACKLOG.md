@@ -1879,10 +1879,27 @@ instead of a cross-day comparison of live floors.
 (answers the gate), plug at the Pi = electronics alone (attributes any excess to the
 cable). Neither replaces the other.
 
-- **No 375 Ω termination needed.** Johnson noise of the coil is √(4kTR) = 2.46 nV/√Hz
-  against a measured quiet-night floor of 0.8 µV RMS over 1–15 Hz = 214 nV/√Hz — 87×
-  below, 0.013 % of the noise power. A dead short and a resistor give indistinguishable
-  answers.
+- **No 375 Ω termination needed** *for Johnson noise*: √(4kTR) = 2.46 nV/√Hz against a
+  measured quiet-night floor of 0.8 µV RMS over 1–15 Hz = 214 nV/√Hz — 87× below,
+  0.013 % of the noise power. A dead short and a resistor are indistinguishable on that
+  term.
+
+  **⚠️ BUT THAT ARGUMENT IS ONLY ABOUT JOHNSON NOISE, and it is not the whole story
+  (Charles, 2026-09-24).** He asked whether the coil forms an RL filter. The pole does
+  not matter — reaching even 7 Hz with 375 Ω would need L ≈ 8.5 H, against the tens of
+  millihenries a geophone coil actually has, so it sits near a kilohertz. **The impedance
+  underneath the question does matter, though.** A dead short presents a source impedance
+  the geophone does not, and the terms we now suspect dominate scale with it:
+  **cable pickup** (inductive or capacitive, a low-impedance termination shunts it) and
+  **amplifier current noise × source impedance** (zero across a short). Both are
+  *suppressed* by shorting.
+
+  **So a shorted-input floor is a LOWER BOUND on what the electronics and cable
+  contribute in service, not an unbiased estimate.** The first run (2026-09-24) measured
+  0.263 µV RMS in 3–7 Hz that way. If state 2 shows the long cable is the dominant term,
+  the follow-up wants a **375 Ω termination** rather than a short, so the front end sees
+  the impedance it sees in service. That is a resistor in a plug — cheap, and the same
+  plug-in-module trick the calibrator already uses for its shunt.
 - **The two measurements together isolate cable pickup**: the box at the far end gives
   electronics + 10 m of cable, the bare plug at the Pi enclosure gives electronics alone,
   and the difference is the cable.
