@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-22 (UTC)_
+_Last updated: 2026-09-24 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -113,6 +113,61 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🌡️ THE SHORTED FLOOR HAS A DAILY CYCLE, AND THE OBVIOUS TEST HAD NO WITNESS (2026-09-24)
+
+**The shorting box stays on for a full 24 h**, to 2026-09-24 22:55 PDT (05:55 UTC on the
+25th), instead of coming off this morning. `analysis/epochs.py` MASKED stays open until
+then; the notice stays up; Friday's 0.6 ft short-cable measurement is unaffected.
+
+**Why extend: the instrument's own floor moves with the time of day.** Same shorted
+configuration, `analysis/floor_diurnal.py --hours 8.5`, hour by hour: the swing is 0.65 dB
+at 1–3 Hz, 0.82 at 3–8, **2.88 at 8–15, 3.41 at 15–30, 2.08 at 30–45**. Quietest at 09Z,
+loudest at 13Z. There is no sensor in the circuit, so this is the electronics plus the
+installed cable and nothing else.
+
+**It is not temperature, by three orders of magnitude.** Johnson noise goes as √T in
+kelvin, so a 20 °C garage swing buys 0.29 dB. Reaching the observed 3.41 dB thermally
+needs 632 K = 359 °C at the front end. Whatever moves the floor between 02Z and 07Z local
+is coupling, not thermal physics — a second line of evidence pointing where the
+unexplained ~128 nV/√Hz in 3–7 Hz already pointed.
+
+**And then the interesting failure.** With the geophone gone, the free test is whether the
+heat-pump lines (41/40.6/37.65/19.3/20 Hz) survive — present means electrical coupling,
+absent means they arrive through the sensor and `CLAUDE.md`'s attribution stands. The
+script printed **"ABSENT → vibration path"** and Charles killed it in under a minute: the
+span was 22:55–06:55 PDT, the coolest hours of the day, and **the compressor never ran.**
+Absence while the source is off is not absence.
+
+The second attempt gated the verdict on an env-node temperature threshold fitted to a
+reference day — and passed five hours whose *reference* prominence was 1.3–5.1×, i.e.
+hours the AC did not run either. The same error in better clothes.
+
+**Three witnesses measured, all three rejected:**
+
+| witness | measured | verdict |
+|---|---|---|
+| env node `az_rms_ms2` | 0.02020–0.02080 m/s² over all of 09-23 — **1.03×** range; corr with the lines +0.11 | the Clue's IMU cannot feel the compressor |
+| `temp_C`, absolute | BMP280 is dominated by board self-heat (`env_node/clue/code.py`: deltas only) | a threshold does not transfer between days |
+| `temp_C`, within-day delta | AC-**on** hours +2.67…+4.25 °C above the daily min; AC-**off** hours reached **+3.46** | distributions overlap; cannot resolve the duty cycle |
+
+**So there is no passive witness once the sensor is out**, because the only reliable
+indicator the compressor was running *was* the lines. The test has to be controlled:
+`floor_diurnal.py --on HH:MM-HH:MM` takes operator-declared UTC windows in which the
+thermostat was deliberately driven, and without one the script now prints **UNTESTED**
+rather than a verdict. The weaker fallback matches clock hours against a geophone-attached
+reference day (jday 266 ran the AC at 03Z, 04Z, 21Z, 22Z, 23Z — 292×, 180×, 19×, 60×,
+69×) and labels itself contingent.
+
+The 24 h span covers all five of those reference hours, which is the second reason to
+leave the box on.
+
+**Also settled, and it cuts the safe way:** prominence is a ratio against the local
+background, and the shorted background is ~5× below the live one, so an unchanged line
+reads *higher* when shorted. `floor_diurnal.py` therefore reports absolute peak
+(µV)²/Hz beside the ratio. The same artifact explains the 40.0 Hz mains alias looking
+weaker on the 09-23 afternoon (3.7×) than overnight (39.7×): the background rose, the
+line did not.
 
 ## 🔌 THE FLOOR TEST GETS A BOX, AND THE BOX IS ALSO A CABLE TESTER (2026-09-22)
 
