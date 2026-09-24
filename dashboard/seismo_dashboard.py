@@ -643,14 +643,40 @@ CF_BEACON = (
     "<!-- End Cloudflare Web Analytics -->") if _PUBLIC_COPY else ""
 
 
+# A site-wide notice, driven by config rather than code, so it can be raised and
+# dropped without a deploy and its wording edited live:
+#
+#   dokku config:set   seismo SEISMO_NOTICE="..."      # raise it
+#   dokku config:unset seismo SEISMO_NOTICE            # drop it
+#
+# Read per request, not at import, so a restart is all it takes. Deliberately NOT
+# gated on _PUBLIC_COPY: the mechanism is general and the policy lives in whichever
+# host's config sets it, which is how the public copy can carry a notice while the
+# LAN copy does not.
+def _notice():
+    text = os.environ.get("SEISMO_NOTICE", "").strip()
+    if not text:
+        return ""
+    return ('<div class="notice" role="status">'
+            f'<b>Note</b> &mdash; {text}</div>')
+
+
+NOTICE_CSS = (
+    "<style>.notice{margin:0 0 1rem;padding:.7rem 1rem;border-radius:8px;"
+    "border:1px solid var(--accent,#c47f17);background:rgba(196,127,23,.10);"
+    "font-size:.95rem;line-height:1.45}"
+    ".notice b{color:var(--accent,#c47f17)}</style>"
+)
+
+
 def _shell(title, active, body, script="", narrow=False):
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f'<title>{title}</title>{THEME_BOOT_JS}{BOOT}{CSS}</head><body>'
+        f'<title>{title}</title>{THEME_BOOT_JS}{BOOT}{CSS}{NOTICE_CSS}</head><body>'
         + '<div class="frame">' + _rail(active)
         + f'<main class="stage{" stage-narrow" if narrow else ""}">'
-        + body + STAGE_FOOT + '</main></div>'
+        + _notice() + body + STAGE_FOOT + '</main></div>'
         + script + VITALS_JS + BFCACHE_JS + CF_BEACON + '</body></html>'
     )
 
