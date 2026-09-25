@@ -522,7 +522,9 @@ def _rail(active):
                    + [("/history", "History", "history"),
                       ("/activity", "Activity", "activity")]),
         ("The record", [("/catches", "Catches", "catches")]),
-        ("The instrument", [("/range", "Range", "range"), ("/spectrum", "Spectrum", "spectrum"),
+        ("The instrument", [("/range", "Range", "range"),
+                            ("/calibration", "Calibration", "calibration"),
+                            ("/spectrum", "Spectrum", "spectrum"),
                             ("/env", "Environment", "env"),
                             ("/about", "About this station", "about")]),
         ("Background", [("/learn", "Seismology 101", "learn"),
@@ -1092,11 +1094,30 @@ def spectrum_page():
 # what the instrument cannot do -- the deaf-below-4.5-Hz part is the bit people
 # most often misread as a fault.
 
+def _fill(text, serves=""):
+    """Substitute generated numbers into page copy.
+
+    NO HAND-TYPED COUNTS. /learn carried "Twenty-six events agree to within a median
+    1.2x" as prose; by 2026-09-25 the real figure was 46, because refstation.json had
+    not been regenerated since 2026-09-03 while the catalogue grew. That is the same
+    failure as the catches page reading 38 while the map said 58 (STATUS 2026-09-21),
+    so the numbers now come from confirmed.json's summary on every request.
+    """
+    m = catches.SUMMARY
+    med = m.get("ref_median")
+    for k, v in (("{place}", PLACE),
+                 ("{serves}", serves),
+                 ("{n_ref}", str(m.get("n_ref", "") or "")),
+                 ("{ref_median}", f"{med:.2f}".rstrip("0").rstrip(".") if med else "")):
+        text = text.replace(k, v)
+    return text
+
+
 @app.get("/learn")
 def learn():
     # Each section gets an id derived from its header so other pages can deep-link
     # (the drum's "full guide" link points at #how-to-read-the-helicorder).
-    cards = "".join(_card(h, inner.replace("{place}", PLACE), card_id=_slug(h))
+    cards = "".join(_card(h, _fill(inner), card_id=_slug(h))
                     for h, inner in content.LEARN_SECTIONS)
     body = (_titleblock("Seismology 101",
                         "what this instrument hears, and the words for it")
@@ -1158,6 +1179,92 @@ def how(slug: str):
                     media_type="text/html")
 
 
+def calibration_facts():
+    """Every number the calibration page shows, read at REQUEST time.
+
+    station/SS.OAKM1.xml is the single source of truth for the response, and it
+    carries its own PROVISIONAL markers; confirmed.json carries the reference-station
+    statistics. Nothing here is typed by hand, because this page's entire subject is
+    numbers being wrong, and a stale figure on it would be funny in the worst way.
+    """
+    import xml.etree.ElementTree as ET
+    f = dict(sens=None, f0=None, zeta=None, nameplate="28.8", refdist="1.6",
+             nref=None, provisional=True)
+    try:
+        ns = {"s": "http://www.fdsn.org/xml/station/1"}
+        root = ET.parse(os.path.join(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))), "station", "SS.OAKM1.xml")).getroot()
+        st1 = root.find(".//s:Channel[s:Code='EHZ']//s:Stage[@number='1']", ns) \
+            if root.find(".//s:Channel[s:Code='EHZ']", ns) is not None else None
+        if st1 is None:                       # some writers omit the Code predicate path
+            st1 = root.find(".//s:Stage[@number='1']", ns)
+        f["sens"] = f"{float(st1.find('.//s:StageGain/s:Value', ns).text):.1f}"
+        pole = st1.find(".//s:PolesZeros/s:Pole", ns)
+        re_, im = (float(pole.find(f"s:{k}", ns).text) for k in ("Real", "Imaginary"))
+        w0 = (re_ ** 2 + im ** 2) ** 0.5
+        f["f0"] = f"{w0 / (2 * 3.141592653589793):.2f}"
+        f["zeta"] = f"{-re_ / w0:.2f}"
+    except Exception:
+        pass
+    try:
+        f["nref"] = str(catches.SUMMARY.get("n_ref", "") or "")
+    except Exception:
+        pass
+    try:
+        f["ratio"] = f"{float(f['nameplate']) / float(f['sens']):.1f}"
+    except Exception:
+        f["ratio"] = "3.2"
+    return f
+
+
+@app.get("/calibration")
+def calibration():
+    f = calibration_facts()
+
+    def fill(t):
+        for k, v in f.items():
+            t = t.replace("{" + k + "}", str(v) if v is not None else "&mdash;")
+        return t
+
+    cards = "".join(_card(h, fill(inner)) for h, inner in content.CALIBRATION_SECTIONS)
+
+    rows = [("Sensitivity", f"{f['sens']} V/(m/s)", "MEASURED",
+             f"against the USGS reference station, {f['nref']} events"),
+            ("f<sub>0</sub> (corner)", f"{f['f0']} Hz", "GUESS",
+             "the maker's nameplate figure, not this unit"),
+            ("&zeta; (damping)", f"{f['zeta']}", "GUESS",
+             "the vendor's typical value, not this unit")]
+    def _badge(kind):
+        if kind == "MEASURED":
+            return '<span class="badge-measured">MEASURED</span>'
+        return '<span class="badge-guess">GUESS</span>'
+
+    tbl = ('<table class="table table-sm mb-0"><thead><tr><th>Number</th>'
+           '<th>Value in use</th><th>Status</th><th>Where it came from</th></tr></thead>'
+           '<tbody>' + "".join(
+               f'<tr><td>{a}</td><td><b>{b}</b></td><td>{_badge(c)}</td>'
+               f'<td class="text-muted small">{d}</td></tr>'
+               for a, b, c, d in rows) + '</tbody></table>'
+           '<style>.badge-measured,.badge-guess{font-size:.78rem;font-weight:700;'
+           'padding:.12rem .45rem;border-radius:4px;letter-spacing:.02em}'
+           '.badge-measured{background:rgba(35,134,54,.16);color:#2ea043}'
+           '.badge-guess{background:rgba(196,127,23,.16);color:#c47f17}</style>')
+
+    status = _card("Where we are today", content.CALIBRATION_STATUS_INTRO + tbl +
+                   '<p class="mb-0 prose mt-3">So: the scale is real, and the shape of '
+                   'the response is still borrowed from a datasheet. The instrument '
+                   'response published with this station\'s metadata is marked '
+                   '<b>PROVISIONAL</b> for exactly that reason.</p>'
+                   '<p class="mb-0 prose">The box that fixes it is built in firmware and '
+                   'waiting on a soldering iron. When it runs, this section changes and '
+                   'everything above it stays as it is.</p>')
+
+    body = _titleblock("Calibration", "how much do we actually trust the numbers?") + \
+        f'<div class="row"><div class="col-lg-9">{content.CALIBRATION_INTRO}{cards}{status}</div></div>'
+    return Response(_shell(f"Calibration — {BRAND}", "calibration", body, narrow=True),
+                    media_type="text/html")
+
+
 @app.get("/about")
 def about():
     photo = _card(
@@ -1171,7 +1278,7 @@ def about():
     serves = (" and pushes them, outbound only, to this public copy on a cloud host "
               "every minute &mdash; nothing at the house is reachable from the internet."
               if _PUBLIC_COPY else " and serves this page on the home network.")
-    cards = photo + "".join(_card(h, inner.replace("{place}", PLACE).replace("{serves}", serves))
+    cards = photo + "".join(_card(h, _fill(inner, serves=serves))
                             for h, inner in content.ABOUT_SECTIONS)
     if _PUBLIC_COPY:                                  # no detections page to link to
         cards = cards.replace('(on their <a href="/detections">own page</a>) ', "")

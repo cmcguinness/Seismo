@@ -1,0 +1,2 @@
+date_utc,state,jday,temp_c,rms_1_15_uv,rms_1_3,rms_3_8,rms_8_15,rms_15_30,rms_30_45,gate_excess_db,verdict,line_1p05_x,notes
+2026-09-24,elec_cable,267,,0.499,0.468,0.267,0.199,0.232,0.260,4.72,AMBIGUOUS,362.23,"live=265,266"

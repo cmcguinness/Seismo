@@ -145,7 +145,7 @@ LEARN_SECTIONS = [
      'noise across the quake band (1&ndash;15&nbsp;Hz) falls to about <b>0.8&nbsp;µV</b>, roughly '
      'four times quieter than the same measurement at nine in the morning. Almost all of that '
      'difference is people: traffic, appliances, footsteps.</p>'
-     '<p class="prose"><b>How do we know any of these numbers are right?</b> There is a USGS strong-motion accelerometer &mdash; station NP.1835, at a Santa Rosa fire house &mdash; <b>1.64&nbsp;km from this one</b>, and its recordings are public. Comparing the two instruments on the same earthquakes, in a band where this sensor&rsquo;s response is flat, says this station reads about <b>3.2× low</b>: its real sensitivity is nearer 9&nbsp;V/(m/s) than the 28.8 on the datasheet. Twenty-six events agree to within a median 1.2×, and the residual is the same at every frequency from 5 to 15&nbsp;Hz, which points at the sensitivity number rather than the ground. That correction is <i>provisional</i> &mdash; the two sites are 1.64&nbsp;km apart and ground can respond differently over that distance &mdash; and it does not yet say whether the sensor or the amplifier is responsible.</p><p class="prose">The same comparison answers a fair question: what can this see that a professional instrument cannot? More than you would guess. On quiet nights, between <b>4 and 8&nbsp;Hz</b> &mdash; the band where the S&nbsp;waves of small local earthquakes carry most of their energy &mdash; this geophone&rsquo;s noise floor is about <b>half</b> the accelerometer&rsquo;s, and from 8 to 15&nbsp;Hz the two are at parity. From 2 to 4&nbsp;Hz the raw numbers favour the geophone by more still, but that band is below its 4.5&nbsp;Hz corner, where this station&rsquo;s response has not yet been measured; corrected with the nominal corner and damping it comes out near parity, and the honest word until the calibration is done is <i>unknown</i>. That is physics, not cleverness: a strong-motion accelerometer is built to record two&nbsp;g without clipping, and when its output is converted to velocity its own noise grows toward the low frequencies, while a geophone measures velocity directly and is quietest just above its corner. The accelerometer wins decisively where it was designed to: it never clips, whereas this station saturates at roughly 4&nbsp;mm/s, a felt earthquake nearby, and it is flat to DC, where a 4.5&nbsp;Hz geophone is simply deaf. It also costs about a hundred times as much installed. What a home station offers, then, is a sensor that is as good or better in the band that matters for local events, at a price that makes one per garage a reasonable idea, plus a continuous record of one specific place, owned by the person standing on it.</p><p class="prose">An honest caveat on all of this: the last careful measurement of the '
+     '<p class="prose"><b>How do we know any of these numbers are right?</b> There is a USGS strong-motion accelerometer &mdash; station NP.1835, at a Santa Rosa fire house &mdash; <b>1.64&nbsp;km from this one</b>, and its recordings are public. Comparing the two instruments on the same earthquakes, in a band where this sensor&rsquo;s response is flat, says this station reads about <b>3.2× low</b>: its real sensitivity is nearer 9&nbsp;V/(m/s) than the 28.8 on the datasheet. {n_ref} events agree to within a median {ref_median}×, and the residual is the same at every frequency from 5 to 15&nbsp;Hz, which points at the sensitivity number rather than the ground. That correction is <i>provisional</i> &mdash; the two sites are 1.64&nbsp;km apart and ground can respond differently over that distance &mdash; and it does not yet say whether the sensor or the amplifier is responsible.</p><p class="prose">The same comparison answers a fair question: what can this see that a professional instrument cannot? More than you would guess. On quiet nights, between <b>4 and 8&nbsp;Hz</b> &mdash; the band where the S&nbsp;waves of small local earthquakes carry most of their energy &mdash; this geophone&rsquo;s noise floor is about <b>half</b> the accelerometer&rsquo;s, and from 8 to 15&nbsp;Hz the two are at parity. From 2 to 4&nbsp;Hz the raw numbers favour the geophone by more still, but that band is below its 4.5&nbsp;Hz corner, where this station&rsquo;s response has not yet been measured; corrected with the nominal corner and damping it comes out near parity, and the honest word until the calibration is done is <i>unknown</i>. That is physics, not cleverness: a strong-motion accelerometer is built to record two&nbsp;g without clipping, and when its output is converted to velocity its own noise grows toward the low frequencies, while a geophone measures velocity directly and is quietest just above its corner. The accelerometer wins decisively where it was designed to: it never clips, whereas this station saturates at roughly 4&nbsp;mm/s, a felt earthquake nearby, and it is flat to DC, where a 4.5&nbsp;Hz geophone is simply deaf. It also costs about a hundred times as much installed. What a home station offers, then, is a sensor that is as good or better in the band that matters for local events, at a price that makes one per garage a reasonable idea, plus a continuous record of one specific place, owned by the person standing on it.</p><p class="prose">An honest caveat on all of this: the last careful measurement of the '
      '<i>instrument&rsquo;s own</i> noise &mdash; taken with the sensor disconnected &mdash; put '
      'it at 1.18&nbsp;µV, and the station now routinely reads below that on a quiet night. So the '
      'electronics have improved since that measurement and nobody has re-measured them yet. Until '
@@ -468,6 +468,16 @@ ABOUT_SECTIONS = [
      'network), built for curiosity and learning. <b>Not for scientific or emergency use.</b> '
      'The station is still being <b>tested, tuned, and modified</b>, so spurious signals '
      '(from the work itself, not the ground) may appear in the data.</p>'
+     '<p class="mb-0 prose">It does have a proper name. Seismic stations are identified '
+     'by a four-part code &mdash; network, station, location, channel &mdash; and this '
+     'one is <b>SS.OAKM1.00.EHZ</b>. <b>OAKM1</b> was entered in the '
+     '<a href="http://www.isc.ac.uk/registries/" rel="noopener">International Registry of '
+     'Seismograph Stations</a> on <b>24&nbsp;September 2026</b>, which is a directory '
+     'entry rather than membership of a network: it means the name is unique worldwide and '
+     'points at this garage. The <b>SS</b> prefix is the code the standards bodies set '
+     'aside for anyone running a single station of their own &mdash; it is shared with '
+     'every other such station, so it is a legitimate name and not an assigned one. The '
+     '<b>EHZ</b> says short-period, high sample rate, vertical.</p>'
      '<p class="mb-0 prose">New to any of this? <a href="/learn">Seismology&nbsp;101</a> explains P and S waves, microseisms, what this sensor can and cannot hear, and every term used on these pages.</p>'),
     ("Hardware",
      '<ul class="mb-0"><li><b>Sensor:</b> LGT-4.5 geophone &mdash; a 4.5&nbsp;Hz vertical geophone '
@@ -529,3 +539,124 @@ ABOUT_SECTIONS = [
      '<p class="mb-0 prose">Questions are welcome through the project&rsquo;s public '
      'repository.</p>'),
 ]
+
+
+# =============================================================================
+# CALIBRATION PAGE
+#
+# Structure is Charles's (2026-09-24): "The top is the destination, the plan;
+# the bottom is where we are in the journey." So DESTINATION and PLAN are stable
+# prose that should rarely change, and JOURNEY is the part that moves as results
+# land. Adding the injector's answer should mean editing the bottom only.
+#
+# ⚠️ NO HAND-TYPED NUMBERS. Every figure comes from station/SS.OAKM1.xml or
+# confirmed.json at request time, via calibration_facts() in seismo_dashboard.
+# This page's whole subject is numbers being wrong; a stale one here would be
+# funny in the worst way. The catches count went stale twice on 2026-09-02 alone
+# when it was typed by hand.
+# =============================================================================
+
+CALIBRATION_INTRO = (
+    '<p class="prose lede">An uncalibrated seismometer can tell you that something '
+    'moved. It cannot tell you <i>how much</i>. Turning one into the other is what '
+    'this page is about &mdash; and this station is not finished doing it.</p>'
+)
+
+CALIBRATION_SECTIONS = [
+    ("Where this is going",
+     '<p class="mb-0 prose">Every earthquake size on the <a href="/catches">Catches</a> '
+     'page rests on three numbers. They describe how the instrument turns real ground '
+     'motion into the counts the computer records, and if they are wrong then every '
+     'amplitude here is wrong by the same factor &mdash; quietly, and in a way no amount '
+     'of careful software can detect.</p>'
+     '<ul class="mb-0">'
+     '<li><b>Sensitivity</b> &mdash; how many volts the coil produces per metre per '
+     'second of ground movement. This one sets the scale.</li>'
+     '<li><b>f<sub>0</sub>, the corner frequency</b> &mdash; below it the sensor goes '
+     'progressively deaf. A 4.5&nbsp;Hz geophone hears a 10&nbsp;Hz wave well and a '
+     '1&nbsp;Hz wave barely at all, and you have to know exactly where that turn happens '
+     'to correct for it.</li>'
+     '<li><b>&zeta;, the damping</b> &mdash; how quickly the mass stops ringing after '
+     'it is disturbed. It shapes the response right around the corner.</li>'
+     '</ul>'
+     '<p class="mb-0 prose mt-2">The destination is simple to state: <b>all three '
+     'measured, on this instrument, and re-measured often enough that we would notice '
+     'if they drifted.</b> Not taken from a datasheet describing a different unit built '
+     'in a different year.</p>'),
+
+    ("Why not just read the datasheet",
+     '<p class="mb-0 prose">Because it is wrong, and we can prove it. The maker\'s '
+     'figure for this geophone is <b>{nameplate}&nbsp;V/(m/s)</b>. Measured against a '
+     'professional USGS station {refdist}&nbsp;km away, this element actually produces '
+     '<b>{sens}&nbsp;V/(m/s)</b> &mdash; about <b>{ratio}&times; less</b> than the '
+     'sheet claims.</p>'
+     '<p class="mb-0 prose">That is not a defect. Geophones are built to a price and '
+     'sold with typical values, and a unit that is a factor of three off nominal is an '
+     'ordinary unit. It is only a problem if you believe the sheet. Every magnitude this '
+     'station reported before that measurement was out by that factor.</p>'),
+
+    ("Three ways to measure an instrument",
+     '<p class="mb-0 prose">There is no single test that gives all three numbers, so the '
+     'plan uses three, each answering what the others cannot.</p>'
+     '<p class="mb-0 prose"><b>1. Compare with a professional station nearby.</b> There '
+     'is a USGS instrument {refdist}&nbsp;km from here. Record the same earthquake on '
+     'both, compare the amplitudes, and the ratio gives the sensitivity. This worked: it '
+     'is where the {sens}&nbsp;V/(m/s) above comes from, across '
+     '{nref}&nbsp;events.</p>'
+     '<p class="mb-0 prose">It also <b>failed</b>, and the failure is worth stating '
+     'plainly. It could not pin down f<sub>0</sub> or &zeta;. Between here and there lie '
+     '{refdist}&nbsp;km of different ground, and ground changes the shape of a wave far '
+     'more than the sensor\'s corner does. The two effects could not be separated. More '
+     'earthquakes would not have helped &mdash; the limit is geology, not statistics.</p>'
+     '<p class="mb-0 prose"><b>2. Ask the instrument directly.</b> A geophone is a coil '
+     'and a magnet, and that works in both directions: push a known electric current '
+     'through the coil and the mass moves. Cut the current and it rings down like a '
+     'plucked string, and the <i>shape</i> of that ring-down gives f<sub>0</sub> and '
+     '&zeta; with no geology in the way at all. A small battery-powered box is being '
+     'built to do this four times a day, for years, so the answer is a running record '
+     'rather than a single afternoon.</p>'
+     '<p class="mb-0 prose"><b>3. Listen to the instrument\'s own silence.</b> '
+     'Disconnect the sensor, leave everything else recording, and whatever the machine '
+     'still shows is its own electronic noise rather than the ground. That tells you '
+     'which parts of what this station records are real, and which are the instrument '
+     'talking to itself.</p>'
+     '<p class="mb-0 prose"><b>This one has been done.</b> On 24&nbsp;September 2026 the '
+     'geophone was unplugged for 23&nbsp;hours and replaced with a shorting plug at the '
+     'far end of the same cable, so the recorder saw its own electronics and nothing '
+     'else. Three things came out of it.</p>'
+     '<ul class="mb-0"><li><b>About a third of what this station records on a quiet '
+     'night is the instrument, not the ground.</b> Between 1 and 15&nbsp;Hz the '
+     'electronics alone produced 0.50&nbsp;µV against 0.88&nbsp;µV with the sensor '
+     'connected. The ground is still the larger part, but not by as much as you might '
+     'hope.</li>'
+     '<li><b>The 1.05&nbsp;Hz line in the spectrum is the electronics.</b> It was still '
+     'there, loudly, in every hour of a day with no sensor attached &mdash; so it is '
+     'something inside the instrument, not something in the world. Which part is still '
+     'unknown.</li>'
+     '<li><b>The hum from the house heat pump really is the ground.</b> A cluster of '
+     'lines near 19, 20 and 41&nbsp;Hz had been blamed on the air conditioning, but on '
+     'circumstantial evidence. With the sensor gone they vanished &mdash; a thousandth '
+     'of their usual strength &mdash; on a 32&nbsp;°C day when the compressor ran '
+     'repeatedly. They reach the record as real vibration travelling through the '
+     'building and the slab.</li></ul>'
+     '<p class="mb-0 prose">It also left a puzzle. With nothing plugged in at all, the '
+     'instrument\'s own noise still rises and falls by a factor of one-and-a-half over '
+     'the course of a day. It is far too large to be temperature, and it is not the '
+     'heat pump. What it is, we do not know yet.</p>'),
+
+    ("Why it matters beyond this garage",
+     '<p class="mb-0 prose">There are now thousands of homemade and hobbyist seismic '
+     'stations publishing data. Almost none have had their instruments measured; they '
+     'use the datasheet value, as this one did. If a typical unit is off by a factor of '
+     'three, as this one is, then an enormous amount of citizen seismic data is '
+     'systematically wrong in a way nobody has quantified.</p>'
+     '<p class="mb-0 prose">Measuring one station properly does not fix that. But doing '
+     'it with parts costing a few tens of dollars, and writing down exactly how, means '
+     'anyone else can check their own.</p>'),
+]
+
+# --- the bottom: where we actually are ---------------------------------------
+CALIBRATION_STATUS_INTRO = (
+    '<p class="mb-0 prose">Everything above is the plan. This is the state of it today '
+    '&mdash; and two of the three numbers are still guesses.</p>'
+)

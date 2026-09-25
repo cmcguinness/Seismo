@@ -131,6 +131,24 @@ ANCHORS = [
 ]
 
 
+def _day_file(o):
+    """The archive path for an origin's day, WHICHEVER identity it was written under.
+
+    The 2026-08-30 cutover renamed XX.OAKMT.00.SHZ -> SS.OAKM1.00.EHZ. This was a
+    hardcoded XX.OAKMT f-string in two places, so `--all` silently skipped every anchor
+    after the cutover -- the same bug `night_compare.py` carried until 2026-09-22, found
+    again here 2026-09-25. `refstation_compare.py`, which writes refstation.json, already
+    globbed both and was never affected.
+    """
+    import glob as _g
+    import os as _os
+    here = _os.path.dirname(_os.path.abspath(__file__))
+    hits = sorted(h for h in _g.glob(
+        _os.path.join(here, "data", f"*.D.{o.year}.{o.julday:03d}.mseed"))
+        if ".LDO." not in h)              # the env node's pressure channel, not the seismometer
+    return hits[0] if hits else None
+
+
 def run_all():
     """Every anchor, combined -- and refuse to average across an amplitude boundary."""
     import numpy as np
@@ -138,7 +156,7 @@ def run_all():
     ratios = []
     for label, origin in ANCHORS:
         o = UTCDateTime(origin)
-        day = f"analysis/data/XX.OAKMT.00.SHZ.D.{o.year}.{o.julday:03d}.mseed"
+        day = _day_file(o)
         print(f"{label}  {origin}")
         try:
             got = compare(origin, day)
@@ -176,8 +194,9 @@ if __name__ == "__main__":
     if day is None:
         import glob
         o = UTCDateTime(origin)
-        day = f"analysis/data/XX.OAKMT.00.SHZ.D.{o.year}.{o.julday:03d}.mseed"
-        if not glob.glob(day):
-            raise SystemExit(f"no local day-file {day}")
+        day = _day_file(o)
+        if day is None:
+            raise SystemExit(
+                f"no local day-file for {o.year}.{o.julday:03d} in analysis/data")
     print(f"{origin}  band {BAND[0]}-{BAND[1]} Hz")
     compare(origin, day)
