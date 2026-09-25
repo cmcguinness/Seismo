@@ -53,8 +53,12 @@ from datetime import datetime, timezone
 #
 # (start_iso_utc, end_iso_utc or None, description)
 MASKED = [
-    ("2026-09-24T05:55", None,
-     "shorting box in place of the geophone -- instrument noise floor test"),
+    ("2026-09-24T05:55", "2026-09-25T06:00",
+     "shorting box in place of the geophone -- instrument noise floor test. Box in "
+     "2026-09-23 22:54 PDT, geophone back 2026-09-25T05:21:34Z (22:21:34 PDT, 78 mV peak); the mask "
+     "runs to 06:00Z to cover the ~35 min settling after handling. 23 h of shorted "
+     "record: see analysis/floor_verdict.py (gate 4.72 dB, AMBIGUOUS) and "
+     "analysis/floor_diurnal.py (HVAC lines ABSENT with no sensor; 1.05 Hz PRESENT)."),
 ]
 
 _STALE_H = 36

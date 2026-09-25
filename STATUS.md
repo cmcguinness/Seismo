@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-24 (UTC)_
+_Last updated: 2026-09-25 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -120,6 +120,53 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🔇 THE SHORTED DAY, COMPLETE: THREE ANSWERS AND A SHARPER QUESTION (2026-09-25)
+
+**The shorting box ran 23 h**, 2026-09-23 22:54 PDT to 2026-09-24 22:21:34 PDT (the swap
+transient is unmistakable — 78 mV against a 1.2 µV floor). `analysis/epochs.py` MASKED is
+closed to 06:00Z, covering the ~35 min settling; the site notice is down.
+
+**1. The pre-registered gate: 4.72 dB — AMBIGUOUS.** Condition 2 of the `harvest_events.py`
+band rule is not satisfied, and per `floor_verdict.py`'s own instruction no verdict changes
+and no sub-band gets hunted for a better-looking number. 32 % of quiet-night 1–15 Hz power
+is the instrument (0.499 µV shorted against 0.881 µV live).
+
+**2. The 1.05 Hz line is electronics, beyond argument** — 184–399× prominence in every hour
+of a day with no sensor in the circuit.
+
+**3. The heat-pump lines arrive through the GEOPHONE — measured, not inferred.** This is the
+one that nearly went wrong twice. The obvious test with the sensor gone is "do the
+41/40.6/37.65/19.3/20 Hz lines survive?", and `floor_diurnal.py` first printed **"ABSENT →
+vibration path"** over a span running 22:55–06:55 PDT, when the compressor had never
+switched on. Charles killed it in under a minute. The second attempt gated on an env-node
+temperature threshold and passed five hours whose *reference* prominence was 1.3–5.1× — the
+same error, better dressed. Three witnesses were measured and all three rejected: the env
+accelerometer spans **1.03×** across a whole day (it cannot feel the compressor); absolute
+`temp_C` is dominated by BMP280 self-heat so no threshold transfers between days; the
+within-day delta overlaps (+2.67…+4.25 °C when on, +3.46 °C reached when off).
+
+The resolution was Charles's, and it was that the data already existed: *"The compressor ran
+plenty of times today. If it spikes noise, you should be able to see it."* The box had been
+in for 23 h across a **31.9 °C** afternoon while a forced-compressor protocol was being
+designed to trigger something that had already happened repeatedly. Result: **the prominence
+never exceeds 1.5× in ANY of the 23 hours**, against 292× / 180× / 69× / 60× / 19× on the
+geophone-attached reference day — **line power down 32.3 dB**. `floor_diurnal.py` now has a
+whole-span verdict path, which outranks a declared window because it asks "is there *any*
+hour?" rather than "did it show in the twenty minutes we watched?".
+
+**And the sharper question.** The instrument's own floor swings **3.71 dB at 8–15 Hz** over
+the day with nothing plugged in. Thermal is excluded by magnitude — Johnson noise goes as
+√T, so a 20 °C garage swing buys 0.29 dB and 3.71 dB would need **404 °C** at the front end.
+The heat pump is now excluded by measurement. Whatever moves it is unidentified.
+
+**New and unexplained:** **1–3 Hz runs backwards from every other band** — highest in the
+morning (0.517 µV at 08:55 PDT), lowest mid-afternoon (0.378 at 15:55), anti-correlated with
+temperature where 3–8, 15–30 and 30–45 all correlate. Two mechanisms, not one.
+
+**Still owed:** an `epochs.py` BOUNDARY row for the handling, *only if* the settled live
+floor differs from before the box went in — that comparison needs a quiet night with the
+geophone back, so it is tomorrow's, not tonight's.
 
 ## 🌡️ THE SHORTED FLOOR HAS A DAILY CYCLE, AND THE OBVIOUS TEST HAD NO WITNESS (2026-09-24)
 
