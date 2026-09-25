@@ -27,6 +27,7 @@ import content
 import heli_build
 import heli_render
 import heli_service
+import magtag
 import render
 
 STATION = os.environ.get("SEISMO_STATION", "OAKM1")
@@ -1419,6 +1420,15 @@ def helicorder():
     png = heli_service.current_png()
     return Response(png, media_type="image/png", headers=NOCACHE) if png \
         else Response("warming up", status_code=503)
+
+
+@app.get("/magtag/heli.bmp")
+def magtag_heli():
+    # 296x128 4-grey page for the MagTag e-ink display (magtag/code.py). Cached in
+    # magtag.py on the newest envelope file, so a device polling costs ~nothing.
+    bmp = magtag.heli_bmp()
+    return Response(bmp, media_type="image/bmp", headers=NOCACHE) if bmp \
+        else Response("no data", status_code=503)
 
 
 SPEC_CACHE = {"Cache-Control": "public, max-age=1800"}   # 30 min, matches render TTL

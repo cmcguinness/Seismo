@@ -121,6 +121,24 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 🏷️ MAGTAG: A HELICORDER YOU CAN CARRY (2026-09-25)
+
+Adafruit MagTag (296×128, 4-grey e-ink, 4 buttons) as a portable display. The device is
+dumb: `magtag/code.py` fetches a finished BMP from `/magtag/heli.bmp` on the public
+dashboard (any Wi-Fi works; there is no path into the LAN), blits it and refreshes every
+5 min or on a button press. All layout is in `dashboard/magtag.py`: the same 15-min
+envelopes the big drum uses, re-binned into twelve 1-hour rows ~278 px wide (~13 s per
+pixel), local time, local >15 Hz activity in light grey, USGS carets in dark grey.
+
+- **The scale is keyed to the RE-BINNED columns, not the interval `env`.** A 13 s column
+  extreme runs several times the median excursion, so the big drum's scaling filled every
+  daytime row solid. `SEISMO_MAGTAG_ENV_FRAC` (0.12) is the knob.
+- **It passes the only test that mattered:** the 2026-09-03 M3.5 renders as an
+  unmissable bar in the 10:00 row (`reports/magtag-heli-m35.png`, 3× preview).
+- Render 0.2 s, cached on the newest envelope file. Not yet run on the hardware.
+- Next: stats / weather (CLUE node) / last-event pages on buttons B–D, then deep sleep
+  for battery use.
+
 ## 🧒 STATION #2 DECIDED: A CLONE, BURNED IN AT HOME (2026-09-25)
 
 **Charles is building a second station for the grandkids in Portola Valley, hand-off end of

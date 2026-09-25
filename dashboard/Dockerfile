@@ -35,7 +35,7 @@ COPY activity.py content.py epochs.py /app/
 # image builds cleanly and then the container dies on import. That is what
 # happened to listen.py on 2026-09-02: build green, `ModuleNotFoundError: listen`
 # at startup, dokku kept the old container, and the only symptom was a 404.
-COPY catches.py listen.py sound.py docpage.py /app/
+COPY catches.py listen.py sound.py docpage.py magtag.py /app/
 # The repo's readme/*.md, rsync'd into the build context by deploy.sh (same trick as
 # epochs.py above). docpage.py renders them at /how/<slug>, so the website and the
 # repository are one source and cannot drift apart.

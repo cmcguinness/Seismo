@@ -1,0 +1,6 @@
+# Copy to CIRCUITPY/settings.toml and fill in. Never commit the real one.
+CIRCUITPY_WIFI_SSID = "your-network"
+CIRCUITPY_WIFI_PASSWORD = "your-password"
+# Public copy works on any network; http://seismo.pi5.mcguinness.ai works on the LAN only.
+SEISMO_URL = "https://seismo.mcguinness.ai"
+SEISMO_REFRESH_S = 300
