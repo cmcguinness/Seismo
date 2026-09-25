@@ -73,6 +73,25 @@ chosen so the path is as similar as possible. Proximity bought path similarity a
 amplified site along with it. **The fix is a network of references rather than the closest
 one** -- calibrate against the median of several, and the site terms largely cancel.
 
+THE CALIBRATION RESULT KILLED THE FLATTERING ONE (2026-09-25, same day).
+Fitting the network's decay per event and evaluating it at OAKM1's own distance -- the
+multi-reference calibration, strictly more general than "median of several" because it
+corrects for distance -- gives:
+
+    n=20   median ratio 1.03x  (IQR 0.78-1.16)
+      -> 8.74 V/(m/s), shortfall 3.29x
+    single-reference NP.1835 gives 9.0 V/(m/s), shortfall 3.20x
+
+**The same answer.** So the k-correction above (9.0 -> 12-14) was an INFERENCE that assumed
+OAKM1 behaves like a network-median site, and the direct measurement contradicts it: our own
+amplitudes agree with the network prediction at 9.0. The likeliest reading is that OAKM1 and
+NP.1835, 1.6 km apart on one valley floor, carry SIMILAR site terms -- so they cancelled in
+the original comparison and the nearest-station choice was accidentally fine.
+
+**The 3.2x is not the yardstick.** It survives the change of method. Keep the station-term
+table as a real observation about the local network; do not keep the correction it seemed to
+imply. This is what "beware the comfortable conclusion" looks like when it is tested.
+
 WHAT THIS CANNOT DO. It says nothing about whether OAKM1 itself is quiet: our station is not
 in the fit (our response is the unknown under test). It compares the professionals with each
 other. A large NP.1835 term moves the reference and therefore our sensitivity; a small one
@@ -178,6 +197,80 @@ def peak_vel(client, net, sta, band, origin, dist_km):
         return cached(f"w_{net}.{sta}.{band}_{origin.replace(':','')}", go)
     except Exception:
         return None
+
+
+# =============================================================================
+# CALIBRATION AGAINST THE NETWORK, not against the nearest station
+# =============================================================================
+def our_peak(origin, dist_km, sens):
+    """OAKM1's own 5-15 Hz peak ground velocity (um/s) in the same window.
+
+    Uses `sens` V/(m/s) to convert; the ratio against the network's prediction is then
+    the factor by which `sens` is wrong, so the answer does not depend on the guess.
+    """
+    import obspy
+    from obspy import UTCDateTime
+    from refstation import UV_PER_COUNT
+    from night_compare import day_file
+    t0 = UTCDateTime(origin)
+    w0, w1 = t0 + dist_km / 8.0, t0 + dist_km / 2.5 + 25.0
+    try:
+        st = obspy.read(day_file(t0.julday, t0.year))
+    except SystemExit:
+        return None
+    for tr in st:
+        tr.stats.sampling_rate = 100.0
+    st.merge(method=1, fill_value="interpolate")
+    tr = st[0].slice(w0 - 90, w1 + 10)
+    if tr.stats.npts < 100 * 60:
+        return None
+    tr.detrend("demean")
+    tr.filter("bandpass", freqmin=BAND[0], freqmax=BAND[1], corners=4, zerophase=True)
+    sig = tr.slice(w0, w1).data.astype(float)
+    noi = tr.slice(w0 - 90, w0 - 10).data.astype(float)
+    if sig.size < 100 or noi.size < 100:
+        return None
+    to_ms = UV_PER_COUNT * 1e-6 / sens                    # counts -> m/s
+    pk = float(np.max(np.abs(sig))) * to_ms * 1e6         # um/s
+    nz = float(np.sqrt(np.mean(noi ** 2))) * to_ms * 1e6
+    return dict(peak=pk, noise=nz, snr=pk / nz if nz > 0 else 0.0)
+
+
+def calibrate(rows, ev, origins, stations, sens_assumed, min_stations, min_snr):
+    """Fit the network's decay per event, evaluate it at OAKM1's distance, compare.
+
+    This is the multi-reference calibration. The old method took ONE station because it
+    was nearest; nearness bought path similarity and that station's site term together.
+    Fitting across the whole local network and predicting at our own distance uses every
+    station and lets the site terms largely cancel -- and it is strictly more general
+    than "the median of several", because it corrects for distance rather than assuming
+    the references are all at ours.
+
+    ⚠️ What comes out is instrument x OUR OWN site term, which cannot be separated here
+    any more than it could before. The improvement is that it is now measured against a
+    network baseline instead of against one amplified station.
+    """
+    out = []
+    for e in ev:
+        o = origins.get(e["origin"])
+        if not o:
+            continue
+        sub = [r for r in rows if r[0] == e["origin"]]
+        if len(sub) < min_stations:
+            continue
+        x = np.array([math.log10(r[2]) for r in sub])
+        y = np.array([r[3] for r in sub])
+        A = np.vstack([np.ones_like(x), -x]).T
+        coef, *_ = np.linalg.lstsq(A, y, rcond=None)
+        d_oak = math.hypot(gc_km((o["lat"], o["lon"]), OAK), o["depth_km"])
+        pred = 10 ** (coef[0] - coef[1] * math.log10(d_oak))      # um/s at OUR distance
+        m = our_peak(e["origin"], d_oak, sens_assumed)
+        if not m or m["snr"] < min_snr:
+            continue
+        out.append(dict(origin=e["origin"], mag=e["mag"], dist=d_oak, b=coef[1],
+                        pred=pred, ours=m["peak"], snr=m["snr"],
+                        ratio=pred / m["peak"], n_sta=len(sub)))
+    return out
 
 
 def main():
@@ -306,6 +399,32 @@ def main():
                   f"shortfall {28.8 / (9.0 * k):.2f}x  (was 9.0 and 3.2x)")
         print("\nNOT a correction to apply -- see the caveats in the docstring, and note")
         print("this is the FLATTERING direction, so it needs more than one analysis.")
+
+    # ---- the multi-reference calibration ------------------------------------
+    from refstation import EFFECTIVE_SENS, NOMINAL_SENS
+    cal = calibrate(rows, ev, origins, stations, EFFECTIVE_SENS,
+                    a.min_stations, a.min_snr)
+    if not cal:
+        return
+    print(f"\n=== calibration against the NETWORK, not the nearest station ===")
+    print(f"assumed {EFFECTIVE_SENS:.2f} V/(m/s); the ratio is the factor it is wrong by\n")
+    print(f"{'event':<18} {'M':>5} {'km':>6} {'b':>5} {'network um/s':>13} "
+          f"{'ours um/s':>10} {'ratio':>7} {'snr':>6}")
+    for c in sorted(cal, key=lambda c: c["dist"]):
+        print(f"{c['origin'][:16]:<18} {c['mag']:5.2f} {c['dist']:6.1f} {c['b']:5.2f} "
+              f"{c['pred']:13.3f} {c['ours']:10.3f} {c['ratio']:7.2f} {c['snr']:6.1f}")
+    r = np.array([c["ratio"] for c in cal])
+    med = float(np.median(r))
+    lo, hi = float(np.percentile(r, 25)), float(np.percentile(r, 75))
+    sens = EFFECTIVE_SENS / med
+    print(f"\n  n={len(r)}  median ratio {med:.2f}x  (IQR {lo:.2f}-{hi:.2f})")
+    print(f"  -> sensitivity {sens:5.2f} V/(m/s), shortfall vs nameplate "
+          f"{NOMINAL_SENS / sens:.2f}x")
+    print(f"  the single-reference method gives {EFFECTIVE_SENS:.1f} V/(m/s) and "
+          f"{NOMINAL_SENS / EFFECTIVE_SENS:.2f}x")
+    print("\n  ⚠️ still instrument x OUR OWN site term -- that pair cannot be separated")
+    print("     without the injector. What changed is the baseline, not the ambiguity.")
+
 
 
 if __name__ == "__main__":
