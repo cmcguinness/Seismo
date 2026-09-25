@@ -60,10 +60,22 @@ if want "server/" || want "analysis/models/"; then
   deployed_any=1
 fi
 
-if want "dashboard/"; then
-  log "dashboard/ changed -> building image"
+if want "dashboard/" || want "analysis/epochs.py" || want "readme/" || want "station/"; then
+  log "dashboard inputs changed -> building image"
   rsync -rl --exclude '__pycache__' --exclude '.sesskey' --exclude '*.pyc' \
         dashboard/ "$HOME/seismo-dashboard/"
+  # THE BUILD CONTEXT IS dashboard/, so everything the Dockerfile COPYs from elsewhere
+  # in the repo has to be staged here first. This used to rely on leftovers from a
+  # previous `deploy.sh dashboard` run (rsync has no --delete), which worked by
+  # accident and broke the moment the Dockerfile gained a new outside path: on
+  # 2026-09-25 station/SS.OAKM1.xml was added and an autodeploy build here would have
+  # failed on the missing COPY, keeping the old image with only a log line to say so.
+  # Staged explicitly now, and the trigger above watches these paths too -- otherwise
+  # editing the instrument response alone would never rebuild the page that reads it.
+  mkdir -p "$HOME/seismo-dashboard/docs" "$HOME/seismo-dashboard/station"
+  rsync -l analysis/epochs.py "$HOME/seismo-dashboard/"
+  rsync -rl readme/*.md "$HOME/seismo-dashboard/docs/"
+  rsync -l station/SS.OAKM1.xml "$HOME/seismo-dashboard/station/"
   # Build FIRST, deploy only on success: a failed build must leave the running image
   # alone rather than take the dashboard down.
   # Tag by SHA, not just :latest -- `dokku git:from-image` treats an unchanged tag as
