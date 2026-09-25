@@ -79,3 +79,4 @@ dashboard/docs/*.md
 
 # Local dashboard run output at the repo root; never wanted in the repo.
 .dash.log
+dashboard/station/

@@ -10,6 +10,7 @@ import glob
 import json
 import math
 import os
+import sys
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -244,8 +245,8 @@ CSS = r'''<style>
  .rail{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
    background:var(--rail);border-right:1px solid var(--rule);
    display:flex;flex-direction:column;padding:1.75rem 1.5rem 1.25rem}
- .stage{padding:3.25rem 3.5rem 4rem;max-width:64rem}
- .stage-narrow{max-width:46rem}
+ .stage{padding:3.25rem 3.5rem 4rem;max-width:72rem}
+ .stage-narrow{max-width:56rem}
 
  /* --- rail: identity ------------------------------------------------------- */
  .r-net{font-family:var(--mono);font-size:.68rem;font-weight:400;letter-spacing:.16em;
@@ -342,7 +343,7 @@ CSS = r'''<style>
 
  /* --- prose ---------------------------------------------------------------- */
  .stage p,.stage li,.stage dd{font-family:var(--prose);font-size:1.075rem;
-   line-height:1.62;max-width:66ch}
+   line-height:1.62;max-width:76ch}
  .stage .panel-head p,.stage td p,.stage th p,.stage .small,.stage small,
  .stage .form-text,.stage figcaption{font-family:var(--ui);max-width:none}
  .stage .small,.stage small{font-size:.85rem;line-height:1.55;color:var(--ink-dim);
@@ -403,6 +404,14 @@ CSS = r'''<style>
    font-family:var(--mono);font-size:.68rem;line-height:1.7;color:var(--ink-dim);
    max-width:66ch}
  .stagefoot a{color:var(--ink-dim);text-decoration:underline}
+
+ /* --- large monitors ------------------------------------------------------- */
+ /* The layout is entirely rem/ch, so a root-size step widens the measure, the rail and
+    the headings in proportion instead of stretching lines alone. Added 2026-09-25: on a
+    2000 px screen the prose column was ending around x=900 and leaving half the window
+    empty. */
+ @media (min-width:100rem){ html{font-size:17.25px} }
+ @media (min-width:120rem){ html{font-size:18.5px} }
 
  /* --- narrow --------------------------------------------------------------- */
  @media (max-width:62rem){
@@ -1190,10 +1199,22 @@ def calibration_facts():
     import xml.etree.ElementTree as ET
     f = dict(sens=None, f0=None, zeta=None, nameplate="28.8", refdist="1.6",
              nref=None, provisional=True)
+    # The Docker build context is dashboard/, so the XML is rsync'd in beside the app
+    # (same treatment as epochs.py and readme/*.md). In the repo it sits one level up.
+    # Found 2026-09-25 by Charles reading the LIVE page: the public copy rendered
+    # "produces -- V/(m/s)" because only the repo layout was tried.
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _xml = next((c for c in (
+        os.path.join(_here, "station", "SS.OAKM1.xml"),                  # in the image
+        os.path.join(os.path.dirname(_here), "station", "SS.OAKM1.xml"),  # in the repo
+    ) if os.path.exists(c)), None)
+    if _xml is None:
+        print("calibration_facts: SS.OAKM1.xml NOT FOUND -- the calibration page will "
+              "show blanks. deploy.sh must rsync station/ into the build context.",
+              file=sys.stderr, flush=True)
     try:
         ns = {"s": "http://www.fdsn.org/xml/station/1"}
-        root = ET.parse(os.path.join(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__))), "station", "SS.OAKM1.xml")).getroot()
+        root = ET.parse(_xml).getroot()
         st1 = root.find(".//s:Channel[s:Code='EHZ']//s:Stage[@number='1']", ns) \
             if root.find(".//s:Channel[s:Code='EHZ']", ns) is not None else None
         if st1 is None:                       # some writers omit the Code predicate path
@@ -1204,8 +1225,9 @@ def calibration_facts():
         w0 = (re_ ** 2 + im ** 2) ** 0.5
         f["f0"] = f"{w0 / (2 * 3.141592653589793):.2f}"
         f["zeta"] = f"{-re_ / w0:.2f}"
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"calibration_facts: could not read {_xml}: {e}", file=sys.stderr,
+              flush=True)
     try:
         f["nref"] = str(catches.SUMMARY.get("n_ref", "") or "")
     except Exception:
@@ -1213,7 +1235,11 @@ def calibration_facts():
     try:
         f["ratio"] = f"{float(f['nameplate']) / float(f['sens']):.1f}"
     except Exception:
-        f["ratio"] = "3.2"
+        # Deliberately NOT a hardcoded 3.2. This page's whole subject is numbers being
+        # wrong; a typed constant surviving here while the measured value it derives
+        # from is missing is exactly the failure it warns about (it did, until
+        # 2026-09-25 -- the public page read "-- V/(m/s) ... about 3.2x less").
+        f["ratio"] = None
     return f
 
 

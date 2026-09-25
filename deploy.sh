@@ -87,8 +87,11 @@ do_dashboard() {
   # readme/*.md are rendered as the /how/* pages by dashboard/docpage.py, so the
   # site and the repo are ONE source. Same reason as epochs.py: the Docker build
   # context is dashboard/, so anything from elsewhere in the repo is copied in.
-  ssh -n "$HOST" "mkdir -p seismo-dashboard/docs"
+  ssh -n "$HOST" "mkdir -p seismo-dashboard/docs seismo-dashboard/station"
   rsync -rlv readme/*.md "$HOST":seismo-dashboard/docs/
+  # station/SS.OAKM1.xml is what the calibration page reads for sensitivity, f0 and
+  # zeta. Same reason again: it lives outside the dashboard/ build context.
+  rsync -lv station/SS.OAKM1.xml "$HOST":seismo-dashboard/station/
   # Tag by SHA as well as :latest. With ONLY :latest, `dokku git:from-image` sees an
   # unchanged reference, prints "No changes detected, skipping git commit", exits
   # non-zero and deploys NOTHING -- the app keeps running the old image while the
@@ -111,8 +114,9 @@ do_public() {
   # readme/*.md are rendered as the /how/* pages by dashboard/docpage.py, so the
   # site and the repo are ONE source. Same reason as epochs.py: the Docker build
   # context is dashboard/, so anything from elsewhere in the repo is copied in.
-  ssh -n "$PUBLIC_HOST" "mkdir -p seismo-dashboard/docs"
+  ssh -n "$PUBLIC_HOST" "mkdir -p seismo-dashboard/docs seismo-dashboard/station"
   rsync -rlv readme/*.md "$PUBLIC_HOST":seismo-dashboard/docs/
+  rsync -lv station/SS.OAKM1.xml "$PUBLIC_HOST":seismo-dashboard/station/
   say "build seismo-dash:$SHA on $PUBLIC_HOST"
   ssh -n "$PUBLIC_HOST" "cd ~/seismo-dashboard && docker build --build-arg GIT_SHA='$SHA' -t 'seismo-dash:$SHA' -t $IMAGE ."
   say "dokku git:from-image $APP seismo-dash:$SHA on $PUBLIC_HOST   (restarts the app)"

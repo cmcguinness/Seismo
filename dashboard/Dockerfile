@@ -43,6 +43,12 @@ COPY docs/ /app/docs/
 COPY catches/ /app/catches/
 COPY signatures.json /app/
 COPY station.jpg /app/
+# station/SS.OAKM1.xml is the single source of truth for the instrument response and the
+# calibration page reads it at request time. deploy.sh rsyncs it into the build context
+# (same treatment as epochs.py and docs/), because the context is dashboard/ and the file
+# lives at the repo root. Missing it renders the page's numbers as blanks -- which is
+# exactly what the public copy did until 2026-09-25.
+COPY station/ /app/station/
 
 EXPOSE 5000
 ENTRYPOINT ["/usr/bin/tini", "--"]
