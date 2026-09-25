@@ -121,6 +121,39 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 📌 THE RE-SEATING MOVED A LINE, AND THAT NAMES IT (2026-09-25)
+
+**The handling did not move the floor.** Quiet window 07:00&ndash;12:00 UTC, geophone back
+since 2026-09-25T05:21:34Z: 1&ndash;15 Hz robust RMS **0.88 &rarr; 0.84 µV**, band ratios
+0.98 / 0.98 / 0.98 / 0.96 / 1.12 against jday 266, and 0.97 / 0.93 / 0.94 / 0.89 / 1.05
+against jday 265. So **no amplitude boundary** — the instrument reads the same after being
+unplugged for 23 h and set back down.
+
+**But a strong narrow line moved, and stayed moved:**
+
+| night | state | peak | prominence | line amplitude |
+|---|---|---|---|---|
+| 264 | geophone, before | 16.617 Hz | 131× | 0.279 µV |
+| 265 | geophone, before | 16.617 Hz | 146× | 0.292 µV |
+| 266 | geophone, before | 16.633 Hz | 87× | 0.235 µV |
+| **268** | **after the swap** | **16.717 Hz** | 111× | 0.215 µV |
+
+Three nights parked at 16.617&ndash;16.633, then **+0.09 Hz (+0.55 %)**, with the harmonic
+going 33.23 &rarr; 33.40 and the strength comparable. It did not appear or vanish; it
+shifted.
+
+**That identifies it as mechanical**, which is new: 16.6 Hz was not in the line catalogue
+at all. An electrical line does not care that the sensor was lifted off the slab and put
+back; a resonance involving the geophone and its coupling shifts exactly like this when
+the seating stiffness changes a fraction of a percent. `analysis/epochs.py` gets a
+BOUNDARY tagged **`noise` only, not `amplitude`** — narrow-line structure is not comparable
+across the re-seating, band powers are.
+
+**Caveat, stated because it is one night.** Three before, one after. A 0.55 % shift could
+also be a machine somewhere running at a slightly different speed. The claim is cheap to
+check: if 16.717 Hz holds over the coming nights it is the mount; if it wanders back it was
+never ours. Re-run `analysis/night_compare.py 266 <jday>`.
+
 ## 🔇 THE SHORTED DAY, COMPLETE: THREE ANSWERS AND A SHARPER QUESTION (2026-09-25)
 
 **The shorting box ran 23 h**, 2026-09-23 22:54 PDT to 2026-09-24 22:21:34 PDT (the swap

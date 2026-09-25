@@ -144,6 +144,16 @@ BOUNDARIES = [
      "station time reference: pool NTP (timesyncd, 34 min poll, +3.0 ms vs GPS) -> "
      "chrony against the LAN GPS-PPS stratum-1. Absolute timing improves; amplitudes "
      "and sample rate unaffected"),
+    ("2026-09-25T05:21", False, {"noise"},
+     "geophone unplugged for the 23 h shorted floor test and re-seated. The BROADBAND "
+     "floor is unchanged -- 1-15 Hz robust RMS 0.88 -> 0.84 uV, every band ratio "
+     "0.93-1.12 against both 2026-09-23 and 2026-09-22 -- so this is NOT an amplitude "
+     "boundary. But a strong narrow line MOVED: 16.617 / 16.617 / 16.633 Hz on jdays "
+     "264/265/266, then 16.717 Hz on 268, with its harmonic 33.23 -> 33.40 and "
+     "comparable strength (prominence ~87-146x, 0.22-0.29 uV). A 0.55 % shift in a "
+     "resonance across a re-seating is what identifies that line as MECHANICAL -- an "
+     "electrical line would not care that the sensor was lifted. Narrow-line structure "
+     "is therefore not comparable across this instant; band powers are."),
 ]
 
 

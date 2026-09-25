@@ -63,6 +63,10 @@ C file and fails if they drift apart.
   292x with the sensor attached (-32 dB)** -- they arrive as GROUND MOTION through the
   geophone. The **1.05 Hz line sat at 184-399x with no sensor at all**, so it is
   electronics beyond argument. `analysis/floor_diurnal.py` re-runs it.
+  **A sixth line, ~16.62 Hz (harmonic 33.2), is MECHANICAL** -- identified 2026-09-25
+  when re-seating the geophone moved it to 16.717 Hz (+0.55 %) while leaving every band
+  power unchanged. An electrical line would not care that the sensor was lifted. One
+  night after the move, so confirm it holds.
 
 ## Hardware the software will target
 
