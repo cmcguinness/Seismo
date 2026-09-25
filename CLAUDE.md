@@ -57,6 +57,12 @@ C file and fails if they drift apart.
   Nevada M3.4 at 324 km nearly quadrupled the published range.
 - The 41 / 40.6 / 37.65 / 19.3 / 20 Hz spectral lines are the house's heat-pump AC, not
   the electronics; 40.0 Hz is the 60 Hz mains alias. Only 1.05 Hz is unexplained.
+  **Both halves confirmed by measurement 2026-09-24**, not inference: 23 h with the
+  shorting box in place of the geophone, through a 31.9 C afternoon in which the
+  compressor ran repeatedly, put the HVAC lines at **1.5x in the loudest hour against
+  292x with the sensor attached (-32 dB)** -- they arrive as GROUND MOTION through the
+  geophone. The **1.05 Hz line sat at 184-399x with no sensor at all**, so it is
+  electronics beyond argument. `analysis/floor_diurnal.py` re-runs it.
 
 ## Hardware the software will target
 

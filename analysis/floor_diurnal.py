@@ -373,7 +373,25 @@ def main():
                      f"the strongest of {len(rows_d)} declared compressor-on window(s)")
             return _plot(a, rows, temp_at)
 
-    # 2. Fall back to matched clock hours. Contingent, and says so.
+    # 2. A span covering a whole day is its own witness -- stronger than one window,
+    #    because it asks "is there ANY hour where the lines appear?" rather than
+    #    "did they appear in the twenty minutes we watched?". Added 2026-09-24: the
+    #    shorted day ran 23 h through a 31.9 C afternoon with the operator confirming
+    #    the compressor ran repeatedly, and no hour exceeded 1.5x.
+    span_h = (t1 - t0) / 3600.0
+    if span_h >= 20 and temp:
+        peak = max(r["hvac"] for r in rows)
+        hot = max((temp_at(r["utc"]) or -99) for r in rows)
+        print(f"\n  WHOLE-SPAN test: {span_h:.0f} h covering the full daily cycle "
+              f"(peak {hot:.1f} C).")
+        print(f"  highest HVAC prominence in ANY hour: {peak:.1f}x "
+              f"(reference day peaked at {max(ref[h]['hvac'] for h in ref_on):.0f}x)")
+        _verdict(peak, f"{span_h:.0f} h spanning a full daily cycle to {hot:.1f} C -- "
+                       f"no single\n  hour shows the lines, which is stronger than any "
+                       f"one declared window")
+        return _plot(a, rows, temp_at)
+
+    # 3. Fall back to matched clock hours. Contingent, and says so.
     both = [r for r in rows if r["utc"].hour in ref_on]
     if not both:
         print(f"\n  UNTESTED. This span covers none of the reference AC hours, and no "
