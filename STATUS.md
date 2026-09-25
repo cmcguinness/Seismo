@@ -121,6 +121,49 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 🧒 STATION #2 DECIDED: A CLONE, BURNED IN AT HOME (2026-09-25)
+
+**Charles is building a second station for the grandkids in Portola Valley, hand-off end of
+October to Thanksgiving.** Plan in [`doc/station2.md`](doc/station2.md). The decision was
+option 1 of four: **build the clone and run it at Oakmont first**, not deploy straight to a
+house nobody can visit.
+
+**The real argument is not the hand-off.** Two stations **122.6 km apart turn a range-finder
+into a locator** — today every catch is a radius from S−P with direction taken on the
+catalogue's word, and two radii intersect. Their site is **3.7 km off the San Andreas trace**,
+with Hayward at 41.8 km and Calaveras at 76.6 km between the two stations, so most regional
+events would land inside both ranges at once.
+
+**Their fault will be nearly silent, and that is the lesson.** The Peninsula segment ruptured
+in 1906 and has been close to aseismic since; the station will be fed by Hayward and Calaveras
+at 42&ndash;77 km instead. The noisy fault is the far one and the quiet one is under the house.
+
+**A clone, deliberately, not the better design.** `amateur-network-brief.md` has a nicer
+station (RP2040, fibre, battery, no radio). It is not what goes to a site we cannot reach: the
+dominant risk is a small failure with nobody on hand and a two-hour drive, so the hardware
+should be the stack whose every failure mode has already happened in our own garage. Identical
+also keeps the site comparison clean — any Oakmont-vs-Portola difference is the ground, not
+the gear.
+
+**The home phase has three jobs, and two only exist there.** Prove the two-station data plane
+and second identity (the dashboard renders ONE identity from env today — that is the largest
+software item); **measure instrument-to-instrument scatter, which settles this morning's 3.2×
+question** (two identical instruments on one slab: both low ⇒ not that unit, it is the site or
+the response model; they differ ⇒ unit variation after all — a discriminator we do not have
+today and get free); and burn the hardware in.
+
+⚠️ A co-located twin validates plumbing and instruments, **not geometry** — no baseline, so
+locating cannot be tested until it moves.
+
+**Long poles, both cheap to start:** the **ISC station code** (OAKM1's took 2026-09-02 →
+09-24, with a chased follow-up and a change of officer — send it in October) and the
+**calibration injector**, which should work before this leaves the garage, because a station
+nobody can visit is the worst possible place for a guessed f0 and zeta.
+
+**Charles has two spare 4.5 Hz geophones** (2026-09-25), so the sensor is in hand and nothing
+waits on a boat. They are almost certainly the field rig's pair — spending one here downgrades
+MASW, which needs more than one. Cheap to reverse, but it should be a decision.
+
 ## 📌 THE RE-SEATING MOVED A LINE, AND THAT NAMES IT (2026-09-25)
 
 **The handling did not move the floor.** Quiet window 07:00&ndash;12:00 UTC, geophone back
