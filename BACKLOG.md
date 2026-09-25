@@ -32,6 +32,56 @@ which IS what `fdsnws-station` returns. Two endpoints and a query-parameter spec
 Worth doing even with zero external users: our own analysis stops needing bespoke
 archive-reading glue, and the day someone asks, the answer is a URL rather than a project.
 
+## Is the 3.2x OURS, or is NP.1835 loud? (2026-09-25)
+
+**Charles's question:** could the 3.2x be configuration error or drift at the fire station
+and have nothing to do with us? `refstation.py` removes NP.1835's published response and
+treats the result as truth, so a metadata error there would be inherited exactly.
+
+**The narrow version is dead — their metadata is clean.** Checked 2026-09-25 against NCEDC:
+
+- Sensitivity **213,775 counts/(m/s^2)**, which is exactly **+-4 g full scale on 24 bits** --
+  a standard NSMP EpiSensor ES-DECK configuration. Internally consistent.
+- Stable to **0.01 %** across every epoch since 2017 (213,742 / 213,758 / 213,775). A
+  factor-of-3 error would be glaring; there is none.
+- They reconfigured **2026-03-25** (blank location closed, `2C` opened, three location codes
+  now, 100 and 200 sps) but `get_waveforms(..., "*", "HNZ")` resolves to exactly one trace,
+  `NP.1835.10.HNZ` at 100 sps, for our windows. ⚠️ Latent risk only: `reference()` returns
+  `st[0]`, so if two locations were ever served at once it would silently pick one.
+
+**The strong version is wide open, and it is not a configuration error.** NP.1835 is *Santa
+Rosa Fire Station 7*. NSMP sites instruments at structures on purpose. If it is on or in the
+building rather than free-field, structural response can amplify it at the very 5-15 Hz we
+compare in -- their record reads large, ours reads 3.2x low, and nothing about our instrument
+is wrong.
+
+**This splits a bucket.** The three surviving candidates were site response, the assumed
+f0/zeta, and a different magnet. "Site response" is really two questions -- *is OAKM1 quiet,
+or is NP.1835 loud?* -- and only the second is answerable without hardware.
+
+**The test, ~1 day, all public data.** There are **13 professional stations within 11 km**:
+
+| dist | station | bands | note |
+|---|---|---|---|
+| 1.6 km | NP.1835 | HN | our reference |
+| 3.4 km | CE.68327 | HN | |
+| 3.5 km | NC.N004 | HN | |
+| 5.9 km | NC.N008 | HN | |
+| 7.4 km | **NP.1767** | HN | the OTHER NSMP fire station |
+| 7.9 km | **NC.NTYB** | **HH**, HN | broadband VELOCITY -- same quantity we measure |
+| 9.2-11 km | NC.N006, N015, CE.68491/68676/68328/68329 | HN | |
+
+For each confirmed event, take the 5-15 Hz amplitude at NP.1835 and at 6-8 neighbours,
+correct for distance, and ask whether NP.1835 sits on the local trend or above it. Two
+stations carry extra weight: **NTYB's HH** needs no differentiation and is a different
+instrument class from every accelerometer in the list; and if **both fire stations** run high
+against the CE/NC sites, that is a fingerprint of NSMP structural siting rather than of our
+garage.
+
+**Expected outcome, stated before running it:** metadata this clean makes a large
+instrumental bias unlikely, so a modest effect is more probable than the whole 3.2x. Modest
+still matters -- it multiplies every magnitude we publish.
+
 **An amateur network of our own?** Asked 2026-09-24, sized rather than started. The brief
 lives in `Seismo-private` (`doc/amateur-network-brief.md`), with the outreach material.
 
