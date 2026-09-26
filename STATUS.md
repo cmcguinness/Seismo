@@ -146,8 +146,22 @@ grid, not the 67 mm panel, and was unreadable on the device. Local time, local >
   the new IDF second-stage bootloader refuses, so the board hangs with no USB at all.
   After that, UF2 copies work (the macOS `fcopyfile` I/O error at the end is the
   board rebooting, harmless).
-- Next: stats / weather (CLUE node) / last-event pages on buttons B–D, then deep sleep
-  for battery use.
+- **All four pages live (2026-09-26)**, `dashboard/magtag_pages.py`, one route
+  `/magtag/{page}.bmp`: **A** helicorder; **B** stats (live/age, 1–15 Hz noise vs a
+  0.8 µV quiet night, last trigger + p_quake, newest USGS quake worth seeing); **C**
+  weather (Open-Meteo, no key, US units by request; garage barometer as STATION
+  pressure, ~0.5 inHg under a weather report, with a 24 h trace); **D** last quake
+  (newest confirmed catch at SNR >= 5, or a 24 h USGS strong/likely), 2 minutes of
+  envelope around P with local >15 Hz activity greyed and kept OUT of the scale -- the
+  first render of today's M2.3 near Orinda let a garage burst 55 s later set the scale
+  at twice the quake. Repeat-press of the current page's button = white light, 10 s.
+- **Found on the way:** `/env-data` had been returning `{}` on BOTH dashboards since the
+  CLUE node grew burst columns (db2caad) -- `_env_now()` wanted exactly 8 fields.
+  Fixed to >= 8.
+- **Battery (estimated, not measured):** the always-on firmware is <1 day on 420 mAh;
+  deep sleep (250 µA measured by Adafruit) + ~0.2 mAh a wake gives ~6 d at 5 min,
+  ~2 wk at 15 min. Not built yet. The MagTag is back in production (2025 Edition,
+  SSD1680, CP 10+).
 
 ## 🧒 STATION #2 DECIDED: A CLONE, BURNED IN AT HOME (2026-09-25)
 

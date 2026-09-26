@@ -27,7 +27,7 @@ import content
 import heli_build
 import heli_render
 import heli_service
-import magtag
+import magtag_pages
 import render
 
 STATION = os.environ.get("SEISMO_STATION", "OAKM1")
@@ -1422,13 +1422,13 @@ def helicorder():
         else Response("warming up", status_code=503)
 
 
-@app.get("/magtag/heli.bmp")
-def magtag_heli():
-    # 296x128 4-grey page for the MagTag e-ink display (magtag/code.py). Cached in
-    # magtag.py on the newest envelope file, so a device polling costs ~nothing.
-    bmp = magtag.heli_bmp()
+@app.get("/magtag/{page}.bmp")
+def magtag_page(page: str):
+    # 296x128 4-grey pages for the MagTag e-ink display (magtag/code.py): heli, stats,
+    # weather, event. Each is cached in magtag_pages, so polling costs ~nothing.
+    bmp = magtag_pages.page_bmp(page)
     return Response(bmp, media_type="image/bmp", headers=NOCACHE) if bmp \
-        else Response("no data", status_code=503)
+        else Response("no such page, or no data", status_code=404)
 
 
 SPEC_CACHE = {"Cache-Control": "public, max-age=1800"}   # 30 min, matches render TTL
@@ -1555,10 +1555,12 @@ def _env_now():
         return None
     for line in reversed(lines):
         parts = line.strip().split(",")
-        if len(parts) != 8 or parts[0] == "utc":
+        # >= 8, not == 8: the node grew burst-statistics columns (db2caad) AFTER the
+        # original eight, and an exact-length test silently rejected every row since.
+        if len(parts) < 8 or parts[0] == "utc":
             continue
         try:
-            _mono, temp, press, humid, ax, ay, az = (float(x) for x in parts[1:])
+            _mono, temp, press, humid, ax, ay, az = (float(x) for x in parts[1:8])
         except ValueError:
             continue
         try:

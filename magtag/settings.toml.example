@@ -4,3 +4,6 @@ CIRCUITPY_WIFI_PASSWORD = "your-password"
 # Public copy works on any network; http://seismo.pi5.mcguinness.ai works on the LAN only.
 SEISMO_URL = "https://seismo.mcguinness.ai"
 SEISMO_REFRESH_S = 300
+# Repeat-press light: NeoPixel brightness 0..1, and seconds before it switches itself off.
+SEISMO_LIGHT = 1.0
+SEISMO_LIGHT_S = 10
