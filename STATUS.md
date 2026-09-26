@@ -127,8 +127,9 @@ Adafruit MagTag (296×128, 4-grey e-ink, 4 buttons) as a portable display. The d
 dumb: `magtag/code.py` fetches a finished BMP from `/magtag/heli.bmp` on the public
 dashboard (any Wi-Fi works; there is no path into the LAN), blits it and refreshes every
 5 min or on a button press. All layout is in `dashboard/magtag.py`: the same 15-min
-envelopes the big drum uses, re-binned into twelve 1-hour rows ~278 px wide (~13 s per
-pixel), local time, local >15 Hz activity in light grey, USGS carets in dark grey.
+envelopes the big drum uses, re-binned into six 1-hour rows of 2 px columns (~26 s
+each), ~3 mm bold text -- the first cut (twelve rows, 9 px text) was sized for the pixel
+grid, not the 67 mm panel, and was unreadable on the device. Local time, local >15 Hz activity in light grey, USGS carets in dark grey.
 
 - **The scale is keyed to the RE-BINNED columns, not the interval `env`.** A 13 s column
   extreme runs several times the median excursion, so the big drum's scaling filled every
