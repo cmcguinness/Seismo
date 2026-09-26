@@ -30,7 +30,7 @@ W, H = 296, 128
 BLACK, DARK, LIGHT, WHITE = 0, 1, 2, 3
 PALETTE = [(0, 0, 0), (0x55, 0x55, 0x55), (0xAA, 0xAA, 0xAA), (0xFF, 0xFF, 0xFF)]
 
-HOURS = float(os.environ.get("SEISMO_MAGTAG_HOURS", "12"))
+HOURS = float(os.environ.get("SEISMO_MAGTAG_HOURS", "6"))
 ENV_FRAC = float(os.environ.get("SEISMO_MAGTAG_ENV_FRAC", "0.12"))
                                    # median RE-BINNED column excursion -> this fraction
                                    # of a row (~1 px on a 10 px row): a visible noise
@@ -40,10 +40,15 @@ TZ = os.environ.get("SEISMO_MAGTAG_TZ", "America/Los_Angeles")
                                    # LOCAL time, unlike the big drum's UTC: this sits on a
                                    # desk and gets read as "that was at 3 am".
 ROW_S = 3600
-HEADER_H = 12
-LABEL_W = 16
+# Sized for the PANEL, not the pixel grid: 296 px across ~67 mm is 0.23 mm a pixel,
+# so the first cut's 9 px text was 1.5 mm tall and each column a hairline. Text is now
+# ~3 mm capitals, and a trace column is COL_W px (~0.45 mm) so it reads as ink.
+HEADER_H = 17
+LABEL_W = 21
+COL_W = 2
 PLOT_X0 = LABEL_W + 2
-PLOT_W = W - PLOT_X0
+PLOT_W = (W - PLOT_X0) // COL_W * COL_W
+NCOL = PLOT_W // COL_W
 PLOT_Y0 = HEADER_H + 1
 PLOT_H = H - PLOT_Y0
 
@@ -56,10 +61,10 @@ def _tz():
         return datetime.timezone.utc
 
 
-def _font(size):
+def _font(size, bold=True):
     # DejaVu ships inside matplotlib, which the image already carries.
     import matplotlib
-    path = os.path.join(matplotlib.get_data_path(), "fonts", "ttf", "DejaVuSans.ttf")
+    path = os.path.join(matplotlib.get_data_path(), "fonts", "ttf", "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf")
     try:
         return ImageFont.truetype(path, size)
     except OSError:
@@ -113,7 +118,7 @@ def _interval(heli_dir, t0, npix):
 
 
 def _rebin(a, edges, fn):
-    """Reduce columns into PLOT_W bins. fmin/fmax skip NaN unless the whole bin is NaN."""
+    """Reduce columns into NCOL bins. fmin/fmax skip NaN unless the whole bin is NaN."""
     return fn.reduceat(a, edges[:-1])
 
 
@@ -155,7 +160,7 @@ def _render_heli(heli_dir, hours):
     # Re-bin first, THEN scale. Each column is now the extreme of ~13 s of envelope,
     # which runs several times the interval's median excursion (`env`): keying the
     # scale to `env`, as the big drum does, filled every daytime row solid.
-    edges = np.linspace(0, per_row * npix, PLOT_W + 1).astype(int)
+    edges = np.linspace(0, per_row * npix, NCOL + 1).astype(int)
     with np.errstate(invalid="ignore", all="ignore"):
         for r in rows:
             for key, fn in (("mins", np.fmin), ("maxs", np.fmax),
@@ -178,7 +183,7 @@ def _render_heli(heli_dir, hours):
     img.putpalette([c for rgb in PALETTE for c in rgb])
     dr = ImageDraw.Draw(img)
     dr.fontmode = "1"                                   # no anti-aliasing on e-ink
-    f_small, f_head = _font(9), _font(10)
+    f_small, f_head = _font(13), _font(15)
 
     for i, r in enumerate(rows):
         base = PLOT_Y0 + (i + 0.5) * row_h
@@ -186,20 +191,21 @@ def _render_heli(heli_dir, hours):
             lo, hi = squash(k * r["mins"]), squash(k * r["maxs"])
             clo, chi = squash(k * r["lo_mins"]), squash(k * r["lo_maxs"])
         cult = r["cult"]
-        for x in range(PLOT_W):
+        for x in range(NCOL):
             if not (np.isfinite(lo[x]) and np.isfinite(hi[x])):
                 continue
-            X = PLOT_X0 + x
+            X = PLOT_X0 + x * COL_W
             y0, y1 = round(base - hi[x]), round(base - lo[x])
             if cult[x]:
                 # Faded halo is the >15 Hz (local) part; the 1-8 Hz core stays black.
-                dr.line((X, y0, X, y1), fill=LIGHT)
+                dr.rectangle((X, y0, X + COL_W - 1, y1), fill=LIGHT)
                 if np.isfinite(clo[x]) and np.isfinite(chi[x]):
-                    dr.line((X, round(base - chi[x]), X, round(base - clo[x])), fill=BLACK)
+                    dr.rectangle((X, round(base - chi[x]), X + COL_W - 1,
+                                  round(base - clo[x])), fill=BLACK)
             else:
-                dr.line((X, y0, X, y1), fill=BLACK)
+                dr.rectangle((X, y0, X + COL_W - 1, y1), fill=BLACK)
         lbl = datetime.datetime.fromtimestamp(row_t0s[i], tz).strftime("%H")
-        dr.text((0, base), lbl, font=f_small, fill=DARK, anchor="lm")
+        dr.text((0, base), lbl, font=f_small, fill=BLACK, anchor="lm")
 
     # USGS catalog: a small caret at the PREDICTED arrival, dark grey so it never
     # reads as trace. Only tiers that had a real chance of showing up.
@@ -217,15 +223,17 @@ def _render_heli(heli_dir, hours):
         i = int((ta - t_lo) // ROW_S)
         X = PLOT_X0 + int((ta - row_t0s[i]) / ROW_S * PLOT_W)
         y = PLOT_Y0 + (i + 1) * row_h - 1
-        dr.polygon([(X, y - 3), (X - 2, y), (X + 2, y)], fill=DARK)
+        dr.polygon([(X, y - 5), (X - 4, y), (X + 4, y)], fill=DARK)
 
     # Header: station + span on the left, freshness on the right.
     last = rows[-1]["maxs"]
     valid = np.nonzero(np.isfinite(last))[0]
     t_end = row_t0s[-1] + ((valid[-1] + 1) / last.size * ROW_S if valid.size else 0)
     end = datetime.datetime.fromtimestamp(t_end, tz)
+    # Blank the strip first: a big event's asinh swing runs up through it.
+    dr.rectangle((0, 0, W - 1, HEADER_H), fill=WHITE)
     dr.text((0, 0), f"{heli_render.STATION}  {n_rows} h", font=f_head, fill=BLACK)
-    dr.text((W - 1, 0), f"data to {end:%H:%M %Z}", font=f_head, fill=BLACK, anchor="ra")
+    dr.text((W - 1, 0), f"to {end:%H:%M}", font=f_head, fill=BLACK, anchor="ra")
     dr.line((0, HEADER_H, W - 1, HEADER_H), fill=LIGHT)
     return _to_bmp(img)
 
