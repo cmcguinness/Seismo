@@ -135,7 +135,16 @@ pixel), local time, local >15 Hz activity in light grey, USGS carets in dark gre
   daytime row solid. `SEISMO_MAGTAG_ENV_FRAC` (0.12) is the knob.
 - **It passes the only test that mattered:** the 2026-09-03 M3.5 renders as an
   unmissable bar in the 10:00 row (`reports/magtag-heli-m35.png`, 3× preview).
-- Render 0.2 s, cached on the newest envelope file. Not yet run on the hardware.
+- Render 0.2 s, cached on the newest envelope file. **Running on the hardware 2026-09-25**
+  (CircuitPython 10.3.1; the drive is relabelled `MAGTAG`; the old CP 7.3.2 app is
+  backed up in `~/Backups/magtag-circuitpy-2026-09-25`).
+- **Flashing trap:** this 2020 board shipped with a TinyUF2 that crawls at 4 KB/s on
+  this Mac and never finishes a UF2 copy. The fix was esptool over the ROM
+  bootloader (Boot0 + Reset): CP's combined `.bin` at 0x0, then **TinyUF2 0.35.0's
+  `tinyuf2.bin` at 0x2d0000**. The old TinyUF2's header leaves max-chip-rev at 0, which
+  the new IDF second-stage bootloader refuses, so the board hangs with no USB at all.
+  After that, UF2 copies work (the macOS `fcopyfile` I/O error at the end is the
+  board rebooting, harmless).
 - Next: stats / weather (CLUE node) / last-event pages on buttons B–D, then deep sleep
   for battery use.
 
