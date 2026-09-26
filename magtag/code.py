@@ -122,7 +122,7 @@ def show(page):
     display.refresh()
     # One line per page shown, on the serial console: where the time went.
     print(f"{page}: fetch {t1 - t0:.1f}s, panel wait {wait:.1f}s, "
-          f"refresh {time.monotonic() - t1 - wait:.1f}s")
+          f"refresh {time.monotonic() - t1 - wait:.1f}s" + (f"  ERROR {status.text}" if status.text else ""))
 
 
 def _drop_session():
