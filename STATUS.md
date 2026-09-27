@@ -160,8 +160,13 @@ grid, not the 67 mm panel, and was unreadable on the device. Local time, local >
   Fixed to >= 8.
 - **Battery (estimated, not measured):** the always-on firmware is <1 day on 420 mAh;
   deep sleep (250 µA measured by Adafruit) + ~0.2 mAh a wake gives ~6 d at 5 min,
-  ~2 wk at 15 min. Not built yet. The MagTag is back in production (2025 Edition,
-  SSD1680, CP 10+).
+  ~2 wk at 15 min. The MagTag is back in production (2025 Edition, SSD1680, CP 10+).
+- **Deep sleep built 2026-09-27**, 5 min refresh: timer wake = refresh + sleep (~4 s
+  fetch over HTTPS); button wake = act, stay up 10 s, sleep. A failed fetch leaves the
+  panel alone (sleep blanks the in-memory bitmap) and flashes red on a press.
+  Battery life still an ESTIMATE -- on USB, CircuitPython only pretends to sleep.
+- **Times on the panel are absolute** ("as of 13:21", "at 10:41"): Charles called
+  "Live, 7 s behind" false advertising on a display that holds a render 5 min.
 
 ## 🧒 STATION #2 DECIDED: A CLONE, BURNED IN AT HOME (2026-09-25)
 
