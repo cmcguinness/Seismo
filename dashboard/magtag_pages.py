@@ -66,15 +66,19 @@ def _fit(dr, text, font, width):
     return text.rstrip() + "…"
 
 
-def _ago(t, now=None):
-    s = max(0, (now or time.time()) - t)
-    if s < 90:
-        return f"{int(s)} s ago"
-    if s < 90 * 60:
-        return f"{round(s / 60)} min ago"
-    if s < 36 * 3600:
-        return f"{round(s / 3600)} h ago"
-    return f"{round(s / 86400)} d ago"
+def _when(t):
+    """An ABSOLUTE time, not an age. The panel holds each render for up to a refresh
+    interval (5 min, longer if a fetch fails), so "21 min ago" or "7 s behind" is only
+    true the moment it's drawn -- Charles: false advertising on a gizmo that sleeps.
+    Clock times stay true; only once it's days old does an age stop mattering."""
+    tz = magtag._tz()
+    d = datetime.datetime.fromtimestamp(t, tz).date()
+    today = datetime.datetime.now(tz).date()
+    if d == today:
+        return f"at {_local(t)}"
+    if (today - d).days == 1:
+        return f"yest. {_local(t)}"
+    return f"{(today - d).days} d ago"
 
 
 def _local(t, fmt="%H:%M"):
@@ -152,7 +156,7 @@ def _catalog_quakes():
 
 def _stats():
     img, dr = _canvas()
-    _header(dr, f"{magtag.heli_render.STATION}  status", _local(time.time()))
+    _header(dr, f"{magtag.heli_render.STATION}  status", f"as of {_local(time.time())}")
     fb, fr = magtag._font(15), magtag._font(14, bold=False)
     y, step = HEADER_H + 4, 21
 
@@ -166,9 +170,9 @@ def _stats():
     if age is None:
         dr.text((0, y), "No live data", font=fb, fill=BLACK)
     elif age < 120:
-        dr.text((0, y), f"Live, {age:.0f} s behind", font=fb, fill=BLACK)
+        dr.text((0, y), "Station live", font=fb, fill=BLACK)
     else:
-        dr.text((0, y), f"STALE: {_ago(time.time() - age)}", font=fb, fill=BLACK)
+        dr.text((0, y), f"STALE since {_local(time.time() - age)}", font=fb, fill=BLACK)
     rb = live.get("rms_band")
     if rb:
         dr.text((0, y + step), f"Noise {rb:.1f} µV  (×{rb / QUIET_UV:.0f} quiet night)",
@@ -196,7 +200,7 @@ def _stats():
         (min(evs, key=lambda e: e.get("hypo_km") or 1e9) if evs else None)
     if q:
         dr.text((0, y), f"M{q.get('mag')}  {q.get('hypo_km', 0):.0f} km  "
-                        f"{_ago(q['origin'])}", font=fb, fill=BLACK)
+                        f"{_when(q['origin'])}", font=fb, fill=BLACK)
         dr.text((W - 1, y), q.get("tier", ""), font=fr, fill=DARK, anchor="ra")
         dr.text((0, y + step), _fit(dr, q.get("place", ""), fr, W), font=fr, fill=BLACK)
     else:
@@ -273,7 +277,7 @@ def _pressure_24h():
 
 def _weather():
     img, dr = _canvas()
-    _header(dr, "Oakmont", _local(time.time()))
+    _header(dr, "Oakmont", f"as of {_local(time.time())}")
     wx = _open_meteo()
     f_big, fb, fr = magtag._font(38), magtag._font(15), magtag._font(14, bold=False)
 
@@ -344,7 +348,7 @@ def _event():
         dr.text((0, HEADER_H + 10), "None on record", font=magtag._font(15), fill=BLACK)
         return img
     q = qs[-1]
-    _header(dr, f"M{q['mag']}  {q['km']:.0f} km", _ago(q["origin"]))
+    _header(dr, f"M{q['mag']}  {q['km']:.0f} km", _when(q["origin"]))
     fr, fs = magtag._font(14, bold=False), magtag._font(12, bold=False)
     how_w = dr.textlength(q["how"], font=fs) + 8
     dr.text((0, HEADER_H + 2), _fit(dr, q["place"], fr, W - how_w), font=fr, fill=BLACK)
@@ -412,8 +416,7 @@ def _event():
     dr.line((px, y0 - 2, px, y0 + 3), fill=BLACK, width=2)
     dr.line((px, y1 - 3, px, y1 + 2), fill=BLACK, width=2)
     dr.text((px + 4, y0 - 3), "P", font=fs, fill=BLACK)
-    today = _local(q["origin"], "%Y%m%d") == _local(time.time(), "%Y%m%d")
-    when = _local(q["origin"], "%H:%M" if today else "%b %-d %H:%M")
+    when = _local(q["origin"], "%b %-d")          # the header carries the time
     dr.text((0, H - 1), when, font=fs, fill=BLACK, anchor="ls")
     when_end = dr.textlength(when, font=fs) + 4
     for s in range(30, POST_S, 30):
