@@ -13,7 +13,10 @@
 #   - a TIMER wake refreshes the current page and goes straight back to sleep;
 #   - a BUTTON wake (A..D are pin alarms) acts on that press, then stays awake
 #     AWAKE_S so a run of presses doesn't pay a wake each, then sleeps;
-#   - the page survives sleep in alarm.sleep_memory[0].
+#   - the page survives sleep in alarm.sleep_memory[0];
+#   - off the home page (the helicorder), the timer is SEISMO_HOME_AFTER_S (default
+#     300) and its wake goes HOME: a page you looked at reverts 5 min after the last
+#     press.
 # Sleep restarts the VM, so the in-memory bitmap comes back BLANK (all black) while
 # the panel still shows the last image. A failed fetch therefore does NOT refresh:
 # the old image stays (its clock says how stale), a button press that failed flashes
@@ -25,7 +28,8 @@
 #   adafruit_requests, adafruit_connection_manager, neopixel
 # Settings (CIRCUITPY/settings.toml, see settings.toml.example):
 #   CIRCUITPY_WIFI_SSID, CIRCUITPY_WIFI_PASSWORD, SEISMO_URL, SEISMO_REFRESH_S,
-#   SEISMO_LIGHT (0..1 brightness, default 1.0), SEISMO_LIGHT_S (auto-off, default 10)
+#   SEISMO_LIGHT (0..1 brightness, default 1.0), SEISMO_LIGHT_S (auto-off, default 10),
+#   SEISMO_HOME_AFTER_S (seconds on another page before reverting home, default 300)
 import os
 import time
 
@@ -43,6 +47,8 @@ import wifi
 URL = os.getenv("SEISMO_URL", "https://seismo.mcguinness.ai")
 REFRESH_S = int(os.getenv("SEISMO_REFRESH_S", "300"))   # e-ink: >= 180 s is kind to the panel
 PAGES = ("heli", "stats", "weather", "event")   # buttons A..D
+HOME = PAGES[0]
+HOME_AFTER_S = int(os.getenv("SEISMO_HOME_AFTER_S", "300"))
 W, H = 296, 128
 LIGHT = float(os.getenv("SEISMO_LIGHT", "1.0"))
 LIGHT_S = float(os.getenv("SEISMO_LIGHT_S", "10"))
@@ -168,7 +174,8 @@ page = PAGES[idx] if idx < len(PAGES) else PAGES[0]   # power-on: memory is arbi
 wake = alarm.wake_alarm
 
 if isinstance(wake, alarm.time.TimeAlarm):
-    show(page)                                        # scheduled: refresh, sleep again
+    page = HOME                                       # scheduled: home, refresh, sleep
+    show(page)
 else:
     # Button wake, or a cold boot / reset: act, then stay up for follow-up presses.
     if isinstance(wake, alarm.pin.PinAlarm):
@@ -197,7 +204,8 @@ if light_on:
     toggle_light()
 while display.busy:               # never cut power mid-refresh
     time.sleep(0.1)
-print(f"sleeping {REFRESH_S}s on {page}")
+nap = REFRESH_S if page == HOME else HOME_AFTER_S
+print(f"sleeping {nap}s on {page}")
 alarm.exit_and_deep_sleep_until_alarms(
-    alarm.time.TimeAlarm(monotonic_time=time.monotonic() + REFRESH_S),
+    alarm.time.TimeAlarm(monotonic_time=time.monotonic() + nap),
     *[alarm.pin.PinAlarm(pin=b, value=False, pull=True) for b in BUTTONS])
