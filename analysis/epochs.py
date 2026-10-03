@@ -21,6 +21,7 @@ AFFECTS tags say WHAT a change invalidates, so a comparison is only blocked when
 matters:
     amplitude  absolute scale: sensitivity, gain, front-end wiring
     noise      the noise floor: siting, coupling, power, shielding
+    lines      narrow spectral lines only (resonances); band powers unaffected
     timing     sample rate or clock behaviour
     glitch     ADC glitch/despiker statistics only
     detection  what lands in events.log: trigger band, thresholds, classifier
@@ -144,7 +145,7 @@ BOUNDARIES = [
      "station time reference: pool NTP (timesyncd, 34 min poll, +3.0 ms vs GPS) -> "
      "chrony against the LAN GPS-PPS stratum-1. Absolute timing improves; amplitudes "
      "and sample rate unaffected"),
-    ("2026-09-25T05:21", False, {"noise"},
+    ("2026-09-25T05:21", False, {"lines"},
      "geophone unplugged for the 23 h shorted floor test and re-seated. The BROADBAND "
      "floor is unchanged -- 1-15 Hz robust RMS 0.88 -> 0.84 uV, every band ratio "
      "0.93-1.12 against both 2026-09-23 and 2026-09-22 -- so this is NOT an amplitude "
