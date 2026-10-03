@@ -121,6 +121,28 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## ⚡ A POWER CUT, AND THE ARCHIVE THAT DIDN'T COME BACK WITH IT (2026-10-03)
+
+~50 min outage this morning; every host rebooted at ~06:36 PDT. The station recovered on
+its own (chrony stepped the fakehwclock time +4744 s two seconds into the recorder's
+start; `resyncs 1`, clean since). **pi5 did not**: the cut tore the tail of today's
+archive day-file -- four zero-filled records -- and `udp_collector._load_seen` raised on
+them inside `_handle_record`, so every live record from 06:37 to 09:48 PDT was counted
+`bad` and dropped while re-reading 24 MB per record (3 h 11 min CPU in 3 h 36 min). The
+log showed only a climbing counter.
+
+- Trimmed the four records by hand (backup `~/SS.OAKM1.00.EHZ.D.2026.276.mseed.pre-truncate-bak`
+  on pi5), restarted; then fixed in code (7cecfe5): record-by-record load, trim an
+  unreadable tail, skip+report mid-file, log the first instance of each ingest error,
+  `rsync --partial` on backfill.
+- **Archive gap 13:13:47Z -> 16:48:05Z is still open.** The data is on the station's own
+  day-file; backfill can't fetch it because the station link came back sick (ping from
+  pi5 avg 1.5 s, max 4.8 s; 3 ms to pi3chrono) -- the Ethernet bridge's Wi-Fi hop, not the
+  Pi, which is idle. Power-cycle/re-seat the bridge; the hourly backfill then fills it.
+- Unchecked: whether the station day-file holds a few records stamped with the pre-step
+  clock (~12:17Z). The recorder's resync suggests not.
+- `dokku-redeploy` failed for 4 apps at boot; the seismo dashboards are up, others not checked.
+
 ## 🏷️ MAGTAG: A HELICORDER YOU CAN CARRY (2026-09-25)
 
 Adafruit MagTag (296×128, 4-grey e-ink, 4 buttons) as a portable display. The device is
