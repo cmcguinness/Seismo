@@ -6,6 +6,7 @@ Two views of the same quantity, both built from the helicorder interval files th
 
   "days"  the last N local days, one row each -- what happened lately
   "week"  every interval collapsed onto weekday x hour -- the typical week
+  "diff"  the last N days divided by the typical week -- what was unusual
 
 The value in a cell is the median of that hour's interval `env` values, converted to
 microvolts. `env` is the median per-pixel excursion the drum actually draws (see
@@ -239,7 +240,14 @@ def grid(heli_dir=HELI, mode="days", days=DAYS, now=None):
         labels = [f"{d:%a} {d:%-d %b}" for d in wanted]
         subtitle = f"{wanted[0]:%-d %b} &ndash; {wanted[-1]:%-d %b} &middot; local time"
 
-    n_rows = len(labels)
+    values, counts = _bucket(local, keys, len(labels))
+    first = min(d for d, _ in local)
+    return {"values": values, "counts": counts, "labels": labels,
+            "subtitle": subtitle, "mode": mode, "first": first, "now": now}
+
+
+def _bucket(local, keys, n_rows):
+    """(median, count) per row x hour cell, for [(local_dt, uv)] and a row key each."""
     buckets = [[[] for _ in range(24)] for _ in range(n_rows)]
     for (d, v), r in zip(local, keys):
         if 0 <= r < n_rows:
@@ -252,9 +260,41 @@ def grid(heli_dir=HELI, mode="days", days=DAYS, now=None):
             counts[r][h] = len(b)
             if b:
                 values[r][h] = float(np.median(b))
-    first = min(d for d, _ in local)
-    return {"values": values, "counts": counts, "labels": labels,
-            "subtitle": subtitle, "mode": mode, "first": first, "now": now}
+    return values, counts
+
+
+def diff_grid(heli_dir=HELI, days=DAYS, now=None):
+    """The last `days` local days, each cell divided by the typical (weekday, hour).
+
+    The baseline is built from the current configuration up to the START of the
+    window, so this week is not partly compared against itself. Returns the same
+    {"short": ...} shape as grid(mode="week") when the baseline is too thin, and
+    None when there is nothing at all.
+    """
+    rows = _intervals(heli_dir)
+    if not rows:
+        return None
+    now = dt.datetime.now(TZ) if now is None else now.astimezone(TZ)
+    today = now.date()
+    wanted = [today - dt.timedelta(days=i) for i in range(days - 1, -1, -1)]
+    cut = dt.datetime.combine(wanted[0], dt.time(0), tzinfo=TZ).timestamp()
+    start = max([t for t, _ in _boundaries() if t <= now.timestamp()], default=0.0)
+    local = [(dt.datetime.fromtimestamp(t, TZ), v) for t, v in rows if t >= start]
+    base = [(d, v) for d, v in local if d.timestamp() < cut]
+    span = (cut - min((d.timestamp() for d, _ in base), default=cut)) / 86400
+    if span < WEEK_MIN_DAYS:
+        return {"short": True, "have": max(span, 0.0), "need": WEEK_MIN_DAYS,
+                "since": dt.datetime.fromtimestamp(start, TZ)}
+    typical, _ = _bucket(base, [d.weekday() for d, _ in base], 7)
+
+    index = {d: i for i, d in enumerate(wanted)}
+    recent = [(d, v) for d, v in local if d.timestamp() >= cut]
+    values, counts = _bucket(recent, [index.get(d.date(), -1) for d, _ in recent],
+                             len(wanted))
+    ratio = values / np.array([typical[d.weekday()] for d in wanted])
+    labels = [f"{d:%a} {d:%-d %b}" for d in wanted]
+    return {"ratio": ratio, "values": values, "counts": counts, "labels": labels,
+            "base_days": span, "now": now}
 
 
 def heatmap_png(heli_dir=HELI, mode="days", days=DAYS, now=None):
@@ -262,6 +302,8 @@ def heatmap_png(heli_dir=HELI, mode="days", days=DAYS, now=None):
     heli_render.MPL_LOCK (see there)."""
     import heli_render
     with heli_render.MPL_LOCK:
+        if mode == "diff":
+            return _diff_png(heli_dir, days, now)
         return _heatmap_png(heli_dir, mode, days, now)
 
 
@@ -401,6 +443,94 @@ def _heatmap_png(heli_dir=HELI, mode="days", days=DAYS, now=None):
     cb.ax.minorticks_off()
     cb.set_label("typical excursion, µV  (log scale)", fontsize=9.5, color=INK_2,
                  labelpad=10)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", facecolor=SURFACE)
+    buf.seek(0)
+    return buf.read()
+
+
+# DIVERGING, and here that is right: a ratio to normal HAS a meaningful midpoint, and
+# "about normal" should recede so the hours that departed from it are what you see.
+# Blue = quieter than usual, red = louder, neutral grey at x1 (never a hue there).
+# Equal steps per arm; the arms are symmetric in log2, so x2 and x1/2 are the same
+# depth of colour.
+DIVERGE = ["#1d4f9c", "#5b86cf", "#a9c2ec", "#f0efec", "#f0b29c", "#d8644a", "#9e1f1a"]
+
+
+def _diff_png(heli_dir=HELI, days=DAYS, now=None):
+    """PNG of this week against the typical week, or None if there is no baseline."""
+    import io
+
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.colors import LinearSegmentedColormap, Normalize
+    from matplotlib.figure import Figure
+
+    got = diff_grid(heli_dir, days, now)
+    if not got or got.get("short"):
+        return None
+    ratio, counts, labels = got["ratio"], got["counts"], got["labels"]
+    lr = np.log2(ratio)
+    finite = lr[np.isfinite(lr)]
+    if not finite.size:
+        return None
+    # Symmetric, robust, and bounded: at least x1.5 either way so an unusually
+    # ordinary week is not stretched into drama, at most x4 so one leaf blower does
+    # not wash every other hour to grey.
+    lim = float(np.clip(np.percentile(np.abs(finite), 98), np.log2(1.5), 2.0))
+
+    cmap = LinearSegmentedColormap.from_list("seismo_diverge", DIVERGE)
+    cmap.set_bad(SURFACE)
+    norm = Normalize(vmin=-lim, vmax=lim)
+    fig = Figure(figsize=(IMG_W / 100, IMG_H / 100), dpi=100, facecolor=SURFACE)
+    FigureCanvasAgg(fig)
+    ax = fig.add_axes([0.085, 0.20, 0.825, 0.75])
+    ax.set_facecolor(SURFACE)
+    mesh = ax.pcolormesh(np.arange(25), np.arange(len(labels) + 1),
+                         np.ma.masked_invalid(lr), cmap=cmap, norm=norm,
+                         edgecolors=SURFACE, linewidth=1.6)
+    ax.set_xlim(0, 24)
+    ax.set_ylim(len(labels), 0)
+    ax.set_xticks(np.arange(0, 25, 3))
+    ax.set_xticklabels([f"{h:02d}" for h in range(0, 25, 3)], fontsize=10, color=INK_2)
+    ax.set_yticks(np.arange(len(labels)) + 0.5)
+    ax.set_yticklabels(labels, fontsize=10.5, color=INK)
+    ax.tick_params(length=0, pad=6)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    ax.set_xlabel("hour of the day, local time", fontsize=10, color=INK_2, labelpad=8)
+
+    def _x(r):
+        return f"×{r:.1f}" if r >= 1 else f"×1/{1 / r:.1f}"
+
+    caption = []
+    for idx, tag in ((np.nanargmax(lr), "most above usual"),
+                     (np.nanargmin(lr), "most below")):
+        r, h = np.unravel_index(idx, lr.shape)
+        ax.text(h + 0.5, r + 0.5, _x(ratio[r, h]).replace("×1/", "/"), ha="center",
+                va="center", fontsize=8, color=_ink_on(cmap(norm(lr[r, h]))), zorder=4)
+        caption.append(f"{tag} {_x(ratio[r, h])} ({labels[r]}, {h:02d}:00)")
+    caption.append(f"baseline: the {got['base_days']:.0f} days before this window")
+    fig.text(0.085, 0.075, "   ·   ".join(caption), fontsize=9.5, color=INK_2)
+
+    for r in range(lr.shape[0]):
+        for h in range(24):
+            if 0 < counts[r][h] < 2:
+                ax.plot([h + 0.12], [r + 0.15], marker="o", markersize=2.2,
+                        color=SURFACE, zorder=5)
+
+    cax = fig.add_axes([0.925, 0.20, 0.014, 0.75])
+    cb = fig.colorbar(mesh, cax=cax, extend="both")
+    cb.outline.set_visible(False)
+    cb.ax.tick_params(length=0, labelsize=9, colors=INK_2, pad=5)
+    steps = [(-2, "/4"), (-1, "/2"), (-np.log2(1.5), "/1.5"), (0, "usual"),
+             (np.log2(1.5), "×1.5"), (1, "×2"), (2, "×4")]
+    steps = [(v, t) for v, t in steps if abs(v) <= lim + 1e-9]
+    cb.set_ticks([v for v, _ in steps])
+    cb.ax.set_yticklabels([t for _, t in steps])
+    cb.ax.minorticks_off()
+    cb.set_label("vs the usual weekday + hour", fontsize=9.5,
+                 color=INK_2, labelpad=6)
 
     buf = io.BytesIO()
     fig.savefig(buf, format="png", facecolor=SURFACE)

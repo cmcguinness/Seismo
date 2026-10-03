@@ -1477,15 +1477,24 @@ def activity_page():
                      'alt="noise level by weekday and hour">'
                      '<p class="text-muted small mt-2 mb-0">Every hour since the last '
                      'configuration change, collapsed onto one week.</p>')
+    # Drawn only when the typical week is, and only off a baseline that predates the
+    # window (diff_grid), so a thin or self-referential comparison never appears.
+    diff = ""
+    dg = None if (g and g.get("short")) else activity.diff_grid()
+    if dg and not dg.get("short"):
+        diff = _card(f"Last {activity.DAYS} days &middot; against the typical week",
+                     f'<img class="plot" src="/activity.png?mode=diff&amp;t={ts}" '
+                     'alt="this week divided by the typical week, hour by hour">'
+                     + content.ACTIVITY_DIFF_TEXT)
     body = (_titleblock("Activity", "when the neighbourhood is noisy &mdash; local time")
-            + days + week)
+            + days + week + diff)
     return Response(_shell(f"Activity — {BRAND}", "activity", body),
                     media_type="text/html")
 
 
 @app.get("/activity.png")
 def activity_png(mode: str = "days"):
-    png = _activity_cached("week" if mode == "week" else "days")
+    png = _activity_cached(mode if mode in ("week", "diff") else "days")
     if not png:
         return Response(status_code=404)
     return Response(png, media_type="image/png", headers=NOCACHE)

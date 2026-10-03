@@ -95,6 +95,15 @@ ACTIVITY_PRIOR_TEXT = (
     'the dashed staircase marks where it happened.</p>')
 
 
+ACTIVITY_DIFF_TEXT = (
+    '<p class="mb-0 mt-2">The top chart again, but each hour divided by what that '
+    'weekday and hour usually looks like. Grey is an ordinary hour; <b>red</b> was '
+    'louder than usual, <b>blue</b> quieter. The &ldquo;usual&rdquo; comes from the '
+    'weeks <i>before</i> these seven days, so a busy week is not quietly averaged into '
+    'its own yardstick. A red block is a party, a contractor, a leaf blower &mdash; or, '
+    'once in a while, something worth looking at on the drum.</p>')
+
+
 LEARN_SECTIONS = [
     ("Start here: what this thing actually measures",
      '<p class="prose">A seismometer does not measure earthquakes &mdash; it measures '
