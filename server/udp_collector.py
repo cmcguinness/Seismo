@@ -91,13 +91,41 @@ def _dayfile(h) -> str:
 
 
 def _load_seen(fn: str) -> set:
-    """Rebuild the start-time set for an existing day-file (restart safety)."""
+    """Rebuild the start-time set for an existing day-file (restart safety).
+
+    Walks the file one 512 B record at a time and SKIPS what it cannot parse. A power
+    cut on pi5 (2026-10-03) left four zero-filled records on the tail of the day-file
+    -- ext4 had grown the file but never written the blocks -- and the old version,
+    which handed the whole file to readMiniseed2Records, raised on them. That raise
+    happened inside _handle_record, so EVERY live record failed, was counted as "bad"
+    and dropped, and the file was re-read in full for each one: 3 h of data lost and a
+    core pinned, with nothing in the log but a climbing counter.
+
+    An unreadable TAIL is trimmed off, so new records are not appended after a hole;
+    unreadable records in the middle are left in place and reported.
+    """
     seen = set()
     p = ARCHIVE / fn
-    if p.exists():
-        with open(p, "rb") as fh:
-            for rec in simplemseed.readMiniseed2Records(fh):
-                seen.add(rec.header.starttime.isoformat())
+    if not p.exists():
+        return seen
+    data = p.read_bytes()
+    bad, last_good = [], 0
+    for off in range(0, len(data) - RECLEN + 1, RECLEN):
+        try:
+            rec = simplemseed.unpackMiniseedRecord(data[off:off + RECLEN])
+        except Exception:
+            bad.append(off // RECLEN)
+            continue
+        seen.add(rec.header.starttime.isoformat())
+        last_good = off + RECLEN
+    if last_good < len(data):
+        os.truncate(p, last_good)
+        print(f"  {fn}: trimmed {len(data) - last_good} B of unreadable tail "
+              f"(power cut?)", flush=True)
+    mid = [i for i in bad if i * RECLEN < last_good]
+    if mid:
+        print(f"  {fn}: {len(mid)} unreadable record(s) mid-file, skipped "
+              f"(first #{mid[0]})", flush=True)
     return seen
 
 
@@ -174,8 +202,11 @@ def _backfill_once(tag: str = "") -> int:
         name = os.path.basename(remote)
         tmp = f"/tmp/backfill_{name}"
         try:
+            # --partial: on a slow link (the bridge after a power cut managed ~1 s RTT)
+            # a 40 MB day-file can outlast the timeout; keep what arrived so the next
+            # hourly try resumes instead of starting over.
             r = subprocess.run(
-                ["rsync", "-az", "--timeout=40",
+                ["rsync", "-az", "--partial", "--timeout=40",
                  "-e", "ssh -o BatchMode=yes -o ConnectTimeout=15",
                  f"{STATION_HOST}:{remote}", tmp],
                 capture_output=True, timeout=180)
@@ -217,6 +248,7 @@ def main() -> None:
 
     pkts = writ = dup = bad = gaps = 0
     last_seq = None
+    errs: set = set()
     while True:
         try:
             data, _ = sock.recvfrom(65535)
@@ -241,8 +273,14 @@ def main() -> None:
                     writ += 1
                 else:
                     dup += 1
-            except Exception:
+            except Exception as exc:
                 bad += 1
+                # Say WHY, once per distinct error -- a bare counter is how a stalled
+                # archive went unnoticed for three hours.
+                why = f"{type(exc).__name__}: {exc}"[:200]
+                if why not in errs:
+                    errs.add(why)
+                    print(f"  record rejected: {why}", flush=True)
         pkts += 1
         if pkts % 60 == 0:
             print(f"  pkts {pkts} written {writ} dup {dup} bad {bad} seq_gaps {gaps}",
