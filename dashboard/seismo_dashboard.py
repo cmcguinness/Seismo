@@ -23,6 +23,7 @@ import catches
 import docpage
 import listen
 import sound
+import teleseisms
 import content
 import heli_build
 import heli_render
@@ -1336,8 +1337,9 @@ def catches_page():
     # reference-station comparison moved to /range -- they are the instrument's
     # performance argument, consulted rather than read, and they were what made this
     # page a 15-minute read doing six different things.
-    cards = "".join(_card(h, inner, card_id="s-" + sl["slug"])
-                    for sl, (h, inner) in
+    cards = _card("From 5,409&nbsp;km away", teleseisms.TEASER, card_id="teleseism")
+    cards += "".join(_card(h, inner, card_id="s-" + sl["slug"])
+                     for sl, (h, inner) in
                     ((sl, catches.stellar_html(sl)) for sl in catches.stellar()))
     cards += _card("Every confirmed event", catches.table_html(), card_id="table")
     body = _titleblock("Catches", f"earthquakes {SID} has recorded, confirmed by the USGS catalog") + \
@@ -1355,6 +1357,7 @@ def range_page():
                   + catches._ver(os.path.join(catches.CATCH_DIR, "detection-range-map.png"))
                   + '" class="plot" alt="Detection range by magnitude">' + catches.MAP_TEXT,
                   card_id="map")
+    cards += _card("Beyond the map: a P wave from Panama", teleseisms.text(), card_id="teleseism")
     cards += _card("Against the reference station", catches.ref_text(), card_id="reference")
     body = _titleblock("Range", "how far this station hears, and how hard that was to pin down") + \
         f'<div class="row"><div class="col-lg-9">{cards}</div></div>'
