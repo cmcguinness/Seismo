@@ -182,45 +182,72 @@ def main() -> None:
         print(f"  10 s envelope correlation with {ref.id}, P−60…P+300: {corr:.2f}")
 
     # --- figure ---
-    fig, axes = plt.subplots(3, 1, figsize=(11, 10),
-                             gridspec_kw={"height_ratios": [1.1, 1.1, 0.9]})
+    # The top two panels share one time axis, in minutes after the ORIGIN, so the
+    # 8-odd minutes the wave spent crossing the mantle are visible as the flat stretch
+    # between the earthquake line and the P line.
+    tp = (P - o) / 60                       # P travel time, minutes
+    xlo, xhi = -1.0, tp + 300 / 60
+    fig = plt.figure(figsize=(11, 10))
+    gs = fig.add_gridspec(3, 1, height_ratios=[1.1, 1.1, 0.9])
+    ax0 = fig.add_subplot(gs[0])
+    ax1 = fig.add_subplot(gs[1], sharex=ax0)
+    axes = [ax0, ax1, fig.add_subplot(gs[2])]
     fig.suptitle(f"M{a.mag} {a.label} — {o.strftime('%Y-%m-%d %H:%M:%S')} UTC\n"
                  f"{km:,.0f} km ({deg:.1f}°) from {ours.id}: teleseismic P, {BAND_LABEL}", fontsize=12)
 
+    def mark_times(ax, labels):
+        ax.axvline(0, color="k", lw=1.4)
+        for k, v in phases.items():
+            x = (v - o) / 60
+            if xlo <= x <= xhi:
+                ax.axvline(x, color="C3" if k == "P" else "C1", lw=1, ls="--")
+                if labels:
+                    ax.text(x + 0.05, 0.97, k, color="C3" if k == "P" else "C1",
+                            transform=ax.get_xaxis_transform(), va="top")
+
     ax = axes[0]
-    tr = ours.copy().slice(P - 700, P + 400)
+    tr = ours.copy().slice(o - 300, P + 400)
     tr.detrend("demean")
     tr.taper(0.05, max_length=30)
     tr.filter("bandpass", freqmin=P_BAND[0], freqmax=P_BAND[1], corners=4, zerophase=True)
     tr.filter("bandstop", freqmin=LINE_NOTCH[0], freqmax=LINE_NOTCH[1], corners=4, zerophase=True)
-    tt = tr.times(reftime=P)
-    keep = (tt >= -120) & (tt <= 300)
-    ax.plot(tt[keep], tr.data[keep], lw=0.5, color="0.15")
-    for k, v in phases.items():
-        if -120 <= v - P <= 300:
-            ax.axvline(v - P, color="C3" if k == "P" else "C1", lw=1, ls="--")
-            ax.text(v - P + 2, ax.get_ylim()[1] * 0.85, k, color="C3" if k == "P" else "C1")
-    ax.set_xlim(-120, 300)
+    tm = tr.times(reftime=o) / 60
+    keep = (tm >= xlo) & (tm <= xhi)
+    ax.plot(tm[keep], tr.data[keep], lw=0.35, color="0.15")
+    mark_times(ax, labels=True)
+    ax.text(0.05, 0.97, f"earthquake\n{o.strftime('%H:%M:%S')} UTC", transform=ax.get_xaxis_transform(),
+            va="top", fontsize=9)
+    ymax = np.abs(tr.data[keep]).max()
+    ax.set_ylim(-1.45 * ymax, 1.45 * ymax)
+    ax.annotate("", xy=(tp, -1.25 * ymax), xytext=(0, -1.25 * ymax),
+                arrowprops=dict(arrowstyle="<->", color="0.3", lw=1))
+    m_, s_ = divmod(round(P - o), 60)
+    ax.text(tp / 2, -1.22 * ymax, f"{m_} min {s_} s for P to cross {km:,.0f} km of mantle "
+            f"(arrives {P.strftime('%H:%M:%S')} UTC)", ha="center", va="bottom", fontsize=9, color="0.3")
     ax.set_ylabel(f"{ours.stats.station}, counts\n{BAND_LABEL}")
-    ax.set_title("Our trace, band-passed with the 1.04 Hz line notched out. P is visible by eye; the "
-                 "panels below test it", fontsize=9, loc="left")
+    ax.set_title("Our trace, band-passed with the 1.04 Hz line notched out. Nothing until P; "
+                 "the panels below test what arrives", fontsize=9, loc="left")
+    ax.tick_params(labelbottom=False)
 
     ax = axes[1]
-    mid = starts + STEP / 2
-    ax.step(mid, env, where="mid", color="C0", lw=1.6, label=f"{ours.stats.station} (ours)")
+    lead = STEP * np.ceil(((P - o) - xlo * 60) / STEP)   # keep the 10 s bins on the P grid
+    pstarts, penv = R.envelope(P, lead=lead, span=300)
+    mid = (P - o + pstarts + STEP / 2) / 60
+    ax.step(mid, penv, where="mid", color="C0", lw=1.6, label=f"{ours.stats.station} (ours)")
     if ref is not None:
-        ax.step(mid, renv, where="mid", color="C2", lw=1.2,
+        _, prenv = Ratios(ref, P_BAND, LINE_NOTCH).envelope(P, lead=lead, span=300)
+        ax.step(mid, prenv, where="mid", color="C2", lw=1.2,
                 label=f"{ref.stats.network}.{ref.stats.station} broadband, 60 km N"
                       + (f"  (envelope r = {corr:.2f})" if corr is not None else ""))
     ax.axhline(1, color="0.5", lw=0.8)
     ax.axhline(np.percentile(null, 99), color="C0", lw=0.8, ls=":",
                label=f"our 99th-percentile null ({np.percentile(null, 99):.2f}×)")
-    ax.axvline(0, color="C3", lw=1, ls="--")
+    mark_times(ax, labels=False)
     ax.set_yscale("log")
-    ax.set_xlim(-60, 300)
-    ax.set_ylabel(f"10 s RMS ÷ pre-event")
-    ax.set_xlabel("seconds after predicted P (iasp91)")
-    ax.legend(fontsize=8, loc="upper right")
+    ax.set_xlim(xlo, xhi)
+    ax.set_ylabel("10 s RMS ÷ pre-event")
+    ax.set_xlabel("minutes after the earthquake (P, PcP, PP predicted by iasp91)")
+    ax.legend(fontsize=8, loc="upper left")
     ax.set_title("Both stations rise in the same 10 s and fall back together. The "
                  "reference sees it several times more strongly", fontsize=9, loc="left")
 
