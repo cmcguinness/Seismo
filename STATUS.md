@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-09-25 (UTC)_
+_Last updated: 2026-10-09 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -107,7 +107,10 @@ Weekly-view weighted median (BACKLOG, ~November).
    signal. `audible.py` works around it by overriding the module global; the fix is to
    raise it and re-render, but that changes every existing figure, so it wants a
    deliberate pass rather than a drive-by.
-6. The 1.05 Hz line.
+6. The 1.05 Hz line. **No longer purely cosmetic (2026-10-09):** it sits in the middle of
+   the band where teleseismic P arrives, and at ~680x the local spectral median it IS
+   the floor there. Unnotched, 1-2 Hz showed the Panama P as nothing (1.09x). Notching it
+   is a workaround, and killing it at source would buy back that band.
 7. ~~Network code cutover when ISC answers.~~ **CLOSED 2026-09-24**: the ISC answered by
    registering OAKM1 in the International Registry, which is what FDSN conditions use of
    the generic `SS` code on. There is no cutover to do — `SS.OAKM1.00.EHZ` is the settled
@@ -120,6 +123,60 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🌎 FIRST TELESEISM: THE M7.7 PANAMA P WAVE, AT 5,409 km (2026-10-09)
+
+M7.7, 12 km WSW of Pitaloza Arriba, Panama, 17:56:06 UTC, 12.6 km deep. **5,409 km,
+48.6°.** iasp91 P at 18:04:49.5Z. **We recorded the P wave**, and nothing else from it.
+
+![Panama P](reports/teleseism-2026-10-09-m7.7.png)
+
+`analysis/teleseism_p.py` (new). Every number is a ratio to the station's own
+pre-event level (median of 30 s windows, P−600…P−30), so no calibration is involved:
+
+| band, Hz | ours P0–30 | **ours P+25…85** | ours surface | HOPS P+25…85 | HOPS surface |
+|---|---|---|---|---|---|
+| 0.05–0.1 | 1.13 | 1.00 | 0.95 | 269 | **323** |
+| 0.5–1.0 | 1.24 | 1.68 | 1.01 | 10.5 | 1.09 |
+| 1.0–2.0 | 0.99 | **1.09** | 1.00 | 12.3 | 0.98 |
+| 1.15–2.0 | 1.53 | **2.33** | 1.02 | 10.9 | 1.10 |
+| 2.0–5.0 | 1.04 | 1.14 | 1.11 | 3.0 | 1.30 |
+| **0.5–1.6, 0.98–1.10 notched** | 1.37 | **1.98** | 1.01 | 10.6 | 1.10 |
+
+- **Null:** the same P+25…85 statistic every 2 min across the day-file, ±1 h excluded:
+  **n = 639, p99 1.10, max 1.14. None reach 1.98.**
+- **Reference:** BK.HOPS (broadband, 60 km N) rises in the same 10 s bin. The 10 s
+  envelopes over P−60…P+300 correlate at **r = 0.74**. Both stay up for ~150 s through
+  PcP and PP, then decay together. So it is not a truck past the garage.
+- **Surface waves: nothing**, exactly as the 08-13 entry argued. HOPS has them at 323×
+  in 0.05–0.1 Hz; we read 0.95×. The f² roll-off is real and absolute.
+
+**What the 1.04 Hz line was hiding.** The first look at 0.5–1 Hz gave 1.68×, and 1–2 Hz
+gave nothing. The 0.5–1 Hz pre-event trace is nearly a sinusoid: our 1.04 Hz electronics
+line, ~680× the 0.4–1.5 Hz spectral median, is the noise floor in any band that contains
+it. Exclude it (1.15–2 Hz) and the same P reads 2.33×. Notch it out of 0.5–1.6 Hz and it
+reads 1.98× against a tighter null. That moves the line from cosmetic to costly (open
+thread 6).
+
+**What this overturns.** STATUS-ARCHIVE 2026-08-13 said "TELESEISMS ARE STRUCTURALLY
+IMPOSSIBLE HERE" and "more than ~1,000 km away we will not see it, however large". That
+was measured on one M5.5 at 4,438 km. Its physics was right for surface waves. The error
+was "however large", which generalised one event's size into a property of the band. That
+heading is now struck through and amended in place, original text kept. This is
+`CLAUDE.md`'s *failure is never proof of impossibility*, with the counter-example
+arriving 8 weeks later.
+
+**The boundary of this claim:**
+- **n = 1.** The 0.5–1.6 Hz band and the 0.98–1.10 Hz notch were chosen AFTER looking at
+  this event. The plain 0.5–1 Hz first look (1.68×, also past every null window) is the
+  number that was not tuned. The next teleseism tests the band; it was not used to pick it.
+- Daytime, 11:05 PDT, a weekday. A quiet night would have a lower floor.
+- One azimuth (SE, through the Cocos plate). Magnitude threshold unknown: 7.7 works and
+  5.5 at a similar distance did not. Nothing in between has been tried.
+- Not varied: window lengths (10 s envelope, 60 s test window), null stride, filter order.
+
+**Next:** run `teleseism_p.py` over every M6.5+ at 30–90° since 2026-07-20 to find the
+magnitude threshold. That needs only the day-files from pi5 and the USGS catalogue.
 
 ## ⚡ A POWER CUT, AND THE ARCHIVE THAT DIDN'T COME BACK WITH IT (2026-10-03)
 
@@ -2980,7 +3037,7 @@ Newest first. Each is a section header there; the dates are in the headers.
 - [🔧 DESPIKER: the bracket tolerance was stricter than the outlier bar (2026-08-14, LIVE)](STATUS-ARCHIVE.md#despiker-the-bracket-tolerance-was-stricter-than-the-outlier-bar-2026-08-14-live)
 - [✅ DETECTOR FIXED: band-limited trigger + `hf_lf` classifier (2026-08-14, LIVE)](STATUS-ARCHIVE.md#detector-fixed-band-limited-trigger-hf_lf-classifier-2026-08-14-live)
 - [🗑️ LABELLED GROUND TRUTH: the trash-can run, 2026-08-13 20:16–20:19 PDT](STATUS-ARCHIVE.md#labelled-ground-truth-the-trash-can-run-2026-08-13-20162019-pdt)
-- [⛔ TELESEISMS ARE STRUCTURALLY IMPOSSIBLE HERE — settled with evidence (2026-08-13)](STATUS-ARCHIVE.md#teleseisms-are-structurally-impossible-here-settled-with-evidence-2026-08-13)
+- [⛔ ~~TELESEISMS ARE STRUCTURALLY IMPOSSIBLE HERE~~ — true for surface waves, WRONG for P (written 2026-08-13, overturned 2026-10-09)](STATUS-ARCHIVE.md#teleseisms-are-structurally-impossible-here-true-for-surface-waves-wrong-for-p-written-2026-08-13-overturned-2026-10-09)
 - [✅ PROVISIONAL CALIBRATION ADOPTED: 3.2x low, ~9 V/(m/s) (2026-08-13)](STATUS-ARCHIVE.md#provisional-calibration-adopted-32x-low-9-vms-2026-08-13)
 - [🧭 EPOCH TABLE — `analysis/epochs.py` (2026-08-13)](STATUS-ARCHIVE.md#epoch-table-analysisepochspy-2026-08-13)
 - [🎯 ABSOLUTE CALIBRATION MEASURED — ~3.6x low, against a station 1.64 km away (2026-08-13)](STATUS-ARCHIVE.md#absolute-calibration-measured-36x-low-against-a-station-164-km-away-2026-08-13)

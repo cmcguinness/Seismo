@@ -352,7 +352,17 @@ wheelie bin outranks a real earthquake by ~70×. In the 1–15 Hz band the cans 
 to 1–15 Hz already inverts the ranking.** That is the fix to make before touching the
 threshold, and it supersedes "review the STA/LTA threshold" in the backlog.
 
-## ⛔ TELESEISMS ARE STRUCTURALLY IMPOSSIBLE HERE — settled with evidence (2026-08-13)
+## ⛔ ~~TELESEISMS ARE STRUCTURALLY IMPOSSIBLE HERE~~ — true for surface waves, WRONG for P (written 2026-08-13, overturned 2026-10-09)
+
+> **Amended 2026-10-09.** The heading originally read "TELESEISMS ARE STRUCTURALLY
+> IMPOSSIBLE HERE — settled with evidence". The M7.7 Panama earthquake at 5,409 km put
+> its **P wave** into our 0.5–1.6 Hz band at 1.98× pre-event, past every one of 639
+> null windows that day and matching BK.HOPS's envelope (r = 0.74). See
+> [STATUS.md](STATUS.md#first-teleseism-the-m77-panama-p-wave-at-5409-km-2026-10-09).
+> The surface-wave argument below still stands. The error was generalising one M5.5
+> to "however large", and treating the 0.7–2 Hz silence of a 5.5 as a property of
+> the band rather than of that event's size. The original text follows unchanged.
+
 
 M5.5, 69 km SSW of Chirilagua, El Salvador, 2026-08-13 00:30:04 UTC, depth 56.8 km.
 **4,438 km / 39.9°**, teleseismic P predicted 00:37:32Z (iasp91).
@@ -381,6 +391,10 @@ changes this.** It is the instrument's defining trade, not a defect.
 will not see it, however large, because the surviving energy is below 0.1 Hz. What we
 DO see is local — the M4.1 at 88 km was 93× baseline. Do not spend time checking
 distant events; check the catalogue inside ~150 km.
+
+> **2026-10-09: wrong for P from a large enough quake.** Surface waves, yes, out of reach
+> at any size. But an M7.7 at 49° showed its P at ~0.5–1.6 Hz, once our 1.04 Hz line was
+> notched out. Check headline quakes of roughly M7+ with `analysis/teleseism_p.py`.
 
 ## ✅ PROVISIONAL CALIBRATION ADOPTED: 3.2x low, ~9 V/(m/s) (2026-08-13)
 

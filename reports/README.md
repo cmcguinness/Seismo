@@ -69,6 +69,21 @@ the same render plus per-event share images made with `quake_share.py`.
     # envelope is on by default; --spectrogram stacks the time-frequency panel below (one image)
   ```
 
+## Teleseisms
+
+### 2026-10-09 — M7.7, Panama (5,409 km, 48.6°) · **first teleseism: P only**
+
+![M7.7 Panama teleseismic P](teleseism-2026-10-09-m7.7.png)
+
+- The P wave, in 0.5–1.6 Hz with our 1.04 Hz electronics line notched out: **1.98×
+  pre-event**. Across 639 null windows that day, none passed 1.14×. BK.HOPS, a
+  broadband 60 km north, rises in the same 10 s bin, and the envelopes correlate at
+  r = 0.74.
+- No surface waves. HOPS has them at 323× in 0.05–0.1 Hz; at 0.95× we have nothing.
+  That's the 4.5 Hz geophone's f² roll-off, and no amount of averaging gets around it.
+- Made by [`analysis/teleseism_p.py`](../analysis/teleseism_p.py); the command line is
+  in its docstring. Write-up: STATUS.md, 2026-10-09.
+
 ## Non-detections (the envelope's other edge)
 
 ### 2026-07-25 — M3.3, Little America, WY (~1140 km) · **not detected**
