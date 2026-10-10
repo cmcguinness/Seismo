@@ -171,8 +171,13 @@ arriving 8 weeks later.
   this event. The plain 0.5–1 Hz first look (1.68×, also past every null window) is the
   number that was not tuned. The next teleseism tests the band; it was not used to pick it.
 - Daytime, 11:05 PDT, a weekday. A quiet night would have a lower floor.
-- One azimuth (SE, through the Cocos plate). Magnitude threshold unknown: 7.7 works and
-  5.5 at a similar distance did not. Nothing in between has been tried.
+- One azimuth (SE, through the Cocos plate). **Magnitude threshold bracketed at
+  M6.6–7.7** for ~48°. The M6.6 aftershock (20:25:39 UTC, 14 km W of Río Grande, 5,345 km)
+  was **not seen**: 0.98× in the same notched band and window, with the same pre-event
+  floor (20.3 vs 20.0 counts) and 441 of 655 null windows ≥. HOPS had it at 3.65×, against
+  10.6× for the M7.7. Scaling our M7.7 signal by that ratio (in quadrature) predicts
+  ~1.15×, which is just above our p99 of 1.11, so the miss says the threshold is near or
+  above M6.6, not far below it.
 - Not varied: window lengths (10 s envelope, 60 s test window), null stride, filter order.
 
 **Next:** run `teleseism_p.py` over every M6.5+ at 30–90° since 2026-07-20 to find the
