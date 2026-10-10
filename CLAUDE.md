@@ -93,6 +93,11 @@ C file and fails if they drift apart.
   reader (`SEISMO_READER=pigpio`).
 - **Calibration:** ~3.2× quieter than the 28.8 V/(m/s) nameplate (`refstation.py`
   against USGS NP.1835, 1.6 km away); Vp 5.19 km/s measured from local events.
+- **Teleseisms:** the station CAN see teleseismic **P** from a big enough quake (the M7.7
+  Panama at 5,409 km, 2026-10-09: 1.98× in 0.5–1.6 Hz with the 1.04 Hz line notched; the
+  M6.6 aftershock was missed), but **never the surface waves** (f² roll-off).
+  `analysis/teleseism_p.py` tests one event against a null and BK.HOPS. Don't apply the
+  old "teleseisms are impossible here" rule from STATUS-ARCHIVE; it is struck through.
 - **Detection:** STA/LTA on the station AND on pi5 (the pi5 log is canonical); the
   gradient-boosting trigger classifier (`server/trigger_features.py` defines the
   features; retrain with `harvest_events.py` → `trigger_dataset.py` → `augment.py` →

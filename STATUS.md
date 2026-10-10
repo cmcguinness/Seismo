@@ -120,6 +120,10 @@ Weekly-view weighted median (BACKLOG, ~November).
 8. Serve `fdsnws-station` / `fdsnws-dataselect` (BACKLOG); then ask NCEDC. Do the
    ring-down first — the entry ticket to any archive is metadata you can defend.
 
+9. **Teleseismic P threshold.** Bracketed at M6.6–7.7 for ~48° (2026-10-09). Run
+   `analysis/teleseism_p.py` over the M6.5+ catalogue at 30–90° since 2026-07-20 to
+   narrow it. Each new big quake is also the out-of-sample test of the notched band,
+   which was chosen on the Panama M7.7.
 ---
 
 # Recent entries (newest first)
