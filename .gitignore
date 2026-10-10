@@ -18,6 +18,8 @@ eq_*.png
 reports/heli-*.png
 reports/spec-pw/
 reports/spec65/
+# UI-check screenshots and render comparisons: scratch, kept locally, never committed
+reports/scratch/
 
 # IDE
 .idea/

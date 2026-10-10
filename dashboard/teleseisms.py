@@ -78,4 +78,9 @@ def text():
         "Filtering it out roughly doubles how clearly the P wave stands out. One honest "
         "caveat: the band and that filter were chosen after looking at this one "
         "earthquake. The next big one will test them.</p>"
+        "<p><b>The limit.</b> Two and a half hours later an M6.6 aftershock struck almost the "
+        "same spot, and this time the station saw nothing. HOPS recorded its P wave at "
+        "about a third of the strength, which is below what this station can pick out. So "
+        "at this distance the smallest quake we can hear lies somewhere between M6.6 and "
+        "M7.7.</p>"
     )

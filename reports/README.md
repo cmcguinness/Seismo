@@ -14,7 +14,8 @@ though they are pictures and they came from the archive. The *decision* those im
 informed belongs in the code that implements it (`analysis/specgram.py`'s colour-axis
 note, `dashboard/HELICORDER.md`), where the next person will actually meet it; the
 renders themselves are scratch. `reports/heli-*.png`, `reports/spec-pw/` and
-`reports/spec65/` are gitignored for that reason. If a comparison is worth keeping,
+`reports/spec65/` are gitignored for that reason, and so is `reports/scratch/`, where
+UI-check screenshots go. If a comparison is worth keeping,
 give it a descriptive name and a paragraph here saying what it settled.
 
 **Audio.** Not every artefact is an image. `audible-m3.5-larkfield-*.wav` are
@@ -68,6 +69,14 @@ the same render plus per-event share images made with `quake_share.py`.
   # the USGS catalog -- no event id, no site lookup. A no-match => probably cultural noise.
     # envelope is on by default; --spectrogram stacks the time-frequency panel below (one image)
   ```
+
+### 2026-09-27 — M2.2, 5 km SW of Yountville, CA (22.2 km)
+
+![M2.2 Yountville](yountville-2026-09-27.png)
+
+- A clean local catch: peak 146 µV (16.2 µm/s ground velocity), envelope SNR 74, and
+  the classifier scored it p_quake 0.976. The spectrogram shows energy concentrated
+  below ~15 Hz and lasting ~10 s, the shape the detector looks for in an earthquake.
 
 ## Teleseisms
 
