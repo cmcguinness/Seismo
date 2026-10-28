@@ -130,6 +130,43 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 🏜️ GERLACH, AND THE SLOT THAT CLAIMED 354 km (2026-10-28, same day)
+
+**Charles: "So why don't we write up the M3.8 20 km WSW of Gerlach, Nevada?"** The
+Catches page's "furthest in the fit" card was showing it, unwritten, at 354 km — while
+the map said 226.5. Three things came out of looking.
+
+**1. It is a real catch, Petrolia-class.** `nn00924508`, 2026-09-16 07:17:25.9Z, Mw 3.79,
+7 km, 354 km NE across the Sierra and into the Basin and Range. Harvest (1–15 Hz): peak
+2.6 µV, snr **3.6**, sustain 5.0 s, residual −0.92 dex. `eventcheck` in 2–5 Hz: energy on
+at +50 s against iasp91 Pn +50.1, peak +59, **5.3× for 6.6 s, 0/609 noise windows reach
+it, p = 0.002**, a small rise near S (+89). Same band dilution that hid Ferndale: ten
+hertz of empty band averaged in. Written up (`2026-09-16-m3.8-gerlach.png`, clip), with
+the honest note that it complicates the Tahoe card's "the Sierra transmits": same range,
+128 km further, 8× below textbook. Also the swarm context — a dozen Gerlach events
+09-14..10-13 including an M3.3 on 09-14 (snr 0.94) that was NOT seen, so the threshold at
+350 km sits between M3.3 and M3.8.
+
+**2. The slot bug.** `stellar()`'s "furthest in the fit" took the furthest event with
+`in_fit`, which only means "not in `EXCLUDE_FROM_FIT`", i.e. the snr ≥ 3 confirmed bar.
+The map's reach uses snr ≥ 5 (the 2026-09-08 rule). Fixed: the slot now requires snr ≥ 5,
+so it agrees with the dashed circle (Tahoe). Gerlach stays in the table and in the
+calibration average, where one weak member is harmless.
+
+**3. Ferndale had silently left the record.** The USGS relocated the 2026-08-31 M4.4:
+origin 08:36:48 → **08:36:43.9**, 402 → **443 km**. `EXCLUDE_FROM_FIT` keyed on the old
+origin string, and `catches_data.py` admits excluded rows by that key, so the relocated
+row (snr 2.9, below the confirmed bar both before and after) simply vanished from
+`confirmed.json`, and "furthest recorded" passed to Gerlach with no one deciding it. The
+new key is added alongside the old. The arrival still fits after relocation: the +55.8
+to +57.8 s onset measured against the old origin is +60 to +62 s against the new one,
+with Pn predicted at +61.0. **But the current `eventcheck` null (900 s noise, 600 s
+after) calls it AMBIGUOUS at both locations: 4.2× for 7.2 s in 2–5 Hz, 30/589 windows
+reach it, p = 0.053.** The 09-06 entry's "LIKELY DETECTED at 2–5 Hz" was under the
+earlier null settings. Ferndale keeps its place as "furthest recorded" on the strength
+of the arrival time and the sustain, as before, and this caveat now sits beside it here.
+It still has no write-up on the page.
+
 ## 🔇 THE ALERT THAT NEVER ARRIVED: CATCHES FROZEN FOR FIVE WEEKS (2026-10-28)
 
 **Charles: "It seems like the Catches never updates on its own. Should it?"** It should,

@@ -1351,6 +1351,24 @@
    }
   },
   {
+   "origin": "2026-08-31T08:36:43Z",
+   "place": "228 km W of Ferndale, California",
+   "az": "NW",
+   "triggered": false,
+   "in_fit": false,
+   "mag": 4.4,
+   "dist_km": 443.0,
+   "depth_km": 10.0,
+   "peak_uv": 2.3,
+   "floor_uv": 0.78,
+   "snr": 2.9,
+   "tp_s": 61.09,
+   "ts_s": 108.79,
+   "sustain_s": 11.4,
+   "lo_hi": 2.23,
+   "resid_log10": -1.31
+  },
+  {
    "origin": "2026-08-31T07:36:22Z",
    "place": "3 km NNW of Larkfield-Wikiup, CA",
    "az": "NW",

@@ -95,7 +95,11 @@ def stellar():
     """
     if not EVENTS:
         return []
-    fitted = [e for e in EVENTS if _truthy(e, "in_fit")]
+    # "Furthest in the fit" must mean what the map's dashed circle means, and that is
+    # the `seen` bar (snr >= 5), not the confirmed bar (snr >= 3) that `in_fit` alone
+    # implies. On 2026-10-28 this slot claimed the Gerlach M3.8 at 354 km (snr 3.6) while
+    # the map said 226.5 km -- the 2026-09-08 contradiction back through another door.
+    fitted = [e for e in EVENTS if _truthy(e, "in_fit") and _n(e, "snr") >= 5]
     big = [e for e in EVENTS if _n(e, "mag") >= 2.5]
     felt = [e for e in EVENTS if e["origin"][:19] in FELT]
     slots = [
@@ -517,6 +521,46 @@ CATCHES = [
             "the event that causes it is unmistakable (signal-to-noise &ge;&nbsp;10, sustained "
             "&ge;&nbsp;3&nbsp;s, amplitude inside the calibration band), and the alert encodes "
             "its title.",
+        ],
+    ),
+    dict(
+        img="2026-09-16-m3.8-gerlach.png",
+        origin="2026-09-16T07:17:25",
+        head="M3.8 &middot; Gerlach, Nevada &middot; 2026-09-16",
+        sub="07:17:25.90 UTC &middot; 40.607&deg;N 119.590&deg;W &middot; depth 7 km &middot; "
+            "354 km NE, in the Basin and Range beyond Pyramid Lake &mdash; the far edge of the "
+            "Black Rock Desert",
+        facts=[
+            "<b>A catch that does not count toward the range, on purpose.</b> At 354&nbsp;km it "
+            "is further than Tahoe (226) and Petrolia (319), and in the harvest&rsquo;s "
+            "1&ndash;15&nbsp;Hz band it reads signal-to-noise 3.6: above the bar for the "
+            "calibration average (3) and below the bar the validated range demands (5). That "
+            "second bar exists because reach is a <em>maximum</em>, and a maximum is only as "
+            "good as its weakest member. So this event is in the fit and on the table, and "
+            "the dashed circle on the map stays at Tahoe. The page said otherwise for a day "
+            "&mdash; the &ldquo;furthest in the fit&rdquo; card used the lower bar &mdash; "
+            "and now does not.",
+            "<b>Seen on the clock, in the right band.</b> Pn was due at +50.1&nbsp;s (iasp91, "
+            "354&nbsp;km, 7&nbsp;km deep). Band-passed to 2&ndash;5&nbsp;Hz the energy switches "
+            "on at +50&nbsp;s and peaks at +59, 5.3&times; the floor for 6.6&nbsp;s, and "
+            "<b>none of 609 same-shape noise windows</b> in the surrounding 25 minutes reach "
+            "it (p&nbsp;=&nbsp;0.002). There is a smaller rise near the S time at +89. In the "
+            "full 1&ndash;15&nbsp;Hz band the same arrival is 3.6&times;, because ten hertz of "
+            "empty bandwidth are averaged in with it &mdash; the dilution that hid Ferndale.",
+            "<b>What survived the path.</b> Everything is below the geophone&rsquo;s 4.5&nbsp;Hz "
+            "corner, as at Petrolia. It arrived 8&times; below the textbook amplitude "
+            "(residual &minus;0.92&nbsp;dex) &mdash; between Tahoe&rsquo;s textbook "
+            "&minus;0.08 and Petrolia&rsquo;s &minus;1.1. That complicates the tidy story on "
+            "the Tahoe card: this ray also crossed the Sierra, 128&nbsp;km further and across "
+            "the Basin and Range first, and lost far more. Distance, not just direction.",
+            "<b>One of a swarm, and the only one heard.</b> The catalogue holds a dozen events "
+            "near Gerlach between 09-14 and 10-13, including an M3.3 two days earlier that "
+            "this station did not see. At 350&nbsp;km the threshold for this instrument sits "
+            "somewhere between M3.3 and M3.8, which is a useful number to have been handed.",
+            "<b>The HVAC switched off at +17&nbsp;s.</b> The flat line at 19.3&nbsp;Hz in the "
+            "spectrogram that ends twenty seconds after the origin is the house&rsquo;s "
+            "heat-pump, not the earthquake &mdash; a coincidence, left in because it shows what "
+            "a man-made line looks like next to a natural arrival.",
         ],
     ),
     dict(

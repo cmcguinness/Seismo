@@ -109,7 +109,13 @@ FAR_CONFIRMED = dict(lat=40.450, lon=-125.272, mag=4.84, dist=318.6,
 # ~300 km what survives is Lg in the band this geophone discards. It is not currently
 # in event_harvest.csv at all: it sat 1.5 km outside reharvest.py's 400 km search
 # radius, now widened to 450.
-EXCLUDE_FROM_FIT = {"2026-08-29T02:41:11", "2026-08-31T08:36:48"}
+# 2026-10-28: the USGS relocated Ferndale -- origin 08:36:48 -> 08:36:43.9, 402 -> 443 km
+# -- and the key stopped matching, so the event silently left confirmed.json and the
+# "furthest recorded" slot passed to the Gerlach M3.8 without anyone deciding that. The
+# arrival still fits (observed Pn re-based to the new origin is +60..62 s against +61.0
+# predicted). Both keys are kept: the exclusion must survive a relocation, not just a
+# magnitude revision.
+EXCLUDE_FROM_FIT = {"2026-08-29T02:41:11", "2026-08-31T08:36:48", "2026-08-31T08:36:43"}
 
 CITIES = [
     ("San Francisco", 37.775, -122.419), ("Sacramento", 38.582, -121.494),
