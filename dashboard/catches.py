@@ -65,7 +65,8 @@ def event_for(c):
 # Events with a felt report (USGS "Did You Feel It?"). Curated because confirmed.json
 # has no felt field -- everything else in STELLAR is computed, and should stay that way.
 FELT = {"2026-09-02T03:49:01": "MMI&nbsp;II",
-        "2026-09-03T17:33:27": "MMI&nbsp;II"}   # and felt in this house, unprompted
+        "2026-09-03T17:33:27": "MMI&nbsp;II",   # and felt in this house, unprompted
+        "2026-10-02T10:00:11": "MMI&nbsp;IV"}   # at Tahoe (543 reports), not here
 
 
 def _n(e, k, d=0.0):
@@ -473,6 +474,49 @@ CATCHES = [
             "survives this far out is low-frequency Lg, the band a 4.5&nbsp;Hz geophone is "
             "built to reject. Fitting it would make one far-field point the anchor for every "
             "ring on the map.",
+        ],
+    ),
+    dict(
+        img="2026-10-02-m3.3-south-lake-tahoe.png",
+        origin="2026-10-02T10:00:11",
+        head="M3.3 &middot; South Lake Tahoe &middot; 2026-10-02",
+        sub="10:00:11.18 UTC &middot; 38.894&deg;N 120.081&deg;W &middot; depth 10.9 km &middot; "
+            "226 km ENE, under the Sierra crest just west of the lake (reviewed Mw&nbsp;3.27; "
+            "543 felt reports at Tahoe, none here)",
+        facts=[
+            "<b>The validated range, 2.3&times; further out.</b> 226&nbsp;km against the "
+            "previous 98&nbsp;km, and unlike the <a href='/catch/2026-08-29-024111'>M4.8 off "
+            "Petrolia</a> at 319&nbsp;km this one is <b>in the fit</b>: it arrived at almost "
+            "exactly the textbook amplitude (residual &minus;0.08&nbsp;dex, where the "
+            "station&rsquo;s median deficit is &minus;0.2 and Petrolia read &minus;1.1). Peak "
+            "15.4&nbsp;&micro;V in the 1&ndash;15&nbsp;Hz band against a 0.79&nbsp;&micro;V floor, "
+            "signal-to-noise ~20&times; by the harvest&rsquo;s median-window rule, and energy "
+            "above twice the floor for 5.3&nbsp;s. The dashed circle on the range map is now "
+            "drawn from this event.",
+            "<b>Identified by the clock.</b> Pn was due at +34.2&nbsp;s (iasp91, 226&nbsp;km, "
+            "10.9&nbsp;km deep); the onset in the trace is at +34&nbsp;s, the peak at +35.1, "
+            "and the detector on pi5 triggered at <b>10:00:45</b>, the second Pn was due. Sn "
+            "was due at +60.4&nbsp;s and Sg at +63.9; the envelope rises again at +64. The "
+            "trigger classifier scored it p&nbsp;=&nbsp;0.999.",
+            "<b>The Sierra transmits.</b> Petrolia&rsquo;s path came through the Coast Ranges "
+            "and the Mendocino triple junction and arrived 16&times; below textbook; this one "
+            "crossed the Sacramento Valley and the Sierra Nevada batholith and arrived at "
+            "textbook. Old, cold granite is famously efficient at carrying seismic energy "
+            "(high&nbsp;Q); young, faulted, wet crust is not. That is a plausible reason, not "
+            "a measured one &mdash; two events are not a study &mdash; but it is the first "
+            "hint in this record that the station&rsquo;s reach depends on the direction as "
+            "much as the distance. In the spectrogram the energy sits between ~3 and "
+            "10&nbsp;Hz, hugging the geophone&rsquo;s 4.5&nbsp;Hz corner, with more of the mid "
+            "band intact than Petrolia kept.",
+            "<b>It blocked its own publication for three weeks.</b> The weekly re-harvest "
+            "refuses to publish when the validated range moves more than 1.5&times;, a gate "
+            "written after a door slam at 348&nbsp;km nearly quadrupled the number. This event "
+            "moved it 2.3&times; and the gate did exactly what it was told to, on 10-11, 10-18 "
+            "and 10-25 &mdash; and the alert saying so failed every time on an em-dash in an "
+            "HTTP header, so nobody looked until 10-27. The gate now admits a reach jump when "
+            "the event that causes it is unmistakable (signal-to-noise &ge;&nbsp;10, sustained "
+            "&ge;&nbsp;3&nbsp;s, amplitude inside the calibration band), and the alert encodes "
+            "its title.",
         ],
     ),
     dict(

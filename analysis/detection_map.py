@@ -211,11 +211,14 @@ def calibrate():
     # the calibration reads moves. Only the claim "validated to X km" gets stricter.
     strong = [r for r in conf if float(r["snr"]) >= REACH_SNR]
     reach = max(float(r["dist_km"]) for r in strong) if strong else 0.0
+    # The row that sets reach, so reharvest.py can judge a reach jump on the event
+    # that caused it rather than on the ratio alone.
+    reach_row = max(strong, key=lambda r: float(r["dist_km"])) if strong else None
 
     return dict(resid_med=resid_med, resid_sd=resid_sd, n_small=len(small),
                 corner_slope=corner_slope, m_big=m_big, r_big=r_big, k=k,
                 noise=noise, floors=k * noise, reach=reach, conf=conf, n_conf=len(conf),
-                n_strong=len(strong))
+                n_strong=len(strong), reach_row=reach_row)
 
 
 def deficit(mag, cal):

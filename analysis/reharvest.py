@@ -117,9 +117,15 @@ def ntfy(title, body, priority="default", tags=""):
         # 403s the literal User-Agent "Python-urllib/x.y" with `error code: 1010`.
         # curl and python-requests pass, urllib does not -- so say who we are. This
         # cost an evening once; do not remove the header.
+        # HTTP headers are latin-1 in urllib; an em-dash in the title raised
+        # UnicodeEncodeError, which was swallowed below. Three weekly runs were BLOCKED
+        # by the reach gate (2026-10-11/18/25) and the alert saying so never left the
+        # Mac. ntfy reads RFC 2047 in Title, so encode it rather than strip it.
+        from email.header import Header
+        title_hdr = title if title.isascii() else Header(title, "utf-8").encode()
         req = urllib.request.Request(
             f"{url}/{topic}", data=body.encode(),
-            headers={"Title": title, "Priority": priority, "Tags": tags,
+            headers={"Title": title_hdr, "Priority": priority, "Tags": tags,
                      "User-Agent": "seismo-reharvest/1.0",
                      **({"Authorization": f"Bearer {token}"} if token else {})})
         urllib.request.urlopen(req, timeout=15).read()
@@ -174,7 +180,28 @@ def calibration(csv_path):
     import detection_map as dm
     dm.CSV = Path(csv_path)
     cal = dm.calibrate()
-    return dict(n_conf=cal["n_conf"], reach=cal["reach"], deficit=cal["resid_med"])
+    return dict(n_conf=cal["n_conf"], reach=cal["reach"], deficit=cal["resid_med"],
+                reach_row=cal["reach_row"])
+
+
+def unmistakable(row):
+    """Is the event that sets the validated range strong enough to move it on its own?
+
+    The reach gate exists because reach is a MAXIMUM, so one marginal row at any
+    distance sets the headline. But a flat 1.5x ratio also refuses a genuine far catch,
+    forever: the M3.3 South Lake Tahoe of 2026-10-02 (226 km, snr 19.6, sustained 5.3 s,
+    Pn and S both on the iasp91 clock, classifier 0.999) blocked three consecutive weekly
+    publishes, and the page stayed at 2026-09-20 until a human noticed. These bars are
+    well clear of every false far-field candidate on record: the Toms Place spike held
+    1.35 s, the Nevada M3.4 read snr 3.5.
+    """
+    if row is None:
+        return False
+    try:
+        return (float(row["snr"]) >= 10 and float(row["sustain_s"]) >= 3.0
+                and row.get("far_implausible", "0") == "0")
+    except (KeyError, ValueError):
+        return False
 
 
 def diff_rows(old, new):
@@ -211,8 +238,14 @@ def check_gates(old, new, cal_old, cal_new):
         bad.append(f"confirmed events jumped {cal_old['n_conf']} -> {cal_new['n_conf']}")
     r_old, r_new = cal_old["reach"], cal_new["reach"]
     if r_old > 0 and not (1 / GATES["reach_ratio"] <= r_new / r_old <= GATES["reach_ratio"]):
-        bad.append(f"validated range moved {r_old:.1f} -> {r_new:.1f} km "
-                   f"({r_new / r_old:.2f}x; the 2026-08-29 spike was 3.9x)")
+        row = cal_new.get("reach_row")
+        if r_new > r_old and unmistakable(row):
+            print(f"  validated range moved {r_old:.1f} -> {r_new:.1f} km on "
+                  f"{row['origin'][:19]} M{row['mag']} {row['place'][:30]} "
+                  f"(snr {row['snr']}, sustained {row['sustain_s']} s): unmistakable, admitted")
+        else:
+            bad.append(f"validated range moved {r_old:.1f} -> {r_new:.1f} km "
+                       f"({r_new / r_old:.2f}x; the 2026-08-29 spike was 3.9x)")
     if abs(cal_new["deficit"] - cal_old["deficit"]) > GATES["deficit_dex"]:
         bad.append(f"site deficit moved {cal_old['deficit']:+.3f} -> "
                    f"{cal_new['deficit']:+.3f} dex")
