@@ -57,6 +57,12 @@ BAND = (1.0, 15.0)
 
 def _trace(o):
     hits = sorted(glob.glob(f"{ARCHIVE}/*.D.{o.year}.{o.julday:03d}.mseed"))
+    # Since 2026-10 the archive also carries a 1 sps pressure channel (SS.OAKM1.20.LDO)
+    # on the same day-name pattern, and sorted() puts it LAST -- so hits[-1] handed the
+    # Kenwood clip a barometer and the clip was skipped as "not 100 sps". Pick the
+    # seismic channel explicitly.
+    seis = [h for h in hits if ".EHZ." in h or ".SHZ." in h]
+    hits = seis or hits
     if not hits:
         return None
     st = read(hits[-1], starttime=o - 60, endtime=o + SEARCH_S + CLIP_S)

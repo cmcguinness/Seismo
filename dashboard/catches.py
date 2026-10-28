@@ -66,7 +66,8 @@ def event_for(c):
 # has no felt field -- everything else in STELLAR is computed, and should stay that way.
 FELT = {"2026-09-02T03:49:01": "MMI&nbsp;II",
         "2026-09-03T17:33:27": "MMI&nbsp;II",   # and felt in this house, unprompted
-        "2026-10-02T10:00:11": "MMI&nbsp;IV"}   # at Tahoe (543 reports), not here
+        "2026-10-02T10:00:11": "MMI&nbsp;IV",   # at Tahoe (543 reports), not here
+        "2026-09-16T01:40:30": "MMI&nbsp;III"}  # 171 reports, under Santa Rosa
 
 
 def _n(e, k, d=0.0):
@@ -430,11 +431,12 @@ CATCHES = [
         head="M3.8 &middot; San Leandro &middot; 2026-08-13",
         sub="15:30:04 UTC &middot; 37.755&deg;N 122.150&deg;W &middot; depth 5.5 km &middot; 88 km SSE, on the Hayward fault (first reported as M4.1)",
         facts=[
-            "Still the <b>furthest catch inside the calibrated range</b> &mdash; 88&nbsp;km, "
-            "nearly twice the previous record, and the event the map&rsquo;s dashed circle is "
-            "drawn from. The <a href='/catch/2026-08-29-024111'>M4.8 off Petrolia</a> was recorded nearly four times further "
+            "For a month the <b>furthest catch inside the calibrated range</b> &mdash; 88&nbsp;km, "
+            "nearly twice the previous record, and the event the map&rsquo;s dashed circle was "
+            "drawn from until Brentwood (98&nbsp;km, 09-12) and then "
+            "<a href='/catch/2026-10-02-100011'>Tahoe</a> (226&nbsp;km) took it. The <a href='/catch/2026-08-29-024111'>M4.8 off Petrolia</a> was recorded nearly four times further "
             "out, but it reads so far below the textbook amplitude that it is deliberately "
-            "left out of the fit, so this is where measurement still ends and inference "
+            "left out of the fit, so at the time this was where measurement ended and inference "
             "begins. Peak 503&nbsp;&micro;V at +30&nbsp;s, the energy arriving as a long train "
             "of S and surface waves rather than a sharp onset &mdash; what 88&nbsp;km of crust "
             "does to a signal.",
@@ -452,8 +454,9 @@ CATCHES = [
         sub="02:41:11.61 UTC &middot; 40.450&deg;N 125.272&deg;W &middot; depth 10 km &middot; "
             "319 km NW, offshore of the Mendocino triple junction",
         facts=[
-            "The <b>furthest catch by a factor of 3.6</b> &mdash; 319&nbsp;km against a previous "
-            "record of 89&nbsp;km. Peak 52&nbsp;&micro;V, signal-to-noise ~27&times;, and energy "
+            "The <b>furthest catch by a factor of 3.6</b> when it landed &mdash; 319&nbsp;km against "
+            "a previous record of 89&nbsp;km; the <a href='/catch/2026-08-31-083643'>M4.4 off "
+            "Ferndale</a> two days later reached 443&nbsp;km, on weaker evidence. Peak 52&nbsp;&micro;V, signal-to-noise ~27&times;, and energy "
             "above twice the noise floor for <b>five minutes</b>.",
             "<b>Identified by the clock, not by amplitude.</b> Pn was due at 02:41:56.7 "
             "(iasp91, 319&nbsp;km, 10&nbsp;km deep) and the detector triggered at "
@@ -564,13 +567,113 @@ CATCHES = [
         ],
     ),
     dict(
+        img="2026-08-31-m4.4-ferndale.png",
+        origin="2026-08-31T08:36:43",
+        head="M4.4 &middot; off Ferndale &middot; 2026-08-31",
+        sub="08:36:43.91 UTC &middot; 40.599&deg;N 126.963&deg;W &middot; depth 10 km &middot; "
+            "443 km NW, far offshore on the Mendocino fracture zone (first located 41 km nearer, "
+            "at 402 km)",
+        facts=[
+            "<b>The furthest thing in the record, and the one with the most caveats.</b> In "
+            "the harvest&rsquo;s 1&ndash;15&nbsp;Hz band it reads signal-to-noise 2.9 &mdash; "
+            "below even the bar for the calibration average &mdash; so it is on this page only "
+            "because it is kept in by hand, flagged <em>not in fit</em>. It is identified by the "
+            "clock and by how long it lasts, not by how loud it is.",
+            "<b>On the clock, twice.</b> Pn was due at +61.0&nbsp;s (iasp91, 443&nbsp;km, "
+            "10&nbsp;km deep) and the envelope lifts off the floor at about +62; Sn was due at "
+            "+109 and there is a second, stronger burst at +110&ndash;115. Energy holds above "
+            "twice the floor for <b>11.4&nbsp;s</b>, longer than any fitted catch. When the USGS "
+            "moved the event 41&nbsp;km further and 4&nbsp;s earlier, the onset measured against "
+            "the first solution (+56 to +58&nbsp;s against +56.0 predicted) re-based to +60 to "
+            "+62 against +61.0 &mdash; the identification survived the relocation.",
+            "<b>The honest counterweight.</b> Band-passed to 2&ndash;5&nbsp;Hz the arrival is "
+            "4.2&times; the floor for 7.2&nbsp;s, and <b>30 of 589</b> same-shape noise windows in "
+            "the surrounding 25 minutes reach that (p&nbsp;=&nbsp;0.05): ambiguous by the null "
+            "test that clears Gerlach outright. It reads 20&times; below the textbook amplitude. "
+            "The automatic detector did not fire. If one event on this page is wrong, it is this "
+            "one. It stays because an arrival time and a sustain are both hard to fake and both "
+            "fit, and because a page that keeps only its certainties teaches less.",
+            "<b>What the geophone threw away.</b> Over 443&nbsp;km the crust strips the high "
+            "frequencies and keeps the lows, and a 4.5&nbsp;Hz geophone rolls off as "
+            "f&sup2; below its corner: 20&times; down at 1&nbsp;Hz. The ground almost certainly "
+            "delivered more energy at 1&nbsp;Hz than at 4, and the instrument discarded most of "
+            "it. This is the first event where the still-unmeasured response "
+            "(<a href='/calibration'>f0 and damping</a>) cost data rather than precision.",
+            "<b>It left the record for a day without anyone deciding so.</b> The exclusion list "
+            "that keeps it on this page keyed on its origin time, the relocation changed the "
+            "origin time, and the row vanished from the table until the key was fixed on "
+            "2026-10-28. Origin time was chosen as the key because a catalogue revision cannot "
+            "move it; a relocation can, by a few seconds.",
+        ],
+    ),
+    dict(
+        img="2026-09-16-m2.6-santa-rosa.png",
+        origin="2026-09-16T01:40:30",
+        head="M2.6 &middot; Santa Rosa &middot; 2026-09-16",
+        sub="01:40:30.56 UTC &middot; 38.436&deg;N 122.670&deg;W &middot; depth 10.2 km &middot; "
+            "4.6 km WSW across the ground, 11.3 km through the rock &mdash; under the city, "
+            "felt by 171 people (DYFI MMI III)",
+        facts=[
+            "<b>The closest earthquake of M2.5 or more</b>, 11.3&nbsp;km hypocentral, taking "
+            "the title from <a href='/catch/2026-09-03-173327'>Larkfield-Wikiup</a> at 13.3. "
+            "Peak <b>557&nbsp;&micro;V</b> in 1&ndash;15&nbsp;Hz (1,923&nbsp;&micro;V unfiltered), "
+            "signal-to-noise 161&times;, the second-largest swing the station has produced. The "
+            "classifier scored it p&nbsp;=&nbsp;0.965 and pushed a notification.",
+            "<b>The twin of the M1.8.</b> The <a href='/catch/2026-08-29-004216'>M1.8 of 08-29</a> "
+            "was 9.4&nbsp;km down and 2.8&nbsp;km across; this one is 10.2&nbsp;km down and "
+            "4.6&nbsp;km across &mdash; the same steep ray from the same patch of crust under "
+            "the city, ten times the energy. And the same early arrival: P breaks out at about "
+            "+1.5&nbsp;s where the station&rsquo;s 5.19&nbsp;km/s crustal velocity predicts "
+            "2.2. That velocity was fitted on shallow lateral paths; rays from 10&nbsp;km down "
+            "travel through faster rock, and both deep events say so.",
+            "<b>Broadband, because there is no path to do the filtering.</b> The spectrogram "
+            "is lit to the top of the plot at onset. Compare it with "
+            "<a href='/catch/2026-10-02-100011'>Tahoe</a> on this page, where 226&nbsp;km of "
+            "crust left nothing above ~10&nbsp;Hz.",
+            "<b>Against the professionals.</b> USGS NP.1835, 1.6&nbsp;km away, recorded it too; "
+            "in the band both instruments share this station read 0.87&times; the reference, "
+            "against a median of 1.22&times; over 46 events. A routine calibration point, which "
+            "is the best kind.",
+        ],
+    ),
+    dict(
+        img="2026-10-11-m1.1-kenwood.png",
+        origin="2026-10-11T14:36:20",
+        head="M1.1 &middot; Kenwood &middot; 2026-10-11",
+        sub="14:36:20.63 UTC &middot; 38.404&deg;N 122.570&deg;W &middot; depth 1.7 km &middot; "
+            "7.0 km SE across the ground, 7.2 km through the rock &mdash; down the valley, "
+            "the closest of all",
+        facts=[
+            "<b>The closest catch through the rock</b>, 7.2&nbsp;km, taking the title from the "
+            "<a href='/catch/2026-08-29-041348'>M1.4 of 08-29</a> at 9.0. Unlike the two Santa "
+            "Rosa events, which are close on the map and deep, this one is shallow &mdash; "
+            "1.7&nbsp;km &mdash; so for once &ldquo;closest across the map&rdquo; and "
+            "&ldquo;closest through the rock&rdquo; nearly agree.",
+            "<b>91&nbsp;&micro;V from an M1.1.</b> 32&nbsp;&micro;V in the 1&ndash;15&nbsp;Hz band, "
+            "signal-to-noise 23&times;, and it reads <b>2&times; above</b> the textbook amplitude "
+            "(+0.32&nbsp;dex): shallow and close, with almost nothing to lose on the way.",
+            "<b>P at +1.4&nbsp;s, predicted +1.4.</b> The 5.19&nbsp;km/s crustal velocity was "
+            "fitted on exactly this kind of path &mdash; shallow and lateral &mdash; and here it "
+            "is exact, where the deep Santa Rosa rays run early. Same instrument, same month, "
+            "and the difference between the two is the geometry of the ray.",
+            "<b>The one that did not get a notification.</b> The detector triggered at "
+            "14:36:22 with a ratio of 363, and the classifier scored it p&nbsp;=&nbsp;0.637 "
+            "&mdash; below the 0.7 bar for a push. A real earthquake, scored a coin-flip: an "
+            "M1.1 at 7&nbsp;km is broadband and over in 3.6&nbsp;s, which is also what a truck "
+            "looks like. Kept here as a miss worth remembering when the classifier is "
+            "retrained.",
+        ],
+    ),
+    dict(
         img="2026-08-29-m1.8-santa-rosa.png",
         origin="2026-08-29T00:42:16",
         head="M1.8 &middot; Santa Rosa &middot; 2026-08-29",
         sub="00:42:16.67 UTC &middot; 38.429&deg;N 122.633&deg;W &middot; depth 9.4 km &middot; "
             "2.8 km ESE &mdash; all but underneath the station",
         facts=[
-            "The <b>closest catch</b>. 2.8&nbsp;km on the map, but 9.4&nbsp;km down, so the "
+            "The <b>closest catch</b> across the map, and the closest of all until the "
+            "<a href='/catch/2026-10-11-143620'>Kenwood M1.1</a> of 2026-10-11 at 7.2&nbsp;km. "
+            "2.8&nbsp;km on the map, but 9.4&nbsp;km down, so the "
             "real distance is 9.9&nbsp;km and almost all of it is depth &mdash; this one arrived "
             "from below. Nothing catalogued had come within 8.4&nbsp;km of the station before "
             "that night.",
@@ -712,7 +815,7 @@ CATCHES = [
         origin="2026-08-21T11:38:49",
         head="M2.3 &middot; Alameda &middot; 2026-08-21",
         sub="11:38:49 UTC &middot; 88.8&nbsp;km SSE &middot; depth 18.2 km &mdash; the furthest "
-            "event still inside the calibrated range",
+            "event inside the calibrated range, at the time",
         facts=[
             "<b>This is where measurement stops and extrapolation starts.</b> At "
             "88.8&nbsp;km it is the most distant event in the range fit, edging out the "
@@ -747,7 +850,7 @@ CATCHES = [
         origin="2026-08-29T04:13:48",
         head="M1.4 &middot; Santa Rosa &middot; 2026-08-29",
         sub="04:13:48 UTC &middot; 9.0&nbsp;km &middot; depth 8.4 km &mdash; the closest of "
-            "all, and almost directly underneath",
+            "all until Kenwood (2026-10-11), and almost directly underneath",
         facts=[
             "<b>Nearly all of that distance is straight down.</b> The epicentre is only "
             "3.2&nbsp;km away across the ground, and the hypocentre is 8.4&nbsp;km beneath "
@@ -786,10 +889,12 @@ CATCHES = [
             "still had sevenfold headroom: at gain 64 it clips near 39,000&nbsp;&micro;V. In ground "
             "terms, NP.1835 read a peak of 1.5&nbsp;mm/s in the 5&ndash;15&nbsp;Hz band, this "
             "station 0.84&nbsp;mm/s.",
-            "<b>The closest sizeable earthquake in the record</b>, 13.3&nbsp;km hypocentral "
+            "<b>The closest sizeable earthquake in the record</b> until the "
+            "<a href='/catch/2026-09-16-014030'>M2.6 under Santa Rosa</a> at 11.3&nbsp;km "
+            "(09-16): 13.3&nbsp;km hypocentral "
             "at bearing 304&deg;, under the Rodgers Creek fault &mdash; the fault system this "
-            "station was sited to listen to. Nothing else at M2.5 or above has landed within "
-            "35&nbsp;km, so at this magnitude it is nearest by a factor of three; four smaller "
+            "station was sited to listen to. Nothing else at M2.5 or above had landed within "
+            "35&nbsp;km, so at this magnitude it was nearest by a factor of three; four smaller "
             "catches are closer still. P broke out of the noise at <b>+2.2&nbsp;s</b> after "
             "origin against a predicted +2.6; S was due at about +4.4. With so little path "
             "there is "

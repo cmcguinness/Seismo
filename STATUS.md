@@ -130,6 +130,39 @@ Weekly-view weighted median (BACKLOG, ~November).
 
 # Recent entries (newest first)
 
+## 📝 EVERY RECORD-HOLDER HAS A WRITE-UP (2026-10-28, same day)
+
+**Charles: "Why not write them all up?"** Three stellar cards were showing "not been
+written up yet". Now none are. All three rendered from the day-files with
+`quake_share.py` + `catch_audio.py`; numbers from `confirmed.json`, pi5 `events.log`
+and the USGS event pages.
+
+- **M4.4 off Ferndale, 2026-08-31 (443 km, furthest recorded).** Written with its caveats
+  in the card: snr 2.9 (kept in by hand, not in fit), on the clock twice (Pn +62 vs
+  +61.0, Sn burst +110–115 vs +109), 11.4 s sustain, but **ambiguous by the current
+  eventcheck null (30/589, p = 0.05)**, 20× below textbook, detector silent. "If one
+  event on this page is wrong, it is this one." Plus the relocation story.
+- **M2.6 under Santa Rosa, 2026-09-16 01:40 (11.3 km, closest at M2.5+).** `nc75436337`,
+  10.2 km deep, 4.6 km across; 557 µV in 1–15 Hz (1,923 unfiltered), snr 161, p = 0.965
+  pushed; **felt by 171 (CDI 2.7 → MMI III)**, added to `FELT`. The geometric twin of the
+  08-29 M1.8, with the same early P (+1.5 s vs 2.2 predicted) — second deep ray that
+  says the 5.19 km/s was fitted on shallow paths. NP.1835 ratio 0.87× (ref_ok).
+- **M1.1 near Kenwood, 2026-10-11 (7.2 km, closest of all).** `nc75447796`, 1.7 km deep;
+  91 µV unfiltered / 32 µV in band, snr 23, +0.32 dex (2× above textbook, shallow and
+  close); P at +1.4 s exactly as predicted. **Triggered (ratio 363) but p = 0.637, below
+  the 0.7 push bar — no notification.** A real event scored a coin-flip; kept in the
+  card as a miss to remember at the next retrain (open thread 4).
+
+**Stale superlatives retired** in six older cards (San Leandro "still the furthest in the
+calibrated range", Petrolia "the furthest catch", Alameda "furthest still inside",
+M1.8 "the closest catch", M1.4 "the closest of all", Larkfield "closest sizeable") — each
+now says *at the time* and links to what beat it. `stellar()` computes the titles, but
+the prose underneath was hand-written and three of these had been wrong for weeks.
+
+⚠️ `dashboard/catches.py` is now **1,221 lines**, past the 1,000-line mark: the `CATCHES`
+prose list is most of it. The obvious split is `catches_text.py` (the dicts) from
+`catches.py` (the logic). Not done today; flagged.
+
 ## 🏜️ GERLACH, AND THE SLOT THAT CLAIMED 354 km (2026-10-28, same day)
 
 **Charles: "So why don't we write up the M3.8 20 km WSW of Gerlach, Nevada?"** The
