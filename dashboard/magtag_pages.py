@@ -229,7 +229,8 @@ def _open_meteo():
     url = ("https://api.open-meteo.com/v1/forecast"
            f"?latitude={LAT}&longitude={LON}"
            "&current=temperature_2m,relative_humidity_2m,weather_code,"
-           "wind_speed_10m,wind_direction_10m"
+           "wind_speed_10m,wind_direction_10m,surface_pressure"
+           "&hourly=surface_pressure&past_days=1&timeformat=unixtime"
            "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
            f"&timezone={magtag.TZ.replace('/', '%2F')}&forecast_days=1"
            + ("&temperature_unit=fahrenheit&wind_speed_unit=mph" if US else ""))
@@ -244,6 +245,27 @@ def _open_meteo():
 
 
 _press = {"t": 0.0, "data": None}
+GARAGE_STALE_S = 3600   # the barometer's trace is only shown if its newest sample is
+                        # younger than this; otherwise the page falls back to Open-Meteo
+
+
+def _pressure_fallback(wx):
+    """(epoch[], hPa[]) from Open-Meteo's modelled SURFACE pressure (station pressure
+    at the grid cell's elevation, so it is the same quantity the garage BMP280 logs,
+    not a sea-level altimeter setting): the hourly past day plus the current value.
+    Used while the garage node is down -- it is a model, not the instrument."""
+    if not wx:
+        return np.array([]), np.array([])
+    h = wx.get("hourly", {})
+    ts = [float(t) for t in h.get("time", [])]
+    ps = h.get("surface_pressure", [])
+    now = time.time()
+    pairs = [(t, p) for t, p in zip(ts, ps) if p is not None and now - 86400 <= t <= now]
+    c = wx.get("current", {})
+    if c.get("surface_pressure") is not None and c.get("time") is not None:
+        pairs.append((float(c["time"]), c["surface_pressure"]))
+    pairs.sort()
+    return np.array([t for t, _ in pairs]), np.array([p for _, p in pairs])
 
 
 def _pressure_24h():
@@ -310,6 +332,12 @@ def _weather():
     # (~16 hPa) below a weather report's altimeter setting. It's the instrument's
     # channel, so it stays as measured; the trend is what matters.
     ts, ps = _pressure_24h()
+    source = "garage"
+    if not ts.size or time.time() - ts[-1] > GARAGE_STALE_S:
+        # Garage node down (it vanished from the LAN 2026-10-14): show the model's
+        # surface pressure rather than a blank, and say so in the footer.
+        ts, ps = _pressure_fallback(wx)
+        source = "model"
     k_p, unit, dec, flat = (HPA_TO_INHG, "inHg", 2, 0.006) if US else (1.0, "hPa", 1, 0.2)
     ps = ps * k_p
     if ps.size:
@@ -328,7 +356,8 @@ def _weather():
         ys = sy1 - (ps - lo_p) / span * (sy1 - sy0)
         dr.line(list(zip(xs.tolist(), ys.tolist())), fill=BLACK, width=2)
         fs = magtag._font(11, bold=False)
-        dr.text((sx0, H - 1), "24 h", font=fs, fill=DARK, anchor="ls")
+        dr.text((sx0, H - 1), "24 h" if source == "garage" else source,
+                font=fs, fill=DARK, anchor="ls")
         dr.text((sx1, H - 1), f"{lo_p:.{dec}f}–{hi_p:.{dec}f}", font=fs, fill=DARK, anchor="rs")
     else:
         dr.text((x0, HEADER_H + 2), "No barometer", font=fr, fill=BLACK)
