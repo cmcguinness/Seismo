@@ -6,10 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A DIY Raspberry Pi seismometer — a *sensitivity-first* (not precision-first) instrument to detect local earthquakes, sited in Oakmont / Santa Rosa, Sonoma County, atop the Rodgers Creek / Maacama fault system.
 
-**Current state (as of 2026-09-21):** the station has been **recording 24/7 since
-2026-07-20**, with 58 catalog-confirmed earthquakes inside a validated range of 98.2 km,
-plus an M4.8 recorded at 319 km that is verified by arrival time but deliberately left
-out of the range fit (enforced by `EXCLUDE_FROM_FIT` in `analysis/detection_map.py` —
+**Current state (as of 2026-10-28):** the station has been **recording 24/7 since
+2026-07-20**, with 95 catalog-confirmed earthquakes inside a validated range of 226.5 km
+(the M3.3 South Lake Tahoe of 2026-10-02, in the fit at textbook amplitude; the range was
+98.2 km until 2026-10-28), plus an M4.8 recorded at 319 km that is verified by arrival
+time but deliberately left out of the range fit (enforced by `EXCLUDE_FROM_FIT` in `analysis/detection_map.py` —
 a magnitude revision made it *qualify* on 2026-09-02 and the re-harvest gate had to stop
 the publish), and two dashboards. **f0 and zeta in `station/SS.OAKM1.xml` are still
 guesses**; the inline calibration injector (`calibrator/`, `doc/BOM-calibrator.md`) is

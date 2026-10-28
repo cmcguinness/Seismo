@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-10-09 (UTC)_
+_Last updated: 2026-10-28 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -20,8 +20,10 @@ all counted. Noise floor 1–15 Hz ~0.8 µV RMS on a quiet night, ~3.5 µV after
 
 **Calibration.** Reads ~3.2× quieter than the 28.8 V/(m/s) nameplate (five anchors vs
 USGS NP.1835 1.6 km away, median 3.26×, fixed-path scatter ~1.4×). Vp 5.19 km/s
-measured. **58 catalog-confirmed events, validated range 98.2 km** (the M3.36 9 km SW of
-Brentwood, 2026-09-12, snr 12.2 — it displaced the M2.29 Alameda at 88.6 km);
+measured. **95 catalog-confirmed events, validated range 226.5 km** (the M3.3 near South
+Lake Tahoe, 2026-10-02, snr 19.6, sustained 5.3 s, Pn and S on the iasp91 clock — it
+displaced the M3.36 Brentwood at 98.2 km on 2026-10-28, after blocking its own publish
+for three weeks; see the 10-28 entry);
 biggest earthquake M4.2 Cloverdale (07-29); **biggest signal the M3.3 under
 Larkfield-Wikiup at 13.3 km (09-03), 6,843 µV in 1–15 Hz, felt in the house**
 (USGS revised it from M3.54/12.4 km/7.4 km on 09-04; the closest M2.5+ by 3×, though
@@ -30,7 +32,7 @@ four smaller catches are nearer); **furthest recorded the M4.4 184 km W of Fernd
 fitted**, enforced by `EXCLUDE_FROM_FIT` rather than left to a filter a magnitude
 revision can flip. Closest:
 the M1.8 at 2.8 km (08-29). Felt reports: Middletown M2.6 (09-02) and Larkfield-Wikiup,
-both DYFI MMI II. Detection map:
+both DYFI MMI II; the Tahoe M3.3 was felt at Tahoe (543 reports, CDI 3.9), not here. Detection map:
 `dashboard/catches/detection-range-map.png`, with its headline numbers in the `.json`
 beside it so the prose cannot drift from the image.
 
@@ -127,6 +129,53 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 🔇 THE ALERT THAT NEVER ARRIVED: CATCHES FROZEN FOR FIVE WEEKS (2026-10-28)
+
+**Charles: "It seems like the Catches never updates on its own. Should it?"** It should,
+and it had not since 2026-09-20. The weekly re-harvest (`analysis/reharvest.py`, launchd,
+Sundays 09:15) ran on 10-11, 10-18 and 10-25 and refused to publish every time: the
+**M3.3 near South Lake Tahoe of 2026-10-02** (`nc75442791`, reviewed Mw 3.27, 10.9 km,
+226.5 km hypocentral) moves the validated range **98.2 → 226.5 km, 2.31×**, and the
+reach gate allows 1.5×. The gate worked exactly as written. The alert did not:
+`"reharvest BLOCKED — needs a look"` has an em-dash, urllib encodes HTTP headers as
+latin-1, the `UnicodeEncodeError` was caught by the "a failed notification must never
+fail the run" guard and logged as `ntfy failed (ignored)`. Three runs, three silent
+refusals, and the log sat in `~/Library/Logs/seismo-reharvest.log` where nobody reads.
+(Two earlier runs, 09-27 and 10-04, refused on a dirty working tree — same silent path.)
+
+**The event is real, and it is the best far catch in the record.** Rendered from the
+day-file (`dashboard/catches/2026-10-02-m3.3-south-lake-tahoe.png`, −10..100 s so the S
+is in frame): impulsive onset at +34 s against iasp91 Pn at +34.2; peak 32 µV at +35.1 s;
+the envelope rises again at +64 s against Sn 60.4 / Sg 63.9. The pi5 detector triggered at
+10:00:45 UTC, the second Pn was due, and the classifier scored it **p = 0.999**. Harvest
+row: snr 19.6 (median-window rule), sustained 5.3 s, `lo_hi` 9.4, `far_implausible` 0,
+**residual −0.079 dex** — it arrived at textbook amplitude, where Petrolia (319 km) read
+−1.12 and Ferndale (402 km) −1.43. So unlike those two it is **in the fit**, and the
+dashed circle on the map is now drawn from it. Path is the plausible reason, not a
+measured one: Tahoe is ENE across the Sacramento Valley and the Sierra batholith (high Q);
+Petrolia and Ferndale came through the Coast Ranges and the triple junction. Two events
+are not a study; it is the first hint that reach here depends on direction.
+
+**What changed (`79118b8`, data in `9bd4b59`):**
+- `ntfy()`: a non-ASCII title is RFC 2047 encoded (`=?utf-8?q?...?=`, which ntfy reads)
+  instead of raising.
+- `check_gates()`: a reach **increase** is admitted when the row that sets it is
+  *unmistakable* — snr ≥ 10, sustain ≥ 3 s, `far_implausible` clear. Both bars are well
+  clear of every false far-field candidate on record (Toms Place spike 1.35 s; Nevada
+  M3.4 snr 3.5). Decreases and marginal increases are refused as before.
+  `detection_map.calibrate()` returns `reach_row` so the gate can look at the event.
+- Catches: Tahoe written up and featured; marked felt (at Tahoe). Clip rendered.
+- Then `reharvest.py --days 30` run by hand: **58 → 95 confirmed, reach 98.2 → 226.5 km,
+  deficit −0.218 → −0.189 dex**, published, pi5 autodeployed, apps02 deployed, and the
+  "published" ntfy went out (no `ntfy failed` in the run log).
+
+**Lesson, for the next silent failure.** "Best effort, never fail the run" is the right
+policy for a notification and the wrong policy for the *only* signal a human gets. A
+blocked publish that cannot alert should have a second channel — at minimum the gate's
+refusal should leave a marker the dashboard can show (BACKLOG). The Catches page now
+also carries the story on the Tahoe card, because the gate blocking a genuine catch for
+three weeks is a better lesson than the catch itself.
 
 ## 🌎 FIRST TELESEISM: THE M7.7 PANAMA P WAVE, AT 5,409 km (2026-10-09)
 

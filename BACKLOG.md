@@ -634,6 +634,12 @@ Depends on nothing; the calibration and the peak are both already in the event r
 
 ## Re-harvest / catalogue revision
 
+- **A blocked publish needs a second channel.** 2026-10-28: three weekly runs refused on
+  the reach gate and the ntfy alert failed silently (em-dash in a header), so the page
+  sat five weeks stale. The header is fixed, but "best effort" notification is still the
+  only signal. Options: write a `reharvest-status.json` the dashboard shows as a banner
+  when the last run did not publish; or have pi5's detector notice the committed CSV is
+  older than N days and push its own nag.
 - `analysis/reharvest.py` runs weekly (launchd, Sundays 09:15) and auto-publishes behind
   sanity gates. Watch the first few real runs: if the gates block on something legitimate,
   the thresholds in `GATES` are the dial, not the check.
