@@ -553,7 +553,8 @@ def _rail(active):
             f'<a class="r-nav-a" href="{usgs}" target="_blank" rel="noopener">'
             'USGS map <span class="ext">&#8599;</span></a>'
             '<a class="r-nav-a" href="https://github.com/cmcguinness/Seismo" target="_blank" '
-            'rel="noopener">Source on GitHub <span class="ext">&#8599;</span></a>')
+            'rel="noopener">Source on GitHub <span class="ext">&#8599;</span></a>'
+            '<a class="r-nav-a" href="mailto:seismo@mcguinness.ai">Email the station</a>')
 
     provenance = ("public copy &middot; pushed from the station"
                   if _PUBLIC_COPY else "on the LAN &middot; from the archive")

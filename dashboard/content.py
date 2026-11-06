@@ -546,8 +546,14 @@ ABOUT_SECTIONS = [
      'project</b> &mdash; for instance, whether visitors spend longer listening to the live audio '
      'than reading the plots. Only totals and averages are ever reported. No individual visitor '
      'is identified, and the logs themselves are not published or shared.</p>'
-     '<p class="mb-0 prose">Questions are welcome through the project&rsquo;s public '
-     'repository.</p>'),
+     '<p class="mb-0 prose">Questions are welcome at '
+     '<a href="mailto:seismo@mcguinness.ai">seismo@mcguinness.ai</a> or through the '
+     'project&rsquo;s public repository.</p>'),
+    ("Get in touch",
+     '<p class="mb-0 prose">Questions, corrections, a quake you felt that the station '
+     'missed, or you run a station of your own: write to '
+     '<a href="mailto:seismo@mcguinness.ai">seismo@mcguinness.ai</a>. A real person '
+     'reads it &mdash; the one who built this.</p>'),
 ]
 
 
