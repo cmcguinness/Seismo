@@ -2,7 +2,19 @@
 
 A single-channel, sensitivity-first seismometer in a garage in Oakmont, Santa Rosa,
 California, on the Rodgers Creek / Maacama fault system. Recording continuously since
-2026-07-20 as station **SS.OAKM1.00.EHZ**. Live at **https://seismo.mcguinness.ai**.
+2026-07-20 as station **SS.OAKM1.00.EHZ**.
+
+## ▶ [See it live: seismo.mcguinness.ai](https://seismo.mcguinness.ai)
+
+The dashboard is the station itself, updated every few seconds. Start with:
+
+- **[Now](https://seismo.mcguinness.ai)**: the ground under the garage right now, as a live spectrum and a four-hour helicorder.
+- **[Catches](https://seismo.mcguinness.ai/catches)**: every confirmed earthquake, plotted beside a USGS station's record of the same event.
+- **[Listen](https://seismo.mcguinness.ai/listen)**: the live signal moved up into hearing, as a chord that shifts with the ground.
+- **[Range](https://seismo.mcguinness.ai/range)**: how far away, and how small, a quake it can hear.
+- **[Learn](https://seismo.mcguinness.ai/learn)**: how to read a seismogram, if you never have.
+
+<img src="readme/chandelier.gif" align="right" width="108" alt="The chandelier at home swinging during an earthquake">
 
 It started with a chandelier at home that I noticed would swing when the ground shook, and wondering if it would make a good improvised seismometer. It didn't.  But I progressed to a Raspberry Pi, a 24-bit ADC and a 4.5 Hz geophone that could.  Here's a first prototype; the final version is essentially the same, just done a lot neater:
 
