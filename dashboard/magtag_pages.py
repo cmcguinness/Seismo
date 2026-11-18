@@ -352,13 +352,13 @@ def _weather():
         # surface pressure rather than a blank, and say so.
         ts, ps = _pressure_fallback(wx)
         source = "model"
-    k_p, unit, dec, flat = (HPA_TO_INHG, "inHg", 2, 0.006) if US else (1.0, "hPa", 1, 0.2)
+    k_p, dec, flat = (HPA_TO_INHG, 2, 0.006) if US else (1.0, 1, 0.2)
     ps = ps * k_p
     fs = magtag._font(13, bold=False)   # the module's 13 px floor
     if ps.size:
         dr.text((x0, HEADER_H + 2), f"{ps[-1]:.{dec}f}", font=fb, fill=BLACK)
-        dr.text((W - 1, HEADER_H + 4), unit if source == "garage" else f"{unit} model",
-                font=fs, fill=DARK, anchor="ra")
+        if source != "garage":            # no unit (it's obvious); flag only the model
+            dr.text((W - 1, HEADER_H + 4), "model", font=fs, fill=DARK, anchor="ra")
         prior = ps[ts <= ts[-1] - 3 * 3600]
         if prior.size:
             dp = ps[-1] - prior[-1]
@@ -370,7 +370,7 @@ def _weather():
     # Right half, bottom: tomorrow.
     dr.line((x0, 58, W - 1, 58), fill=LIGHT)
     tmr = _day(wx.get("daily", {}), 1) if wx else {}
-    dr.text((x0, 61), "Tomorrow", font=fs, fill=DARK)
+    dr.text((x0, 60), "Tomorrow", font=fr, fill=BLACK)   # DARK grey read as faint on the panel
     if tmr.get("temperature_2m_max") is not None:
         dr.text((x0, 75), _fit(dr, WMO.get(tmr.get("weather_code"), "—"), fb, W - x0),
                 font=fb, fill=BLACK)
