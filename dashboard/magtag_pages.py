@@ -333,7 +333,8 @@ def _weather():
         wd = c.get("wind_direction_10m")
         wdir = COMPASS[int((wd + 22.5) // 45) % 8] if wd is not None else ""
         dr.text((0, 104), f"{c.get('wind_speed_10m', 0):.0f} {'mph' if US else 'km/h'} {wdir}", font=fr, fill=BLACK)
-        dr.text((70 + 45, 104), f"{c.get('relative_humidity_2m', 0)}%", font=fr, fill=DARK)
+        dr.text((146, 104), f"{c.get('relative_humidity_2m', 0)}% rh", font=fr, fill=BLACK,
+                anchor="ra")                  # right-aligned to the divider, so "rh" fits
     else:
         dr.text((0, HEADER_H + 10), "No forecast", font=fb, fill=BLACK)
 
