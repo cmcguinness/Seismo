@@ -231,8 +231,9 @@ def _open_meteo():
            "&current=temperature_2m,relative_humidity_2m,weather_code,"
            "wind_speed_10m,wind_direction_10m,surface_pressure"
            "&hourly=surface_pressure&past_days=1&timeformat=unixtime"
-           "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
-           f"&timezone={magtag.TZ.replace('/', '%2F')}&forecast_days=1"
+           "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
+           "weather_code"
+           f"&timezone={magtag.TZ.replace('/', '%2F')}&forecast_days=2"
            + ("&temperature_unit=fahrenheit&wind_speed_unit=mph" if US else ""))
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "OAKM1-seismo-dashboard"})
@@ -242,6 +243,19 @@ def _open_meteo():
     except Exception:
         _wx["t"] = time.time() - WX_TTL + 120      # failed: retry in 2 min, keep stale data
     return _wx["data"]
+
+
+def _day(d, offset):
+    """{field: value} for today (offset 0) or tomorrow (1) from Open-Meteo's `daily`.
+    `past_days=1` (wanted for the hourly pressure) ALSO puts yesterday first in the
+    daily arrays, so index 0 is not today: until 2026-11-18 the page showed
+    yesterday's high/low as today's. Pick by date instead -- each `time` is a local
+    midnight, so today is the last one not after now."""
+    ts = d.get("time") or []
+    i = sum(1 for t in ts if t <= time.time()) - 1 + offset
+    if not 0 <= i < len(ts):
+        return {}
+    return {k: v[i] for k, v in d.items() if isinstance(v, list) and i < len(v)}
 
 
 _press = {"t": 0.0, "data": None}
@@ -309,14 +323,13 @@ def _weather():
         dr.text((0, HEADER_H + 2), f"{c.get('temperature_2m', 0):.0f}°", font=f_big, fill=BLACK)
         dr.text((0, 64), WMO.get(c.get("weather_code"), "—"),
                 font=fb, fill=BLACK)
-        try:
-            hi, lo = d["temperature_2m_max"][0], d["temperature_2m_min"][0]
-            dr.text((0, 84), f"{hi:.0f}° / {lo:.0f}°", font=fr, fill=BLACK)
-            rain = d.get("precipitation_probability_max", [None])[0]
-            if rain:
-                dr.text((70, 84), f"rain {rain}%", font=fr, fill=BLACK)
-        except (KeyError, IndexError, TypeError):
-            pass
+        today = _day(d, 0)
+        if today.get("temperature_2m_max") is not None:
+            dr.text((0, 84), f"{today['temperature_2m_max']:.0f}° / "
+                    f"{today['temperature_2m_min']:.0f}°", font=fr, fill=BLACK)
+            if today.get("precipitation_probability_max"):
+                dr.text((70, 84), f"rain {today['precipitation_probability_max']}%",
+                        font=fr, fill=BLACK)
         wd = c.get("wind_direction_10m")
         wdir = COMPASS[int((wd + 22.5) // 45) % 8] if wd is not None else ""
         dr.text((0, 104), f"{c.get('wind_speed_10m', 0):.0f} {'mph' if US else 'km/h'} {wdir}", font=fr, fill=BLACK)
@@ -324,8 +337,9 @@ def _weather():
     else:
         dr.text((0, HEADER_H + 10), "No forecast", font=fb, fill=BLACK)
 
-    # Right half: the garage barometer -- the instrument's own weather, and the thing
-    # that explains slow station noise.
+    # Right half, top: the barometer as one value + its 3 h tendency (the part of a
+    # barometer that forecasts). The 24 h sparkline that used to fill this half gave
+    # way to tomorrow's forecast on 2026-11-18.
     x0 = 158
     dr.line((x0 - 6, HEADER_H + 3, x0 - 6, H - 1), fill=LIGHT)
     # STATION pressure, not sea-level: the garage is ~135 m up, so this reads ~0.5 inHg
@@ -335,32 +349,37 @@ def _weather():
     source = "garage"
     if not ts.size or time.time() - ts[-1] > GARAGE_STALE_S:
         # Garage node down (it vanished from the LAN 2026-10-14): show the model's
-        # surface pressure rather than a blank, and say so in the footer.
+        # surface pressure rather than a blank, and say so.
         ts, ps = _pressure_fallback(wx)
         source = "model"
     k_p, unit, dec, flat = (HPA_TO_INHG, "inHg", 2, 0.006) if US else (1.0, "hPa", 1, 0.2)
     ps = ps * k_p
+    fs = magtag._font(13, bold=False)   # the module's 13 px floor
     if ps.size:
         dr.text((x0, HEADER_H + 2), f"{ps[-1]:.{dec}f}", font=fb, fill=BLACK)
-        dr.text((W - 1, HEADER_H + 4), unit, font=fr, fill=DARK, anchor="ra")
+        dr.text((W - 1, HEADER_H + 4), unit if source == "garage" else f"{unit} model",
+                font=fs, fill=DARK, anchor="ra")
         prior = ps[ts <= ts[-1] - 3 * 3600]
         if prior.size:
             dp = ps[-1] - prior[-1]
             arrow = "▲" if dp > flat else "▼" if dp < -flat else "→"
-            dr.text((x0, HEADER_H + 22), f"{arrow} {dp:+.{dec}f} in 3 h", font=fr, fill=BLACK)
-        # 24 h sparkline, min/max labelled so the scale is honest
-        sx0, sx1, sy0, sy1 = x0, W - 1, 64, 112
-        lo_p, hi_p = float(ps.min()), float(ps.max())
-        span = max(hi_p - lo_p, 0.5 * k_p)
-        xs = sx0 + (ts - ts[0]) / max(ts[-1] - ts[0], 1) * (sx1 - sx0)
-        ys = sy1 - (ps - lo_p) / span * (sy1 - sy0)
-        dr.line(list(zip(xs.tolist(), ys.tolist())), fill=BLACK, width=2)
-        fs = magtag._font(11, bold=False)
-        dr.text((sx0, H - 1), "24 h" if source == "garage" else source,
-                font=fs, fill=DARK, anchor="ls")
-        dr.text((sx1, H - 1), f"{lo_p:.{dec}f}–{hi_p:.{dec}f}", font=fs, fill=DARK, anchor="rs")
+            dr.text((x0, HEADER_H + 21), f"{arrow} {dp:+.{dec}f} in 3 h", font=fr, fill=BLACK)
     else:
         dr.text((x0, HEADER_H + 2), "No barometer", font=fr, fill=BLACK)
+
+    # Right half, bottom: tomorrow.
+    dr.line((x0, 58, W - 1, 58), fill=LIGHT)
+    tmr = _day(wx.get("daily", {}), 1) if wx else {}
+    dr.text((x0, 61), "Tomorrow", font=fs, fill=DARK)
+    if tmr.get("temperature_2m_max") is not None:
+        dr.text((x0, 75), _fit(dr, WMO.get(tmr.get("weather_code"), "—"), fb, W - x0),
+                font=fb, fill=BLACK)
+        dr.text((x0, 95), f"{tmr['temperature_2m_max']:.0f}° / "
+                f"{tmr['temperature_2m_min']:.0f}°", font=fr, fill=BLACK)
+        rain = tmr.get("precipitation_probability_max")
+        dr.text((x0, 111), f"rain {rain}%" if rain else "dry", font=fr, fill=BLACK)
+    else:
+        dr.text((x0, 75), "—", font=fb, fill=BLACK)
     return img
 
 
