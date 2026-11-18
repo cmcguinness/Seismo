@@ -223,22 +223,32 @@ _wx = {"t": 0.0, "data": None}
 WX_TTL = 900            # Open-Meteo updates every 15 min; asking more often gains nothing
 
 
+def _get_json(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "OAKM1-seismo-dashboard"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.load(r)
+
+
 def _open_meteo():
     if _wx["data"] is not None and time.time() - _wx["t"] < WX_TTL:
         return _wx["data"]
-    url = ("https://api.open-meteo.com/v1/forecast"
-           f"?latitude={LAT}&longitude={LON}"
-           "&current=temperature_2m,relative_humidity_2m,weather_code,"
-           "wind_speed_10m,wind_direction_10m,surface_pressure"
-           "&hourly=surface_pressure&past_days=1&timeformat=unixtime"
-           "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
-           "weather_code"
-           f"&timezone={magtag.TZ.replace('/', '%2F')}&forecast_days=2"
-           + ("&temperature_unit=fahrenheit&wind_speed_unit=mph" if US else ""))
+    # TWO requests, on purpose. Asking for `current=` in the same call as `daily=`
+    # changes the daily forecast: on 2026-11-18 tomorrow came back as 73 "Snow" with
+    # 0.32 cm snowfall and a 42 F low (freezing level ~1500 m all day) with `current`,
+    # and as 61 "Light rain", 0 snowfall, without it -- reproducibly. So the daily and
+    # hourly come from a call that doesn't ask for `current`, and `current` alone.
+    base = ("https://api.open-meteo.com/v1/forecast"
+            f"?latitude={LAT}&longitude={LON}&timeformat=unixtime"
+            f"&timezone={magtag.TZ.replace('/', '%2F')}"
+            + ("&temperature_unit=fahrenheit&wind_speed_unit=mph" if US else ""))
+    forecast = (base + "&hourly=surface_pressure&past_days=1&forecast_days=2"
+                "&daily=temperature_2m_max,temperature_2m_min,"
+                "precipitation_probability_max,weather_code")
+    current = (base + "&current=temperature_2m,relative_humidity_2m,weather_code,"
+               "wind_speed_10m,wind_direction_10m,surface_pressure")
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "OAKM1-seismo-dashboard"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.load(r)
+        data = _get_json(forecast)
+        data["current"] = _get_json(current).get("current", {})
         _wx.update(t=time.time(), data=data)
     except Exception:
         _wx["t"] = time.time() - WX_TTL + 120      # failed: retry in 2 min, keep stale data
