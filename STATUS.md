@@ -372,6 +372,9 @@ grid, not the 67 mm panel, and was unreadable on the device. Local time, local >
   fetch over HTTPS); button wake = act, stay up 10 s, sleep. A failed fetch leaves the
   panel alone (sleep blanks the in-memory bitmap) and flashes red on a press.
   Battery life still an ESTIMATE -- on USB, CircuitPython only pretends to sleep.
+- **Timer wake is a glance then the weather (2026-11-18):** helicorder, deep sleep
+  `SEISMO_FLIP_S` (30 s), weather, then the full `SEISMO_REFRESH_S`; the step rides in
+  `sleep_memory[1]`, a button press abandons it. Verified on the device over serial.
 - **Times on the panel are absolute** ("as of 13:21", "at 10:41"): Charles called
   "Live, 7 s behind" false advertising on a display that holds a render 5 min.
 

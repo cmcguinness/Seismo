@@ -9,3 +9,5 @@ SEISMO_LIGHT = 1.0
 SEISMO_LIGHT_S = 10
 # Seconds on any page but the helicorder before it reverts there.
 SEISMO_HOME_AFTER_S = 300
+# On a timer wake: seconds the helicorder shows before switching to the weather.
+SEISMO_FLIP_S = 30

@@ -10,7 +10,10 @@
 # SEISMO_LIGHT_S seconds (default 10), or on the next press of that button.
 #
 # DEEP SLEEP between refreshes, for battery life (~6 days on 420 mAh at 5 min, est.):
-#   - a TIMER wake refreshes the current page and goes straight back to sleep;
+#   - a TIMER wake runs a two-step cycle: show the helicorder, deep-sleep
+#     SEISMO_FLIP_S (default 30), wake, show the weather, then sleep the full
+#     SEISMO_REFRESH_S. The panel rests on the weather; the helicorder is a glance.
+#     The cycle step survives sleep in alarm.sleep_memory[1];
 #   - a BUTTON wake (A..D are pin alarms) acts on that press, then stays awake
 #     AWAKE_S so a run of presses doesn't pay a wake each, then sleeps;
 #   - the page survives sleep in alarm.sleep_memory[0];
@@ -29,7 +32,8 @@
 # Settings (CIRCUITPY/settings.toml, see settings.toml.example):
 #   CIRCUITPY_WIFI_SSID, CIRCUITPY_WIFI_PASSWORD, SEISMO_URL, SEISMO_REFRESH_S,
 #   SEISMO_LIGHT (0..1 brightness, default 1.0), SEISMO_LIGHT_S (auto-off, default 10),
-#   SEISMO_HOME_AFTER_S (seconds on another page before reverting home, default 300)
+#   SEISMO_HOME_AFTER_S (seconds on another page before reverting home, default 300),
+#   SEISMO_FLIP_S (seconds the helicorder shows on a timer wake before the weather, 30)
 import os
 import time
 
@@ -49,6 +53,8 @@ REFRESH_S = int(os.getenv("SEISMO_REFRESH_S", "300"))   # e-ink: >= 180 s is kin
 PAGES = ("heli", "stats", "weather", "event")   # buttons A..D
 HOME = PAGES[0]
 HOME_AFTER_S = int(os.getenv("SEISMO_HOME_AFTER_S", "300"))
+REST = "weather"                        # where a timer cycle leaves the panel
+FLIP_S = int(os.getenv("SEISMO_FLIP_S", "30"))
 W, H = 296, 128
 LIGHT = float(os.getenv("SEISMO_LIGHT", "1.0"))
 LIGHT_S = float(os.getenv("SEISMO_LIGHT_S", "10"))
@@ -172,9 +178,17 @@ def press(k):
 idx = alarm.sleep_memory[0]
 page = PAGES[idx] if idx < len(PAGES) else PAGES[0]   # power-on: memory is arbitrary
 wake = alarm.wake_alarm
+step = 0                          # 1 = the next timer wake is the weather half
 
 if isinstance(wake, alarm.time.TimeAlarm):
-    page = HOME                                       # scheduled: home, refresh, sleep
+    # Scheduled: helicorder for FLIP_S, then the weather until the next refresh.
+    if alarm.sleep_memory[1] == 1:
+        page = REST
+        nap = REFRESH_S
+    else:
+        page = HOME
+        step = 1
+        nap = FLIP_S
     show(page)
 else:
     # Button wake, or a cold boot / reset: act, then stay up for follow-up presses.
@@ -198,13 +212,14 @@ else:
             break
         time.sleep(0.05)
     keys.deinit()                 # the pins are needed as alarms now
+    nap = REFRESH_S if page == HOME else HOME_AFTER_S
 
 alarm.sleep_memory[0] = PAGES.index(page)
+alarm.sleep_memory[1] = step      # a button wake abandons a half-run cycle
 if light_on:
     toggle_light()
 while display.busy:               # never cut power mid-refresh
     time.sleep(0.1)
-nap = REFRESH_S if page == HOME else HOME_AFTER_S
 print(f"sleeping {nap}s on {page}")
 alarm.exit_and_deep_sleep_until_alarms(
     alarm.time.TimeAlarm(monotonic_time=time.monotonic() + nap),
