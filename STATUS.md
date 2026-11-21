@@ -1,6 +1,6 @@
 # STATUS — Seismo
 
-_Last updated: 2026-10-28 (UTC)_
+_Last updated: 2026-11-20 (UTC)_
 
 **How to read this file:** the *Current system* section is the resume point; below it the
 recent entries run newest-first; then the reference sections that are still true; then an
@@ -129,6 +129,29 @@ Weekly-view weighted median (BACKLOG, ~November).
 ---
 
 # Recent entries (newest first)
+
+## 📏 M5.0 PINNACLES AT 240 km, AND THE WINDOW THAT BLAMED FS7 (2026-11-20)
+
+**The catch.** M5.0 10 km NW of Pinnacles, 2026-11-20 06:49:16 UTC, 240 km. pi5
+triggered live at 06:49:52 (P predicted +36.4 s), STA/LTA 136.9, 44.5 µV,
+**p_quake 0.998**, ntfy alert sent. `eventcheck` 2–5 Hz: 47× noise p99, 0/633 null
+windows (p = 0.002). Beyond the 226.5 km validated range; should extend it at the next
+reharvest.
+
+**Against FS7 (NP.1835), peak / median pre-event RMS, P..S window:** 1–2 Hz FS7 187 vs
+us 137; **2–5 Hz us 144 vs FS7 84**; 5–15 Hz FS7 18 vs us 9 (our 5–15 Hz floor is 2×
+theirs: 0.18 vs 0.096 µm/s); 1–15 Hz FS7 147 vs us 40. True peak ground velocity (FS7)
+35 µm/s, mostly 1–2 Hz, ≈ 3×10⁻⁵ g, ~30× below felt.
+
+**`refstation.py` window fixed.** It used a fixed +14..+60 s box, so at 240 km it caught P
+and missed S (+64 s). It now uses P − 2 .. S + 22 s (iasp91, the harvest box), with the
+epicentre from `--lat/--lon` or a USGS lookup; `--fixed-window` reproduces the old one.
+It also now parses arguments (`--help` crashed). Pinnacles: 3.89× RMS (old box 3.66×).
+**The M2.0 Glen Ellen "nonsense 0.88×" was the window, not the reference floor**: at 10 km
+S arrives at +3.4 s, so the old box was all coda. In its own window FS7 reads 2.45 µm/s and
+the ratio is **2.97×**. Five anchors: median **3.21×** (was 3.26×), spread **2.86–4.46×**
+(was 0.88–4.49), mean 3.53×. `PROVISIONAL_FACTOR` stays 3.20. `refstation_compare.py`
+already used the event's own box and needed no change.
 
 ## 📝 EVERY RECORD-HOLDER HAS A WRITE-UP (2026-10-28, same day)
 

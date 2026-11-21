@@ -22,13 +22,25 @@ deaf sensor from a lossy front end: that is what the bench injection is for.
 
 ⚠️ THE REFERENCE HAS A NOISE FLOOR. A strong-motion accelerometer is deaf where a
 geophone is comfortable. Below roughly 0.5 um/s RMS in this band NP.1835 is measuring
-itself, and the ratio becomes meaningless -- the M2.0 Glen Ellen gave 0.14 um/s and a
-nonsense 0.88x. REF_MIN_RMS rejects those. It also happens that the closest events are
-worst-affected geometrically, since 1.64 km of separation matters most at short range.
+itself, and the ratio becomes meaningless. REF_MIN_RMS rejects those. (The M2.0 Glen
+Ellen was long cited here as the example -- 0.14 um/s, a "nonsense" 0.88x -- but that was
+the WINDOW, not the floor: at 10 km its S is at +3.4 s and the old fixed +14..+60 s box
+sat on coda. In its own P..S window FS7 reads 2.45 um/s and the ratio is 2.97x, in line
+with the other anchors. Found 2026-11-20.) The 1.64 km separation still matters most at
+short range.
 
     python analysis/refstation.py 2026-08-13T15:30:04
+    python analysis/refstation.py 2026-11-20T06:49:16 --lat 36.607 --lon -121.208 --depth 6.4
     python analysis/refstation.py --all      # every anchor, with an epoch check
+
+THE WINDOW follows the event: P - 2 s to S + 22 s (iasp91 via harvest_events), the same
+box refstation_compare.py and the harvest use. The epicentre comes from --lat/--lon or,
+failing that, from USGS ComCat by origin time. Until 2026-11-20 it was a fixed +14..+60 s
+from origin -- right for the Geysers/San Leandro anchors it was written on, wrong past
+~150 km: for the M5.0 Pinnacles at 240 km (S at +64 s) it caught P and missed S entirely.
+--fixed-window restores the old box, so the historical anchor numbers can be reproduced.
 """
+import argparse
 import sys
 import warnings
 
@@ -68,8 +80,8 @@ PROVISIONAL_N = 4
 REF_MIN_RMS = 0.12e-6     # m/s. Was 0.5e-6, set from ONE window and far too
                           # conservative: FS7 reaches 0.086 um/s RMS (5-15 Hz) on a
                           # quiet night, so it is a better instrument than that guard
-                          # assumed. 0.12 still rejects the M2.0 Glen Ellen window,
-                          # where 1.64 km of separation dominates at 9.7 km range.
+                          # assumed. It rejected the M2.0 Glen Ellen, but that was
+                          # the old fixed window sitting on coda (see the top).
 REF = ("NP", "1835", "HNZ")  # vertical, to match our single vertical component
 
 
@@ -92,9 +104,51 @@ def reference(t0, t1, client="NCEDC"):
     return st[0]
 
 
-def compare(origin, day_path, lead=14.0, span=46.0):
-    """Returns (ratio_rms, ratio_peak) or None if the reference has no data."""
+FIXED_LEAD, FIXED_SPAN = 14.0, 46.0     # the pre-2026-11-20 box, seconds after origin
+
+
+def usgs_location(o):
+    """(lat, lon, depth_km) of the ComCat event nearest origin `o` (within 20 s), or None."""
+    try:
+        c = Client("USGS", timeout=30)
+        ev = c.get_events(starttime=o - 20, endtime=o + 20, minmagnitude=0.5)
+    except Exception as e:
+        print(f"  USGS lookup failed: {type(e).__name__}: {str(e)[:80]}")
+        return None
+    if not len(ev):
+        return None
+    best = min(ev, key=lambda e: abs(e.preferred_origin().time - o))
+    po = best.preferred_origin()
+    return po.latitude, po.longitude, (po.depth or 0.0) / 1000.0
+
+
+def event_window(o, loc):
+    """(lead, span) seconds after origin: P - 2 to S + 22, or None without a location."""
+    if loc is None:
+        return None
+    from harvest_events import arrivals_s, epi_km, hypo_km
+    lat, lon, depth = loc
+    epi = epi_km(lat, lon)
+    tp, ts = arrivals_s(epi, depth, hypo_km(lat, lon, depth))
+    print(f"  epicentral {epi:.1f} km  P +{tp:.1f} s  S +{ts:.1f} s  "
+          f"-> window +{tp - 2:.1f}..+{ts + 22:.1f} s")
+    return tp - 2.0, (ts + 22.0) - (tp - 2.0)
+
+
+def compare(origin, day_path, lead=None, span=None, loc=None):
+    """Returns (ratio_rms, ratio_peak) or None if the reference has no data.
+
+    lead/span given -> that fixed box. Otherwise the box follows the event's P and S,
+    from `loc` = (lat, lon, depth_km) or a USGS lookup; without either it falls back to
+    the old fixed box and says so."""
     o = UTCDateTime(origin)
+    if lead is None or span is None:
+        win = event_window(o, loc or usgs_location(o))
+        if win is None:
+            print(f"  no location -- falling back to the fixed +{FIXED_LEAD:.0f}.."
+                  f"+{FIXED_LEAD + FIXED_SPAN:.0f} s box")
+            win = (FIXED_LEAD, FIXED_SPAN)
+        lead, span = win
     a, b = o + lead, o + lead + span
     try:
         ref = reference(o, o + lead + span + 30)
@@ -149,7 +203,7 @@ def _day_file(o):
     return hits[0] if hits else None
 
 
-def run_all():
+def run_all(fixed=False):
     """Every anchor, combined -- and refuse to average across an amplitude boundary."""
     import numpy as np
     from obspy import UTCDateTime
@@ -159,7 +213,8 @@ def run_all():
         day = _day_file(o)
         print(f"{label}  {origin}")
         try:
-            got = compare(origin, day)
+            got = (compare(origin, day, FIXED_LEAD, FIXED_SPAN) if fixed
+                   else compare(origin, day))
         except Exception as e:
             print(f"  skipped: {type(e).__name__}: {str(e)[:80]}")
             continue
@@ -186,17 +241,46 @@ def run_all():
           f"vs {NOMINAL_SENS} nominal")
 
 
-if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--all":
-        raise SystemExit(run_all())
-    origin = sys.argv[1] if len(sys.argv) > 1 else "2026-08-13T15:30:04"
-    day = sys.argv[2] if len(sys.argv) > 2 else None
+def main(argv=None):
+    ap = argparse.ArgumentParser(
+        description="Absolute calibration: OAKM1 against NP.1835 (Fire Station 7), "
+                    f"{BAND[0]:g}-{BAND[1]:g} Hz, over the event's P..S window.")
+    ap.add_argument("origin", nargs="?", default="2026-08-13T15:30:04",
+                    help="origin time, ISO UTC (default: the M4.1 San Leandro anchor)")
+    ap.add_argument("day", nargs="?", default=None,
+                    help="our day-file (default: found in analysis/data)")
+    ap.add_argument("--all", action="store_true",
+                    help="every built-in anchor, with the amplitude-epoch check")
+    ap.add_argument("--lat", type=float, help="epicentre latitude (default: USGS lookup)")
+    ap.add_argument("--lon", type=float, help="epicentre longitude")
+    ap.add_argument("--depth", type=float, default=None, help="depth km (default 0 with --lat/--lon)")
+    ap.add_argument("--fixed-window", action="store_true",
+                    help=f"use the old fixed +{FIXED_LEAD:g}..+{FIXED_LEAD + FIXED_SPAN:g} s "
+                         "box instead of the event's P..S window")
+    args = ap.parse_args(argv)
+    if (args.lat is None) != (args.lon is None):
+        ap.error("--lat and --lon go together")
+    if args.all and (args.lat is not None or args.day is not None):
+        ap.error("--all takes no origin, day-file or location")
+    if args.fixed_window and args.lat is not None:
+        ap.error("--fixed-window ignores the location; give one or the other")
+    try:
+        o = UTCDateTime(args.origin)
+    except Exception:
+        ap.error(f"not an ISO time: {args.origin!r}")
+
+    if args.all:
+        return run_all(fixed=args.fixed_window)
+    day = args.day or _day_file(o)
     if day is None:
-        import glob
-        o = UTCDateTime(origin)
-        day = _day_file(o)
-        if day is None:
-            raise SystemExit(
-                f"no local day-file for {o.year}.{o.julday:03d} in analysis/data")
-    print(f"{origin}  band {BAND[0]}-{BAND[1]} Hz")
-    compare(origin, day)
+        raise SystemExit(f"no local day-file for {o.year}.{o.julday:03d} in analysis/data")
+    loc = (args.lat, args.lon, args.depth or 0.0) if args.lat is not None else None
+    print(f"{args.origin}  band {BAND[0]}-{BAND[1]} Hz")
+    if args.fixed_window:
+        compare(args.origin, day, FIXED_LEAD, FIXED_SPAN)
+    else:
+        compare(args.origin, day, loc=loc)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
